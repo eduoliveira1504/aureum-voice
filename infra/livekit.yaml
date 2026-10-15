@@ -1,0 +1,14 @@
+# LiveKit server configuration (development).
+# API keys come from the LIVEKIT_KEYS env var set in docker-compose.yml.
+# node_ip is passed via --node-ip (LIVEKIT_NODE_IP in .env).
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  # Small UDP range so Docker Desktop on Windows doesn't map thousands of ports.
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+
+logging:
+  level: info
