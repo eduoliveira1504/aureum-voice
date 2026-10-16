@@ -12,7 +12,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import ratelimit, social
+from app import presence, ratelimit, social
 from app.deps import CurrentUser, SessionDep
 from app.models import Friendship, FriendshipStatus, User
 from app.realtime import broker
@@ -36,8 +36,9 @@ async def _out(session: AsyncSession, row: Friendship, viewer: uuid.UUID) -> Fri
     other_id = row.addressee_id if row.requester_id == viewer else row.requester_id
     other = await session.get(User, other_id)
     assert other is not None
-    online = row.status == FriendshipStatus.accepted and other_id in await broker.online([other_id])
-    return FriendOut(user=UserPublic.model_validate(other), kind=_kind(row, viewer), since=row.created_at, online=online)
+    # Only friends see each other's status.
+    status_ = (await presence.statuses([other_id]))[other_id] if row.status == FriendshipStatus.accepted else "offline"
+    return FriendOut(user=UserPublic.model_validate(other), kind=_kind(row, viewer), since=row.created_at, status=status_)
 
 
 async def _announce(session: AsyncSession, row: Friendship) -> None:
@@ -75,7 +76,7 @@ async def list_friends(user: CurrentUser, session: SessionDep) -> list[FriendOut
     rows = list(rows)
     others = [r.addressee_id if r.requester_id == user.id else r.requester_id for r in rows]
     users = {u.id: u for u in await session.scalars(select(User).where(User.id.in_(others)))}
-    online = await broker.online(others)
+    statuses = await presence.statuses(others)
     out = []
     for row, other in zip(rows, others, strict=True):
         kind = _kind(row, user.id)
@@ -84,7 +85,7 @@ async def list_friends(user: CurrentUser, session: SessionDep) -> list[FriendOut
                 user=UserPublic.model_validate(users[other]),
                 kind=kind,
                 since=row.created_at,
-                online=kind == "friend" and other in online,
+                status=statuses[other] if kind == "friend" else "offline",
             )
         )
     return sorted(out, key=lambda f: f.user.display_name.lower())

@@ -130,12 +130,12 @@ class Broker:
         if server_id is not None:
             self._watchers[server_id].add(ws)
 
-    def _presence_key(self, user_id: uuid.UUID) -> str:
+    def presence_key(self, user_id: uuid.UUID) -> str:
         return f"{self._presence_prefix}:{user_id}"
 
     async def heartbeat(self, user_id: uuid.UUID, connection_id: str) -> bool:
         """Marks a connection alive. Returns True if the user just came online."""
-        key = self._presence_key(user_id)
+        key = self.presence_key(user_id)
         now = time.time()
         async with self.redis.pipeline(transaction=True) as pipe:
             pipe.zremrangebyscore(key, "-inf", now)
@@ -147,7 +147,7 @@ class Broker:
 
     async def disconnect(self, user_id: uuid.UUID, connection_id: str) -> bool:
         """Drops a connection. Returns True if the user is now offline."""
-        key = self._presence_key(user_id)
+        key = self.presence_key(user_id)
         async with self.redis.pipeline(transaction=True) as pipe:
             pipe.zrem(key, connection_id)
             pipe.zcount(key, time.time(), "+inf")
@@ -162,7 +162,7 @@ class Broker:
         try:
             async with self.redis.pipeline(transaction=False) as pipe:
                 for user_id in ids:
-                    pipe.zcount(self._presence_key(user_id), now, "+inf")
+                    pipe.zcount(self.presence_key(user_id), now, "+inf")
                 counts = await pipe.execute()
         except Exception:
             log.exception("Failed to read presence")

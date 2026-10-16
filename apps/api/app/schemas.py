@@ -2,9 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints, computed_field
 
-from app.models import DEFAULT_ACCENT, ChannelType, MemberRole, Theme
+from app.models import DEFAULT_ACCENT, ChannelType, MemberRole, Theme, UserStatus
 from app.voice import VoiceState
 
 Username = Annotated[
@@ -58,6 +58,19 @@ class UserMe(UserPublic):
     email: str
 
 
+# What others see (see app.presence): invisible users show as offline.
+Presence = Literal["online", "idle", "dnd", "offline"]
+
+
+class WithPresence(BaseModel):
+    status: Presence = "offline"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def online(self) -> bool:
+        return self.status != "offline"
+
+
 class UserUpdate(BaseModel):
     display_name: DisplayName | None = None
     bio: Annotated[str, Field(max_length=190)] | None = None
@@ -102,6 +115,7 @@ class SettingsOut(BaseModel):
     theme: Theme = Theme.dark
     accent_color: str = DEFAULT_ACCENT
     sounds: SoundSettings = SoundSettings()
+    status: UserStatus = UserStatus.online
     tab_order: list[uuid.UUID] = []
     closed_tabs: list[uuid.UUID] = []
     sidebar_collapsed: bool = False
@@ -112,6 +126,7 @@ class SettingsUpdate(BaseModel):
     theme: Theme | None = None
     accent_color: AccentColor | None = None
     sounds: SoundSettings | None = None
+    status: UserStatus | None = None
     tab_order: TabList | None = None
     closed_tabs: TabList | None = None
     sidebar_collapsed: bool | None = None
@@ -131,11 +146,10 @@ class FriendRequest(BaseModel):
     username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=33)]
 
 
-class FriendOut(BaseModel):
+class FriendOut(WithPresence):
     user: UserPublic
     kind: FriendKind
     since: datetime
-    online: bool = False
 
 
 # --- Servers, channels, invites -------------------------------------------
@@ -181,13 +195,12 @@ class ChannelOut(BaseModel):
     position: int
 
 
-class MemberOut(BaseModel):
+class MemberOut(WithPresence):
     model_config = ConfigDict(from_attributes=True)
 
     user: UserPublic
     role: MemberRole
     joined_at: datetime
-    online: bool = False
 
 
 class ReadStateOut(BaseModel):
@@ -225,9 +238,8 @@ class CallRing(BaseModel):
 MAX_GROUP_MEMBERS = 10
 
 
-class DmMemberOut(BaseModel):
+class DmMemberOut(WithPresence):
     user: UserPublic
-    online: bool = False
 
 
 class DmOut(BaseModel):

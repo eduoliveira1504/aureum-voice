@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import reads, voice
+from app import presence, reads, voice
 from app.access import get_membership, require_manager, server_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Invite, MemberRole, Server, ServerMember
@@ -47,7 +47,7 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
             select(ServerMember).where(ServerMember.server_id == server.id).order_by(ServerMember.joined_at)
         )
     )
-    online = await broker.online(m.user_id for m in members)
+    statuses = await presence.statuses(m.user_id for m in members)
     try:
         voice_states = await voice.get_states(voice.server_scope(server.id))
     except Exception:  # Redis down: still serve the server, just without voice info
@@ -55,7 +55,7 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
     return ServerDetail(
         **ServerOut.model_validate(server).model_dump(),
         channels=[ChannelOut.model_validate(c) for c in channels],
-        members=[MemberOut.model_validate(m).model_copy(update={"online": m.user_id in online}) for m in members],
+        members=[MemberOut.model_validate(m).model_copy(update={"status": statuses[m.user_id]}) for m in members],
         voice_states=voice_states,
         reads=[
             ReadStateOut(channel_id=c, last_read_message_id=last, unread_count=unread, mention_count=mentions)
@@ -65,8 +65,8 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
 
 
 async def member_out(session: AsyncSession, member: ServerMember) -> MemberOut:
-    online = await broker.online([member.user_id])
-    return MemberOut.model_validate(member).model_copy(update={"online": member.user_id in online})
+    statuses = await presence.statuses([member.user_id])
+    return MemberOut.model_validate(member).model_copy(update={"status": statuses[member.user_id]})
 
 
 # --- Servers --------------------------------------------------------------------

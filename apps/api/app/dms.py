@@ -10,7 +10,7 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import reads, voice
+from app import presence, reads, voice
 from app.models import Channel, ChannelMember, ChannelType, Message
 from app.realtime import broker
 from app.schemas import CallOut, DmMemberOut, DmOut, ReadStateOut, UserPublic
@@ -30,7 +30,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
         return []
     ids = [c.id for c in channels]
     members = list(await session.scalars(select(ChannelMember).where(ChannelMember.channel_id.in_(ids))))
-    online = await broker.online({m.user_id for m in members})
+    statuses = await presence.statuses(m.user_id for m in members)
     rows = await session.execute(
         select(Message.channel_id, func.max(Message.id)).where(Message.channel_id.in_(ids)).group_by(Message.channel_id)
     )
@@ -47,7 +47,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
                 type=channel.type,
                 name=channel.name,
                 members=[
-                    DmMemberOut(user=UserPublic.model_validate(m.user), online=m.user_id in online)
+                    DmMemberOut(user=UserPublic.model_validate(m.user), status=statuses[m.user_id])
                     for m in sorted(members, key=lambda m: m.joined_at)
                     if m.channel_id == channel.id
                 ],

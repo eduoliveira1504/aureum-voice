@@ -86,11 +86,11 @@ async def test_membership_and_presence_events(client: AsyncClient) -> None:
 
         async with aconnect_ws(ws_url(friend), wsc) as fws:
             await next_event(fws, "ready")
-            assert await next_event(ows, "presence.updated") == {"user_id": friend.id, "online": True}
+            assert await next_event(ows, "presence.updated") == {"user_id": friend.id, "status": "online", "online": True}
             detail = (await owner.get(f"/servers/{server['id']}")).json()
             assert {m["user"]["id"]: m["online"] for m in detail["members"]} == {owner.id: True, friend.id: True}
 
-        assert await next_event(ows, "presence.updated") == {"user_id": friend.id, "online": False}
+        assert await next_event(ows, "presence.updated") == {"user_id": friend.id, "status": "offline", "online": False}
 
         await owner.post(f"/servers/{server['id']}/channels", {"name": "Lobby", "type": "voice"})
         assert (await next_event(ows, "channel.created"))["name"] == "Lobby"

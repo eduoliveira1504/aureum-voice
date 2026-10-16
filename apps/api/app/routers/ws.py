@@ -6,12 +6,12 @@ from typing import Any
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from app import calls, voice
-from app.access import audience_ids, channel_member_ids, server_member_ids
+from app import calls, presence, voice
+from app.access import channel_member_ids, server_member_ids
 from app.config import get_settings
 from app.db import SessionLocal
 from app.dms import DM_TYPES
-from app.models import Channel, ChannelMember, ChannelType, ServerMember, User
+from app.models import Channel, ChannelMember, ChannelType, ServerMember, User, UserSettings, UserStatus
 from app.realtime import broker
 from app.security import decode_token
 
@@ -52,12 +52,6 @@ async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> voice.Scope
             if await calls.active_call(session, channel_id) is not None:
                 return voice.dm_scope(channel_id)
         return None
-
-
-async def _publish_presence(user_id: uuid.UUID, online: bool) -> None:
-    async with SessionLocal() as session:
-        recipients = await audience_ids(session, user_id)
-    await broker.publish("presence.updated", {"user_id": str(user_id), "online": online}, recipients)
 
 
 async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:
@@ -117,10 +111,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
         return
     await websocket.accept()
     user_id = decode_token(token, "access")
+    chosen = UserStatus.online
     if user_id is not None:
         async with SessionLocal() as session:
             if await session.get(User, user_id) is None:
                 user_id = None
+            elif settings := await session.get(UserSettings, user_id):
+                chosen = settings.status
     if user_id is None:
         await websocket.close(code=CLOSE_UNAUTHORIZED)
         return
@@ -129,8 +126,9 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
     connection_id = uuid.uuid4().hex
     broker.register(user_id, websocket)
     try:
-        if await broker.heartbeat(user_id, connection_id):
-            await _publish_presence(user_id, True)
+        await presence.set_chosen(user_id, chosen)
+        await broker.heartbeat(user_id, connection_id)
+        await presence.announce(user_id)
         await websocket.send_json({"type": "ready", "data": {"user_id": str(user_id)}})
 
         while True:
@@ -153,11 +151,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
                 await _handle_overview_watch(websocket, user_id, message.get("data"))
             elif message.get("type") == "screen.thumbnail":
                 await _handle_thumbnail(user_id, message.get("data"))
+            elif message.get("type") == "presence.idle":
+                # The client's PC has had no input for a while (or has again).
+                data = message.get("data")
+                idle = isinstance(data, dict) and data.get("idle") is True
+                await presence.set_idle(user_id, connection_id, idle)
+                await presence.announce(user_id)
     except WebSocketDisconnect:
         pass
     finally:
         broker.unregister(user_id, websocket)
+        await presence.forget_connection(user_id, connection_id)
         if await broker.disconnect(user_id, connection_id):
             # Last connection gone: the user can't be in a call anymore.
             await voice.leave(user_id, _recipients)
-            await _publish_presence(user_id, False)
+        await presence.announce(user_id)

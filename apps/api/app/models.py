@@ -71,6 +71,16 @@ class Theme(str, enum.Enum):
     system = "system"
 
 
+class UserStatus(str, enum.Enum):
+    """The status a user picks. Idle also turns on by itself after a while without input, and
+    invisible shows the user as offline to everyone else."""
+
+    online = "online"
+    idle = "idle"
+    dnd = "dnd"
+    invisible = "invisible"
+
+
 class FriendshipStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
@@ -120,6 +130,12 @@ class UserSettings(Base):
     )
     sounds: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    status: Mapped[UserStatus] = mapped_column(
+        _str_enum(UserStatus, "user_status"),
+        default=UserStatus.online,
+        server_default=UserStatus.online.value,
+        nullable=False,
     )
     # App shell layout, so it looks the same on every PC. Tabs are server ids.
     tab_order: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")

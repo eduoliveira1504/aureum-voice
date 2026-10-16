@@ -12,6 +12,7 @@ DEFAULTS = {
     "closed_tabs": [],
     "sidebar_collapsed": False,
     "panel_layouts": {},
+    "status": "online",
 }
 
 

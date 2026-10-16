@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
-from app import storage
+from app import presence, storage
 from app.access import audience_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import User, UserSettings
@@ -61,6 +61,9 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
         setattr(row, field, value)
     await session.commit()
     await session.refresh(row)
+    if body.status is not None:
+        await presence.set_chosen(user.id, row.status)
+        await presence.announce(user.id)
     # Other signed-in devices of the same user switch theme live.
     await broker.publish("settings.updated", SettingsOut.model_validate(row).model_dump(mode="json"), [user.id])
     return row
