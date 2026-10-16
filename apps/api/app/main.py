@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import storage
 from app.config import get_settings
 from app.realtime import broker
-from app.routers import auth, channels, servers, users, ws
+from app.routers import auth, channels, friends, servers, users, ws
 
 settings = get_settings()
 
@@ -44,6 +44,7 @@ api.include_router(users.router)
 api.include_router(users.media_router)
 api.include_router(servers.router)
 api.include_router(channels.router)
+api.include_router(friends.router)
 
 
 @api.get("/health", tags=["health"])

@@ -120,6 +120,24 @@ class SettingsUpdate(BaseModel):
     panel_layouts: Annotated[dict[uuid.UUID, PanelLayout | None], Field(max_length=50)] | None = None
 
 
+# --- Friends --------------------------------------------------------------
+
+# friend: accepted both ways | incoming/outgoing: a pending request | blocked: blocked by me.
+FriendKind = Literal["friend", "incoming", "outgoing", "blocked"]
+
+
+class FriendRequest(BaseModel):
+    # Accepts "@name" too, as people type it.
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=33)]
+
+
+class FriendOut(BaseModel):
+    user: UserPublic
+    kind: FriendKind
+    since: datetime
+    online: bool = False
+
+
 # --- Servers, channels, invites -------------------------------------------
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]

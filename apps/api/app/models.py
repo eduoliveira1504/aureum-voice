@@ -20,6 +20,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -68,6 +69,12 @@ class Theme(str, enum.Enum):
     dark = "dark"
     light = "light"
     system = "system"
+
+
+class FriendshipStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    blocked = "blocked"
 
 
 class ChannelType(str, enum.Enum):
@@ -244,3 +251,35 @@ class ChannelRead(Base):
     )
     # @username mentions of this user since the last read.
     mention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
+class Friendship(Base):
+    """A friend request, a friendship or a block between two users.
+
+    Requests and friendships are one row per pair, whoever sent it (requester_id). Blocks are
+    one-way: the blocker is the requester, and both people can block each other (two rows).
+    """
+
+    __tablename__ = "friendships"
+
+    requester_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    addressee_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    status: Mapped[FriendshipStatus] = mapped_column(
+        _str_enum(FriendshipStatus, "friendship_status"), nullable=False
+    )
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (
+        # One request/friendship per pair, in either direction (two crossed requests can't race).
+        Index(
+            "uq_friendships_pair",
+            func.least(text("requester_id"), text("addressee_id")),
+            func.greatest(text("requester_id"), text("addressee_id")),
+            unique=True,
+            postgresql_where=text("status <> 'blocked'"),
+        ),
+    )
