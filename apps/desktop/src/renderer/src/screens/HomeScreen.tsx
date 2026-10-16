@@ -4,10 +4,12 @@ import { ChannelSidebar, UserPanel } from '../components/ChannelSidebar'
 import { ChatView } from '../components/ChatView'
 import { MemberList } from '../components/MemberList'
 import { AddServerModal } from '../components/modals'
+import { VoiceView } from '../components/VoiceView'
 import { ServerBar } from '../components/ServerBar'
-import type { Channel, Me } from '../lib/api'
-import { Realtime } from '../lib/realtime'
+import type { Channel, Me, ServerDetail } from '../lib/api'
+import { Realtime, setActiveRealtime } from '../lib/realtime'
 import { defaultChannel, useChat } from '../store/chat'
+import { useVoice } from '../store/voice'
 
 /** App shell: server bar | channel list | content | members. */
 export function HomeScreen({ user }: { user: Me }): ReactNode {
@@ -24,9 +26,14 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
       (event) => useChat.getState().applyEvent(event),
       (s) => useChat.getState().setStatus(s)
     )
+    setActiveRealtime(realtime)
     realtime.start()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
-    return () => realtime.stop()
+    return () => {
+      void useVoice.getState().leave()
+      setActiveRealtime(null)
+      realtime.stop()
+    }
   }, [user.id])
 
   const channel = server && (server.channels.find((c) => c.id === selectedChannelId) ?? defaultChannel(server))
@@ -44,7 +51,7 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
         {server ? (
           <>
             <ChannelSidebar server={server} selectedChannelId={channel?.id} me={user} />
-            <Content channel={channel} me={user} canModerate={myRole === 'owner' || myRole === 'admin'} />
+            <Content server={server} channel={channel} me={user} canModerate={myRole === 'owner' || myRole === 'admin'} />
             <MemberList server={server} />
           </>
         ) : (
@@ -61,12 +68,22 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
   )
 }
 
-function Content({ channel, me, canModerate }: { channel?: Channel; me: Me; canModerate: boolean }): ReactNode {
+function Content({
+  server,
+  channel,
+  me,
+  canModerate
+}: {
+  server: ServerDetail
+  channel?: Channel
+  me: Me
+  canModerate: boolean
+}): ReactNode {
   if (!channel) {
     return <Placeholder title="Nenhum canal" text="Crie um canal pelo menu do servidor." />
   }
   if (channel.type === 'text') return <ChatView channel={channel} me={me} canModerate={canModerate} />
-  return <Placeholder title={`🔊 ${channel.name}`} text="Canais de voz chegam na próxima etapa (voz, câmera e tela)." />
+  return <VoiceView server={server} channel={channel} meId={me.id} />
 }
 
 function Placeholder({ title, text }: { title: string; text: string }): ReactNode {

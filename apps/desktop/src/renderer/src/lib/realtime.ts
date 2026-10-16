@@ -12,6 +12,17 @@ const MAX_BACKOFF_MS = 30_000
 // Server close code for an invalid/expired token.
 const CLOSE_UNAUTHORIZED = 4401
 
+let active: Realtime | null = null
+
+/** The connection of the signed-in session (set by the app shell). */
+export function setActiveRealtime(realtime: Realtime | null): void {
+  active = realtime
+}
+
+export function sendRealtime(type: string, data: unknown): boolean {
+  return active?.send(type, data) ?? false
+}
+
 /** WebSocket client for /ws with heartbeats and automatic reconnection (exponential backoff). */
 export class Realtime {
   private ws: WebSocket | null = null
@@ -29,6 +40,13 @@ export class Realtime {
   start(): void {
     this.stopped = false
     void this.connect()
+  }
+
+  /** Sends a message if connected; returns false otherwise (state is re-sent on 'ready'). */
+  send(type: string, data: unknown): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false
+    this.ws.send(JSON.stringify({ type, data }))
+    return true
   }
 
   stop(): void {

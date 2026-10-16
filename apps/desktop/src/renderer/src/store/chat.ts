@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type Server, type ServerDetail } from '../lib/api'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
+import { useVoice } from './voice'
 
 const PAGE_SIZE = 50
 
@@ -77,6 +78,7 @@ export const useChat = create<ChatState>()((set, get) => {
 
   const removeServer = (id: string): void => {
     serverMutations++
+    if (useVoice.getState().serverId === id) void useVoice.getState().leave()
     set((st) => {
       const servers = { ...st.servers }
       delete servers[id]
@@ -184,9 +186,11 @@ export const useChat = create<ChatState>()((set, get) => {
       const { meId } = get()
       switch (type) {
         case 'ready':
-          // (Re)connected: refetch so nothing missed while offline is lost.
+          // (Re)connected: refetch so nothing missed while offline is lost, and tell the
+          // server we're still in a call (it drops voice state when connections close).
           set({ messages: {} })
           void get().loadServers()
+          useVoice.getState().announce()
           break
 
         case 'message.created':
@@ -205,6 +209,7 @@ export const useChat = create<ChatState>()((set, get) => {
           }))
           break
         case 'channel.deleted':
+          if (useVoice.getState().channelId === data.id) void useVoice.getState().leave()
           patchServer(data.server_id, (s) => ({ ...s, channels: s.channels.filter((c) => c.id !== data.id) }))
           break
 
@@ -225,6 +230,13 @@ export const useChat = create<ChatState>()((set, get) => {
         case 'server.member.left':
           if (data.user_id === meId) removeServer(data.server_id)
           else patchServer(data.server_id, (s) => ({ ...s, members: s.members.filter((m) => m.user.id !== data.user_id) }))
+          break
+
+        case 'voice.state':
+          patchServer(data.server_id, (s) => ({
+            ...s,
+            voice_states: [...s.voice_states.filter((v) => v.user_id !== data.user_id), ...(data.state ? [data.state] : [])]
+          }))
           break
 
         case 'presence.updated':

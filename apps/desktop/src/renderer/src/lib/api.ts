@@ -44,9 +44,19 @@ export interface Server {
   created_at: string
 }
 
+export interface VoiceState {
+  user_id: string
+  channel_id: string
+  muted: boolean
+  deafened: boolean
+  camera: boolean
+  screen: boolean
+}
+
 export interface ServerDetail extends Server {
   channels: Channel[]
   members: Member[]
+  voice_states: VoiceState[]
 }
 
 export interface Invite {

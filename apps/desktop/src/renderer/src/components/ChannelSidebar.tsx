@@ -1,9 +1,11 @@
+import { HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Settings, Video } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { useAuth } from '../auth/AuthProvider'
 import { api, type Channel, type Me, type ServerDetail } from '../lib/api'
 import { useChat } from '../store/chat'
+import { useVoice } from '../store/voice'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
+import { SettingsModal } from './SettingsModal'
 import { Avatar } from './ui'
 
 type Dialog =
@@ -23,6 +25,7 @@ export function ChannelSidebar({
   me: Me
 }): ReactNode {
   const selectChannel = useChat((s) => s.selectChannel)
+  const joinVoice = useVoice((s) => s.join)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const myRole = server.members.find((m) => m.user.id === me.id)?.role
   const canManage = myRole === 'owner' || myRole === 'admin'
@@ -62,13 +65,17 @@ export function ChannelSidebar({
               .map((channel) => {
                 const active = channel.id === selectedChannelId
                 return (
-                  <div
-                    key={channel.id}
-                    className={`group flex items-center rounded ${active ? 'bg-surface-3 text-fg' : 'text-fg-subtle hover:bg-surface-3/50 hover:text-fg-muted'}`}
-                  >
+                  <div key={channel.id}>
+                    <div
+                      className={`group flex items-center rounded ${active ? 'bg-surface-3 text-fg' : 'text-fg-subtle hover:bg-surface-3/50 hover:text-fg-muted'}`}
+                    >
                     <button
                       type="button"
-                      onClick={() => selectChannel(server.id, channel.id)}
+                      onClick={() => {
+                        selectChannel(server.id, channel.id)
+                        // Clicking a voice channel joins it, like Discord.
+                        if (channel.type === 'voice') void joinVoice(server.id, channel.id)
+                      }}
                       className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left"
                     >
                       <span className="w-5 shrink-0 text-center text-base opacity-70">{icon}</span>
@@ -84,6 +91,8 @@ export function ChannelSidebar({
                         ✕
                       </button>
                     )}
+                    </div>
+                    {channel.type === 'voice' && <VoiceMembers server={server} channelId={channel.id} />}
                   </div>
                 )
               })}
@@ -91,6 +100,7 @@ export function ChannelSidebar({
         ))}
       </div>
 
+      <VoiceStatusPanel server={server} />
       <UserPanel user={me} />
 
       {dialog?.kind === 'invite' && <InviteModal server={server} onClose={() => setDialog(null)} />}
@@ -186,11 +196,94 @@ function ServerMenu({
   )
 }
 
-export function UserPanel({ user }: { user: Me }): ReactNode {
-  const { logout } = useAuth()
-  const status = useChat((s) => s.status)
+/** Who is in a voice channel, shown under it in the channel list. */
+function VoiceMembers({ server, channelId }: { server: ServerDetail; channelId: string }): ReactNode {
+  const speaking = useVoice((s) => s.speaking)
+  const states = server.voice_states.filter((v) => v.channel_id === channelId)
+  if (states.length === 0) return null
+  const members = new Map(server.members.map((m) => [m.user.id, m]))
+
   return (
-    <div className="flex h-[52px] items-center gap-2 bg-surface-0/60 px-2">
+    <ul className="mb-1 ml-7 space-y-0.5">
+      {states.map((v) => {
+        const user = members.get(v.user_id)?.user
+        const name = user?.display_name ?? '…'
+        return (
+          <li key={v.user_id} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm text-fg-muted hover:bg-surface-3/40">
+            <span className={`rounded-full ${speaking.includes(v.user_id) ? 'ring-2 ring-green-500' : ''}`}>
+              <Avatar name={name} url={user?.avatar_url} size={22} />
+            </span>
+            <span className="min-w-0 flex-1 truncate">{name}</span>
+            {v.camera && <Video size={14} className="shrink-0 text-fg-subtle" />}
+            {v.deafened ? (
+              <HeadphoneOff size={14} className="shrink-0 text-danger" />
+            ) : (
+              v.muted && <MicOff size={14} className="shrink-0 text-danger" />
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+const PHASE_LABEL = { connecting: 'Conectando…', reconnecting: 'Reconectando…', connected: 'Voz conectada' }
+
+/** "Voice connected" bar above the user panel while in a call. */
+function VoiceStatusPanel({ server }: { server: ServerDetail }): ReactNode {
+  const { phase, serverId, channelId, error, leave, clearError } = useVoice()
+  const servers = useChat((s) => s.servers)
+
+  if (phase === 'idle') {
+    if (!error) return null
+    return (
+      <div className="flex items-start gap-2 border-b border-surface-0 bg-danger/15 px-3 py-2 text-xs">
+        <span className="flex-1">{error}</span>
+        <button type="button" onClick={clearError} className="text-fg-muted hover:text-fg" aria-label="Fechar">
+          ✕
+        </button>
+      </div>
+    )
+  }
+
+  const voiceServer = (serverId && servers[serverId]) || server
+  const channel = voiceServer.channels.find((c) => c.id === channelId)
+
+  return (
+    <div className="border-b border-surface-0 bg-surface-0/40 px-2 py-2">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className={`text-sm font-semibold ${phase === 'connected' ? 'text-green-500' : 'text-accent'}`}>
+            {PHASE_LABEL[phase]}
+          </div>
+          <div className="truncate text-xs text-fg-subtle">
+            {channel?.name} / {voiceServer.name}
+          </div>
+        </div>
+        <button
+          type="button"
+          title="Desconectar"
+          aria-label="Desconectar"
+          onClick={leave}
+          className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg"
+        >
+          <PhoneOff size={18} />
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
+  )
+}
+
+export function UserPanel({ user }: { user: Me }): ReactNode {
+  const status = useChat((s) => s.status)
+  const { muted, deafened, toggleMute, toggleDeafen } = useVoice()
+  const [settings, setSettings] = useState(false)
+  const micOff = muted || deafened
+  const iconButton = 'rounded p-1.5 hover:bg-surface-3'
+
+  return (
+    <div className="flex h-[52px] items-center gap-1 bg-surface-0/60 px-2">
       <div className="relative">
         <Avatar name={user.display_name} url={user.avatar_url} />
         <span
@@ -198,13 +291,38 @@ export function UserPanel({ user }: { user: Me }): ReactNode {
           className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-surface-1 ${status === 'online' ? 'bg-green-500' : 'bg-fg-subtle'}`}
         />
       </div>
-      <div className="min-w-0 flex-1 leading-tight">
+      <div className="ml-1 min-w-0 flex-1 leading-tight">
         <div className="truncate text-sm font-semibold">{user.display_name}</div>
         <div className="truncate text-xs text-fg-subtle">@{user.username}</div>
       </div>
-      <button type="button" title="Sair da conta" onClick={logout} className="rounded px-2 py-1 text-xs text-fg-muted hover:bg-surface-3 hover:text-fg">
-        Sair
+      <button
+        type="button"
+        title={micOff ? 'Ativar microfone' : 'Silenciar'}
+        aria-label={micOff ? 'Ativar microfone' : 'Silenciar'}
+        onClick={toggleMute}
+        className={`${iconButton} ${micOff ? 'text-danger' : 'text-fg-muted'}`}
+      >
+        {micOff ? <MicOff size={18} /> : <Mic size={18} />}
       </button>
+      <button
+        type="button"
+        title={deafened ? 'Ativar áudio' : 'Desativar áudio'}
+        aria-label={deafened ? 'Ativar áudio' : 'Desativar áudio'}
+        onClick={toggleDeafen}
+        className={`${iconButton} ${deafened ? 'text-danger' : 'text-fg-muted'}`}
+      >
+        {deafened ? <HeadphoneOff size={18} /> : <Headphones size={18} />}
+      </button>
+      <button
+        type="button"
+        title="Configurações"
+        aria-label="Configurações"
+        onClick={() => setSettings(true)}
+        className={`${iconButton} text-fg-muted`}
+      >
+        <Settings size={18} />
+      </button>
+      {settings && <SettingsModal onClose={() => setSettings(false)} />}
     </div>
   )
 }
