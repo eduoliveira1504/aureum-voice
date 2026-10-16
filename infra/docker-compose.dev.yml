@@ -1,0 +1,13 @@
+# Development override: publishes the data services on 127.0.0.1 so the API tests,
+# Alembic and tools on the host can reach them. Never use it on a shared/exposed machine.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+  redis:
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+  minio:
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"          # S3 API
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"  # Web console

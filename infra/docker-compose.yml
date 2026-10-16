@@ -1,6 +1,11 @@
-# Aureum Voice — local development stack.
-# Run from the repository root:
+# Aureum Voice stack (everything except the desktop app). Run from the repository root.
+#
+# Plan B / hosted mode — LiveKit Cloud for media, only the API reachable (on 127.0.0.1):
 #   docker compose --env-file .env -f infra/docker-compose.yml up -d
+#
+# Fully local development — also runs LiveKit and publishes Postgres/Redis/MinIO on
+# 127.0.0.1 so tests and Alembic can run from the host:
+#   docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.dev.yml --profile local-livekit up -d
 name: aureum-voice
 
 services:
@@ -11,8 +16,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +30,6 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD}
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -37,8 +38,10 @@ services:
       timeout: 5s
       retries: 10
 
+  # Local media server, only for fully local development (plan B uses LiveKit Cloud).
   livekit:
     image: livekit/livekit-server:v1.13.10
+    profiles: ["local-livekit"]
     restart: unless-stopped
     command:
       - --config=/etc/livekit.yaml
@@ -67,9 +70,6 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000"          # S3 API
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"  # Web console
     volumes:
       - minio-data:/data
     healthcheck:
@@ -90,6 +90,7 @@ services:
       REDIS_PORT: 6379
       MINIO_ENDPOINT: minio:9000
     ports:
+      # Localhost only: the public entry point is a reverse proxy (Tailscale Funnel now, Caddy later).
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:
       postgres:
