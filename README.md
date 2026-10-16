@@ -11,7 +11,13 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Email + password accounts (Argon2, short-lived JWT access tokens + refresh tokens kept in the OS
   keychain via Electron `safeStorage`)
 - Invite-only sign-up: a new account needs an invite code, which also puts the user in that server
-- Servers, text and voice channels, invites with expiry and use limits, roles (owner / admin / member)
+- Servers with an icon and an animated banner, text and voice channels, invites with expiry and use limits
+- Roles with a color, an icon and 24 permissions, ranked by drag and drop: nobody manages a role or a
+  member at or above their own, and per-channel overrides for roles and members can make a channel
+  private. The API checks every route and WebSocket event, and LiveKit tokens only allow what the member
+  may publish. Kick and ban from the server settings
+  ([ADR 0007](docs/decisions/0007-roles-and-permissions.md))
+- A collapsible member list grouped by the roles shown separately, with offline members at the end
 - Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
 - Unread counters and `@username` mention badges per channel, synced across devices
 - Friends by `@username` (requests, accept / decline / cancel, unfriend, block), DMs and group DMs of up
@@ -204,7 +210,7 @@ LiveKit URL from the API, and the API URL is only a build setting.
 
 ## Roadmap
 
-- Server roles with permissions, server icons and banners
+- Nicknames, role mentions and voice moderation (server mute, move): their permissions already exist
 - Richer profiles and the app's own sound set
 - In-game camera overlay
 - Add-ons: a Kanban board and "watch together" first (shown as placeholders in the shell), later a
