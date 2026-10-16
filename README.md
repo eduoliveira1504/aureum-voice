@@ -12,7 +12,18 @@ for real-time media. The whole stack is open source and designed to run at zero 
   keychain via Electron `safeStorage`)
 - Invite-only sign-up: a new account needs an invite code, which also puts the user in that server
 - Servers, text and voice channels, invites with expiry and use limits, roles (owner / admin / member)
-- Real-time chat (send, edit, delete), presence and voice state over a single WebSocket
+- Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
+- Unread counters and `@username` mention badges per channel, synced across devices
+- An app shell of its own:
+  - a tab bar with Home and one tab per open server (drag to reorder, close and reopen);
+  - a sidebar that follows the tab, with rooms, conversations and add-ons, collapsible to icons;
+  - up to two panels side by side, each with its own tabs.
+  
+  The layout follows the user to any PC ([ADR 0005](docs/decisions/0005-app-shell-panels-and-read-state.md)).
+- A server overview showing who's in which room and live screen thumbnails (low-res JPEGs over the
+  API WebSocket, so watching costs no media bandwidth), unread news and who's online
+- A floating call window that snaps to any corner and minimizes to the sidebar; the call expands
+  into a panel or fullscreen
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection with noise suppression
 - Grid and Focus call layouts (click any tile to focus it), several live screens at once with per-stream
   volume and fullscreen; simulcast + adaptive stream keep each viewer's download to what is on screen
@@ -184,7 +195,8 @@ LiveKit URL from the API, and the API URL is only a build setting.
 
 ## Roadmap
 
-- Direct messages, group DMs and private calls with ringing
+- Direct messages, group DMs and private calls with ringing (the Home tab already has their place)
 - In-game camera overlay
-- Add-ons (e.g. a BlueMap Minecraft map), listening to music together
+- Add-ons: a Kanban board and "watch together" first (shown as placeholders in the shell), later a
+  BlueMap Minecraft map and listening to music together
 - Sign in with Google and Discord (the `oauth_accounts` table is already in the schema)
