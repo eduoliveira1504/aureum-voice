@@ -5,8 +5,16 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import reads, voice
-from app.access import MANAGERS, get_channel_for_member, require_manager, server_member_ids
+from app import dms, reads, social, voice
+from app.access import (
+    MANAGERS,
+    channel_audience,
+    channel_member_ids,
+    get_channel_access,
+    get_channel_for_member,
+    require_manager,
+    server_member_ids,
+)
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Message, ServerMember
@@ -72,13 +80,27 @@ async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: Session
 # --- Messages -------------------------------------------------------------------
 
 
+def _server_id(channel: Channel) -> str | None:
+    return str(channel.server_id) if channel.server_id else None
+
+
 async def _text_channel(
     session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[Channel, ServerMember]:
-    channel, member = await get_channel_for_member(session, channel_id, user_id)
-    if channel.type != ChannelType.text:
+) -> tuple[Channel, ServerMember | None]:
+    """A channel that holds messages: a server text channel, a DM or a group."""
+    channel, member = await get_channel_access(session, channel_id, user_id)
+    if channel.type not in (ChannelType.text, *dms.DM_TYPES):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a text channel")
     return channel, member
+
+
+async def _require_dm_friends(session: AsyncSession, channel: Channel, user_id: uuid.UUID) -> None:
+    """A 1:1 DM stays readable after an unfriend or a block, but only friends can write."""
+    if channel.type != ChannelType.dm:
+        return
+    other = next(u for u in await channel_member_ids(session, channel.id) if u != user_id)
+    if not await social.are_friends(session, user_id, other):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only message your friends")
 
 
 @router.get("/channels/{channel_id}/messages", response_model=list[MessageOut])
@@ -101,17 +123,20 @@ async def list_messages(
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
     channel, _ = await _text_channel(session, channel_id, user.id)
-    assert channel.server_id is not None
+    await _require_dm_friends(session, channel, user.id)
     message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
     session.add(message)
     await session.flush()
-    mentioned = await reads.record_mentions(session, message, channel.server_id)
+    # In DMs every message is for everyone in it; @mentions only matter in servers.
+    mentioned = await reads.record_mentions(session, message, channel.server_id) if channel.server_id else []
     await session.commit()
     await session.refresh(message, ["author"])
+    if channel.server_id is None:
+        await dms.reveal(session, channel)  # before the message, so the conversation exists
     out = MessageOut.model_validate(message)
     # `mentions` rides along in the event only, so clients can bump their mention badges live.
-    event = {**out.model_dump(mode="json"), "server_id": str(channel.server_id), "mentions": [str(u) for u in mentioned]}
-    await broker.publish("message.created", event, await server_member_ids(session, channel.server_id))
+    event = {**out.model_dump(mode="json"), "server_id": _server_id(channel), "mentions": [str(u) for u in mentioned]}
+    await broker.publish("message.created", event, await channel_audience(session, channel))
     return out
 
 
@@ -122,17 +147,17 @@ async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDe
     await session.commit()
     out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=0)
     # The user's other devices clear their badges too.
-    await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": str(channel.server_id)}, [user.id])
+    await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": _server_id(channel)}, [user.id])
     return out
 
 
 async def _message_for_member(
     session: AsyncSession, message_id: int, user_id: uuid.UUID
-) -> tuple[Message, Channel, ServerMember]:
+) -> tuple[Message, Channel, ServerMember | None]:
     message = await session.get(Message, message_id)
     if message is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Message not found")
-    channel, member = await get_channel_for_member(session, message.channel_id, user_id)
+    channel, member = await get_channel_access(session, message.channel_id, user_id)
     return message, channel, member
 
 
@@ -146,14 +171,15 @@ async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, 
     await session.commit()
     await session.refresh(message)
     out = MessageOut.model_validate(message)
-    await broker.publish("message.updated", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    await broker.publish("message.updated", out.model_dump(mode="json"), await channel_audience(session, channel))
     return out
 
 
 @router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_message(message_id: int, user: CurrentUser, session: SessionDep) -> Response:
     message, channel, member = await _message_for_member(session, message_id, user.id)
-    if message.author_id != user.id and member.role not in MANAGERS:
+    # In DMs nobody moderates: only the author deletes.
+    if message.author_id != user.id and (member is None or member.role not in MANAGERS):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't delete this message")
     channel_id = message.channel_id
     await session.delete(message)
@@ -161,6 +187,6 @@ async def delete_message(message_id: int, user: CurrentUser, session: SessionDep
     await broker.publish(
         "message.deleted",
         {"id": message_id, "channel_id": str(channel_id)},
-        await server_member_ids(session, channel.server_id),
+        await channel_audience(session, channel),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

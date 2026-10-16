@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
 from app import storage
-from app.access import co_member_ids
+from app.access import audience_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import User, UserSettings
 from app.realtime import broker
@@ -18,9 +18,9 @@ ImageKind = Literal["avatar", "banner"]
 
 
 async def _broadcast_profile(session: SessionDep, user: User) -> None:
-    """Tells everyone who shares a server with the user, so names/avatars update live."""
+    """Tells everyone who sees the user (servers, DMs, friends), so names/avatars update live."""
     data = UserPublic.model_validate(user).model_dump(mode="json")
-    await broker.publish("user.updated", data, await co_member_ids(session, user.id))
+    await broker.publish("user.updated", data, await audience_ids(session, user.id))
 
 
 @router.get("/me", response_model=UserMe)

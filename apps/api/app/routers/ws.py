@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from app import voice
-from app.access import co_member_ids, server_member_ids
+from app.access import audience_ids, server_member_ids
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Channel, ChannelType, ServerMember, User
@@ -36,7 +36,7 @@ async def _recipients(server_id: uuid.UUID) -> list[uuid.UUID]:
 
 async def _publish_presence(user_id: uuid.UUID, online: bool) -> None:
     async with SessionLocal() as session:
-        recipients = await co_member_ids(session, user_id)
+        recipients = await audience_ids(session, user_id)
     await broker.publish("presence.updated", {"user_id": str(user_id), "online": online}, recipients)
 
 

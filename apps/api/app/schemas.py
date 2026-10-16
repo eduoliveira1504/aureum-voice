@@ -197,6 +197,47 @@ class ReadStateOut(BaseModel):
     mention_count: int
 
 
+MAX_GROUP_MEMBERS = 10
+
+
+class DmMemberOut(BaseModel):
+    user: UserPublic
+    online: bool = False
+
+
+class DmOut(BaseModel):
+    """A 1:1 DM or a group DM, as seen by one member (the read state is theirs)."""
+
+    id: uuid.UUID
+    type: ChannelType
+    name: str | None
+    members: list[DmMemberOut]
+    # 0 when empty; lets clients sort conversations by latest activity.
+    last_message_id: int
+    read: ReadStateOut
+
+
+class DmCreate(BaseModel):
+    user_id: uuid.UUID
+
+
+GroupInvitees = Annotated[list[uuid.UUID], Field(min_length=1, max_length=MAX_GROUP_MEMBERS - 1)]
+
+
+class GroupCreate(BaseModel):
+    user_ids: GroupInvitees
+    name: Name | None = None
+
+
+class GroupUpdate(BaseModel):
+    # null clears it (the group is then named after its members).
+    name: Name | None
+
+
+class GroupMembersAdd(BaseModel):
+    user_ids: GroupInvitees
+
+
 class ServerDetail(ServerOut):
     channels: list[ChannelOut]
     members: list[MemberOut]

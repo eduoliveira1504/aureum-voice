@@ -205,6 +205,26 @@ class Channel(Base):
         _str_enum(ChannelType, "channel_type"), nullable=False
     )
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    # 1:1 DMs only: "<smaller user id>:<larger user id>", so a pair can't end up with two DMs.
+    dm_key: Mapped[str | None] = mapped_column(String(73), unique=True)
+
+
+class ChannelMember(Base):
+    """Who is in a DM or group DM (server channels use server_members instead)."""
+
+    __tablename__ = "channel_members"
+
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    # Closed from the user's DM list; it reopens when a message or a call arrives.
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    joined_at: Mapped[datetime] = _created_at()
+
+    user: Mapped[User] = relationship(lazy="joined")
 
 
 class Message(Base):

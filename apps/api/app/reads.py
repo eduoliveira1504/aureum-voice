@@ -8,7 +8,7 @@ someone else, and mentions are counted as messages arrive.
 import re
 import uuid
 
-from sqlalchemy import and_, delete, func, literal, or_, select
+from sqlalchemy import ColumnElement, and_, delete, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +38,16 @@ async def seed(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID) 
     await session.execute(
         insert(ChannelRead)
         .from_select(["user_id", "channel_id", "last_read_message_id"], latest)
+        .on_conflict_do_nothing()
+    )
+
+
+async def seed_channel(session: AsyncSession, user_id: uuid.UUID, channel_id: uuid.UUID) -> None:
+    """Marks one channel read up to now (someone added to a group doesn't get its history as unread)."""
+    latest = await session.scalar(select(func.max(Message.id)).where(Message.channel_id == channel_id)) or 0
+    await session.execute(
+        insert(ChannelRead)
+        .values(user_id=user_id, channel_id=channel_id, last_read_message_id=latest)
         .on_conflict_do_nothing()
     )
 
@@ -86,10 +96,10 @@ def _with_read_marker(user_id: uuid.UUID):  # noqa: ANN202
     return and_(ChannelRead.channel_id == Channel.id, ChannelRead.user_id == user_id)
 
 
-async def server_states(
-    session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID
-) -> list[tuple[uuid.UUID, int, int, int]]:
-    """(channel_id, last_read_message_id, unread_count, mention_count) per text channel."""
+ReadRow = tuple[uuid.UUID, int, int, int]
+
+
+async def _states(session: AsyncSession, user_id: uuid.UUID, *where: ColumnElement[bool]) -> list[ReadRow]:
     rows = await session.execute(
         select(
             Channel.id,
@@ -100,10 +110,22 @@ async def server_states(
         .select_from(Channel)
         .outerjoin(ChannelRead, _with_read_marker(user_id))
         .outerjoin(Message, _unread_messages(user_id))
-        .where(Channel.server_id == server_id, Channel.type == ChannelType.text)
+        .where(*where)
         .group_by(Channel.id, ChannelRead.last_read_message_id, ChannelRead.mention_count)
     )
     return [tuple(r) for r in rows]  # type: ignore[misc]
+
+
+async def server_states(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID) -> list[ReadRow]:
+    """(channel_id, last_read_message_id, unread_count, mention_count) per text channel."""
+    return await _states(session, user_id, Channel.server_id == server_id, Channel.type == ChannelType.text)
+
+
+async def channel_states(session: AsyncSession, user_id: uuid.UUID, channel_ids: list[uuid.UUID]) -> dict[uuid.UUID, ReadRow]:
+    """The same, for some channels (DMs), by channel id."""
+    if not channel_ids:
+        return {}
+    return {row[0]: row for row in await _states(session, user_id, Channel.id.in_(channel_ids))}
 
 
 async def unread_feed(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID, limit: int) -> list[Message]:
