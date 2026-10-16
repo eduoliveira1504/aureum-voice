@@ -1,5 +1,6 @@
 import type { Track } from 'livekit-client'
 import {
+  Expand,
   Headphones,
   HeadphoneOff,
   LayoutGrid,
@@ -10,6 +11,7 @@ import {
   MonitorUp,
   PhoneOff,
   Presentation,
+  Shrink,
   Video,
   VideoOff,
   Volume2,
@@ -18,6 +20,7 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Channel, Member, ServerDetail } from '../lib/api'
+import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
@@ -45,7 +48,19 @@ function callTiles(ids: string[]): Tile[] {
   return [...screens, ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))]
 }
 
-export function VoiceView({ server, channel, meId }: { server: ServerDetail; channel: Channel; meId: string }): ReactNode {
+/** The expanded call (in a panel or fullscreen), with Grid and Focus layouts. */
+export function VoiceView({
+  server,
+  channel,
+  meId,
+  fullscreen = false
+}: {
+  server: ServerDetail
+  channel: Channel
+  meId: string
+  fullscreen?: boolean
+}): ReactNode {
+  const setCallFullscreen = useNav((s) => s.setCallFullscreen)
   const phase = useVoice((s) => s.phase)
   const activeChannelId = useVoice((s) => s.channelId)
   const join = useVoice((s) => s.join)
@@ -73,7 +88,7 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
   }
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col bg-rail">
+    <div className="flex min-w-0 flex-1 flex-col bg-rail">
       <header className="flex h-12 shrink-0 items-center gap-2 px-4">
         <Volume2 size={20} className="text-fg-subtle" />
         <h2 className="font-semibold">{channel.name}</h2>
@@ -86,6 +101,17 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
           >
             {layout === 'focus' ? <LayoutGrid size={16} /> : <Presentation size={16} />}
             {layout === 'focus' ? 'Grade' : 'Foco'}
+          </button>
+        )}
+        {inThisChannel && (
+          <button
+            type="button"
+            title={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            aria-label={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            onClick={() => setCallFullscreen(!fullscreen)}
+            className={`${tiles.length > 1 ? '' : 'ml-auto'} rounded-control border border-line bg-panel p-1.5 text-fg-muted hover:bg-elevated hover:text-fg`}
+          >
+            {fullscreen ? <Shrink size={18} /> : <Expand size={18} />}
           </button>
         )}
       </header>
@@ -112,7 +138,7 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
           </button>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
@@ -147,6 +173,9 @@ function CallStage({
     )
   }
 
+  const cols = columns(tiles.length)
+  const rows = Math.max(1, Math.ceil(tiles.length / cols))
+
   if (layout === 'focus' && focused) {
     // One big tile plus a scrolling strip. Strip tiles are small, so adaptiveStream asks for the
     // low layer, and the ones scrolled out of view get no video at all.
@@ -161,8 +190,16 @@ function CallStage({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-4">
-      <div className="grid w-full max-w-6xl gap-3" style={{ gridTemplateColumns: `repeat(${columns(tiles.length)}, minmax(0, 1fr))` }}>
+    // The stage is a size container: the grid is capped so its 16:9 rows fit the height too
+    // (otherwise one big tile in a wide window overflows and scrolls).
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-4 [container-type:size]">
+      <div
+        className="grid w-full gap-3"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          maxWidth: `min(72rem, calc((100cqh - ${rows - 1} * 0.75rem) * 16 / 9 * ${cols} / ${rows}))`
+        }}
+      >
         {tiles.map((t) => render(t, 'grid'))}
       </div>
     </div>
@@ -292,7 +329,7 @@ function ScreenTile({ identity, member, isLocal, size, onClick }: TileProps): Re
   )
 }
 
-function VideoTrackView({
+export function VideoTrackView({
   track,
   mirror,
   fit = 'cover'

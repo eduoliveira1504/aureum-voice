@@ -78,6 +78,9 @@
   --color-idle: var(--idle);
   --color-dnd: var(--dnd);
 
+  /* Own chat messages: the accent toned toward the surface, readable with regular text. */
+  --color-bubble-own: color-mix(in oklab, var(--accent) 28%, var(--bg-elevated));
+
   --color-scrim: var(--scrim);
   --color-on-scrim: var(--on-scrim);
 }
@@ -89,6 +92,14 @@
   --radius-item: 8px; /* list rows */
   --radius-control: 12px; /* buttons, inputs, cards */
   --radius-panel: 18px; /* panels, modals */
+}
+
+/* Tab strips scroll sideways when crowded, without a visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Soft accent glow behind full-screen cards (sign-in). */

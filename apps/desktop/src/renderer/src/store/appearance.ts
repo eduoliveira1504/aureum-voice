@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { api, type Theme, type UserSettings } from '../lib/api'
+import { api, type PanelLayout, type Theme, type UserSettings } from '../lib/api'
 import { inkOn, readableOn, retint } from '../lib/color'
 
 export const ACCENT_PRESETS = [
@@ -14,7 +14,11 @@ export const ACCENT_PRESETS = [
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
   accent_color: ACCENT_PRESETS[0].hex,
-  sounds: { volume: 80, events: {} }
+  sounds: { volume: 80, events: {} },
+  tab_order: [],
+  closed_tabs: [],
+  sidebar_collapsed: false,
+  panel_layouts: {}
 }
 
 const CACHE_KEY = 'aureum.appearance'
@@ -24,7 +28,9 @@ const SURFACES = ['--bg-rail', '--bg-panel', '--bg-main', '--bg-elevated'] as co
 const NEUTRALS = [...SURFACES, '--border', '--text', '--text-muted'] as const
 
 type Resolved = 'dark' | 'light'
-type Patch = Partial<Omit<UserSettings, 'sounds'>>
+type Patch = Partial<Omit<UserSettings, 'sounds' | 'panel_layouts'>>
+/** What goes to PATCH /users/me/settings; panel layouts only for the servers that changed. */
+type Pending = Patch & { panel_layouts?: Record<string, PanelLayout> }
 
 interface AppearanceState {
   settings: UserSettings
@@ -34,6 +40,8 @@ interface AppearanceState {
   hydrate(settings: UserSettings): void
   /** Applies a change right away and saves it shortly after (color pickers fire a lot). */
   update(patch: Patch): void
+  /** Same, for one server's panel layout (the server merges layouts per server). */
+  updateLayout(serverId: string, layout: PanelLayout): void
 }
 
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -78,7 +86,7 @@ function applyToDocument(settings: UserSettings, resolved: Resolved): void {
   root.style.setProperty('--accent-text', readableOn(accent, surfaces))
 }
 
-let pending: Patch | null = null
+let pending: Pending | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 let inFlight = 0
 
@@ -114,15 +122,29 @@ export const useAppearance = create<AppearanceState>()((set, get) => ({
     const settings = { ...get().settings, ...patch }
     set({ settings, resolved: resolve(settings.theme) })
     pending = { ...pending, ...patch }
-    clearTimeout(timer)
-    timer = setTimeout(() => void flush(), SAVE_DELAY_MS)
+    scheduleFlush()
+  },
+
+  updateLayout: (serverId, layout) => {
+    const settings = get().settings
+    set({ settings: { ...settings, panel_layouts: { ...settings.panel_layouts, [serverId]: layout } } })
+    pending = { ...pending, panel_layouts: { ...pending?.panel_layouts, [serverId]: layout } }
+    scheduleFlush()
   }
 }))
+
+function scheduleFlush(): void {
+  clearTimeout(timer)
+  timer = setTimeout(() => void flush(), SAVE_DELAY_MS)
+}
 
 applyToDocument(cached, resolve(cached.theme))
 useAppearance.subscribe(({ settings, resolved }, prev) => {
   if (settings === prev.settings && resolved === prev.resolved) return
-  applyToDocument(settings, resolved)
+  // Layout-only changes (tabs, panels) don't touch the theme.
+  if (resolved !== prev.resolved || settings.accent_color !== prev.settings.accent_color) {
+    applyToDocument(settings, resolved)
+  }
   saveCache(settings)
 })
 darkQuery.addEventListener('change', () => {

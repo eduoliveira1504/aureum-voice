@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 
-import { api, type Channel, type Member, type Message, type Server, type ServerDetail } from '../lib/api'
+import { api, type Channel, type Member, type Message, type ReadState, type Server, type ServerDetail } from '../lib/api'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
+import { useNav } from './nav'
 import { useVoice } from './voice'
 
 const PAGE_SIZE = 50
@@ -15,25 +16,43 @@ interface ChannelMessages {
 
 const EMPTY_CHANNEL: ChannelMessages = { items: [], hasMore: false, loaded: false, loading: false }
 
+// Text channels on screen right now (open in a visible panel): new messages there are read
+// as they arrive instead of bumping the unread badge.
+const viewing = new Map<string, number>()
+
+/** Registers a channel as on screen; returns the cleanup. */
+export function viewChannel(channelId: string): () => void {
+  viewing.set(channelId, (viewing.get(channelId) ?? 0) + 1)
+  return () => {
+    const n = (viewing.get(channelId) ?? 1) - 1
+    if (n > 0) viewing.set(channelId, n)
+    else viewing.delete(channelId)
+  }
+}
+
 interface ChatState {
   meId: string | null
   status: ConnectionStatus
   loaded: boolean
   servers: Record<string, ServerDetail>
+  /** Server ids in join order. */
   order: string[]
-  selectedServerId: string | null
-  selectedChannelByServer: Record<string, string>
   messages: Record<string, ChannelMessages>
+  /** Unread/mention counters per text channel id. */
+  reads: Record<string, ReadState>
 
   reset(meId: string | null): void
   setStatus(status: ConnectionStatus): void
   loadServers(): Promise<void>
-  selectServer(id: string): void
-  selectChannel(serverId: string, channelId: string): void
   loadMessages(channelId: string, older?: boolean): Promise<void>
   sendMessage(channelId: string, content: string): Promise<void>
   editMessage(id: number, content: string): Promise<void>
   deleteMessage(id: number): Promise<void>
+  /**
+   * Marks a channel read up to its newest message. Skips the request when the counters are
+   * already zero, unless `force` (a message just arrived in a channel on screen).
+   */
+  markRead(channelId: string, force?: boolean): void
   addServer(server: ServerDetail): void
   applyEvent(event: ServerEvent): void
 }
@@ -42,10 +61,6 @@ const byPosition = (a: Channel, b: Channel): number => a.position - b.position |
 
 function withSortedChannels(server: ServerDetail): ServerDetail {
   return { ...server, channels: [...server.channels].sort(byPosition) }
-}
-
-export function defaultChannel(server: ServerDetail): Channel | undefined {
-  return server.channels.find((c) => c.type === 'text') ?? server.channels[0]
 }
 
 function mergeMessages(...lists: Message[][]): Message[] {
@@ -60,9 +75,8 @@ const initial = {
   loaded: false,
   servers: {},
   order: [],
-  selectedServerId: null,
-  selectedChannelByServer: {},
-  messages: {}
+  messages: {},
+  reads: {}
 }
 
 export const useChat = create<ChatState>()((set, get) => {
@@ -82,12 +96,7 @@ export const useChat = create<ChatState>()((set, get) => {
     set((st) => {
       const servers = { ...st.servers }
       delete servers[id]
-      const order = st.order.filter((x) => x !== id)
-      return {
-        servers,
-        order,
-        selectedServerId: st.selectedServerId === id ? (order[0] ?? null) : st.selectedServerId
-      }
+      return { servers, order: st.order.filter((x) => x !== id) }
     })
   }
 
@@ -97,6 +106,11 @@ export const useChat = create<ChatState>()((set, get) => {
       if (!cur?.loaded) return {} // not open yet: it will be fetched fresh when opened
       return { messages: { ...st.messages, [channelId]: { ...cur, items: fn(cur.items) } } }
     })
+
+  const setRead = (state: ReadState): void => set((st) => ({ reads: { ...st.reads, [state.channel_id]: state } }))
+
+  const readsOf = (details: ServerDetail[]): Record<string, ReadState> =>
+    Object.fromEntries(details.flatMap((d) => d.reads.map((r) => [r.channel_id, r])))
 
   const upsertMember = (serverId: string, member: Member): void =>
     patchServer(serverId, (s) => ({
@@ -119,19 +133,11 @@ export const useChat = create<ChatState>()((set, get) => {
         details = await Promise.all(list.map((s) => api<ServerDetail>(`/servers/${s.id}`)))
         if (startedAt === serverMutations) break // otherwise refetch for a consistent view
       }
-      set((st) => {
+      set(() => {
         const servers = Object.fromEntries(details.map((d) => [d.id, withSortedChannels(d)]))
-        const order = list.map((s) => s.id)
-        const selectedServerId =
-          st.selectedServerId && servers[st.selectedServerId] ? st.selectedServerId : (order[0] ?? null)
-        return { servers, order, selectedServerId, loaded: true }
+        return { servers, order: list.map((s) => s.id), reads: readsOf(details), loaded: true }
       })
     },
-
-    selectServer: (id) => set({ selectedServerId: id }),
-
-    selectChannel: (serverId, channelId) =>
-      set((st) => ({ selectedChannelByServer: { ...st.selectedChannelByServer, [serverId]: channelId } })),
 
     loadMessages: async (channelId, older = false) => {
       const cur = get().messages[channelId]
@@ -173,12 +179,19 @@ export const useChat = create<ChatState>()((set, get) => {
       }
     },
 
+    markRead: (channelId, force = false) => {
+      const cur = get().reads[channelId]
+      if (!force && cur && cur.unread_count === 0 && cur.mention_count === 0) return
+      if (cur) setRead({ ...cur, unread_count: 0, mention_count: 0 })
+      api<ReadState>(`/channels/${channelId}/read`, { method: 'POST' }).then(setRead, () => {})
+    },
+
     addServer: (server) => {
       serverMutations++
       set((st) => ({
+        reads: { ...st.reads, ...readsOf([server]) },
         servers: { ...st.servers, [server.id]: withSortedChannels(server) },
-        order: st.order.includes(server.id) ? st.order : [...st.order, server.id],
-        selectedServerId: server.id
+        order: st.order.includes(server.id) ? st.order : [...st.order, server.id]
       }))
     },
 
@@ -193,10 +206,35 @@ export const useChat = create<ChatState>()((set, get) => {
           useVoice.getState().announce()
           break
 
-        case 'message.created':
+        case 'message.created': {
+          const { mentions, server_id: _, ...message } = data
+          patchMessages(data.channel_id, (items) => mergeMessages(items, [message]))
+          if (message.author?.id === meId) break
+          if (viewing.has(data.channel_id)) {
+            get().markRead(data.channel_id, true)
+            break
+          }
+          const cur = get().reads[data.channel_id] ?? {
+            channel_id: data.channel_id,
+            last_read_message_id: 0,
+            unread_count: 0,
+            mention_count: 0
+          }
+          setRead({
+            ...cur,
+            unread_count: cur.unread_count + 1,
+            mention_count: cur.mention_count + (meId && mentions?.includes(meId) ? 1 : 0)
+          })
+          break
+        }
         case 'message.updated':
           patchMessages(data.channel_id, (items) => mergeMessages(items, [data]))
           break
+        case 'read.updated': {
+          const { server_id: _, ...state } = data
+          setRead(state)
+          break
+        }
         case 'message.deleted':
           patchMessages(data.channel_id, (items) => items.filter((m) => m.id !== data.id))
           break
@@ -210,6 +248,7 @@ export const useChat = create<ChatState>()((set, get) => {
           break
         case 'channel.deleted':
           if (useVoice.getState().channelId === data.id) void useVoice.getState().leave()
+          useNav.getState().dropChannelTab(data.server_id, data.id)
           patchServer(data.server_id, (s) => ({ ...s, channels: s.channels.filter((c) => c.id !== data.id) }))
           break
 

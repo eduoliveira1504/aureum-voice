@@ -1,0 +1,321 @@
+import { Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+
+import { ADDONS } from '../addons/registry'
+import { api, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { useChat } from '../store/chat'
+import { addonTab, channelTab, useNav } from '../store/nav'
+import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
+import { useVoice } from '../store/voice'
+import { InviteModal } from './modals'
+import { Avatar, ServerIcon } from './ui'
+
+const FEED_SIZE = 8
+const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const dayFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+
+function shortTime(iso: string): string {
+  const date = new Date(iso)
+  return date.toDateString() === new Date().toDateString() ? timeFmt.format(date) : dayFmt.format(date)
+}
+
+/** A server's home: who's in which room right now, its addons, unread news and who's online. */
+export function ServerOverview({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
+  // While this is on screen, the API sends the server's screen-share thumbnails.
+  useEffect(() => watchOverview(server.id), [server.id])
+  const members = new Map(server.members.map((m) => [m.user.id, m]))
+
+  return (
+    <div className="@container flex min-h-0 flex-1 overflow-y-auto">
+      <div className="flex w-full flex-col @3xl:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-7 p-5">
+          <Banner server={server} me={me} />
+          <Rooms server={server} members={members} />
+          <Addons serverId={server.id} />
+        </div>
+        <aside className="flex shrink-0 flex-col gap-7 border-line p-5 @3xl:w-72 @3xl:border-l">
+          <News server={server} />
+          <OnlineNow server={server} />
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: ReactNode }): ReactNode {
+  return <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">{children}</h3>
+}
+
+function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
+  const [inviting, setInviting] = useState(false)
+  const role = server.members.find((m) => m.user.id === me.id)?.role
+  const online = server.members.filter((m) => m.online).length
+  const streaming = server.voice_states.filter((v) => v.screen).length
+  const stats = [
+    `${online} online`,
+    `${streaming} transmitindo`,
+    `${server.members.length} ${server.members.length === 1 ? 'membro' : 'membros'}`
+  ]
+
+  return (
+    // The server banner image arrives with block 2.4; until then, an accent gradient.
+    <div className="flex items-end gap-4 rounded-panel bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)] p-5 pt-14">
+      <span className="rounded-control border-4 border-main">
+        <ServerIcon name={server.name} url={server.icon_url} size={64} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-2xl font-bold">{server.name}</h2>
+        <p className="mt-0.5 text-sm text-fg-muted">{stats.join(' · ')}</p>
+      </div>
+      {/* Invites also create accounts, so only owners/admins can hand them out. */}
+      {(role === 'owner' || role === 'admin') && (
+        <button
+          type="button"
+          onClick={() => setInviting(true)}
+          className="flex shrink-0 items-center gap-2 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+        >
+          <UserPlus size={16} />
+          Convidar
+        </button>
+      )}
+      {inviting && <InviteModal server={server} onClose={() => setInviting(false)} />}
+    </div>
+  )
+}
+
+function Rooms({ server, members }: { server: ServerDetail; members: Map<string, Member> }): ReactNode {
+  const thumbnails = useThumbnails((s) => s.byUser)
+  const rooms = server.channels.filter((c) => c.type === 'voice')
+  if (rooms.length === 0) return null
+  return (
+    <section>
+      <SectionTitle>Salas agora</SectionTitle>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
+        {rooms.map((room) => (
+          <RoomCard
+            key={room.id}
+            server={server}
+            room={room}
+            states={server.voice_states.filter((v) => v.channel_id === room.id)}
+            members={members}
+            thumbnails={thumbnails}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function RoomCard({
+  server,
+  room,
+  states,
+  members,
+  thumbnails
+}: {
+  server: ServerDetail
+  room: Channel
+  states: VoiceState[]
+  members: Map<string, Member>
+  thumbnails: Record<string, Thumbnail>
+}): ReactNode {
+  const mine = useVoice((s) => s.phase !== 'idle' && s.channelId === room.id)
+  // Who's speaking is only known inside our own call.
+  const speaking = useVoice((s) => (mine ? s.speaking : null))
+  const join = useVoice((s) => s.join)
+  const expandCall = useNav((s) => s.expandCall)
+  const nameOf = (id: string): string => members.get(id)?.user.display_name ?? 'Alguém'
+
+  if (states.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-line p-5 text-center">
+        <Volume2 size={22} className="text-fg-subtle" />
+        <span className="font-medium">{room.name}</span>
+        <button
+          type="button"
+          onClick={() => void join(server.id, room.id)}
+          className="rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-accent hover:text-accent-text"
+        >
+          Abrir a sala
+        </button>
+      </div>
+    )
+  }
+
+  const sharer = states.find((v) => v.screen)
+  const thumb = sharer && thumbnails[sharer.user_id]?.channelId === room.id ? thumbnails[sharer.user_id] : undefined
+
+  return (
+    <div className={`overflow-hidden rounded-control bg-panel ${mine ? 'border-2 border-accent' : 'border border-line'}`}>
+      {sharer ? (
+        <div className="relative aspect-video bg-scrim">
+          {thumb ? (
+            <img src={thumb.image} alt={`Tela de ${nameOf(sharer.user_id)}`} className="h-full w-full object-contain" />
+          ) : (
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-on-scrim/70">
+              <Radio size={18} />
+              Transmissão ao vivo
+            </div>
+          )}
+          <div className="absolute left-2 top-2 flex items-center gap-1.5">
+            <span className="rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+            <span className="truncate rounded-item bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">Tela de {nameOf(sharer.user_id)}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex aspect-video flex-wrap content-center items-center justify-center gap-3 p-4">
+          {states.slice(0, 6).map((v) => {
+            const user = members.get(v.user_id)?.user
+            return (
+              <span
+                key={v.user_id}
+                title={user?.display_name}
+                className={`rounded-full ring-offset-2 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-[3px] ring-accent' : ''}`}
+              >
+                <Avatar name={user?.display_name ?? '?'} url={user?.avatar_url} size={52} />
+              </span>
+            )
+          })}
+          {states.length > 6 && <span className="text-sm font-semibold text-fg-muted">+{states.length - 6}</span>}
+        </div>
+      )}
+      <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          {mine && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-accent-text">Você está aqui</span>}
+          <span className="block truncate font-medium">{room.name}</span>
+          <span className="block text-xs text-fg-subtle">
+            {states.length} {states.length === 1 ? 'pessoa' : 'pessoas'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
+          className={`shrink-0 rounded-control px-3 py-1.5 text-sm font-semibold ${
+            mine ? 'border border-line text-fg-muted hover:text-fg' : 'bg-accent text-on-accent hover:bg-accent-hover'
+          }`}
+        >
+          {mine ? 'Abrir' : 'Entrar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Addons({ serverId }: { serverId: string }): ReactNode {
+  const openTab = useNav((s) => s.openTab)
+  return (
+    <section>
+      <SectionTitle>Addons do servidor</SectionTitle>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+        {ADDONS.map(({ key, name, icon: Icon, description }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => openTab(serverId, addonTab(key))}
+            className="flex flex-col gap-2 rounded-control border border-dashed border-line p-4 text-left hover:border-accent/60"
+          >
+            <span className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-item bg-elevated text-accent-text">
+                <Icon size={18} />
+              </span>
+              <span className="flex-1 font-semibold">{name}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">em breve</span>
+            </span>
+            <span className="line-clamp-2 text-sm text-fg-muted">{description}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** Newest unread messages across the server's text channels. */
+function News({ server }: { server: ServerDetail }): ReactNode {
+  const openTab = useNav((s) => s.openTab)
+  // Changes whenever a message arrives or a channel is read: the cue to refetch.
+  const unread = useChat((s) => server.channels.reduce((n, c) => n + (s.reads[c.id]?.unread_count ?? 0), 0))
+  const [items, setItems] = useState<Message[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      api<Message[]>(`/servers/${server.id}/unread?limit=${FEED_SIZE}`).then(
+        (list) => !cancelled && setItems(list),
+        () => !cancelled && setItems((cur) => cur ?? [])
+      )
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [server.id, unread])
+
+  return (
+    <section>
+      <SectionTitle>Novidades</SectionTitle>
+      {items === null ? (
+        <p className="text-sm text-fg-subtle">Carregando…</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-fg-subtle">Tudo em dia. Nenhuma mensagem nova.</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((m) => {
+            const channel = server.channels.find((c) => c.id === m.channel_id)
+            const name = m.author?.display_name ?? 'Usuário removido'
+            return (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onClick={() => openTab(server.id, channelTab(m.channel_id))}
+                  className="flex w-full gap-2.5 rounded-item p-2 text-left hover:bg-elevated/60"
+                >
+                  <Avatar name={name} url={m.author?.avatar_url} size={28} shape="rounded" />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-1.5 text-xs">
+                      <span className="truncate font-semibold text-fg">{name}</span>
+                      <span className="flex shrink-0 items-center text-fg-subtle">
+                        <Hash size={11} />
+                        {channel?.name}
+                      </span>
+                      <span className="ml-auto shrink-0 text-fg-subtle">{shortTime(m.created_at)}</span>
+                    </span>
+                    <span className="line-clamp-2 break-words text-sm text-fg-muted">{m.content}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function OnlineNow({ server }: { server: ServerDetail }): ReactNode {
+  const online = server.members.filter((m) => m.online).sort((a, b) => a.user.display_name.localeCompare(b.user.display_name))
+  const roomOf = new Map(server.voice_states.map((v) => [v.user_id, server.channels.find((c) => c.id === v.channel_id)?.name]))
+  return (
+    <section>
+      <SectionTitle>Online agora — {online.length}</SectionTitle>
+      <ul className="space-y-0.5">
+        {online.map((m) => (
+          <li key={m.user.id} className="flex items-center gap-2.5 rounded-item px-1.5 py-1">
+            <span className="relative">
+              <Avatar name={m.user.display_name} url={m.user.avatar_url} size={28} />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-main bg-success" />
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-sm font-medium">{m.user.display_name}</span>
+              {roomOf.get(m.user.id) && (
+                <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
+                  <Volume2 size={11} />
+                  {roomOf.get(m.user.id)}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

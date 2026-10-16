@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type RefObject } from 'react'
 
 import { mediaUrl } from '../lib/api'
 
@@ -99,15 +99,107 @@ export function ToggleRow({
   )
 }
 
-export function Avatar({ name, url, size = 32 }: { name: string; url?: string | null; size?: number }): ReactNode {
+export function Avatar({
+  name,
+  url,
+  size = 32,
+  shape = 'circle'
+}: {
+  name: string
+  url?: string | null
+  size?: number
+  /** 'rounded' is a rounded square (chat). */
+  shape?: 'circle' | 'rounded'
+}): ReactNode {
   const style = { width: size, height: size }
-  if (url) return <img src={mediaUrl(url)} alt="" style={style} className="shrink-0 rounded-full object-cover" />
+  const radius = shape === 'circle' ? 'rounded-full' : 'rounded-item'
+  if (url) return <img src={mediaUrl(url)} alt="" style={style} className={`shrink-0 object-cover ${radius}`} />
   return (
     <div
       style={{ ...style, fontSize: size * 0.42 }}
-      className="flex shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-on-accent"
+      className={`flex shrink-0 items-center justify-center bg-accent font-semibold text-on-accent ${radius}`}
     >
       {name.slice(0, 1).toUpperCase()}
     </div>
+  )
+}
+
+/** Closes a popover on a click outside `ref` or on Escape. */
+export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: () => void): void {
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) close()
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') close()
+    }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [ref, open, close])
+}
+
+/** Look of dropdown menus and small popovers. */
+export const menuClass = 'z-40 rounded-control border border-line bg-main p-1.5 shadow-xl'
+
+export function MenuItem({
+  icon: Icon,
+  label,
+  hint,
+  danger = false,
+  disabled = false,
+  onClick
+}: {
+  icon?: LucideIcon
+  label: string
+  hint?: string
+  danger?: boolean
+  disabled?: boolean
+  onClick?(): void
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+        danger ? 'text-danger enabled:hover:bg-danger enabled:hover:text-on-danger' : 'text-fg-muted enabled:hover:bg-accent enabled:hover:text-on-accent'
+      }`}
+    >
+      {Icon && <Icon size={16} className="shrink-0" />}
+      <span className="flex-1 truncate">{label}</span>
+      {hint && <span className="shrink-0 text-xs opacity-70">{hint}</span>}
+    </button>
+  )
+}
+
+/** Small pill with a count (unread messages, mentions, pending requests). */
+export function CountBadge({ count, tone = 'accent' }: { count: number; tone?: 'accent' | 'danger' }): ReactNode {
+  if (count <= 0) return null
+  return (
+    <span
+      className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none ${
+        tone === 'danger' ? 'bg-danger text-on-danger' : 'bg-accent text-on-accent'
+      }`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
+/** Server icon, or its initials. */
+export function ServerIcon({ name, url, size = 32 }: { name: string; url: string | null; size?: number }): ReactNode {
+  const style = { width: size, height: size, fontSize: size * 0.36 }
+  if (url) return <img src={mediaUrl(url)} alt="" style={style} className="shrink-0 rounded-item object-cover" />
+  const words = name.trim().split(/\s+/)
+  const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
+  return (
+    <span style={style} className="flex shrink-0 items-center justify-center rounded-item bg-elevated font-display font-semibold text-fg">
+      {initials}
+    </span>
   )
 }

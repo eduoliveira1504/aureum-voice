@@ -20,11 +20,35 @@ export interface Me extends User {
 
 export type Theme = 'dark' | 'light' | 'system'
 
+/**
+ * What a panel tab shows: 'overview', 'call', `channel:<id>` or `addon:<key>`.
+ * The server validates the same shapes.
+ */
+export type PanelTab = string
+
+export interface Panel {
+  tabs: PanelTab[]
+  active: PanelTab | null
+}
+
+/** One or two panels side by side; split is the first panel's share of the width. */
+export interface PanelLayout {
+  panels: Panel[]
+  split: number
+}
+
 /** Per-user preferences synced through the server (GET/PATCH /users/me/settings). */
 export interface UserSettings {
   theme: Theme
   accent_color: string
   sounds: { volume: number; events: Record<string, boolean> }
+  /** Server tabs in the top bar, in the user's order. */
+  tab_order: string[]
+  /** Servers taken off the top bar (still joined). */
+  closed_tabs: string[]
+  sidebar_collapsed: boolean
+  /** Open panels per server id. */
+  panel_layouts: Record<string, PanelLayout>
 }
 
 export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
@@ -62,10 +86,19 @@ export interface VoiceState {
   screen: boolean
 }
 
+/** The signed-in user's read state of a text channel. */
+export interface ReadState {
+  channel_id: string
+  last_read_message_id: number
+  unread_count: number
+  mention_count: number
+}
+
 export interface ServerDetail extends Server {
   channels: Channel[]
   members: Member[]
   voice_states: VoiceState[]
+  reads: ReadState[]
 }
 
 export interface Invite {

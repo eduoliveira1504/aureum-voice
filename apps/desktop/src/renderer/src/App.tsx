@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { useAuth } from './auth/AuthProvider'
 import { AuthScreen } from './screens/AuthScreen'
-import { HomeScreen } from './screens/HomeScreen'
+import { AppShell } from './screens/AppShell'
 
 export function App(): ReactNode {
   const { state } = useAuth()
@@ -15,5 +15,5 @@ export function App(): ReactNode {
     )
   }
   if (state.status === 'signedOut') return <AuthScreen serverUnreachable={state.serverUnreachable} />
-  return <HomeScreen user={state.user} />
+  return <AppShell user={state.user} />
 }

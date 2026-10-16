@@ -1,4 +1,4 @@
-import { Crown } from 'lucide-react'
+import { Crown, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import type { Member, ServerDetail, User } from '../lib/api'
@@ -8,7 +8,8 @@ import { Avatar } from './ui'
 
 const ROLE_ORDER = { owner: 0, admin: 1, member: 2 }
 
-export function MemberList({ server }: { server: ServerDetail }): ReactNode {
+/** Collapsible side panel, opened from the "Membros" button of a panel. */
+export function MemberList({ server, onClose }: { server: ServerDetail; onClose(): void }): ReactNode {
   const sorted = [...server.members].sort(
     (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || a.user.display_name.localeCompare(b.user.display_name)
   )
@@ -17,9 +18,23 @@ export function MemberList({ server }: { server: ServerDetail }): ReactNode {
   const profile = useProfilePopover()
 
   return (
-    <aside className="hidden w-60 shrink-0 overflow-y-auto bg-panel px-2 py-4 lg:block">
+    <aside aria-label="Membros" className="flex h-full w-60 shrink-0 flex-col bg-panel">
+      <header className="flex h-12 shrink-0 items-center border-b border-line pl-4 pr-2">
+        <h2 className="flex-1 font-display text-[15px] font-semibold">Membros</h2>
+        <button
+          type="button"
+          title="Fechar membros"
+          aria-label="Fechar membros"
+          onClick={onClose}
+          className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
+        >
+          <X size={18} />
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto px-2 py-4">
       <Group title={`Online — ${online.length}`} members={online} onOpen={profile.open} />
       {offline.length > 0 && <Group title={`Offline — ${offline.length}`} members={offline} onOpen={profile.open} />}
+      </div>
       {profile.popover}
     </aside>
   )

@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { api, ApiError, type Channel, type Invite, type ServerDetail } from '../lib/api'
 import { useChat } from '../store/chat'
+import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
 import { Field, labelClass, PrimaryButton, Segmented } from './ui'
 
@@ -39,6 +40,7 @@ export function AddServerModal({ onClose }: { onClose(): void }): ReactNode {
           ? await api<ServerDetail>('/servers', { method: 'POST', body: { name: input } })
           : await api<ServerDetail>(`/invites/${encodeURIComponent(input)}/join`, { method: 'POST' })
       addServer(server)
+      useNav.getState().openServer(server.id)
       onClose()
     } catch (err) {
       setError(errorText(err, 'Algo deu errado. Tente de novo.'))
@@ -136,7 +138,7 @@ export function CreateChannelModal({
   initialType: 'text' | 'voice'
   onClose(): void
 }): ReactNode {
-  const selectChannel = useChat((s) => s.selectChannel)
+  const openTab = useNav((s) => s.openTab)
   const [type, setType] = useState(initialType)
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +150,7 @@ export function CreateChannelModal({
     setBusy(true)
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type } })
-      if (type === 'text') selectChannel(serverId, channel.id)
+      if (type === 'text') openTab(serverId, channelTab(channel.id))
       onClose()
     } catch (err) {
       setError(errorText(err, 'Não foi possível criar o canal.'))
