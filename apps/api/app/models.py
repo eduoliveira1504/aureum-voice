@@ -63,6 +63,12 @@ class MemberRole(str, enum.Enum):
     member = "member"
 
 
+class Theme(str, enum.Enum):
+    dark = "dark"
+    light = "light"
+    system = "system"
+
+
 class ChannelType(str, enum.Enum):
     text = "text"
     voice = "voice"
@@ -83,6 +89,33 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(String(190))
     accent_color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb"
     created_at: Mapped[datetime] = _created_at()
+
+
+DEFAULT_ACCENT = "#E8B531"  # Aureum gold
+
+
+class UserSettings(Base):
+    """Per-user app preferences, applied on every device the user signs in from. A user
+    without a row simply gets the defaults."""
+
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    theme: Mapped[Theme] = mapped_column(
+        _str_enum(Theme, "theme"), default=Theme.dark, server_default=Theme.dark.value, nullable=False
+    )
+    # UI accent; unrelated to users.accent_color, which colors the profile card.
+    accent_color: Mapped[str] = mapped_column(
+        String(7), default=DEFAULT_ACCENT, server_default=DEFAULT_ACCENT, nullable=False
+    )
+    sounds: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class OAuthAccount(Base):

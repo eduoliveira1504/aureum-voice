@@ -1,0 +1,55 @@
+from httpx import AsyncClient
+from httpx_ws import aconnect_ws
+
+from tests.helpers import make_user, ws_client
+from tests.test_ws import next_event
+
+DEFAULTS = {"theme": "dark", "accent_color": "#E8B531", "sounds": {"volume": 80, "events": {}}}
+
+
+async def test_defaults_without_a_row(client: AsyncClient) -> None:
+    user = await make_user(client, "fresh")
+    res = await user.get("/users/me/settings")
+    assert res.status_code == 200
+    assert res.json() == DEFAULTS
+
+
+async def test_partial_updates_keep_the_rest(client: AsyncClient) -> None:
+    user = await make_user(client, "prefs")
+    res = await user.patch("/users/me/settings", {"theme": "light"})
+    assert res.status_code == 200
+    assert res.json() == {**DEFAULTS, "theme": "light"}
+
+    await user.patch("/users/me/settings", {"accent_color": "#8b5cf6", "theme": None})
+    sounds = {"volume": 35, "events": {"call.join": False}}
+    await user.patch("/users/me/settings", {"sounds": sounds})
+    assert (await user.get("/users/me/settings")).json() == {
+        "theme": "light",
+        "accent_color": "#8b5cf6",
+        "sounds": sounds,
+    }
+
+
+async def test_settings_are_private(client: AsyncClient) -> None:
+    alice, bob = await make_user(client, "alice"), await make_user(client, "bob")
+    await alice.patch("/users/me/settings", {"theme": "system"})
+    assert (await bob.get("/users/me/settings")).json()["theme"] == "dark"
+
+
+async def test_validation(client: AsyncClient) -> None:
+    user = await make_user(client, "strict")
+    for body in (
+        {"theme": "sepia"},
+        {"accent_color": "gold"},
+        {"sounds": {"volume": 101}},
+        {"sounds": {"events": {"Not A Key": True}}},
+    ):
+        assert (await user.patch("/users/me/settings", body)).status_code == 422, body
+
+
+async def test_update_reaches_the_users_other_devices(client: AsyncClient) -> None:
+    user = await make_user(client, "devices")
+    async with ws_client() as wsc, aconnect_ws(f"/ws?token={user.token}", wsc) as ws:
+        await next_event(ws, "ready")
+        await user.patch("/users/me/settings", {"accent_color": "#4f8cc9"})
+        assert (await next_event(ws, "settings.updated"))["accent_color"] == "#4f8cc9"

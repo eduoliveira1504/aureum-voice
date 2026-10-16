@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
-from app.models import ChannelType, MemberRole
+from app.models import DEFAULT_ACCENT, ChannelType, MemberRole, Theme
 from app.voice import VoiceState
 
 Username = Annotated[
@@ -62,6 +62,31 @@ class UserUpdate(BaseModel):
     display_name: DisplayName | None = None
     bio: Annotated[str, Field(max_length=190)] | None = None
     accent_color: AccentColor | None = None
+
+
+SoundEvent = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z_.]{0,31}$")]
+
+
+class SoundSettings(BaseModel):
+    """Volume plus an on/off switch per sound event. Events missing from the map are on, so
+    sounds added in later versions start enabled."""
+
+    volume: Annotated[int, Field(ge=0, le=100)] = 80
+    events: Annotated[dict[SoundEvent, bool], Field(max_length=32)] = {}
+
+
+class SettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    theme: Theme = Theme.dark
+    accent_color: str = DEFAULT_ACCENT
+    sounds: SoundSettings = SoundSettings()
+
+
+class SettingsUpdate(BaseModel):
+    theme: Theme | None = None
+    accent_color: AccentColor | None = None
+    sounds: SoundSettings | None = None
 
 
 # --- Servers, channels, invites -------------------------------------------

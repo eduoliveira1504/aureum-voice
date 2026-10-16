@@ -6,9 +6,9 @@ from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from app import storage
 from app.access import co_member_ids
 from app.deps import CurrentUser, SessionDep
-from app.models import User
+from app.models import User, UserSettings
 from app.realtime import broker
-from app.schemas import UserMe, UserPublic, UserUpdate
+from app.schemas import SettingsOut, SettingsUpdate, UserMe, UserPublic, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -36,6 +36,27 @@ async def update_me(body: UserUpdate, user: CurrentUser, session: SessionDep) ->
     await session.commit()
     await _broadcast_profile(session, user)
     return user
+
+
+@router.get("/me/settings", response_model=SettingsOut)
+async def get_my_settings(user: CurrentUser, session: SessionDep) -> UserSettings | SettingsOut:
+    return await session.get(UserSettings, user.id) or SettingsOut()
+
+
+@router.patch("/me/settings", response_model=SettingsOut)
+async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: SessionDep) -> UserSettings:
+    row = await session.get(UserSettings, user.id)
+    if row is None:
+        row = UserSettings(user_id=user.id)
+        session.add(row)
+    for field, value in body.model_dump(mode="json", exclude_unset=True).items():
+        if value is not None:  # every setting has a value; an explicit null means "unchanged"
+            setattr(row, field, value)
+    await session.commit()
+    await session.refresh(row)
+    # Other signed-in devices of the same user switch theme live.
+    await broker.publish("settings.updated", SettingsOut.model_validate(row).model_dump(mode="json"), [user.id])
+    return row
 
 
 async def _read_limited(upload: UploadFile) -> bytes:
