@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Identity,
     Index,
     Integer,
@@ -59,12 +60,6 @@ def _str_enum(enum_cls: type[enum.Enum], name: str) -> Enum:
     )
 
 
-class MemberRole(str, enum.Enum):
-    owner = "owner"
-    admin = "admin"
-    member = "member"
-
-
 class Theme(str, enum.Enum):
     dark = "dark"
     light = "light"
@@ -85,6 +80,11 @@ class FriendshipStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
     blocked = "blocked"
+
+
+class OverrideTarget(str, enum.Enum):
+    role = "role"
+    member = "member"
 
 
 class ChannelType(str, enum.Enum):
@@ -143,6 +143,8 @@ class UserSettings(Base):
     sidebar_collapsed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # The member list panel next to a server's panels.
+    members_open: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Open panels per server id (see schemas.PanelLayout).
     panel_layouts: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
@@ -170,10 +172,73 @@ class Server(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     icon_url: Mapped[str | None] = mapped_column(String(512))
+    banner_url: Mapped[str | None] = mapped_column(String(512))
+    # The owner has every permission and is above every role (see app.permissions).
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
     )
     created_at: Mapped[datetime] = _created_at()
+
+
+class Role(Base):
+    """A server role. Every server has an @everyone role whose id is the server's id: everyone
+    has it implicitly (no member_roles row) and it sits at position 0, below every other role."""
+
+    __tablename__ = "roles"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb"
+    icon_url: Mapped[str | None] = mapped_column(String(512))
+    # Higher is stronger; @everyone is 0 and the others are 1..n without gaps.
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    permissions: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+    # Shown as its own group in the member list.
+    hoist: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    mentionable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    created_at: Mapped[datetime] = _created_at()
+
+    @property
+    def is_everyone(self) -> bool:
+        return self.id == self.server_id
+
+
+class MemberRole(Base):
+    """A role given to a server member. Removed with the membership (leaving, kick, ban)."""
+
+    __tablename__ = "member_roles"
+
+    server_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True, index=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["server_id", "user_id"],
+            ["server_members.server_id", "server_members.user_id"],
+            ondelete="CASCADE",
+            name="fk_member_roles_member_server_members",
+        ),
+    )
+
+
+class ServerBan(Base):
+    __tablename__ = "server_bans"
+
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    banned_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    reason: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = _created_at()
+
+    user: Mapped[User] = relationship(lazy="joined", foreign_keys=[user_id])
 
 
 class ServerMember(Base):
@@ -184,9 +249,6 @@ class ServerMember(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
-    )
-    role: Mapped[MemberRole] = mapped_column(
-        _str_enum(MemberRole, "member_role"), default=MemberRole.member, nullable=False
     )
     joined_at: Mapped[datetime] = _created_at()
 
@@ -223,6 +285,23 @@ class Channel(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     # 1:1 DMs only: "<smaller user id>:<larger user id>", so a pair can't end up with two DMs.
     dm_key: Mapped[str | None] = mapped_column(String(73), unique=True)
+
+
+class ChannelOverride(Base):
+    """Allow/deny bits for a role (@everyone included) or a member in one server channel. The
+    target has no foreign key since it's either kind; a role's overrides go when the role does."""
+
+    __tablename__ = "channel_permission_overrides"
+
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True
+    )
+    target_type: Mapped[OverrideTarget] = mapped_column(
+        _str_enum(OverrideTarget, "override_target"), primary_key=True
+    )
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, index=True)
+    allow: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+    deny: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
 
 
 class ChannelMember(Base):

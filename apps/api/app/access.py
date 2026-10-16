@@ -6,10 +6,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Channel, ChannelMember, MemberRole, ServerMember
+from app.models import Channel, ChannelMember, ServerMember
+from app.permissions import ServerAccess, channel_viewers, server_access
 from app.social import friend_ids
-
-MANAGERS = {MemberRole.owner, MemberRole.admin}
 
 
 async def get_membership(session: AsyncSession, server_id: uuid.UUID, user_id: uuid.UUID) -> ServerMember:
@@ -20,39 +19,44 @@ async def get_membership(session: AsyncSession, server_id: uuid.UUID, user_id: u
     return member
 
 
-def require_manager(member: ServerMember) -> None:
-    if member.role not in MANAGERS:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owners and admins can do this")
+def _not_found() -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
 
 
 async def get_channel_for_member(
     session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[Channel, ServerMember]:
-    """A server channel the user can see (DMs are 404 here)."""
+) -> tuple[Channel, ServerAccess]:
+    """A server channel the user can see (DMs and hidden channels are 404 here)."""
     channel = await session.get(Channel, channel_id)
     if channel is None or channel.server_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
-    member = await session.get(ServerMember, (channel.server_id, user_id))
-    if member is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
-    return channel, member
+        raise _not_found()
+    return channel, await _viewable(session, channel, user_id)
+
+
+async def _viewable(session: AsyncSession, channel: Channel, user_id: uuid.UUID) -> ServerAccess:
+    assert channel.server_id is not None
+    try:
+        access = await server_access(session, channel.server_id, user_id, [channel.id])
+    except HTTPException:
+        raise _not_found() from None
+    # A channel the user can't see doesn't exist for them.
+    if not access.can_view(channel):
+        raise _not_found()
+    return access
 
 
 async def get_channel_access(
     session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[Channel, ServerMember | None]:
-    """Any channel the user can see: a server channel (with their membership) or a DM/group
-    they're in (membership None)."""
+) -> tuple[Channel, ServerAccess | None]:
+    """Any channel the user can see: a server channel (with their permissions there) or a
+    DM/group they're in (access None)."""
     channel = await session.get(Channel, channel_id)
     if channel is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
+        raise _not_found()
     if channel.server_id is not None:
-        member = await session.get(ServerMember, (channel.server_id, user_id))
-        if member is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
-        return channel, member
+        return channel, await _viewable(session, channel, user_id)
     if await session.get(ChannelMember, (channel_id, user_id)) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
+        raise _not_found()
     return channel, None
 
 
@@ -67,9 +71,9 @@ async def channel_member_ids(session: AsyncSession, channel_id: uuid.UUID) -> li
 
 
 async def channel_audience(session: AsyncSession, channel: Channel) -> list[uuid.UUID]:
-    """Who receives a channel's events: the server's members, or the DM's."""
+    """Who receives a channel's events: the server members who can see it, or the DM's members."""
     if channel.server_id is not None:
-        return await server_member_ids(session, channel.server_id)
+        return await channel_viewers(session, channel)
     return await channel_member_ids(session, channel.id)
 
 

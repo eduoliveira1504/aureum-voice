@@ -12,7 +12,7 @@ from sqlalchemy import ColumnElement, and_, delete, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Channel, ChannelRead, ChannelType, Message, ServerMember, User
+from app.models import Channel, ChannelRead, ChannelType, Message, User
 
 # "@name" not preceded by a word character, so e-mail addresses don't count as mentions.
 MENTION_RE = re.compile(r"(?<![\w.])@([A-Za-z0-9_.]{3,32})")
@@ -59,17 +59,13 @@ async def forget_server(session: AsyncSession, user_id: uuid.UUID, server_id: uu
     )
 
 
-async def record_mentions(session: AsyncSession, message: Message, server_id: uuid.UUID) -> list[uuid.UUID]:
-    """Counts the message's @username mentions of server members (not committed). Returns
-    who was mentioned."""
+async def record_mentions(session: AsyncSession, message: Message, viewers: list[uuid.UUID]) -> list[uuid.UUID]:
+    """Counts the message's @username mentions of people who can see the channel (not
+    committed). Returns who was mentioned."""
     names = mentioned_usernames(message.content)
     if not names:
         return []
-    rows = await session.scalars(
-        select(ServerMember.user_id)
-        .join(User, User.id == ServerMember.user_id)
-        .where(ServerMember.server_id == server_id, User.username.in_(names))
-    )
+    rows = await session.scalars(select(User.id).where(User.id.in_(viewers), User.username.in_(names)))
     mentioned = [u for u in rows if u != message.author_id]
     for user_id in mentioned:
         await session.execute(
@@ -128,13 +124,14 @@ async def channel_states(session: AsyncSession, user_id: uuid.UUID, channel_ids:
     return {row[0]: row for row in await _states(session, user_id, Channel.id.in_(channel_ids))}
 
 
-async def unread_feed(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID, limit: int) -> list[Message]:
-    """The newest unread messages across the server's text channels, newest first."""
+async def unread_feed(session: AsyncSession, user_id: uuid.UUID, channel_ids: list[uuid.UUID], limit: int) -> list[Message]:
+    """The newest unread messages across some text channels (a server's, the ones the user
+    can read), newest first."""
     rows = await session.scalars(
         select(Message)
         .join(Channel, Channel.id == Message.channel_id)
         .outerjoin(ChannelRead, _with_read_marker(user_id))
-        .where(Channel.server_id == server_id, Channel.type == ChannelType.text, _unread_messages(user_id))
+        .where(Channel.id.in_(channel_ids), Channel.type == ChannelType.text, _unread_messages(user_id))
         .order_by(Message.id.desc())
         .limit(limit)
     )

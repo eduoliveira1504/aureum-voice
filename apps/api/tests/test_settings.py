@@ -11,6 +11,7 @@ DEFAULTS = {
     "tab_order": [],
     "closed_tabs": [],
     "sidebar_collapsed": False,
+    "members_open": False,
     "panel_layouts": {},
     "status": "online",
 }

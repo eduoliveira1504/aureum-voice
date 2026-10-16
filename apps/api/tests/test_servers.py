@@ -12,7 +12,9 @@ async def test_create_server_with_default_channels(client: AsyncClient) -> None:
     owner = await make_user(client, "owner")
     server = await make_server(owner)
     assert {(c["name"], c["type"]) for c in server["channels"]} == {("geral", "text"), ("Geral", "voice")}
-    assert [(m["user"]["id"], m["role"]) for m in server["members"]] == [(owner.id, "owner")]
+    assert server["owner_id"] == owner.id
+    assert [(m["user"]["id"], m["role_ids"]) for m in server["members"]] == [(owner.id, [])]
+    assert [(r["id"], r["name"], r["position"]) for r in server["roles"]] == [(server["id"], "@everyone", 0)]
 
     mine = (await owner.get("/servers")).json()
     assert [s["id"] for s in mine] == [server["id"]]

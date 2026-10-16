@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import ratelimit
 from app.deps import SessionDep
-from app.models import MemberRole, ServerMember, User
+from app.models import ServerMember, User
 from app.routers.servers import announce_member_joined, claim_invite
 from app.schemas import LoginRequest, RefreshRequest, RegisterRequest, TokenPair
 from app.security import (
@@ -64,7 +64,7 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
     try:
         await session.flush()
         if server_id is not None:
-            member = ServerMember(server_id=server_id, user_id=user.id, role=MemberRole.member)
+            member = ServerMember(server_id=server_id, user_id=user.id)
             session.add(member)
         await session.commit()  # invite use, account and membership: all or nothing
     except IntegrityError:  # lost a race with a concurrent registration

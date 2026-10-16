@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app import calls, presence, voice
 from app.access import channel_member_ids, server_member_ids
+from app.permissions import Perm, channel_viewers, server_access, visible_channel_ids
 from app.config import get_settings
 from app.db import SessionLocal
 from app.dms import DM_TYPES
@@ -30,16 +31,27 @@ class VoiceUpdate(voice.VoiceFlags):
     channel_id: uuid.UUID | None
 
 
-async def _recipients(scope: voice.Scope) -> list[uuid.UUID]:
+async def _recipients(scope: voice.Scope, channel_id: uuid.UUID) -> list[uuid.UUID]:
+    """Who sees voice changes in a channel: the server members who can see it, or the DM's."""
     async with SessionLocal() as session:
-        if scope.kind == "server":
+        if scope.kind == "dm":
+            return await channel_member_ids(session, scope.id)
+        channel = await session.get(Channel, channel_id)
+        if channel is None:  # deleted meanwhile
             return await server_member_ids(session, scope.id)
-        return await channel_member_ids(session, scope.id)
+        return await channel_viewers(session, channel)
 
 
-async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> voice.Scope | None:
-    """Where joining this channel puts the user: a server voice channel they're a member of,
-    or a DM/group of theirs with a call in progress. None if they can't join it."""
+async def _viewers_of(channel_id: uuid.UUID) -> list[uuid.UUID]:
+    async with SessionLocal() as session:
+        channel = await session.get(Channel, channel_id)
+        return await channel_viewers(session, channel) if channel and channel.server_id else []
+
+
+async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> tuple[voice.Scope, Perm | None] | None:
+    """Where joining this channel puts the user: a server voice channel they can connect to
+    (with their permissions there), or a DM/group of theirs with a call in progress
+    (permissions None: anything goes). None if they can't join it."""
     async with SessionLocal() as session:
         channel = await session.get(Channel, channel_id)
         if channel is None:
@@ -47,10 +59,11 @@ async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> voice.Scope
         if channel.type == ChannelType.voice and channel.server_id is not None:
             if await session.get(ServerMember, (channel.server_id, user_id)) is None:
                 return None
-            return voice.server_scope(channel.server_id)
+            perms = (await server_access(session, channel.server_id, user_id, [channel.id])).channel(channel)
+            return (voice.server_scope(channel.server_id), perms) if perms & Perm.CONNECT else None
         if channel.type in DM_TYPES and await session.get(ChannelMember, (channel_id, user_id)) is not None:
             if await calls.active_call(session, channel_id) is not None:
-                return voice.dm_scope(channel_id)
+                return voice.dm_scope(channel_id), None
         return None
 
 
@@ -63,9 +76,15 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
     if update.channel_id is None:
         return await voice.leave(user_id, _recipients)
 
-    scope = await _voice_scope(update.channel_id, user_id)
-    if scope is None:
+    found = await _voice_scope(update.channel_id, user_id)
+    if found is None:
         return await _send_error(websocket, "Voice channel not found")
+    scope, perms = found
+    if perms is not None:
+        # What others see matches what the media server lets them publish.
+        update.muted = update.muted or not perms & Perm.SPEAK
+        update.camera = update.camera and bool(perms & Perm.VIDEO)
+        update.screen = update.screen and bool(perms & Perm.STREAM)
     state = voice.VoiceState(user_id=user_id, **update.model_dump())
     await voice.set_state(state, scope, _recipients)
     if scope.kind == "dm":
@@ -83,18 +102,20 @@ async def _handle_overview_watch(websocket: WebSocket, user_id: uuid.UUID, data:
     except ValueError:
         return await _send_error(websocket, "Invalid overview.watch payload")
     async with SessionLocal() as session:
+        visible = await visible_channel_ids(session, server_id, user_id)
         if await session.get(ServerMember, (server_id, user_id)) is None:
             return await _send_error(websocket, "Server not found")
     broker.watch(server_id, websocket)
     for event in await voice.get_thumbnails(server_id):
-        await websocket.send_json({"type": "screen.thumbnail", "data": event})
+        if event["channel_id"] and uuid.UUID(event["channel_id"]) in visible:
+            await websocket.send_json({"type": "screen.thumbnail", "data": event})
 
 
 async def _handle_thumbnail(user_id: uuid.UUID, data: Any) -> None:
     # Dropped silently when invalid, throttled or not sharing: the client just sends the next one.
     image = data.get("image") if isinstance(data, dict) else None
     if voice.valid_thumbnail(image):
-        await voice.store_thumbnail(user_id, image)
+        await voice.store_thumbnail(user_id, image, _viewers_of)
 
 
 async def _send_error(websocket: WebSocket, message: str) -> None:

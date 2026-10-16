@@ -28,6 +28,9 @@ class ApiUser:
     async def patch(self, path: str, json: Any = None):  # noqa: ANN201
         return await self.client.patch(f"/api{path}", headers=self.headers, json=json)
 
+    async def put(self, path: str, json: Any = None):  # noqa: ANN201
+        return await self.client.put(f"/api{path}", headers=self.headers, json=json)
+
     async def delete(self, path: str):  # noqa: ANN201
         return await self.client.delete(f"/api{path}", headers=self.headers)
 

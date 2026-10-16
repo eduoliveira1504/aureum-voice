@@ -50,8 +50,11 @@ def dm_scope(channel_id: uuid.UUID) -> Scope:
     return Scope("dm", channel_id)
 
 
-# Returns who should be told about voice changes in a scope (its members).
-RecipientsFor = Callable[[Scope], Awaitable[list[uuid.UUID]]]
+# Returns who should be told about voice changes in a channel of a scope: the server members
+# who can see that channel, or the DM's members.
+RecipientsFor = Callable[[Scope, uuid.UUID], Awaitable[list[uuid.UUID]]]
+# Returns who can see a server voice channel (screen thumbnails go only to them).
+ViewersOf = Callable[[uuid.UUID], Awaitable[list[uuid.UUID]]]
 # Called after someone leaves a scope, with how many people are still in it.
 LeftHandler = Callable[[Scope, uuid.UUID, int], Awaitable[None]]
 _left_handlers: list[LeftHandler] = []
@@ -79,8 +82,15 @@ class VoiceState(VoiceFlags):
     channel_id: uuid.UUID
 
 
-def livekit_token(*, room: str, identity: str, name: str) -> str:
-    """LiveKit access token: a JWT signed with the API secret (see docs.livekit.io)."""
+# LiveKit track sources (VideoGrant.canPublishSources).
+SOURCE_MIC = "microphone"
+SOURCE_CAMERA = "camera"
+SOURCE_SCREEN = ["screen_share", "screen_share_audio"]
+
+
+def livekit_token(*, room: str, identity: str, name: str, sources: list[str] | None = None) -> str:
+    """LiveKit access token: a JWT signed with the API secret (see docs.livekit.io).
+    `sources` limits what the user may publish (None: anything); the media server enforces it."""
     settings = get_settings()
     now = datetime.now(UTC)
     claims = {
@@ -92,11 +102,13 @@ def livekit_token(*, room: str, identity: str, name: str) -> str:
         "video": {
             "room": room,
             "roomJoin": True,
-            "canPublish": True,
+            "canPublish": sources is None or bool(sources),
             "canSubscribe": True,
             "canPublishData": True,
         },
     }
+    if sources:  # an empty list would mean "any source" to LiveKit
+        claims["video"]["canPublishSources"] = sources
     return jwt.encode(claims, settings.livekit_api_secret, algorithm="HS256")
 
 
@@ -141,7 +153,7 @@ def _thumbnail_event(server_id: uuid.UUID, user_id: uuid.UUID, channel_id: uuid.
     }
 
 
-async def store_thumbnail(user_id: uuid.UUID, image: str) -> bool:
+async def store_thumbnail(user_id: uuid.UUID, image: str, viewers_of: ViewersOf) -> bool:
     """Keeps and forwards a thumbnail if the user is sharing their screen right now.
     Returns False when it was refused (not sharing, or sent too soon after the last one)."""
     current = await current_state(user_id)
@@ -155,7 +167,10 @@ async def store_thumbnail(user_id: uuid.UUID, image: str) -> bool:
     value = json.dumps({"channel_id": str(state.channel_id), "image": image})
     await broker.redis.set(_thumbnail_key(server_id, user_id), value, ex=THUMBNAIL_TTL_SECONDS)
     await broker.publish_to_watchers(
-        "screen.thumbnail", _thumbnail_event(server_id, user_id, state.channel_id, image), server_id
+        "screen.thumbnail",
+        _thumbnail_event(server_id, user_id, state.channel_id, image),
+        server_id,
+        await viewers_of(state.channel_id),
     )
     return True
 
@@ -207,15 +222,20 @@ async def _remove(user_id: uuid.UUID, scope: Scope, recipients: list[uuid.UUID])
 async def set_state(state: VoiceState, scope: Scope, recipients_for: RecipientsFor) -> None:
     """Puts the user in a voice channel, leaving any channel they were in elsewhere."""
     redis = broker.redis
-    previous = await redis.get(_user_key(state.user_id))
-    if previous and Scope.parse(previous) != scope:
-        previous_scope = Scope.parse(previous)
-        await _remove(state.user_id, previous_scope, await recipients_for(previous_scope))
+    previous = await current_state(state.user_id)
+    if previous and previous[0] != scope:
+        await _remove(state.user_id, previous[0], await recipients_for(previous[0], previous[1].channel_id))
     await redis.hset(_scope_key(scope), str(state.user_id), state.model_dump_json())
     await redis.set(_user_key(state.user_id), str(scope))
     if scope.kind == "server" and not state.screen:
         await clear_thumbnail(scope.id, state.user_id)
-    await _announce(scope, state.user_id, state, await recipients_for(scope))
+    recipients = await recipients_for(scope, state.channel_id)
+    if previous and previous[0] == scope and previous[1].channel_id != state.channel_id:
+        # Moved to another room of the server: whoever sees the old room but not the new one
+        # must see them leave it.
+        others = set(await recipients_for(scope, previous[1].channel_id)) - set(recipients)
+        await _announce(scope, state.user_id, None, list(others))
+    await _announce(scope, state.user_id, state, recipients)
 
 
 async def leave(user_id: uuid.UUID, recipients_for: RecipientsFor) -> None:
@@ -223,7 +243,9 @@ async def leave(user_id: uuid.UUID, recipients_for: RecipientsFor) -> None:
     current = await broker.redis.getdel(_user_key(user_id))
     if current:
         scope = Scope.parse(current)
-        await _remove(user_id, scope, await recipients_for(scope))
+        raw = await broker.redis.hget(_scope_key(scope), str(user_id))
+        channel_id = VoiceState.model_validate_json(raw).channel_id if raw else scope.id
+        await _remove(user_id, scope, await recipients_for(scope, channel_id))
 
 
 async def leave_scope(user_id: uuid.UUID, scope: Scope, recipients: list[uuid.UUID]) -> None:

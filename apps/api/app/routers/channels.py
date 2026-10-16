@@ -3,29 +3,24 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import calls, dms, reads, social, voice
-from app.access import (
-    MANAGERS,
-    channel_audience,
-    channel_member_ids,
-    get_channel_access,
-    get_channel_for_member,
-    require_manager,
-    server_member_ids,
-)
+from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
-from app.models import Channel, ChannelType, Message, ServerMember
+from app.models import Channel, ChannelOverride, ChannelType, Message, OverrideTarget, Role, ServerMember
+from app.permissions import CHANNEL_PERMS, Perm, ServerAccess, channel_overwrites, channel_viewers
 from app.realtime import broker
-from app.routers.servers import normalize_channel_name
+from app.routers.servers import channel_out, normalize_channel_name, permissions_changed
 from app.schemas import (
     ChannelOut,
     ChannelUpdate,
     MarkRead,
     MessageCreate,
     MessageOut,
+    OverrideSet,
     ReadStateOut,
     VoiceTokenOut,
 )
@@ -38,28 +33,27 @@ router = APIRouter(tags=["channels"])
 
 @router.patch("/channels/{channel_id}", response_model=ChannelOut)
 async def update_channel(channel_id: uuid.UUID, body: ChannelUpdate, user: CurrentUser, session: SessionDep) -> ChannelOut:
-    channel, member = await get_channel_for_member(session, channel_id, user.id)
-    require_manager(member)
+    channel, access = await get_channel_for_member(session, channel_id, user.id)
+    access.require_in(channel, Perm.MANAGE_CHANNELS)
     if body.name is not None:
         channel.name = normalize_channel_name(body.name, channel.type)
     if body.position is not None:
         channel.position = body.position
     await session.commit()
-    out = ChannelOut.model_validate(channel)
-    assert channel.server_id is not None
-    await broker.publish("channel.updated", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    out = channel_out(channel, (await channel_overwrites(session, [channel.id]))[channel.id])
+    await broker.publish("channel.updated", out.model_dump(mode="json"), await channel_viewers(session, channel))
     return out
 
 
 @router.delete("/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
-    channel, member = await get_channel_for_member(session, channel_id, user.id)
-    require_manager(member)
+    channel, access = await get_channel_for_member(session, channel_id, user.id)
+    access.require_in(channel, Perm.MANAGE_CHANNELS)
     server_id = channel.server_id
     assert server_id is not None
+    recipients = await channel_viewers(session, channel)
     await session.delete(channel)
     await session.commit()
-    recipients = await server_member_ids(session, server_id)
     await voice.clear_channel(server_id, channel_id, recipients)
     await broker.publish("channel.deleted", {"id": str(channel_id), "server_id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -71,14 +65,32 @@ async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: Sess
 @router.post("/channels/{channel_id}/voice/token", response_model=VoiceTokenOut)
 async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> VoiceTokenOut:
     """For a server voice channel, or for the call in progress in a DM/group."""
-    channel, _ = await get_channel_access(session, channel_id, user.id)
+    channel, access = await get_channel_access(session, channel_id, user.id)
+    sources = None
     if channel.type in dms.DM_TYPES:
         if await calls.current_call(session, channel.id) is None:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="No call in progress")
     elif channel.type != ChannelType.voice:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a voice channel")
-    token = voice.livekit_token(room=str(channel.id), identity=str(user.id), name=user.display_name)
+    else:
+        assert access is not None
+        sources = voice_sources(access.channel(channel))
+    token = voice.livekit_token(room=str(channel.id), identity=str(user.id), name=user.display_name, sources=sources)
     return VoiceTokenOut(token=token, url=get_settings().livekit_url)
+
+
+def voice_sources(perms: Perm) -> list[str]:
+    """What the user may publish in a server room (403 without CONNECT). LiveKit enforces it."""
+    if not perms & Perm.CONNECT:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't join this room")
+    sources = []
+    if perms & Perm.SPEAK:
+        sources.append(voice.SOURCE_MIC)
+    if perms & Perm.VIDEO:
+        sources.append(voice.SOURCE_CAMERA)
+    if perms & Perm.STREAM:
+        sources.extend(voice.SOURCE_SCREEN)
+    return sources
 
 
 # --- Messages -------------------------------------------------------------------
@@ -90,12 +102,12 @@ def _server_id(channel: Channel) -> str | None:
 
 async def _text_channel(
     session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[Channel, ServerMember | None]:
+) -> tuple[Channel, ServerAccess | None]:
     """A channel that holds messages: a server text channel, a DM or a group."""
-    channel, member = await get_channel_access(session, channel_id, user_id)
+    channel, access = await get_channel_access(session, channel_id, user_id)
     if channel.type not in (ChannelType.text, *dms.DM_TYPES):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a text channel")
-    return channel, member
+    return channel, access
 
 
 async def _require_dm_friends(session: AsyncSession, channel: Channel, user_id: uuid.UUID) -> None:
@@ -115,8 +127,11 @@ async def list_messages(
     before: Annotated[int | None, Query(ge=1)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[Message]:
-    """Newest page first; messages inside the page are in chronological order."""
-    await _text_channel(session, channel_id, user.id)
+    """Newest page first; messages inside the page are in chronological order. Without
+    READ_HISTORY the page is empty: only messages that arrive live are seen."""
+    channel, access = await _text_channel(session, channel_id, user.id)
+    if access is not None and not access.channel(channel) & Perm.READ_HISTORY:
+        return []
     query = select(Message).where(Message.channel_id == channel_id)
     if before is not None:
         query = query.where(Message.id < before)
@@ -126,7 +141,9 @@ async def list_messages(
 
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
-    channel, _ = await _text_channel(session, channel_id, user.id)
+    channel, access = await _text_channel(session, channel_id, user.id)
+    if access is not None:
+        access.require_in(channel, Perm.SEND_MESSAGES)
     await _require_dm_friends(session, channel, user.id)
     if channel.server_id is None:
         # Reopens the DM for whoever closed it, before the message exists: their read state
@@ -135,14 +152,15 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
     message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
     session.add(message)
     await session.flush()
+    audience = await channel_audience(session, channel)
     # In DMs every message is for everyone in it; @mentions only matter in servers.
-    mentioned = await reads.record_mentions(session, message, channel.server_id) if channel.server_id else []
+    mentioned = await reads.record_mentions(session, message, audience) if channel.server_id else []
     await session.commit()
     await session.refresh(message, ["author"])
     out = MessageOut.model_validate(message)
     # `mentions` rides along in the event only, so clients can bump their mention badges live.
     event = {**out.model_dump(mode="json"), "server_id": _server_id(channel), "mentions": [str(u) for u in mentioned]}
-    await broker.publish("message.created", event, await channel_audience(session, channel))
+    await broker.publish("message.created", event, audience)
     return out
 
 
@@ -159,12 +177,12 @@ async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDe
 
 async def _message_for_member(
     session: AsyncSession, message_id: int, user_id: uuid.UUID
-) -> tuple[Message, Channel, ServerMember | None]:
+) -> tuple[Message, Channel, ServerAccess | None]:
     message = await session.get(Message, message_id)
     if message is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Message not found")
-    channel, member = await get_channel_access(session, message.channel_id, user_id)
-    return message, channel, member
+    channel, access = await get_channel_access(session, message.channel_id, user_id)
+    return message, channel, access
 
 
 @router.patch("/messages/{message_id}", response_model=MessageOut)
@@ -185,9 +203,9 @@ async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, 
 
 @router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_message(message_id: int, user: CurrentUser, session: SessionDep) -> Response:
-    message, channel, member = await _message_for_member(session, message_id, user.id)
+    message, channel, access = await _message_for_member(session, message_id, user.id)
     # In DMs nobody moderates: only the author deletes.
-    if message.author_id != user.id and (member is None or member.role not in MANAGERS):
+    if message.author_id != user.id and (access is None or not access.channel(channel) & Perm.MANAGE_MESSAGES):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't delete this message")
     channel_id = message.channel_id
     await session.delete(message)
@@ -198,3 +216,81 @@ async def delete_message(message_id: int, user: CurrentUser, session: SessionDep
         await channel_audience(session, channel),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- Permission overrides -------------------------------------------------------
+
+
+async def _check_override(
+    session: AsyncSession,
+    channel: Channel,
+    access: ServerAccess,
+    target_type: OverrideTarget,
+    target_id: uuid.UUID,
+    changed: int,
+) -> None:
+    """Needs MANAGE_ROLES in the channel, a target in the server that ranks below the editor,
+    and only bits the editor has there."""
+    access.require_in(channel, Perm.MANAGE_ROLES)
+    if target_type == OverrideTarget.role:
+        role = await session.get(Role, target_id)
+        if role is None or role.server_id != channel.server_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Role not found")
+        if not role.is_everyone:
+            access.require_outranks(role.position, "this role")
+    else:
+        if await session.get(ServerMember, (channel.server_id, target_id)) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Member not found")
+        access.require_outranks(access.ctx.rank(target_id), "this member")
+    access.require_grantable(changed, within=access.channel(channel))
+
+
+async def _overrides_changed(session: AsyncSession, channel: Channel) -> ChannelOut:
+    assert channel.server_id is not None
+    await permissions_changed(session, channel.server_id)
+    return channel_out(channel, (await channel_overwrites(session, [channel.id]))[channel.id])
+
+
+@router.put("/channels/{channel_id}/overrides/{target_type}/{target_id}", response_model=ChannelOut)
+async def set_override(
+    channel_id: uuid.UUID,
+    target_type: OverrideTarget,
+    target_id: uuid.UUID,
+    body: OverrideSet,
+    user: CurrentUser,
+    session: SessionDep,
+) -> ChannelOut:
+    """Sets what a role (@everyone's id is the server's) or a member may do in this channel."""
+    channel, access = await get_channel_for_member(session, channel_id, user.id)
+    if body.allow & body.deny:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A permission can't be both allowed and denied")
+    if (body.allow | body.deny) & ~int(CHANNEL_PERMS):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only channel permissions can be overridden")
+    current = await session.get(ChannelOverride, (channel_id, target_type, target_id))
+    old_allow, old_deny = (current.allow, current.deny) if current else (0, 0)
+    changed = (body.allow ^ old_allow) | (body.deny ^ old_deny)
+    await _check_override(session, channel, access, target_type, target_id, changed)
+    await session.execute(
+        insert(ChannelOverride)
+        .values(channel_id=channel_id, target_type=target_type, target_id=target_id, allow=body.allow, deny=body.deny)
+        .on_conflict_do_update(
+            index_elements=[ChannelOverride.channel_id, ChannelOverride.target_type, ChannelOverride.target_id],
+            set_={"allow": body.allow, "deny": body.deny},
+        )
+    )
+    await session.commit()
+    return await _overrides_changed(session, channel)
+
+
+@router.delete("/channels/{channel_id}/overrides/{target_type}/{target_id}", response_model=ChannelOut)
+async def remove_override(
+    channel_id: uuid.UUID, target_type: OverrideTarget, target_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> ChannelOut:
+    channel, access = await get_channel_for_member(session, channel_id, user.id)
+    override = await session.get(ChannelOverride, (channel_id, target_type, target_id))
+    if override is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Override not found")
+    await _check_override(session, channel, access, target_type, target_id, override.allow | override.deny)
+    await session.delete(override)
+    await session.commit()
+    return await _overrides_changed(session, channel)

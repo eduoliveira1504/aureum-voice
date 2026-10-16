@@ -5,7 +5,7 @@ it. Each API process subscribes to the channel and forwards events to the WebSoc
 holds locally, so any number of API processes can run side by side.
 
 A few high-volume events (screen-share thumbnails) go to connections instead of users:
-only those currently watching a server's overview.
+only those currently watching a server's overview (and, when given, only of some users).
 """
 
 import asyncio
@@ -38,6 +38,7 @@ class Broker:
         self._listener: asyncio.Task[None] | None = None
         self._subscribed = asyncio.Event()
         self._sockets: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
+        self._owners: dict[WebSocket, uuid.UUID] = {}
         # Connections showing a server's overview, by server id.
         self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
 
@@ -59,9 +60,15 @@ class Broker:
         except Exception:  # an event lost to a Redis outage must not fail the HTTP request
             log.exception("Failed to publish %s event", type_)
 
-    async def publish_to_watchers(self, type_: str, data: Any, server_id: uuid.UUID) -> None:
-        """Sends an event only to connections watching the server's overview."""
-        payload = json.dumps({"type": type_, "data": data, "watchers": str(server_id)}, default=str)
+    async def publish_to_watchers(
+        self, type_: str, data: Any, server_id: uuid.UUID, user_ids: Iterable[uuid.UUID] | None = None
+    ) -> None:
+        """Sends an event only to connections watching the server's overview, optionally only
+        those of some users (e.g. who can see the channel it's about)."""
+        message: dict[str, Any] = {"type": type_, "data": data, "watchers": str(server_id)}
+        if user_ids is not None:
+            message["user_ids"] = [str(u) for u in set(user_ids)]
+        payload = json.dumps(message, default=str)
         try:
             await self.redis.publish(self._channel, payload)
         except Exception:
@@ -95,7 +102,10 @@ class Broker:
         event = {"type": payload["type"], "data": payload["data"]}
         if "watchers" in payload:
             watchers = self._watchers.get(uuid.UUID(payload["watchers"]), set())
+            allowed = {uuid.UUID(u) for u in payload["user_ids"]} if "user_ids" in payload else None
             for ws in list(watchers):
+                if allowed is not None and self._owners.get(ws) not in allowed:
+                    continue
                 try:
                     await ws.send_json(event)
                 except Exception:
@@ -112,9 +122,11 @@ class Broker:
 
     def register(self, user_id: uuid.UUID, ws: WebSocket) -> None:
         self._sockets[user_id].add(ws)
+        self._owners[ws] = user_id
 
     def unregister(self, user_id: uuid.UUID, ws: WebSocket) -> None:
         self.watch(None, ws)
+        self._owners.pop(ws, None)
         sockets = self._sockets.get(user_id)
         if sockets is not None:
             sockets.discard(ws)

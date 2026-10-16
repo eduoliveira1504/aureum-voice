@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints, computed_field
 
-from app.models import DEFAULT_ACCENT, ChannelType, MemberRole, Theme, UserStatus
+from app.models import DEFAULT_ACCENT, ChannelType, OverrideTarget, Theme, UserStatus
 from app.voice import VoiceState
 
 Username = Annotated[
@@ -119,6 +119,7 @@ class SettingsOut(BaseModel):
     tab_order: list[uuid.UUID] = []
     closed_tabs: list[uuid.UUID] = []
     sidebar_collapsed: bool = False
+    members_open: bool = False
     panel_layouts: dict[uuid.UUID, PanelLayout] = {}
 
 
@@ -130,6 +131,7 @@ class SettingsUpdate(BaseModel):
     tab_order: TabList | None = None
     closed_tabs: TabList | None = None
     sidebar_collapsed: bool | None = None
+    members_open: bool | None = None
     # Merged per server: a layout replaces that server's, null removes it, others are kept.
     # That way two PCs arranging different servers don't overwrite each other.
     panel_layouts: Annotated[dict[uuid.UUID, PanelLayout | None], Field(max_length=50)] | None = None
@@ -171,7 +173,76 @@ class ServerOut(BaseModel):
     id: uuid.UUID
     name: str
     icon_url: str | None
+    banner_url: str | None
     owner_id: uuid.UUID
+    created_at: datetime
+
+
+# Bitfield of app.permissions.Perm (24 bits, so it's safe as a JSON number).
+Permissions = Annotated[int, Field(ge=0, lt=1 << 24)]
+RoleColor = AccentColor
+
+
+class RoleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    server_id: uuid.UUID
+    name: str
+    color: str | None
+    icon_url: str | None
+    position: int
+    permissions: int
+    hoist: bool
+    mentionable: bool
+
+
+class RoleCreate(BaseModel):
+    name: Name
+    color: RoleColor | None = None
+    permissions: Permissions = 0
+    hoist: bool = False
+    mentionable: bool = False
+
+
+class RoleUpdate(BaseModel):
+    """Only the fields sent change; color can be cleared with null."""
+
+    name: Name | None = None
+    color: RoleColor | None = None
+    permissions: Permissions | None = None
+    hoist: bool | None = None
+    mentionable: bool | None = None
+
+
+class RoleOrder(BaseModel):
+    # Every role but @everyone, strongest first.
+    role_ids: Annotated[list[uuid.UUID], Field(max_length=250)]
+
+
+class OverrideOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    target_type: OverrideTarget
+    target_id: uuid.UUID
+    allow: int
+    deny: int
+
+
+class OverrideSet(BaseModel):
+    allow: Permissions = 0
+    deny: Permissions = 0
+
+
+class BanCreate(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+
+
+class BanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user: UserPublic
+    reason: str | None
     created_at: datetime
 
 
@@ -193,13 +264,16 @@ class ChannelOut(BaseModel):
     name: str | None
     type: ChannelType
     position: int
+    # Server channels only.
+    overrides: list[OverrideOut] = []
 
 
 class MemberOut(WithPresence):
     model_config = ConfigDict(from_attributes=True)
 
     user: UserPublic
-    role: MemberRole
+    # Without @everyone, which everyone has.
+    role_ids: list[uuid.UUID] = []
     joined_at: datetime
 
 
@@ -279,6 +353,9 @@ class GroupMembersAdd(BaseModel):
 
 
 class ServerDetail(ServerOut):
+    # @everyone included (its id is the server's), strongest first.
+    roles: list[RoleOut] = []
+    # Only the channels the requesting user can see.
     channels: list[ChannelOut]
     members: list[MemberOut]
     voice_states: list[VoiceState] = []
