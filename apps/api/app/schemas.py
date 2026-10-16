@@ -197,6 +197,31 @@ class ReadStateOut(BaseModel):
     mention_count: int
 
 
+class CallParticipantOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: uuid.UUID
+    rung_at: datetime | None
+    joined_at: datetime | None
+    left_at: datetime | None
+    declined_at: datetime | None
+
+
+class CallOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    channel_id: uuid.UUID
+    started_by: uuid.UUID | None
+    started_at: datetime
+    ended_at: datetime | None
+    participants: list[CallParticipantOut]
+
+
+class CallRing(BaseModel):
+    user_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=9)]
+
+
 MAX_GROUP_MEMBERS = 10
 
 
@@ -215,6 +240,9 @@ class DmOut(BaseModel):
     # 0 when empty; lets clients sort conversations by latest activity.
     last_message_id: int
     read: ReadStateOut
+    # The call in progress, and who is in it right now.
+    call: CallOut | None = None
+    voice_states: list[VoiceState] = []
 
 
 class DmCreate(BaseModel):
@@ -290,3 +318,5 @@ class MessageOut(BaseModel):
     attachments: list[dict[str, Any]]
     created_at: datetime
     edited_at: datetime | None
+    # The call this line stands for (DMs only).
+    call: CallOut | None = None

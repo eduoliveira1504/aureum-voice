@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import dms, reads, social
+from app import dms, reads, social, voice
 from app.access import channel_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelMember, ChannelType
@@ -133,6 +133,8 @@ async def close_or_leave(channel_id: uuid.UUID, user: CurrentUser, session: Sess
         membership.hidden = True
         await session.commit()
     else:
+        # Out of the group, out of its call.
+        await voice.leave_scope(user.id, voice.dm_scope(channel.id), await channel_member_ids(session, channel.id))
         await session.delete(membership)
         await session.flush()
         remaining = await session.scalar(select(func.count()).where(ChannelMember.channel_id == channel.id))

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import dms, reads, social, voice
+from app import calls, dms, reads, social, voice
 from app.access import (
     MANAGERS,
     channel_audience,
@@ -70,8 +70,12 @@ async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: Sess
 
 @router.post("/channels/{channel_id}/voice/token", response_model=VoiceTokenOut)
 async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> VoiceTokenOut:
-    channel, _ = await get_channel_for_member(session, channel_id, user.id)
-    if channel.type != ChannelType.voice:
+    """For a server voice channel, or for the call in progress in a DM/group."""
+    channel, _ = await get_channel_access(session, channel_id, user.id)
+    if channel.type in dms.DM_TYPES:
+        if await calls.current_call(session, channel.id) is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="No call in progress")
+    elif channel.type != ChannelType.voice:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a voice channel")
     token = voice.livekit_token(room=str(channel.id), identity=str(user.id), name=user.display_name)
     return VoiceTokenOut(token=token, url=get_settings().livekit_url)
@@ -166,6 +170,8 @@ async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, 
     message, channel, _ = await _message_for_member(session, message_id, user.id)
     if message.author_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only edit your own messages")
+    if message.call_id is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Call lines can't be edited")
     message.content = body.content
     message.edited_at = func.now()
     await session.commit()

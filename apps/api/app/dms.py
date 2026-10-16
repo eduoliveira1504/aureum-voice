@@ -10,10 +10,10 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import reads
+from app import reads, voice
 from app.models import Channel, ChannelMember, ChannelType, Message
 from app.realtime import broker
-from app.schemas import DmMemberOut, DmOut, ReadStateOut, UserPublic
+from app.schemas import CallOut, DmMemberOut, DmOut, ReadStateOut, UserPublic
 
 DM_TYPES = (ChannelType.dm, ChannelType.group_dm)
 
@@ -24,6 +24,8 @@ def dm_key(a: uuid.UUID, b: uuid.UUID) -> str:
 
 
 async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UUID) -> list[DmOut]:
+    from app import calls  # calls builds on this module
+
     if not channels:
         return []
     ids = [c.id for c in channels]
@@ -34,9 +36,11 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
     )
     latest = {channel_id: last for channel_id, last in rows}
     states = await reads.channel_states(session, viewer, ids)
+    active = await calls.current_calls(session, ids)
     out = []
     for channel in channels:
         _, last_read, unread, mentions = states[channel.id]
+        call = active.get(channel.id)
         out.append(
             DmOut(
                 id=channel.id,
@@ -49,6 +53,8 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
                 ],
                 last_message_id=latest.get(channel.id, 0),
                 read=ReadStateOut(channel_id=channel.id, last_read_message_id=last_read, unread_count=unread, mention_count=mentions),
+                call=CallOut.model_validate(call) if call else None,
+                voice_states=await voice.get_states(voice.dm_scope(channel.id)) if call else [],
             )
         )
     return out

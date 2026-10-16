@@ -6,11 +6,12 @@ from typing import Any
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from app import voice
-from app.access import audience_ids, server_member_ids
+from app import calls, voice
+from app.access import audience_ids, channel_member_ids, server_member_ids
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Channel, ChannelType, ServerMember, User
+from app.dms import DM_TYPES
+from app.models import Channel, ChannelMember, ChannelType, ServerMember, User
 from app.realtime import broker
 from app.security import decode_token
 
@@ -29,9 +30,28 @@ class VoiceUpdate(voice.VoiceFlags):
     channel_id: uuid.UUID | None
 
 
-async def _recipients(server_id: uuid.UUID) -> list[uuid.UUID]:
+async def _recipients(scope: voice.Scope) -> list[uuid.UUID]:
     async with SessionLocal() as session:
-        return await server_member_ids(session, server_id)
+        if scope.kind == "server":
+            return await server_member_ids(session, scope.id)
+        return await channel_member_ids(session, scope.id)
+
+
+async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> voice.Scope | None:
+    """Where joining this channel puts the user: a server voice channel they're a member of,
+    or a DM/group of theirs with a call in progress. None if they can't join it."""
+    async with SessionLocal() as session:
+        channel = await session.get(Channel, channel_id)
+        if channel is None:
+            return None
+        if channel.type == ChannelType.voice and channel.server_id is not None:
+            if await session.get(ServerMember, (channel.server_id, user_id)) is None:
+                return None
+            return voice.server_scope(channel.server_id)
+        if channel.type in DM_TYPES and await session.get(ChannelMember, (channel_id, user_id)) is not None:
+            if await calls.active_call(session, channel_id) is not None:
+                return voice.dm_scope(channel_id)
+        return None
 
 
 async def _publish_presence(user_id: uuid.UUID, online: bool) -> None:
@@ -49,20 +69,13 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
     if update.channel_id is None:
         return await voice.leave(user_id, _recipients)
 
-    async with SessionLocal() as session:
-        channel = await session.get(Channel, update.channel_id)
-        allowed = (
-            channel is not None
-            and channel.type == ChannelType.voice
-            and channel.server_id is not None
-            and await session.get(ServerMember, (channel.server_id, user_id)) is not None
-        )
-    if not allowed:
+    scope = await _voice_scope(update.channel_id, user_id)
+    if scope is None:
         return await _send_error(websocket, "Voice channel not found")
-
-    assert channel is not None and channel.server_id is not None
     state = voice.VoiceState(user_id=user_id, **update.model_dump())
-    await voice.set_state(state, channel.server_id, _recipients)
+    await voice.set_state(state, scope, _recipients)
+    if scope.kind == "dm":
+        await calls.joined(scope.id, user_id)
 
 
 async def _handle_overview_watch(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:

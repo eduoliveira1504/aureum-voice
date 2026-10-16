@@ -49,7 +49,7 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
     )
     online = await broker.online(m.user_id for m in members)
     try:
-        voice_states = await voice.get_states(server.id)
+        voice_states = await voice.get_states(voice.server_scope(server.id))
     except Exception:  # Redis down: still serve the server, just without voice info
         voice_states = []
     return ServerDetail(
@@ -139,7 +139,7 @@ async def leave_server(server_id: uuid.UUID, user: CurrentUser, session: Session
     await reads.forget_server(session, user.id, server_id)
     await session.commit()
     recipients = [*await server_member_ids(session, server_id), user.id]
-    await voice.leave_server(user.id, server_id, recipients)
+    await voice.leave_scope(user.id, voice.server_scope(server_id), recipients)
     await broker.publish("server.member.left", {"server_id": str(server_id), "user_id": str(user.id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

@@ -244,8 +244,11 @@ class Message(Base):
     )
     created_at: Mapped[datetime] = _created_at()
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set on the line a private call leaves in its DM ("X started a call", "missed call").
+    call_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("calls.id", ondelete="SET NULL"))
 
     author: Mapped[User | None] = relationship(lazy="joined")
+    call: Mapped["Call | None"] = relationship(lazy="joined")
 
     __table_args__ = (
         # Covers "latest messages of a channel" and "messages before id X".
@@ -303,3 +306,42 @@ class Friendship(Base):
             postgresql_where=text("status <> 'blocked'"),
         ),
     )
+
+
+class Call(Base):
+    """A private call in a DM or group. It's active (ended_at NULL) while anyone is in it."""
+
+    __tablename__ = "calls"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    started_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    started_at: Mapped[datetime] = _created_at()
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    participants: Mapped[list["CallParticipant"]] = relationship(
+        lazy="selectin", order_by="CallParticipant.joined_at", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        # At most one active call per conversation.
+        Index("uq_calls_active_channel", "channel_id", unique=True, postgresql_where=text("ended_at IS NULL")),
+    )
+
+
+class CallParticipant(Base):
+    """Someone rung for a call or in it. A row rung but never joined nor declined, once the call
+    ended or the ring timed out, is a missed call."""
+
+    __tablename__ = "call_participants"
+
+    call_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calls.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    rung_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # null: wasn't rung (the caller)
+    joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
