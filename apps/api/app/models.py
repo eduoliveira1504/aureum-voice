@@ -21,7 +21,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Deterministic constraint names keep Alembic migrations stable.
 NAMING_CONVENTION = {
@@ -123,6 +123,8 @@ class ServerMember(Base):
     )
     joined_at: Mapped[datetime] = _created_at()
 
+    user: Mapped[User] = relationship(lazy="joined")
+
 
 class Invite(Base):
     __tablename__ = "invites"
@@ -171,6 +173,8 @@ class Message(Base):
     )
     created_at: Mapped[datetime] = _created_at()
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    author: Mapped[User | None] = relationship(lazy="joined")
 
     __table_args__ = (
         # Covers "latest messages of a channel" and "messages before id X".

@@ -1,0 +1,131 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, Response, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.access import MANAGERS, get_channel_for_member, require_manager, server_member_ids
+from app.deps import CurrentUser, SessionDep
+from app.models import Channel, ChannelType, Message, ServerMember
+from app.realtime import broker
+from app.routers.servers import normalize_channel_name
+from app.schemas import ChannelOut, ChannelUpdate, MessageCreate, MessageOut
+
+router = APIRouter(tags=["channels"])
+
+
+# --- Channels -------------------------------------------------------------------
+
+
+@router.patch("/channels/{channel_id}", response_model=ChannelOut)
+async def update_channel(channel_id: uuid.UUID, body: ChannelUpdate, user: CurrentUser, session: SessionDep) -> ChannelOut:
+    channel, member = await get_channel_for_member(session, channel_id, user.id)
+    require_manager(member)
+    if body.name is not None:
+        channel.name = normalize_channel_name(body.name, channel.type)
+    if body.position is not None:
+        channel.position = body.position
+    await session.commit()
+    out = ChannelOut.model_validate(channel)
+    assert channel.server_id is not None
+    await broker.publish("channel.updated", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    return out
+
+
+@router.delete("/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
+    channel, member = await get_channel_for_member(session, channel_id, user.id)
+    require_manager(member)
+    server_id = channel.server_id
+    assert server_id is not None
+    await session.delete(channel)
+    await session.commit()
+    await broker.publish(
+        "channel.deleted",
+        {"id": str(channel_id), "server_id": str(server_id)},
+        await server_member_ids(session, server_id),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- Messages -------------------------------------------------------------------
+
+
+async def _text_channel(
+    session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
+) -> tuple[Channel, ServerMember]:
+    channel, member = await get_channel_for_member(session, channel_id, user_id)
+    if channel.type != ChannelType.text:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a text channel")
+    return channel, member
+
+
+@router.get("/channels/{channel_id}/messages", response_model=list[MessageOut])
+async def list_messages(
+    channel_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    before: Annotated[int | None, Query(ge=1)] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[Message]:
+    """Newest page first; messages inside the page are in chronological order."""
+    await _text_channel(session, channel_id, user.id)
+    query = select(Message).where(Message.channel_id == channel_id)
+    if before is not None:
+        query = query.where(Message.id < before)
+    rows = await session.scalars(query.order_by(Message.id.desc()).limit(limit))
+    return list(reversed(list(rows)))
+
+
+@router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
+async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
+    channel, _ = await _text_channel(session, channel_id, user.id)
+    message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
+    session.add(message)
+    await session.commit()
+    await session.refresh(message, ["author"])
+    out = MessageOut.model_validate(message)
+    assert channel.server_id is not None
+    await broker.publish("message.created", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    return out
+
+
+async def _message_for_member(
+    session: AsyncSession, message_id: int, user_id: uuid.UUID
+) -> tuple[Message, Channel, ServerMember]:
+    message = await session.get(Message, message_id)
+    if message is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Message not found")
+    channel, member = await get_channel_for_member(session, message.channel_id, user_id)
+    return message, channel, member
+
+
+@router.patch("/messages/{message_id}", response_model=MessageOut)
+async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
+    message, channel, _ = await _message_for_member(session, message_id, user.id)
+    if message.author_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only edit your own messages")
+    message.content = body.content
+    message.edited_at = func.now()
+    await session.commit()
+    await session.refresh(message)
+    out = MessageOut.model_validate(message)
+    await broker.publish("message.updated", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    return out
+
+
+@router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_message(message_id: int, user: CurrentUser, session: SessionDep) -> Response:
+    message, channel, member = await _message_for_member(session, message_id, user.id)
+    if message.author_id != user.id and member.role not in MANAGERS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't delete this message")
+    channel_id = message.channel_id
+    await session.delete(message)
+    await session.commit()
+    await broker.publish(
+        "message.deleted",
+        {"id": message_id, "channel_id": str(channel_id)},
+        await server_member_ids(session, channel.server_id),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
