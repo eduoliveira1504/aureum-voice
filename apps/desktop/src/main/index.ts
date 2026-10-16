@@ -1,11 +1,21 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, ipcMain, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, safeStorage, session, shell, type IpcMainInvokeEvent } from 'electron'
 
 import type { AppSettings } from '../shared/types'
 
 const DEFAULT_SETTINGS: AppSettings = { apiUrl: 'http://localhost:8000' }
+
+// AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
+// accounts can be used side by side on one machine — handy for testing calls locally.
+const profile = process.env['AUREUM_PROFILE']
+if (profile && /^[\w-]{1,32}$/.test(profile)) {
+  app.setPath('userData', join(app.getPath('appData'), `Aureum Voice (${profile})`))
+}
+
+// Permissions the app's own window may use; everything else is denied.
+const ALLOWED_PERMISSIONS = new Set(['media', 'clipboard-sanitized-write', 'fullscreen', 'speaker-selection'])
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
 const sessionPath = (): string => join(app.getPath('userData'), 'session.bin')
@@ -139,6 +149,14 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     app.setAppUserModelId('com.aureum.voice')
+    const isAppWindow = (contents: Electron.WebContents | null): boolean =>
+      !!contents && contents === mainWindow?.webContents
+    session.defaultSession.setPermissionRequestHandler((contents, permission, callback) =>
+      callback(isAppWindow(contents) && ALLOWED_PERMISSIONS.has(permission))
+    )
+    session.defaultSession.setPermissionCheckHandler(
+      (contents, permission) => isAppWindow(contents) && ALLOWED_PERMISSIONS.has(permission)
+    )
     createWindow()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
