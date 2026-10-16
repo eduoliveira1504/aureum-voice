@@ -14,6 +14,14 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Servers, text and voice channels, invites with expiry and use limits, roles (owner / admin / member)
 - Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
 - Unread counters and `@username` mention badges per channel, synced across devices
+- Friends by `@username` (requests, accept / decline / cancel, unfriend, block), DMs and group DMs of up
+  to 10 people, and an "Active now" list of friends in calls with a join button
+- Private calls in DMs and groups: the other members get an incoming-call popup with a ringtone for
+  30 s, a missed call stays in the chat and in notifications, and more people can be added mid-call
+  (from a 1:1 DM the call moves to a new group, so the DM's history stays private)
+  ([ADR 0006](docs/decisions/0006-friends-dms-and-private-calls.md))
+- Presence: online, idle (automatic after 10 minutes without input on the PC), do not disturb
+  (silences the ringtone) and invisible
 - An app shell of its own:
   - a tab bar with Home and one tab per open server (drag to reorder, close and reopen);
   - a sidebar that follows the tab, with rooms, conversations and add-ons, collapsible to icons;
@@ -62,7 +70,8 @@ flowchart LR
 
 - **API** (`apps/api`): Python 3.12, FastAPI, async SQLAlchemy 2 + Alembic, Pydantic v2. Events are
   published to Redis and fanned out to each user's WebSocket connections, so the API can scale past one
-  process. Presence and voice state live in Redis with heartbeats and TTLs.
+  process. Presence and voice state live in Redis with heartbeats and TTLs. Voice state is kept per
+  scope: a server's rooms, or a DM/group's private call, so both use the same voice flow.
 - **Media**: the API issues a LiveKit token per voice channel (room = channel id, identity = user id) and
   returns the LiveKit URL with it, so the desktop app holds no media secrets. LiveKit can be self-hosted
   (included in compose) or LiveKit Cloud.
@@ -195,7 +204,8 @@ LiveKit URL from the API, and the API URL is only a build setting.
 
 ## Roadmap
 
-- Direct messages, group DMs and private calls with ringing (the Home tab already has their place)
+- Server roles with permissions, server icons and banners
+- Richer profiles and the app's own sound set
 - In-game camera overlay
 - Add-ons: a Kanban board and "watch together" first (shown as placeholders in the shell), later a
   BlueMap Minecraft map and listening to music together
