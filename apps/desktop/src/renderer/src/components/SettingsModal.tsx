@@ -3,8 +3,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { useVoice } from '../store/voice'
+import { AppearanceSettings } from './AppearanceSettings'
 import { Modal } from './Modal'
 import { ProfileSettings } from './ProfileSettings'
+import { inputClass, labelClass, ToggleRow } from './ui'
 
 interface Devices {
   audioinput: MediaDeviceInfo[]
@@ -28,7 +30,7 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'voice'
+type Tab = 'profile' | 'appearance' | 'voice'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -36,10 +38,11 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
 
   return (
     <Modal title="Configurações" wide onClose={onClose}>
-      <div className="mb-5 flex gap-1 border-b border-surface-3">
+      <div className="mb-5 flex gap-1 border-b border-line">
         {(
           [
             ['profile', 'Meu perfil'],
+            ['appearance', 'Aparência'],
             ['voice', 'Voz e vídeo']
           ] as const
         ).map(([key, label]) => (
@@ -56,11 +59,12 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
 
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} />}
+        {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}
       </div>
 
-      <div className="mt-5 border-t border-surface-3 pt-4">
-        <button type="button" onClick={logout} className="rounded-[3px] px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
+      <div className="mt-5 border-t border-line pt-4">
+        <button type="button" onClick={logout} className="rounded-control px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
           Sair da conta
         </button>
       </div>
@@ -89,11 +93,11 @@ function VoiceSettings(): ReactNode {
 
   const select = (label: string, key: 'audioInput' | 'audioOutput' | 'videoInput', list: MediaDeviceInfo[] | undefined): ReactNode => (
     <label className="block">
-      <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-fg-muted">{label}</span>
+      <span className={labelClass}>{label}</span>
       <select
         value={prefs[key]}
         onChange={(e) => update({ [key]: e.target.value })}
-        className="w-full rounded-[3px] bg-surface-0 px-3 py-2.5 text-[15px] text-fg outline-none focus:ring-2 focus:ring-accent/60"
+        className={inputClass}
       >
         <option value="">Padrão do sistema</option>
         {list?.map((d, i) => (
@@ -110,18 +114,12 @@ function VoiceSettings(): ReactNode {
         {select('Microfone', 'audioInput', devices?.audioinput)}
         {select('Saída de áudio', 'audioOutput', devices?.audiooutput)}
         {select('Câmera', 'videoInput', devices?.videoinput)}
-        <label className="flex cursor-pointer items-center justify-between gap-4 rounded bg-surface-1 px-3 py-2.5">
-          <span>
-            <span className="block font-medium">Supressão de ruído</span>
-            <span className="block text-xs text-fg-subtle">Reduz barulho de fundo, como teclado e ventilador.</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={prefs.noiseSuppression}
-            onChange={(e) => update({ noiseSuppression: e.target.checked })}
-            className="h-5 w-5 accent-accent"
-          />
-        </label>
+        <ToggleRow
+          title="Supressão de ruído"
+          description="Reduz barulho de fundo, como teclado e ventilador."
+          checked={prefs.noiseSuppression}
+          onChange={(noiseSuppression) => update({ noiseSuppression })}
+        />
     </div>
   )
 }
