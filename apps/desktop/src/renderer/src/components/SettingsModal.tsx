@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
+import { ProfileSettings } from './ProfileSettings'
 
 interface Devices {
   audioinput: MediaDeviceInfo[]
@@ -27,8 +28,47 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-export function SettingsModal({ onClose }: { onClose(): void }): ReactNode {
-  const { logout } = useAuth()
+type Tab = 'profile' | 'voice'
+
+export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
+  const { state, logout } = useAuth()
+  const [tab, setTab] = useState<Tab>(initialTab)
+
+  return (
+    <Modal title="Configurações" wide onClose={onClose}>
+      <div className="mb-5 flex gap-1 border-b border-surface-3">
+        {(
+          [
+            ['profile', 'Meu perfil'],
+            ['voice', 'Voz e vídeo']
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-h-[60vh] overflow-y-auto pr-1">
+        {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} />}
+        {tab === 'voice' && <VoiceSettings />}
+      </div>
+
+      <div className="mt-5 border-t border-surface-3 pt-4">
+        <button type="button" onClick={logout} className="rounded-[3px] px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
+          Sair da conta
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function VoiceSettings(): ReactNode {
   const applyDevicePrefs = useVoice((s) => s.applyDevicePrefs)
   const [prefs, setPrefs] = useState<MediaPrefs>(loadMediaPrefs)
   const [devices, setDevices] = useState<Devices | null>(null)
@@ -66,8 +106,7 @@ export function SettingsModal({ onClose }: { onClose(): void }): ReactNode {
   )
 
   return (
-    <Modal title="Voz e vídeo" onClose={onClose}>
-      <div className="space-y-4">
+    <div className="max-w-[440px] space-y-4">
         {select('Microfone', 'audioInput', devices?.audioinput)}
         {select('Saída de áudio', 'audioOutput', devices?.audiooutput)}
         {select('Câmera', 'videoInput', devices?.videoinput)}
@@ -83,16 +122,6 @@ export function SettingsModal({ onClose }: { onClose(): void }): ReactNode {
             className="h-5 w-5 accent-accent"
           />
         </label>
-        <div className="border-t border-surface-3 pt-4">
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-[3px] px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10"
-          >
-            Sair da conta
-          </button>
-        </div>
-      </div>
-    </Modal>
+    </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
+import { useAuth } from '../auth/AuthProvider'
 import { ChannelSidebar, UserPanel } from '../components/ChannelSidebar'
 import { ChatView } from '../components/ChatView'
 import { MemberList } from '../components/MemberList'
@@ -17,13 +18,18 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
   const selectedChannelId = useChat((s) => (server ? s.selectedChannelByServer[server.id] : undefined))
   const loaded = useChat((s) => s.loaded)
   const status = useChat((s) => s.status)
+  const { setUser } = useAuth()
 
   // One real-time connection for the whole signed-in session.
   useEffect(() => {
     const chat = useChat.getState()
     chat.reset(user.id)
     const realtime = new Realtime(
-      (event) => useChat.getState().applyEvent(event),
+      (event) => {
+        // Our own profile changed (maybe on another device): keep the signed-in user fresh.
+        if (event.type === 'user.updated' && event.data.id === user.id) setUser({ ...user, ...event.data })
+        useChat.getState().applyEvent(event)
+      },
       (s) => useChat.getState().setStatus(s)
     )
     setActiveRealtime(realtime)

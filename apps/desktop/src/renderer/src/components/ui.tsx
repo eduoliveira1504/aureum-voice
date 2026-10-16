@@ -1,5 +1,7 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 
+import { mediaUrl } from '../lib/api'
+
 export function Field({
   label,
   error,
@@ -34,7 +36,7 @@ export function PrimaryButton({ children, ...props }: ButtonHTMLAttributes<HTMLB
 
 export function Avatar({ name, url, size = 32 }: { name: string; url?: string | null; size?: number }): ReactNode {
   const style = { width: size, height: size }
-  if (url) return <img src={url} alt="" style={style} className="shrink-0 rounded-full object-cover" />
+  if (url) return <img src={mediaUrl(url)} alt="" style={style} className="shrink-0 rounded-full object-cover" />
   return (
     <div
       style={{ ...style, fontSize: size * 0.42 }}

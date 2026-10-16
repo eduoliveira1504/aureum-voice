@@ -104,6 +104,12 @@ export function getApiBaseUrl(): string {
   return baseUrl
 }
 
+/** Turns stored media paths (/api/media/...) into URLs on the configured server. */
+export function mediaUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  return url.startsWith('/') ? `${baseUrl}${url}` : url
+}
+
 export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler
 }
@@ -180,11 +186,14 @@ interface RequestOptions {
 }
 
 export async function api<T>(path: string, { method = 'GET', body, auth = true }: RequestOptions = {}): Promise<T> {
+  const isForm = body instanceof FormData
   const doFetch = (): Promise<Response> => {
     const headers: Record<string, string> = {}
-    if (body !== undefined) headers['Content-Type'] = 'application/json'
+    // FormData sets its own multipart Content-Type (with the boundary).
+    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
     if (auth && accessToken) headers['Authorization'] = `Bearer ${accessToken}`
-    return send(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    const payload = body === undefined ? undefined : isForm ? body : JSON.stringify(body)
+    return send(path, { method, headers, body: payload })
   }
 
   let res = await doFetch()

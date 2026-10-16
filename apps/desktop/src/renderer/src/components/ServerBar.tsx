@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
+import { mediaUrl } from '../lib/api'
 import { useChat } from '../store/chat'
 import { AddServerModal } from './modals'
 
@@ -34,7 +35,7 @@ export function ServerBar(): ReactNode {
                 active ? 'rounded-2xl bg-accent text-accent-fg' : 'rounded-3xl bg-surface-2 text-fg hover:rounded-2xl hover:bg-accent hover:text-accent-fg'
               }`}
             >
-              {server.icon_url ? <img src={server.icon_url} alt="" className="h-full w-full object-cover" /> : initials(server.name)}
+              {server.icon_url ? <img src={mediaUrl(server.icon_url)} alt="" className="h-full w-full object-cover" /> : initials(server.name)}
             </button>
           </div>
         )

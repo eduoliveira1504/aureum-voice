@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
-import type { Channel, Me, Message } from '../lib/api'
+import type { Channel, Me, Message, User } from '../lib/api'
 import { useChat } from '../store/chat'
 import { ConfirmModal } from './modals'
+import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
 
 const MAX_LENGTH = 4000
@@ -47,6 +48,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
   const [editingId, setEditingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<Message | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const profile = useProfilePopover()
 
   const listRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
@@ -136,6 +138,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
                 onEdit={() => setEditingId(message.id)}
                 onStopEditing={() => setEditingId(null)}
                 onDelete={() => setDeleting(message)}
+                onOpenProfile={profile.open}
               />
             </Fragment>
           )
@@ -143,6 +146,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
       </div>
 
       <Composer channel={channel} />
+      {profile.popover}
 
       {deleting && (
         <ConfirmModal
@@ -165,7 +169,8 @@ function MessageRow({
   canDelete,
   onEdit,
   onStopEditing,
-  onDelete
+  onDelete,
+  onOpenProfile
 }: {
   message: Message
   grouped: boolean
@@ -175,6 +180,7 @@ function MessageRow({
   onEdit(): void
   onStopEditing(): void
   onDelete(): void
+  onOpenProfile(user: User, target: Element): void
 }): ReactNode {
   const author = message.author
   const name = author?.display_name ?? 'Usuário removido'
@@ -186,15 +192,23 @@ function MessageRow({
         {grouped ? (
           <span className="invisible block pt-1 text-right text-[11px] text-fg-subtle group-hover:visible">{timeFmt.format(time)}</span>
         ) : (
-          <Avatar name={name} url={author?.avatar_url} size={40} />
+          <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={(e) => author && onOpenProfile(author, e.currentTarget)}>
+            <Avatar name={name} url={author?.avatar_url} size={40} />
+          </button>
         )}
       </div>
       <div className="min-w-0 flex-1">
         {!grouped && (
           <div className="flex items-baseline gap-2">
-            <span className="font-medium" style={author?.accent_color ? { color: author.accent_color } : undefined}>
+            <button
+              type="button"
+              disabled={!author}
+              onClick={(e) => author && onOpenProfile(author, e.currentTarget)}
+              className="font-medium hover:underline disabled:no-underline"
+              style={author?.accent_color ? { color: author.accent_color } : undefined}
+            >
               {name}
-            </span>
+            </button>
             <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}

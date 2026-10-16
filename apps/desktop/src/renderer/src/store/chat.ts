@@ -232,6 +232,24 @@ export const useChat = create<ChatState>()((set, get) => {
           else patchServer(data.server_id, (s) => ({ ...s, members: s.members.filter((m) => m.user.id !== data.user_id) }))
           break
 
+        case 'user.updated': {
+          // Someone's profile changed: refresh it in member lists and loaded messages.
+          serverMutations++
+          const swap = <T extends { id: string }>(u: T): T => (u.id === data.id ? { ...u, ...data } : u)
+          set((st) => ({
+            servers: Object.fromEntries(
+              Object.entries(st.servers).map(([id, s]) => [id, { ...s, members: s.members.map((m) => ({ ...m, user: swap(m.user) })) }])
+            ),
+            messages: Object.fromEntries(
+              Object.entries(st.messages).map(([cid, entry]) => [
+                cid,
+                { ...entry, items: entry.items.map((m) => (m.author ? { ...m, author: swap(m.author) } : m)) }
+              ])
+            )
+          }))
+          break
+        }
+
         case 'voice.state':
           patchServer(data.server_id, (s) => ({
             ...s,
