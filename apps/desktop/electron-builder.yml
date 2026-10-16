@@ -1,0 +1,14 @@
+appId: com.aureum.voice
+productName: Aureum Voice
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**
+  - package.json
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
