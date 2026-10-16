@@ -1,9 +1,23 @@
 import type { Track } from 'livekit-client'
-import { Headphones, HeadphoneOff, Mic, MicOff, MonitorUp, PhoneOff, Video, VideoOff } from 'lucide-react'
-import { useEffect, useRef, type ReactNode } from 'react'
+import {
+  Headphones,
+  HeadphoneOff,
+  Maximize2,
+  Mic,
+  MicOff,
+  MonitorOff,
+  MonitorUp,
+  PhoneOff,
+  Video,
+  VideoOff,
+  Volume2,
+  VolumeX
+} from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Channel, Member, ServerDetail } from '../lib/api'
-import { cameraTrackOf, getRoom, roomIdentities, useVoice } from '../store/voice'
+import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
 
 /** Columns for n tiles: 1, 2, 2x2, 3x3, then 4 wide. */
@@ -69,20 +83,40 @@ function ParticipantGrid({
 }): ReactNode {
   const speaking = useVoice((s) => s.speaking)
   const ids = connecting ? [meId] : roomIdentities()
+  const sharing = ids.filter((id) => screenTrackOf(id))
   const cols = columns(ids.length)
+  const tile = (id: string, compact = false): ReactNode => (
+    <ParticipantTile
+      key={id}
+      identity={id}
+      member={members.get(id)}
+      isLocal={id === meId}
+      speaking={speaking.includes(id)}
+      compact={compact}
+    />
+  )
+
+  if (sharing.length > 0) {
+    // Spotlight: shared screens take the stage, people move to a strip below.
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+        <div
+          className="grid min-h-0 flex-1 gap-3"
+          style={{ gridTemplateColumns: `repeat(${Math.min(sharing.length, 2)}, minmax(0, 1fr))` }}
+        >
+          {sharing.map((id) => (
+            <ScreenTile key={id} identity={id} name={members.get(id)?.user.display_name ?? 'Alguém'} isLocal={id === meId} />
+          ))}
+        </div>
+        <div className="flex shrink-0 justify-center gap-3 [&>*]:w-44">{ids.map((id) => tile(id, true))}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-4">
       <div className="grid w-full max-w-6xl gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {ids.map((id) => (
-          <ParticipantTile
-            key={id}
-            identity={id}
-            member={members.get(id)}
-            isLocal={id === meId}
-            speaking={speaking.includes(id)}
-          />
-        ))}
+        {ids.map((id) => tile(id))}
       </div>
     </div>
   )
@@ -92,12 +126,15 @@ function ParticipantTile({
   identity,
   member,
   isLocal,
-  speaking
+  speaking,
+  compact = false
 }: {
   identity: string
   member: Member | undefined
   isLocal: boolean
   speaking: boolean
+  /** Smaller avatar for the strip under a shared screen. */
+  compact?: boolean
 }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
   const name = member?.user.display_name ?? participant?.name ?? 'Alguém'
@@ -113,7 +150,7 @@ function ParticipantTile({
       {camera ? (
         <VideoTrackView track={camera} mirror={isLocal} />
       ) : (
-        <Avatar name={name} url={member?.user.avatar_url} size={80} />
+        <Avatar name={name} url={member?.user.avatar_url} size={compact ? 40 : 80} />
       )}
       <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded bg-black/60 px-2 py-0.5 text-sm">
         {micMuted && <MicOff size={14} className="text-danger" />}
@@ -123,7 +160,58 @@ function ParticipantTile({
   )
 }
 
-function VideoTrackView({ track, mirror }: { track: Track; mirror: boolean }): ReactNode {
+function ScreenTile({ identity, name, isLocal }: { identity: string; name: string; isLocal: boolean }): ReactNode {
+  const ref = useRef<HTMLDivElement>(null)
+  const track = screenTrackOf(identity)
+  const audio = isLocal ? undefined : screenAudioOf(identity)
+  const [volume, setVolume] = useState(1)
+
+  useEffect(() => {
+    audio?.setVolume(volume)
+  }, [audio, volume])
+
+  if (!track) return null
+  return (
+    <div ref={ref} className="group relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg bg-black">
+      <VideoTrackView track={track} mirror={false} fit="contain" />
+      <div className="absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 text-sm">
+        {isLocal ? 'Sua tela' : `Tela de ${name}`}
+      </div>
+      <div className="absolute bottom-2 right-2 hidden items-center gap-2 rounded bg-black/70 px-2 py-1 group-hover:flex">
+        {audio && (
+          <>
+            <button type="button" aria-label={volume === 0 ? 'Ativar som da tela' : 'Silenciar som da tela'} onClick={() => setVolume(volume === 0 ? 1 : 0)}>
+              {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+            <input
+              type="range"
+              aria-label="Volume da tela"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="w-24 accent-accent"
+            />
+          </>
+        )}
+        <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={() => void ref.current?.requestFullscreen()}>
+          <Maximize2 size={18} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function VideoTrackView({
+  track,
+  mirror,
+  fit = 'cover'
+}: {
+  track: Track
+  mirror: boolean
+  fit?: 'cover' | 'contain'
+}): ReactNode {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const el = ref.current
@@ -139,7 +227,7 @@ function VideoTrackView({ track, mirror }: { track: Track; mirror: boolean }): R
       autoPlay
       playsInline
       muted
-      className="h-full w-full object-cover"
+      className={`h-full w-full ${fit === 'contain' ? 'object-contain' : 'object-cover'}`}
       style={mirror ? { transform: 'scaleX(-1)' } : undefined}
     />
   )
@@ -180,7 +268,9 @@ function ControlButton({
 }
 
 export function CallControls(): ReactNode {
-  const { muted, deafened, camera, phase, toggleMute, toggleDeafen, toggleCamera, leave } = useVoice()
+  const { muted, deafened, camera, screen, phase, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
+    useVoice()
+  const [picking, setPicking] = useState(false)
   const connecting = phase === 'connecting'
   return (
     <div className="flex shrink-0 justify-center gap-3 pb-6">
@@ -198,12 +288,18 @@ export function CallControls(): ReactNode {
       >
         {camera ? <Video size={22} /> : <VideoOff size={22} />}
       </ControlButton>
-      <ControlButton label="Compartilhar tela (em breve)" disabled>
-        <MonitorUp size={22} />
+      <ControlButton
+        label={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
+        active={!screen}
+        disabled={phase !== 'connected'}
+        onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
+      >
+        {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
       </ControlButton>
       <ControlButton label="Sair da chamada" danger onClick={leave}>
         <PhoneOff size={22} />
       </ControlButton>
+      {picking && <ScreenShareModal onClose={() => setPicking(false)} />}
     </div>
   )
 }

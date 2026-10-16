@@ -214,6 +214,9 @@ function VoiceMembers({ server, channelId }: { server: ServerDetail; channelId: 
               <Avatar name={name} url={user?.avatar_url} size={22} />
             </span>
             <span className="min-w-0 flex-1 truncate">{name}</span>
+            {v.screen && (
+              <span className="shrink-0 rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">AO VIVO</span>
+            )}
             {v.camera && <Video size={14} className="shrink-0 text-fg-subtle" />}
             {v.deafened ? (
               <HeadphoneOff size={14} className="shrink-0 text-danger" />

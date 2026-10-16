@@ -4,11 +4,13 @@ export function Modal({
   title,
   subtitle,
   onClose,
+  wide = false,
   children
 }: {
   title: string
   subtitle?: string
   onClose(): void
+  wide?: boolean
   children: ReactNode
 }): ReactNode {
   useEffect(() => {
@@ -25,7 +27,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-[440px] rounded-md bg-surface-2 p-6 shadow-2xl"
+        className={`w-full ${wide ? 'max-w-[760px]' : 'max-w-[440px]'} rounded-md bg-surface-2 p-6 shadow-2xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 className="text-center text-xl font-semibold">{title}</h2>

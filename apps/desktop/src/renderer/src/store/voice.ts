@@ -1,9 +1,12 @@
 import {
+  AudioPresets,
   ConnectionState,
   Room,
   RoomEvent,
+  ScreenSharePresets,
   Track,
   VideoPresets,
+  type RemoteAudioTrack,
   type RemoteTrack,
   type RemoteTrackPublication
 } from 'livekit-client'
@@ -15,6 +18,14 @@ import { sendRealtime } from '../lib/realtime'
 
 type Phase = 'idle' | 'connecting' | 'connected' | 'reconnecting'
 
+export interface ScreenShareOptions {
+  sourceId: string
+  /** Include system audio (Windows loopback, without this app's own audio). */
+  audio: boolean
+  /** 'motion' favors frame rate (games, video); 'detail' favors sharpness (text, code). */
+  hint: 'motion' | 'detail'
+}
+
 interface VoiceStore {
   phase: Phase
   serverId: string | null
@@ -23,6 +34,7 @@ interface VoiceStore {
   muted: boolean
   deafened: boolean
   camera: boolean
+  screen: boolean
   /** Identities (user ids) currently speaking. */
   speaking: string[]
   /** Bumped on any participant/track change so views re-read the room. */
@@ -33,6 +45,8 @@ interface VoiceStore {
   toggleMute(): Promise<void>
   toggleDeafen(): void
   toggleCamera(): Promise<void>
+  startScreenShare(options: ScreenShareOptions): Promise<void>
+  stopScreenShare(): Promise<void>
   applyDevicePrefs(): Promise<void>
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
@@ -41,6 +55,8 @@ interface VoiceStore {
 
 // The LiveKit room lives outside the store: it's a mutable object, not state.
 let room: Room | null = null
+// Tracks of our own screen share (video + optional system audio).
+let shareTracks: MediaStreamTrack[] = []
 // Remote audio is played through elements we own, so deafen is just `muted` on them.
 const audioSink = document.createElement('div')
 audioSink.hidden = true
@@ -50,22 +66,26 @@ export function getRoom(): Room | null {
   return room
 }
 
+// Test builds (electron-vite build --mode test) expose internals to end-to-end scripts.
+if (import.meta.env.MODE === 'test') {
+  Object.assign(window, { __aureumTest: { room: () => room, shareTracks: () => shareTracks } })
+}
+
 export const useVoice = create<VoiceStore>()((set, get) => {
   const bump = (): void => set((s) => ({ version: s.version + 1 }))
 
   const announce = (): void => {
-    const { phase, channelId, muted, deafened, camera } = get()
+    const { phase, channelId, muted, deafened, camera, screen } = get()
     const inCall = phase !== 'idle' && channelId
-    sendRealtime(
-      'voice.update',
-      inCall ? { channel_id: channelId, muted, deafened, camera, screen: false } : { channel_id: null }
-    )
+    sendRealtime('voice.update', inCall ? { channel_id: channelId, muted, deafened, camera, screen } : { channel_id: null })
   }
 
   const reset = (error: string | null = null): void => {
     room = null
     audioSink.replaceChildren()
-    set({ phase: 'idle', serverId: null, channelId: null, camera: false, speaking: [], error })
+    shareTracks.forEach((t) => t.stop())
+    shareTracks = []
+    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, speaking: [], error })
     bump()
   }
 
@@ -126,6 +146,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     muted: false,
     deafened: false,
     camera: false,
+    screen: false,
     speaking: [],
     version: 0,
 
@@ -215,6 +236,87 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       bump()
     },
 
+    startScreenShare: async ({ sourceId, audio, hint }) => {
+      const r = room
+      if (!r || get().phase !== 'connected') return
+      if (get().screen) await get().stopScreenShare()
+
+      // The main process hands this source to getDisplayMedia (see setDisplayMediaRequestHandler).
+      await window.aureum.screen.select(sourceId, audio)
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: { ideal: hint === 'motion' ? 30 : 15 }, width: { max: 1920 }, height: { max: 1080 } },
+          audio: audio
+            ? ({
+                // Drops audio played by this app (the call itself), so nobody hears an echo
+                // of their own voice; game and other app audio still goes through.
+                restrictOwnAudio: true,
+                // Game/music audio must not be "cleaned up" like a microphone.
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+                channelCount: 2
+              } as MediaTrackConstraints)
+            : false
+        })
+      } catch {
+        set({ error: 'Não foi possível compartilhar a tela.' })
+        return
+      }
+      if (room !== r) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+
+      const [video] = stream.getVideoTracks()
+      const [systemAudio] = stream.getAudioTracks()
+      video.contentHint = hint
+      // Fires when the shared window closes or capture stops outside the app.
+      video.addEventListener('ended', () => void get().stopScreenShare())
+      shareTracks = stream.getTracks()
+
+      try {
+        await r.localParticipant.publishTrack(video, {
+          source: Track.Source.ScreenShare,
+          videoEncoding: (hint === 'motion' ? ScreenSharePresets.h1080fps30 : ScreenSharePresets.h1080fps15).encoding,
+          simulcast: false,
+          degradationPreference: hint === 'motion' ? 'maintain-framerate' : 'maintain-resolution'
+        })
+        if (systemAudio) {
+          await r.localParticipant.publishTrack(systemAudio, {
+            source: Track.Source.ScreenShareAudio,
+            audioPreset: AudioPresets.musicHighQualityStereo,
+            dtx: false,
+            red: false,
+            forceStereo: true
+          })
+        }
+      } catch {
+        await get().stopScreenShare()
+        set({ error: 'Não foi possível transmitir a tela.' })
+        return
+      }
+      set({ screen: true })
+      announce()
+      bump()
+    },
+
+    stopScreenShare: async () => {
+      const tracks = shareTracks
+      shareTracks = []
+      const r = room
+      for (const track of tracks) {
+        track.stop()
+        if (r) await r.localParticipant.unpublishTrack(track).catch(() => {})
+      }
+      if (get().screen) {
+        set({ screen: false })
+        announce()
+      }
+      bump()
+    },
+
     applyDevicePrefs: async () => {
       const r = room
       if (!r) return
@@ -249,6 +351,21 @@ export function cameraTrackOf(identity: string): Track | undefined {
   const p = identity === r.localParticipant.identity ? r.localParticipant : r.remoteParticipants.get(identity)
   const pub = p?.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined
   return pub && !pub.isMuted ? pub.track : undefined
+}
+
+/** Screen-share video of a participant, if they're sharing. */
+export function screenTrackOf(identity: string): Track | undefined {
+  const r = room
+  if (!r) return undefined
+  const p = identity === r.localParticipant.identity ? r.localParticipant : r.remoteParticipants.get(identity)
+  const pub = p?.getTrackPublication(Track.Source.ScreenShare)
+  return pub && !pub.isMuted ? pub.track : undefined
+}
+
+/** Remote screen-share audio of a participant (for its volume slider). */
+export function screenAudioOf(identity: string): RemoteAudioTrack | undefined {
+  const pub = room?.remoteParticipants.get(identity)?.getTrackPublication(Track.Source.ScreenShareAudio)
+  return pub?.track as RemoteAudioTrack | undefined
 }
 
 /** Participants currently in the room (local first), or [] when not in a call. */
