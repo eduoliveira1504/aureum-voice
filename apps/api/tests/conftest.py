@@ -8,12 +8,14 @@ from pathlib import Path
 os.environ["POSTGRES_DB"] = "aureum_test"
 os.environ["DB_NULL_POOL"] = "true"
 os.environ["REDIS_PREFIX"] = "aureum-test"
+os.environ["MINIO_BUCKET"] = "aureum-test"
 
 import asyncpg  # noqa: E402
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
+from app import storage  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
@@ -44,7 +46,11 @@ async def _database() -> AsyncIterator[None]:
     subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"], cwd=API_DIR, check=True, env=os.environ
     )
+    await storage.ensure_bucket()
     yield
+    # Remove this run's uploads. Guarded so it can never touch the real bucket.
+    assert get_settings().minio_bucket == "aureum-test"
+    await storage.delete_prefix("")
     await broker.close()
 
 
