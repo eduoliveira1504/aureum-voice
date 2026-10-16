@@ -15,7 +15,9 @@ import {
 
 import type { AppSettings, ShareSource } from '../shared/types'
 
-const DEFAULT_SETTINGS: AppSettings = { apiUrl: 'http://localhost:8000' }
+// Set at build time (apps/desktop/.env.production.local), so the installer friends get
+// already points at the public server; users can still change it on the login screen.
+const DEFAULT_SETTINGS: AppSettings = { apiUrl: import.meta.env.MAIN_VITE_API_URL || 'http://localhost:8000' }
 
 // AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
 // accounts can be used side by side on one machine — handy for testing calls locally.

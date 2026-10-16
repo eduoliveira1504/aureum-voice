@@ -3,6 +3,7 @@
   "productName": "Aureum Voice",
   "version": "0.1.0",
   "description": "Aureum Voice desktop client",
+  "author": "Eduardo Oliveira",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
