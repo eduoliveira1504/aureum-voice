@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app import voice
 from app.access import co_member_ids, server_member_ids
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Channel, ChannelType, ServerMember, User
 from app.realtime import broker
@@ -19,6 +20,7 @@ router = APIRouter()
 RECEIVE_TIMEOUT_SECONDS = 60
 # Close code telling the client its token is invalid/expired, so it refreshes before reconnecting.
 CLOSE_UNAUTHORIZED = 4401
+CLOSE_FORBIDDEN_ORIGIN = 1008  # policy violation
 
 
 class VoiceUpdate(voice.VoiceFlags):
@@ -69,6 +71,12 @@ async def _send_error(websocket: WebSocket, message: str) -> None:
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> None:
+    # CORS doesn't apply to WebSockets: refuse browser pages from other origins (the packaged
+    # app sends "file://"). Non-browser clients send no Origin and still need a valid token.
+    origin = websocket.headers.get("origin")
+    if origin is not None and origin not in get_settings().ws_origins:
+        await websocket.close(code=CLOSE_FORBIDDEN_ORIGIN)
+        return
     await websocket.accept()
     user_id = decode_token(token, "access")
     if user_id is not None:

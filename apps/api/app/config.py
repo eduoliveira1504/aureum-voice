@@ -35,7 +35,14 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
 
-    cors_origins: list[str] = ["*"]
+    # Browser origins allowed to call the API. The packaged app loads from file:// and its
+    # fetch() calls send no Origin, so CORS only matters for web pages: deny them all.
+    cors_origins: list[str] = ["http://localhost:5173"]
+    # Origins allowed to open the WebSocket (the packaged app sends "file://").
+    ws_origins: list[str] = ["file://", "http://localhost:5173"]
+    # Read the client IP from X-Forwarded-For (last entry). Enable only behind a reverse
+    # proxy that sets it; otherwise clients could spoof their IP to dodge rate limits.
+    trust_forwarded_for: bool = False
 
     # S3-compatible storage (MinIO). It stays private: the API serves files at /api/media.
     minio_endpoint: str = "127.0.0.1:9000"

@@ -23,6 +23,7 @@ class RegisterRequest(BaseModel):
     email: LowerEmail
     password: Password
     display_name: DisplayName | None = None
+    invite_code: Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)] | None = None
 
 
 class LoginRequest(BaseModel):

@@ -160,7 +160,8 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
 
 @router.post("/servers/{server_id}/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED)
 async def create_invite(server_id: uuid.UUID, body: InviteCreate, user: CurrentUser, session: SessionDep) -> Invite:
-    await get_membership(session, server_id, user.id)  # any member can invite friends
+    # Invites are also how new accounts get created, so only owners/admins hand them out.
+    require_manager(await get_membership(session, server_id, user.id))
     invite = Invite(
         code=secrets.token_urlsafe(6),
         server_id=server_id,
@@ -185,8 +186,21 @@ async def join_with_invite(code: str, user: CurrentUser, session: SessionDep) ->
     if await session.get(ServerMember, (invite.server_id, user.id)) is not None:
         return await load_detail(session, server)  # already a member: idempotent, uses not counted
 
-    # Atomic check-and-increment, so concurrent joins can't exceed max_uses.
-    claimed = await session.scalar(
+    if await claim_invite(session, code) is None:
+        raise HTTPException(status.HTTP_410_GONE, detail="Invite expired or used up")
+
+    member = ServerMember(server_id=invite.server_id, user_id=user.id, role=MemberRole.member)
+    session.add(member)
+    await session.commit()
+    await announce_member_joined(session, member)
+    return await load_detail(session, server)
+
+
+async def claim_invite(session: AsyncSession, code: str) -> uuid.UUID | None:
+    """Uses up one use of a valid invite and returns its server id (None if invalid,
+    expired or used up). Atomic, so concurrent joins can't exceed max_uses. Not committed:
+    callers commit it together with the membership they create."""
+    return await session.scalar(
         update(Invite)
         .where(
             Invite.code == code,
@@ -194,20 +208,15 @@ async def join_with_invite(code: str, user: CurrentUser, session: SessionDep) ->
             or_(Invite.expires_at.is_(None), Invite.expires_at > func.now()),
         )
         .values(uses=Invite.uses + 1)
-        .returning(Invite.code)
+        .returning(Invite.server_id)
     )
-    if claimed is None:
-        raise HTTPException(status.HTTP_410_GONE, detail="Invite expired or used up")
 
-    member = ServerMember(server_id=invite.server_id, user_id=user.id, role=MemberRole.member)
-    session.add(member)
-    await session.commit()
+
+async def announce_member_joined(session: AsyncSession, member: ServerMember) -> None:
     await session.refresh(member)
-
     out = await member_out(session, member)
     await broker.publish(
         "server.member.joined",
-        {"server_id": str(server.id), "member": out.model_dump(mode="json")},
-        await server_member_ids(session, server.id),
+        {"server_id": str(member.server_id), "member": out.model_dump(mode="json")},
+        await server_member_ids(session, member.server_id),
     )
-    return await load_detail(session, server)
