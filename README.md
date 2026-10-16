@@ -16,7 +16,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection with noise suppression
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))
-- Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio and accent color
+- Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio and profile color
+- Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
+  on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](docs/decisions/0003-design-tokens-and-themes.md))
 
 ## Architecture
 
@@ -53,7 +55,8 @@ flowchart LR
 - **Files**: uploads are checked by magic bytes, stored in MinIO, and served through the API. MinIO is
   never exposed.
 - **Desktop** (`apps/desktop`): electron-vite, React 19, TypeScript, Tailwind 4. Context isolation and
-  sandboxing are on; IPC is restricted to the app's own window.
+  sandboxing are on; IPC is restricted to the app's own window. All colors come from theme tokens (CSS
+  variables) and the stock Tailwind palette is disabled; Sora and Figtree are bundled with the app.
 
 Design decisions are recorded in [`docs/decisions`](docs/decisions).
 
