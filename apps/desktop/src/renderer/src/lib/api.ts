@@ -18,6 +18,15 @@ export interface Me extends User {
   email: string
 }
 
+export type Theme = 'dark' | 'light' | 'system'
+
+/** Per-user preferences synced through the server (GET/PATCH /users/me/settings). */
+export interface UserSettings {
+  theme: Theme
+  accent_color: string
+  sounds: { volume: number; events: Record<string, boolean> }
+}
+
 export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
 export type Role = 'owner' | 'admin' | 'member'
 

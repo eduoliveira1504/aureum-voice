@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -89,8 +90,8 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
   }
 
   return (
-    <div className="flex h-full items-center justify-center bg-[radial-gradient(ellipse_at_top,#3a3220,#1e1f22_60%)] p-6">
-      <div className="w-full max-w-[480px] rounded-md bg-surface-2 p-8 shadow-2xl">
+    <div className="flex h-full items-center justify-center bg-glow p-6">
+      <div className="w-full max-w-[480px] rounded-panel border border-line bg-panel p-8 shadow-2xl">
         <h1 className="text-center text-2xl font-semibold">
           {mode === 'login' ? 'Boas-vindas de volta!' : 'Criar uma conta'}
         </h1>
@@ -100,7 +101,7 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
           {errors.form && (
-            <div role="alert" className="rounded-[3px] border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-fg">
+            <div role="alert" className="rounded-control border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-fg">
               {errors.form}
             </div>
           )}
@@ -142,14 +143,18 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
         <p className="mt-3 text-sm text-fg-subtle">
           {mode === 'login' ? 'Precisa de uma conta? ' : 'Já tem uma conta? '}
-          <button type="button" className="text-accent hover:underline" onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
+          <button type="button" className="font-medium text-accent-text hover:underline" onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
             {mode === 'login' ? 'Registre-se' : 'Entrar'}
           </button>
         </p>
 
-        <div className="mt-6 border-t border-surface-3 pt-4">
-          <button type="button" className="text-xs text-fg-subtle hover:text-fg-muted" onClick={() => setShowServer((v) => !v)}>
-            {showServer ? '▾' : '▸'} Servidor: {getApiBaseUrl()}
+        <div className="mt-6 border-t border-line pt-4">
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-fg-subtle hover:text-fg-muted"
+            onClick={() => setShowServer((v) => !v)}
+          >
+            {showServer ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Servidor: {getApiBaseUrl()}
           </button>
           {showServer && <ServerSettings onSaved={() => setErrors({})} />}
         </div>
@@ -193,12 +198,12 @@ function ServerSettings({ onSaved }: { onSaved(): void }): ReactNode {
       <button
         type="submit"
         disabled={busy}
-        className="h-[42px] rounded-[3px] bg-surface-3 px-4 text-sm font-medium hover:bg-surface-3/70 disabled:opacity-60"
+        className="rounded-control border border-line bg-elevated px-4 py-2.5 text-[15px] font-medium hover:bg-line disabled:opacity-60"
       >
         {busy ? 'Testando…' : 'Salvar'}
       </button>
       {status && (
-        <span className={`basis-full text-xs ${status.ok ? 'text-green-400' : 'text-danger'}`}>{status.text}</span>
+        <span className={`basis-full text-xs ${status.ok ? 'text-success' : 'text-danger'}`}>{status.text}</span>
       )}
     </form>
   )

@@ -1,6 +1,8 @@
+import { Hash, Pencil, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
 import type { Channel, Me, Message, User } from '../lib/api'
+import { useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
@@ -31,7 +33,7 @@ function Linkified({ text }: { text: string }): ReactNode {
   const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g)
   return parts.map((part, i) =>
     i % 2 === 1 ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
+      <a key={i} href={part} target="_blank" rel="noreferrer" className="text-accent-text hover:underline">
         {part}
       </a>
     ) : (
@@ -88,16 +90,18 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-surface-2">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-surface-0 px-4 shadow-sm">
-        <span className="text-xl text-fg-subtle">#</span>
+    <div className="flex min-w-0 flex-1 flex-col bg-main">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
+        <Hash size={20} className="text-fg-subtle" />
         <h2 className="font-semibold">{channel.name}</h2>
       </header>
 
       <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-3 text-4xl text-fg-muted">#</div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-fg-muted">
+              <Hash size={36} />
+            </div>
             <h3 className="mt-3 text-3xl font-bold">Boas-vindas a #{channel.name}!</h3>
             <p className="mt-1 text-fg-muted">Este é o começo do canal #{channel.name}.</p>
           </div>
@@ -124,9 +128,9 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
             <Fragment key={message.id}>
               {newDay && (
                 <div className="mx-4 mb-1 mt-5 flex items-center gap-2 text-xs font-semibold text-fg-subtle">
-                  <div className="h-px flex-1 bg-surface-3" />
+                  <div className="h-px flex-1 bg-line" />
                   {dayFmt.format(date)}
-                  <div className="h-px flex-1 bg-surface-3" />
+                  <div className="h-px flex-1 bg-line" />
                 </div>
               )}
               <MessageRow
@@ -185,9 +189,10 @@ function MessageRow({
   const author = message.author
   const name = author?.display_name ?? 'Usuário removido'
   const time = new Date(message.created_at)
+  const nameColor = useReadableColor(author?.accent_color)
 
   return (
-    <div className={`group relative flex gap-4 px-4 py-0.5 pr-16 hover:bg-surface-0/20 ${grouped ? '' : 'mt-4'}`}>
+    <div className={`group relative flex gap-4 px-4 py-0.5 pr-16 hover:bg-elevated/40 ${grouped ? '' : 'mt-4'}`}>
       <div className="w-10 shrink-0">
         {grouped ? (
           <span className="invisible block pt-1 text-right text-[11px] text-fg-subtle group-hover:visible">{timeFmt.format(time)}</span>
@@ -205,7 +210,7 @@ function MessageRow({
               disabled={!author}
               onClick={(e) => author && onOpenProfile(author, e.currentTarget)}
               className="font-medium hover:underline disabled:no-underline"
-              style={author?.accent_color ? { color: author.accent_color } : undefined}
+              style={nameColor ? { color: nameColor } : undefined}
             >
               {name}
             </button>
@@ -223,15 +228,15 @@ function MessageRow({
       </div>
 
       {!editing && (canEdit || canDelete) && (
-        <div className="absolute -top-3 right-4 hidden overflow-hidden rounded border border-surface-0 bg-surface-2 shadow group-hover:flex">
+        <div className="absolute -top-3 right-4 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-hover:flex">
           {canEdit && (
-            <button type="button" title="Editar" onClick={onEdit} className="px-2 py-1 text-sm hover:bg-surface-3">
-              ✏️
+            <button type="button" title="Editar" aria-label="Editar" onClick={onEdit} className="px-2 py-1.5 hover:bg-elevated hover:text-fg">
+              <Pencil size={16} />
             </button>
           )}
           {canDelete && (
-            <button type="button" title="Excluir" onClick={onDelete} className="px-2 py-1 text-sm hover:bg-surface-3">
-              🗑️
+            <button type="button" title="Excluir" aria-label="Excluir" onClick={onDelete} className="px-2 py-1.5 hover:bg-elevated hover:text-danger">
+              <Trash2 size={16} />
             </button>
           )}
         </div>
@@ -269,8 +274,8 @@ function EditBox({ message, onDone }: { message: Message; onDone(): void }): Rea
       <AutoTextarea autoFocus value={value} onChange={setValue} onKeyDown={onKeyDown} />
       <p className="mt-1 text-xs text-fg-subtle">
         {error ? <span className="text-danger">Falha ao salvar. </span> : null}
-        Esc para <button type="button" className="text-sky-400 hover:underline" onClick={onDone}>cancelar</button> • Enter
-        para <button type="button" className="text-sky-400 hover:underline" onClick={save}>salvar</button>
+        Esc para <button type="button" className="text-accent-text hover:underline" onClick={onDone}>cancelar</button> • Enter
+        para <button type="button" className="text-accent-text hover:underline" onClick={save}>salvar</button>
       </p>
     </div>
   )
@@ -342,7 +347,9 @@ function AutoTextarea({
     const el = ref.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 300)}px`
+    // scrollHeight leaves out the border; without it a scrollbar shows up on one-line text.
+    const border = el.offsetHeight - el.clientHeight
+    el.style.height = `${Math.min(el.scrollHeight + border, 300)}px`
   }, [value])
 
   return (
@@ -354,7 +361,7 @@ function AutoTextarea({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
-      className="block w-full resize-none rounded-lg bg-surface-3 px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle"
+      className="block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60"
     />
   )
 }

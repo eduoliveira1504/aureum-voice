@@ -1,4 +1,18 @@
-import { HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Settings, Video } from 'lucide-react'
+import {
+  ChevronDown,
+  Hash,
+  HeadphoneOff,
+  Headphones,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Plus,
+  Settings,
+  Trash2,
+  Video,
+  Volume2,
+  X
+} from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { api, type Channel, type Me, type ServerDetail } from '../lib/api'
@@ -31,12 +45,12 @@ export function ChannelSidebar({
   const canManage = myRole === 'owner' || myRole === 'admin'
 
   const sections = [
-    { type: 'text' as const, title: 'Canais de texto', icon: '#' },
-    { type: 'voice' as const, title: 'Canais de voz', icon: '🔊' }
+    { type: 'text' as const, title: 'Canais de texto', Icon: Hash },
+    { type: 'voice' as const, title: 'Canais de voz', Icon: Volume2 }
   ]
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-surface-1">
+    <aside className="flex w-60 shrink-0 flex-col bg-panel">
       <ServerMenu
         server={server}
         isOwner={myRole === 'owner'}
@@ -45,18 +59,19 @@ export function ChannelSidebar({
       />
 
       <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-        {sections.map(({ type, title, icon }) => (
+        {sections.map(({ type, title, Icon }) => (
           <section key={type}>
             <div className="group mb-1 flex items-center px-1">
-              <h3 className="flex-1 text-xs font-bold uppercase tracking-wide text-fg-subtle">{title}</h3>
+              <h3 className="flex-1 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">{title}</h3>
               {canManage && (
                 <button
                   type="button"
                   title="Criar canal"
                   onClick={() => setDialog({ kind: 'channel', type })}
-                  className="text-lg leading-none text-fg-subtle hover:text-fg"
+                  aria-label="Criar canal"
+                  className="text-fg-subtle hover:text-fg"
                 >
-                  +
+                  <Plus size={16} />
                 </button>
               )}
             </div>
@@ -67,7 +82,7 @@ export function ChannelSidebar({
                 return (
                   <div key={channel.id}>
                     <div
-                      className={`group flex items-center rounded ${active ? 'bg-surface-3 text-fg' : 'text-fg-subtle hover:bg-surface-3/50 hover:text-fg-muted'}`}
+                      className={`group flex items-center rounded-item ${active ? 'bg-elevated text-fg' : 'text-fg-muted hover:bg-elevated/60 hover:text-fg'}`}
                     >
                     <button
                       type="button"
@@ -78,7 +93,7 @@ export function ChannelSidebar({
                       }}
                       className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left"
                     >
-                      <span className="w-5 shrink-0 text-center text-base opacity-70">{icon}</span>
+                      <Icon size={18} className="shrink-0 opacity-70" />
                       <span className="truncate font-medium">{channel.name}</span>
                     </button>
                     {canManage && (
@@ -86,9 +101,10 @@ export function ChannelSidebar({
                         type="button"
                         title="Excluir canal"
                         onClick={() => setDialog({ kind: 'deleteChannel', channel })}
-                        className="hidden px-2 text-xs text-fg-subtle hover:text-danger group-hover:block"
+                        aria-label="Excluir canal"
+                        className="hidden px-2 text-fg-subtle hover:text-danger group-hover:block"
                       >
-                        ✕
+                        <Trash2 size={14} />
                       </button>
                     )}
                     </div>
@@ -168,7 +184,7 @@ function ServerMenu({
         setOpen(false)
         onPick(d)
       }}
-      className={`block w-full rounded px-2 py-1.5 text-left text-sm ${danger ? 'text-danger hover:bg-danger hover:text-white' : 'text-fg-muted hover:bg-accent hover:text-accent-fg'}`}
+      className={`block w-full rounded-item px-2 py-1.5 text-left text-sm ${danger ? 'text-danger hover:bg-danger hover:text-on-danger' : 'text-fg-muted hover:bg-accent hover:text-on-accent'}`}
     >
       {label}
     </button>
@@ -179,17 +195,17 @@ function ServerMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-12 w-full items-center border-b border-surface-0 px-4 text-left font-semibold shadow-sm hover:bg-surface-3/40"
+        className="flex h-12 w-full items-center border-b border-line px-4 text-left font-display font-semibold hover:bg-elevated/40"
       >
         <span className="flex-1 truncate">{server.name}</span>
-        <span className="text-xs text-fg-muted">{open ? '✕' : '▾'}</span>
+        {open ? <X size={16} className="text-fg-muted" /> : <ChevronDown size={16} className="text-fg-muted" />}
       </button>
       {open && (
-        <div className="absolute left-2 right-2 top-[52px] z-20 rounded bg-surface-0 p-1.5 shadow-xl">
+        <div className="absolute left-2 right-2 top-[52px] z-20 rounded-control border border-line bg-main p-1.5 shadow-xl">
           {/* Invites also create accounts, so only owners/admins can hand them out. */}
           {canManage && item('Convidar pessoas', { kind: 'invite' })}
           {canManage && item('Criar canal', { kind: 'channel', type: 'text' })}
-          {canManage && <div className="my-1 h-px bg-surface-3" />}
+          {canManage && <div className="my-1 h-px bg-line" />}
           {isOwner ? item('Excluir servidor', { kind: 'delete' }, true) : item('Sair do servidor', { kind: 'leave' }, true)}
         </div>
       )}
@@ -210,13 +226,13 @@ function VoiceMembers({ server, channelId }: { server: ServerDetail; channelId: 
         const user = members.get(v.user_id)?.user
         const name = user?.display_name ?? '…'
         return (
-          <li key={v.user_id} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm text-fg-muted hover:bg-surface-3/40">
-            <span className={`rounded-full ${speaking.includes(v.user_id) ? 'ring-2 ring-green-500' : ''}`}>
+          <li key={v.user_id} className="flex items-center gap-2 rounded-item px-1.5 py-1 text-sm text-fg-muted hover:bg-elevated/40">
+            <span className={`rounded-full ${speaking.includes(v.user_id) ? 'ring-2 ring-accent' : ''}`}>
               <Avatar name={name} url={user?.avatar_url} size={22} />
             </span>
             <span className="min-w-0 flex-1 truncate">{name}</span>
             {v.screen && (
-              <span className="shrink-0 rounded bg-danger px-1 text-[10px] font-bold leading-4 text-white">AO VIVO</span>
+              <span className="shrink-0 rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>
             )}
             {v.camera && <Video size={14} className="shrink-0 text-fg-subtle" />}
             {v.deafened ? (
@@ -241,10 +257,10 @@ function VoiceStatusPanel({ server }: { server: ServerDetail }): ReactNode {
   if (phase === 'idle') {
     if (!error) return null
     return (
-      <div className="flex items-start gap-2 border-b border-surface-0 bg-danger/15 px-3 py-2 text-xs">
+      <div className="flex items-start gap-2 border-b border-line bg-danger/15 px-3 py-2 text-xs">
         <span className="flex-1">{error}</span>
         <button type="button" onClick={clearError} className="text-fg-muted hover:text-fg" aria-label="Fechar">
-          ✕
+          <X size={14} />
         </button>
       </div>
     )
@@ -254,10 +270,10 @@ function VoiceStatusPanel({ server }: { server: ServerDetail }): ReactNode {
   const channel = voiceServer.channels.find((c) => c.id === channelId)
 
   return (
-    <div className="border-b border-surface-0 bg-surface-0/40 px-2 py-2">
+    <div className="border-b border-line bg-rail/40 px-2 py-2">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1 leading-tight">
-          <div className={`text-sm font-semibold ${phase === 'connected' ? 'text-green-500' : 'text-accent'}`}>
+          <div className={`text-sm font-semibold ${phase === 'connected' ? 'text-success' : 'text-accent-text'}`}>
             {PHASE_LABEL[phase]}
           </div>
           <div className="truncate text-xs text-fg-subtle">
@@ -269,7 +285,7 @@ function VoiceStatusPanel({ server }: { server: ServerDetail }): ReactNode {
           title="Desconectar"
           aria-label="Desconectar"
           onClick={leave}
-          className="rounded p-1.5 text-fg-muted hover:bg-surface-3 hover:text-fg"
+          className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
         >
           <PhoneOff size={18} />
         </button>
@@ -284,15 +300,15 @@ export function UserPanel({ user }: { user: Me }): ReactNode {
   const { muted, deafened, toggleMute, toggleDeafen } = useVoice()
   const [settings, setSettings] = useState(false)
   const micOff = muted || deafened
-  const iconButton = 'rounded p-1.5 hover:bg-surface-3'
+  const iconButton = 'rounded-item p-1.5 hover:bg-elevated'
 
   return (
-    <div className="flex h-[52px] items-center gap-1 bg-surface-0/60 px-2">
+    <div className="flex h-[52px] items-center gap-1 bg-rail/60 px-2">
       <div className="relative">
         <Avatar name={user.display_name} url={user.avatar_url} />
         <span
           title={status === 'online' ? 'Conectado' : 'Reconectando…'}
-          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-surface-1 ${status === 'online' ? 'bg-green-500' : 'bg-fg-subtle'}`}
+          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-panel ${status === 'online' ? 'bg-success' : 'bg-fg-subtle'}`}
         />
       </div>
       <div className="ml-1 min-w-0 flex-1 leading-tight">

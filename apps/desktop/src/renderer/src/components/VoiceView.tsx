@@ -39,11 +39,11 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
   const present = server.voice_states.filter((v) => v.channel_id === channel.id)
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col bg-black/90">
+    <main className="flex min-w-0 flex-1 flex-col bg-rail">
       <header className="flex h-12 shrink-0 items-center gap-2 px-4">
-        <span className="text-fg-subtle">🔊</span>
+        <Volume2 size={20} className="text-fg-subtle" />
         <h2 className="font-semibold">{channel.name}</h2>
-        {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent">Reconectando…</span>}
+        {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">Reconectando…</span>}
       </header>
 
       {inThisChannel ? (
@@ -62,7 +62,7 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
           <button
             type="button"
             onClick={() => join(server.id, channel.id)}
-            className="rounded-full bg-green-600 px-6 py-2.5 font-semibold text-white hover:bg-green-700"
+            className="rounded-control bg-accent px-6 py-2.5 font-semibold text-on-accent hover:bg-accent-hover"
           >
             Entrar no canal de voz
           </button>
@@ -143,8 +143,8 @@ function ParticipantTile({
 
   return (
     <div
-      className={`relative flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-surface-1 transition-shadow ${
-        speaking ? 'ring-[3px] ring-green-500' : 'ring-0'
+      className={`relative flex aspect-video items-center justify-center overflow-hidden rounded-control bg-panel transition-shadow ${
+        speaking ? 'ring-[3px] ring-accent' : 'ring-0'
       }`}
     >
       {camera ? (
@@ -152,7 +152,7 @@ function ParticipantTile({
       ) : (
         <Avatar name={name} url={member?.user.avatar_url} size={compact ? 40 : 80} />
       )}
-      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded bg-black/60 px-2 py-0.5 text-sm">
+      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
         {micMuted && <MicOff size={14} className="text-danger" />}
         <span>{name}</span>
       </div>
@@ -172,12 +172,12 @@ function ScreenTile({ identity, name, isLocal }: { identity: string; name: strin
 
   if (!track) return null
   return (
-    <div ref={ref} className="group relative flex min-h-0 items-center justify-center overflow-hidden rounded-lg bg-black">
+    <div ref={ref} className="group relative flex min-h-0 items-center justify-center overflow-hidden rounded-control bg-scrim">
       <VideoTrackView track={track} mirror={false} fit="contain" />
-      <div className="absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 text-sm">
+      <div className="absolute left-2 top-2 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
         {isLocal ? 'Sua tela' : `Tela de ${name}`}
       </div>
-      <div className="absolute bottom-2 right-2 hidden items-center gap-2 rounded bg-black/70 px-2 py-1 group-hover:flex">
+      <div className="absolute bottom-2 right-2 hidden items-center gap-2 rounded-item bg-scrim/70 px-2 py-1 text-on-scrim group-hover:flex">
         {audio && (
           <>
             <button type="button" aria-label={volume === 0 ? 'Ativar som da tela' : 'Silenciar som da tela'} onClick={() => setVolume(volume === 0 ? 1 : 0)}>
@@ -249,10 +249,10 @@ function ControlButton({
   children: ReactNode
 }): ReactNode {
   const color = danger
-    ? 'bg-danger text-white hover:bg-danger/85'
+    ? 'bg-danger text-on-danger hover:bg-danger/85'
     : active
-      ? 'bg-surface-3 text-fg hover:bg-surface-3/70'
-      : 'bg-fg text-surface-0 hover:bg-fg/85'
+      ? 'bg-elevated text-fg hover:bg-line'
+      : 'bg-fg text-rail hover:bg-fg/85'
   return (
     <button
       type="button"

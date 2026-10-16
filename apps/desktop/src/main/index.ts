@@ -163,7 +163,7 @@ function createWindow(): void {
     minHeight: 560,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#1e1f22',
+    backgroundColor: '#0a0908', // dark --bg-rail: shown before the renderer paints
     title: 'Aureum Voice',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

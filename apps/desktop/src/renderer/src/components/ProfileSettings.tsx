@@ -1,14 +1,15 @@
+import { Pipette } from 'lucide-react'
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { api, ApiError, type Me } from '../lib/api'
+import { ACCENT_PRESETS } from '../store/appearance'
 import { FormError } from './Modal'
 import { ProfileView } from './ProfileCard'
-import { Field, PrimaryButton } from './ui'
+import { Field, inputClass, labelClass, PrimaryButton } from './ui'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
-const SWATCHES = ['#d4a72c', '#f23f43', '#f47b67', '#3ba55c', '#1abc9c', '#5865f2', '#9b59b6', '#eb459e']
 
 function uploadError(err: unknown): string {
   if (err instanceof ApiError && err.status === 413) return 'A imagem passa de 8 MB.'
@@ -80,7 +81,7 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
         <Field label="Nome de exibição" maxLength={64} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
 
         <label className="block">
-          <span className="mb-2 flex justify-between text-xs font-bold uppercase tracking-wide text-fg-muted">
+          <span className={`${labelClass} flex justify-between`}>
             Sobre mim <span className="font-normal normal-case">{form.bio.length}/190</span>
           </span>
           <textarea
@@ -89,25 +90,30 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
             value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
             placeholder="Conte um pouco sobre você"
-            className="w-full resize-none rounded-[3px] bg-surface-0 px-3 py-2.5 text-[15px] text-fg outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-accent/60"
+            className={`${inputClass} resize-none`}
           />
         </label>
 
         <div>
-          <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-fg-muted">Cor de destaque</span>
+          <span className={labelClass}>Cor do perfil</span>
           <div className="flex flex-wrap items-center gap-2">
-            {SWATCHES.map((c) => (
+            {ACCENT_PRESETS.map(({ name, hex }) => (
               <button
-                key={c}
+                key={hex}
                 type="button"
-                aria-label={`Cor ${c}`}
-                onClick={() => setForm({ ...form, accent_color: c })}
-                className={`h-8 w-8 rounded-full ring-offset-2 ring-offset-surface-2 ${form.accent_color === c ? 'ring-2 ring-fg' : ''}`}
-                style={{ background: c }}
+                title={name}
+                aria-label={name}
+                onClick={() => setForm({ ...form, accent_color: hex })}
+                className={`h-8 w-8 rounded-full ring-offset-2 ring-offset-panel ${form.accent_color?.toUpperCase() === hex ? 'ring-2 ring-fg' : ''}`}
+                style={{ background: hex }}
               />
             ))}
-            <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)]" title="Outra cor">
-              <input type="color" value={form.accent_color ?? '#d4a72c'} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+            <label
+              className="relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line text-fg-muted hover:text-fg"
+              title="Outra cor"
+            >
+              <Pipette size={16} />
+              <input type="color" value={form.accent_color ?? ACCENT_PRESETS[0].hex} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
             </label>
             {form.accent_color && (
               <button type="button" onClick={() => setForm({ ...form, accent_color: null })} className="text-xs text-fg-subtle hover:text-fg">
@@ -123,12 +129,12 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
               {busy === 'save' ? 'Salvando…' : 'Salvar'}
             </PrimaryButton>
           </div>
-          {saved && !dirty && <span className="text-sm text-green-400">Perfil salvo!</span>}
+          {saved && !dirty && <span className="text-sm text-success">Perfil salvo!</span>}
         </div>
       </div>
 
       <div>
-        <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-fg-muted">Prévia</span>
+        <span className={labelClass}>Prévia</span>
         <ProfileView user={preview} />
       </div>
     </div>
@@ -151,13 +157,13 @@ function ImageRow({
   const input = useRef<HTMLInputElement>(null)
   return (
     <div>
-      <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-fg-muted">{label}</span>
+      <span className={labelClass}>{label}</span>
       <div className="flex items-center gap-3">
         <button
           type="button"
           disabled={busy}
           onClick={() => input.current?.click()}
-          className="rounded-[3px] bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-60"
+          className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
         >
           {busy ? 'Enviando…' : `Alterar ${label.toLowerCase()}`}
         </button>

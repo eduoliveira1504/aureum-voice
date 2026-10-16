@@ -9,6 +9,7 @@ import { VoiceView } from '../components/VoiceView'
 import { ServerBar } from '../components/ServerBar'
 import type { Channel, Me, ServerDetail } from '../lib/api'
 import { Realtime, setActiveRealtime } from '../lib/realtime'
+import { loadAppearance, useAppearance } from '../store/appearance'
 import { defaultChannel, useChat } from '../store/chat'
 import { useVoice } from '../store/voice'
 
@@ -28,6 +29,7 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
       (event) => {
         // Our own profile changed (maybe on another device): keep the signed-in user fresh.
         if (event.type === 'user.updated' && event.data.id === user.id) setUser({ ...user, ...event.data })
+        if (event.type === 'settings.updated') useAppearance.getState().hydrate(event.data)
         useChat.getState().applyEvent(event)
       },
       (s) => useChat.getState().setStatus(s)
@@ -35,6 +37,7 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
     setActiveRealtime(realtime)
     realtime.start()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
+    loadAppearance().catch(() => {}) // keep the cached theme if this fails
     return () => {
       void useVoice.getState().leave()
       setActiveRealtime(null)
@@ -48,7 +51,7 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
   return (
     <div className="flex h-full flex-col">
       {loaded && status !== 'online' && (
-        <div className="shrink-0 bg-accent py-1 text-center text-sm font-medium text-accent-fg">
+        <div className="shrink-0 bg-accent py-1 text-center text-sm font-medium text-on-accent">
           Conexão perdida. Reconectando…
         </div>
       )}
@@ -62,11 +65,11 @@ export function HomeScreen({ user }: { user: Me }): ReactNode {
           </>
         ) : (
           <>
-            <aside className="flex w-60 shrink-0 flex-col bg-surface-1">
+            <aside className="flex w-60 shrink-0 flex-col bg-panel">
               <div className="flex-1" />
               <UserPanel user={user} />
             </aside>
-            {loaded ? <NoServers /> : <div className="flex-1 bg-surface-2" />}
+            {loaded ? <NoServers /> : <div className="flex-1 bg-main" />}
           </>
         )}
       </div>
@@ -94,7 +97,7 @@ function Content({
 
 function Placeholder({ title, text }: { title: string; text: string }): ReactNode {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-surface-2 p-8 text-center">
+    <main className="flex flex-1 flex-col items-center justify-center bg-main p-8 text-center">
       <h2 className="text-2xl font-semibold">{title}</h2>
       <p className="mt-2 max-w-md text-fg-muted">{text}</p>
     </main>
@@ -104,13 +107,13 @@ function Placeholder({ title, text }: { title: string; text: string }): ReactNod
 function NoServers(): ReactNode {
   const [adding, setAdding] = useState(false)
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-surface-2 p-8 text-center">
+    <main className="flex flex-1 flex-col items-center justify-center bg-main p-8 text-center">
       <h2 className="text-2xl font-semibold">Você ainda não está em nenhum servidor</h2>
       <p className="mt-2 max-w-md text-fg-muted">Crie um servidor pro seu grupo ou entre com um código de convite.</p>
       <button
         type="button"
         onClick={() => setAdding(true)}
-        className="mt-6 rounded-[3px] bg-accent px-6 py-2.5 font-semibold text-accent-fg hover:bg-accent-hover"
+        className="mt-6 rounded-control bg-accent px-6 py-2.5 font-semibold text-on-accent hover:bg-accent-hover"
       >
         Criar ou entrar em um servidor
       </button>

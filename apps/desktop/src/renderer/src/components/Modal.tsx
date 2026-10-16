@@ -22,12 +22,12 @@ export function Modal({
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 p-6" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`w-full ${wide ? 'max-w-[760px]' : 'max-w-[440px]'} rounded-md bg-surface-2 p-6 shadow-2xl`}
+        className={`w-full ${wide ? 'max-w-[760px]' : 'max-w-[440px]'} rounded-panel border border-line bg-panel p-6 shadow-2xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h2 className="text-center text-xl font-semibold">{title}</h2>
@@ -45,7 +45,7 @@ export function SecondaryButton({
   return (
     <button
       {...props}
-      className="w-full rounded-[3px] bg-surface-3 px-4 py-2.5 text-[15px] font-medium text-fg hover:bg-surface-3/70 disabled:opacity-60"
+      className="w-full rounded-control bg-elevated px-4 py-2.5 text-[15px] font-medium text-fg hover:bg-line disabled:opacity-60"
     >
       {children}
     </button>
@@ -56,7 +56,7 @@ export function DangerButton({ children, ...props }: ButtonHTMLAttributes<HTMLBu
   return (
     <button
       {...props}
-      className="w-full rounded-[3px] bg-danger px-4 py-2.5 text-[15px] font-semibold text-white hover:bg-danger/85 disabled:opacity-60"
+      className="w-full rounded-control bg-danger px-4 py-2.5 text-[15px] font-semibold text-on-danger hover:bg-danger/85 disabled:opacity-60"
     >
       {children}
     </button>
@@ -66,7 +66,7 @@ export function DangerButton({ children, ...props }: ButtonHTMLAttributes<HTMLBu
 export function FormError({ message }: { message?: string | null }): ReactNode {
   if (!message) return null
   return (
-    <div role="alert" className="rounded-[3px] border border-danger/50 bg-danger/10 px-3 py-2 text-sm">
+    <div role="alert" className="rounded-control border border-danger/50 bg-danger/10 px-3 py-2 text-sm">
       {message}
     </div>
   )

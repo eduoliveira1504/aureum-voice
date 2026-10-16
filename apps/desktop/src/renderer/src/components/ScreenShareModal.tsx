@@ -1,9 +1,10 @@
+import { AppWindow, Monitor } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { ShareSource } from '../../../shared/types'
 import { useVoice, type ScreenShareOptions } from '../store/voice'
 import { Modal } from './Modal'
-import { PrimaryButton } from './ui'
+import { PrimaryButton, Segmented, ToggleRow } from './ui'
 
 /** The app's own picker for what to share (Electron has no built-in one on Windows). */
 export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
@@ -33,17 +34,15 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
 
   return (
     <Modal title="Compartilhar tela" wide onClose={onClose}>
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded bg-surface-0 p-1 text-sm">
-        {(['screen', 'window'] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setTab(k)}
-            className={`rounded py-1.5 ${tab === k ? 'bg-surface-3 text-fg' : 'text-fg-muted hover:text-fg'}`}
-          >
-            {k === 'screen' ? 'Telas' : 'Janelas'}
-          </button>
-        ))}
+      <div className="mb-4">
+        <Segmented<ShareSource['kind']>
+          options={[
+            { value: 'screen', label: 'Telas', icon: Monitor },
+            { value: 'window', label: 'Janelas', icon: AppWindow }
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       <div className="grid max-h-[340px] grid-cols-3 gap-3 overflow-y-auto pr-1">
@@ -58,11 +57,11 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
             title={source.name}
             onClick={() => setSelected(source.id)}
             onDoubleClick={share}
-            className={`overflow-hidden rounded-md bg-surface-0 text-left ring-2 transition-shadow ${
-              selected === source.id ? 'ring-accent' : 'ring-transparent hover:ring-surface-3'
+            className={`overflow-hidden rounded-control border border-line bg-main text-left ring-2 transition-shadow ${
+              selected === source.id ? 'ring-accent' : 'ring-transparent hover:ring-line'
             }`}
           >
-            <img src={source.thumbnail} alt="" className="aspect-video w-full bg-black object-contain" />
+            <img src={source.thumbnail} alt="" className="aspect-video w-full bg-scrim object-contain" />
             <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
               {source.icon && <img src={source.icon} alt="" className="h-4 w-4 shrink-0" />}
               <span className="truncate">{source.name}</span>
@@ -72,14 +71,13 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="flex cursor-pointer items-center justify-between gap-3 rounded bg-surface-1 px-3 py-2.5">
-          <span>
-            <span className="block font-medium">Compartilhar áudio</span>
-            <span className="block text-xs text-fg-subtle">Som do PC (jogos, vídeos), sem as vozes da chamada.</span>
-          </span>
-          <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} className="h-5 w-5 accent-accent" />
-        </label>
-        <div className="rounded bg-surface-1 px-3 py-2">
+        <ToggleRow
+          title="Compartilhar áudio"
+          description="Som do PC (jogos, vídeos), sem as vozes da chamada."
+          checked={audio}
+          onChange={setAudio}
+        />
+        <div className="rounded-control border border-line bg-main px-3 py-2">
           <span className="mb-1 block font-medium">Otimizar para</span>
           <div className="flex gap-2 text-sm">
             {(

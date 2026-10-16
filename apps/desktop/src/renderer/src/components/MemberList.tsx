@@ -1,6 +1,8 @@
+import { Crown } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import type { Member, ServerDetail, User } from '../lib/api'
+import { useReadableColor } from '../store/appearance'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
 
@@ -15,7 +17,7 @@ export function MemberList({ server }: { server: ServerDetail }): ReactNode {
   const profile = useProfilePopover()
 
   return (
-    <aside className="hidden w-60 shrink-0 overflow-y-auto bg-surface-1 px-2 py-4 lg:block">
+    <aside className="hidden w-60 shrink-0 overflow-y-auto bg-panel px-2 py-4 lg:block">
       <Group title={`Online — ${online.length}`} members={online} onOpen={profile.open} />
       {offline.length > 0 && <Group title={`Offline — ${offline.length}`} members={offline} onOpen={profile.open} />}
       {profile.popover}
@@ -34,24 +36,30 @@ function Group({
 }): ReactNode {
   return (
     <section className="mb-5">
-      <h3 className="mb-1 px-2 text-xs font-bold uppercase tracking-wide text-fg-subtle">{title}</h3>
+      <h3 className="mb-1 px-2 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">{title}</h3>
       {members.map((m) => (
-        <button
-          key={m.user.id}
-          type="button"
-          onClick={(e) => onOpen(m.user, e.currentTarget)}
-          className={`flex w-full items-center gap-3 rounded px-2 py-1.5 text-left hover:bg-surface-3/50 ${m.online ? '' : 'opacity-40'}`}
-        >
-          <div className="relative">
-            <Avatar name={m.user.display_name} url={m.user.avatar_url} />
-            {m.online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-surface-1 bg-green-500" />}
-          </div>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium" style={m.user.accent_color ? { color: m.user.accent_color } : undefined}>
-            {m.user.display_name}
-          </span>
-          {m.role === 'owner' && <span title="Dono do servidor" className="text-xs text-accent">👑</span>}
-        </button>
+        <MemberRow key={m.user.id} member={m} onOpen={onOpen} />
       ))}
     </section>
+  )
+}
+
+function MemberRow({ member: m, onOpen }: { member: Member; onOpen(user: User, target: Element): void }): ReactNode {
+  const nameColor = useReadableColor(m.user.accent_color)
+  return (
+    <button
+      type="button"
+      onClick={(e) => onOpen(m.user, e.currentTarget)}
+      className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60 ${m.online ? '' : 'opacity-40'}`}
+    >
+      <div className="relative">
+        <Avatar name={m.user.display_name} url={m.user.avatar_url} />
+        {m.online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-panel bg-success" />}
+      </div>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
+        {m.user.display_name}
+      </span>
+      {m.role === 'owner' && <Crown size={14} aria-label="Dono do servidor" className="shrink-0 text-accent-text" />}
+    </button>
   )
 }

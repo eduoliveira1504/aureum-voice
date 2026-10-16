@@ -1,24 +1,102 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/sora';
+
+/*
+ * Design tokens. The palettes below are the only place colors are defined; components use
+ * the Tailwind names mapped in @theme (bg-panel, text-fg-muted, ring-accent, ...).
+ * --accent, --on-accent and --accent-text are set at runtime from the user's settings
+ * (see theme/appearance.ts), because on-accent and accent-text depend on contrast math.
+ */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-rail: #0a0908;
+  --bg-panel: #12110d;
+  --bg-main: #17150f;
+  --bg-elevated: #201d16;
+  --border: #2a261d;
+  --text: #f4efe4;
+  --text-muted: #a8a090;
+  --success: #3fbf7f;
+  --danger: #c7363b;
+  --idle: #e8b531;
+  --dnd: #e5484d;
+  --accent-hover-mix: white 12%;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-rail: #efe9dc;
+  --bg-panel: #f6f2e8;
+  --bg-main: #ffffff;
+  --bg-elevated: #f3eee2;
+  --border: #e4dccb;
+  --text: #1c1810;
+  --text-muted: #6b6354;
+  --success: #2e9e65;
+  --danger: #c7363b;
+  --idle: #c98f00;
+  --dnd: #c7363b;
+  --accent-hover-mix: black 10%;
+}
+
+:root {
+  /* Defaults until the user's settings load (Aureum gold). */
+  --accent: #e8b531;
+  --on-accent: #1a1406;
+  --accent-text: #e8b531;
+  /* Text on danger/scrims is white in both themes; scrims sit over video, so they stay dark. */
+  --on-danger: #ffffff;
+  --scrim: #0a0908;
+  --on-scrim: #f4efe4;
+}
+
+@theme inline {
+  /* No stock palette: a hardcoded color like bg-red-500 generates nothing. */
+  --color-*: initial;
+
+  --color-rail: var(--bg-rail);
+  --color-panel: var(--bg-panel);
+  --color-main: var(--bg-main);
+  --color-elevated: var(--bg-elevated);
+  --color-line: var(--border);
+
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-subtle: color-mix(in oklab, var(--text-muted) 72%, var(--bg-main));
+
+  --color-accent: var(--accent);
+  --color-accent-hover: color-mix(in oklab, var(--accent), var(--accent-hover-mix));
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-idle: var(--idle);
+  --color-dnd: var(--dnd);
+
+  --color-scrim: var(--scrim);
+  --color-on-scrim: var(--on-scrim);
+}
 
 @theme {
-  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Figtree Variable', system-ui, sans-serif;
+  --font-display: 'Sora Variable', 'Figtree Variable', system-ui, sans-serif;
 
-  /* Surfaces, darkest to lightest (Discord-like layout). */
-  --color-surface-0: #1e1f22; /* server bar */
-  --color-surface-1: #2b2d31; /* channel list */
-  --color-surface-2: #313338; /* main content */
-  --color-surface-3: #383a40; /* inputs, hovers */
+  --radius-item: 8px; /* list rows */
+  --radius-control: 12px; /* buttons, inputs, cards */
+  --radius-panel: 18px; /* panels, modals */
+}
 
-  --color-fg: #f2f3f5;
-  --color-fg-muted: #b5bac1;
-  --color-fg-subtle: #80848e;
-
-  /* Aureum gold. */
-  --color-accent: #d4a72c;
-  --color-accent-hover: #e2b83d;
-  --color-accent-fg: #1e1f22;
-
-  --color-danger: #f23f43;
+/* Soft accent glow behind full-screen cards (sign-in). */
+@utility bg-glow {
+  background: radial-gradient(
+    ellipse at top,
+    color-mix(in oklab, var(--accent) 16%, var(--bg-rail)),
+    var(--bg-rail) 60%
+  );
 }
 
 html,
@@ -29,11 +107,17 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-surface-0);
-  color: var(--color-fg);
+  background: var(--bg-rail);
+  color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
 }
 
 input,
@@ -41,7 +125,11 @@ textarea {
   user-select: text;
 }
 
-/* Thin dark scrollbars instead of the bright Windows defaults. */
+::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+/* Thin scrollbars that follow the theme instead of the bright Windows defaults. */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -50,9 +138,9 @@ textarea {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-0);
+  background: var(--border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #111214;
+  background: var(--text-muted);
 }

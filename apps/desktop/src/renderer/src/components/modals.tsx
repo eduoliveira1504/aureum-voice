@@ -1,9 +1,10 @@
+import { Check, Hash, Volume2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { api, ApiError, type Channel, type Invite, type ServerDetail } from '../lib/api'
 import { useChat } from '../store/chat'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
-import { Field, PrimaryButton } from './ui'
+import { Field, labelClass, PrimaryButton, Segmented } from './ui'
 
 function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
@@ -51,21 +52,19 @@ export function AddServerModal({ onClose }: { onClose(): void }): ReactNode {
       subtitle={tab === 'create' ? 'Um lugar pra você e seus amigos.' : 'Cole o código de convite que te mandaram.'}
       onClose={onClose}
     >
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded bg-surface-0 p-1 text-sm">
-        {(['create', 'join'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => {
-              setTab(t)
-              setValue('')
-              setError(null)
-            }}
-            className={`rounded py-1.5 ${tab === t ? 'bg-surface-3 text-fg' : 'text-fg-muted hover:text-fg'}`}
-          >
-            {t === 'create' ? 'Criar' : 'Tenho um convite'}
-          </button>
-        ))}
+      <div className="mb-4">
+        <Segmented
+          options={[
+            { value: 'create', label: 'Criar' },
+            { value: 'join', label: 'Tenho um convite' }
+          ]}
+          value={tab}
+          onChange={(t) => {
+            setTab(t)
+            setValue('')
+            setError(null)
+          }}
+        />
       </div>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
@@ -107,15 +106,16 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
   return (
     <Modal title={`Convidar para ${server.name}`} onClose={onClose}>
       <FormError message={error} />
-      <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-fg-muted">Código do convite</span>
-      <div className="flex items-center gap-2 rounded-[3px] bg-surface-0 p-1.5 pl-3">
+      <span className={labelClass}>Código do convite</span>
+      <div className="flex items-center gap-2 rounded-control border border-line bg-main p-1.5 pl-3">
         <code className="flex-1 select-text font-mono text-lg tracking-wider">{invite?.code ?? '…'}</code>
         <button
           type="button"
           onClick={copy}
           disabled={!invite}
-          className={`rounded-[3px] px-4 py-2 text-sm font-semibold text-accent-fg ${copied ? 'bg-green-500' : 'bg-accent hover:bg-accent-hover'}`}
+          className="flex items-center gap-1.5 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
+          {copied && <Check size={16} />}
           {copied ? 'Copiado!' : 'Copiar'}
         </button>
       </div>
@@ -162,9 +162,12 @@ export function CreateChannelModal({
         <FormError message={error} />
         <div className="space-y-2">
           {(['text', 'voice'] as const).map((t) => (
-            <label key={t} className={`flex cursor-pointer items-center gap-3 rounded px-3 py-2.5 ${type === t ? 'bg-surface-3' : 'bg-surface-1 hover:bg-surface-3/60'}`}>
+            <label
+              key={t}
+              className={`flex cursor-pointer items-center gap-3 rounded-control border px-3 py-2.5 ${type === t ? 'border-accent bg-accent/10' : 'border-line bg-main hover:bg-elevated'}`}
+            >
               <input type="radio" name="type" checked={type === t} onChange={() => setType(t)} className="accent-accent" />
-              <span className="w-5 text-center text-fg-muted">{t === 'text' ? '#' : '🔊'}</span>
+              {t === 'text' ? <Hash size={18} className="shrink-0 text-fg-muted" /> : <Volume2 size={18} className="shrink-0 text-fg-muted" />}
               <span>
                 <span className="block font-medium">{t === 'text' ? 'Texto' : 'Voz'}</span>
                 <span className="block text-xs text-fg-subtle">

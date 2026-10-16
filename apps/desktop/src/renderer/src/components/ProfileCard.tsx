@@ -1,37 +1,39 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import { mediaUrl, type User } from '../lib/api'
+import { useReadableColor } from '../store/appearance'
 import { Avatar } from './ui'
 
-const DEFAULT_BANNER = '#d4a72c'
 const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** Profile body (banner, avatar, names, bio); used by the popover and the settings preview. */
 export function ProfileView({ user, footer }: { user: User; footer?: ReactNode }): ReactNode {
   const banner = mediaUrl(user.banner_url)
+  const nameColor = useReadableColor(user.accent_color)
   return (
-    <div className="w-[300px] overflow-hidden rounded-lg bg-surface-0 shadow-2xl">
-      <div className="h-[106px]" style={{ background: user.accent_color ?? DEFAULT_BANNER }}>
+    <div className="w-[300px] overflow-hidden rounded-panel border border-line bg-panel shadow-2xl">
+      {/* Without a profile color the banner falls back to the app accent. */}
+      <div className="h-[106px] bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
         {banner && <img src={banner} alt="" className="h-full w-full object-cover" />}
       </div>
       <div className="relative px-4 pb-4">
-        <div className="-mt-10 inline-block rounded-full border-[6px] border-surface-0">
+        <div className="-mt-10 inline-block rounded-full border-[6px] border-panel">
           <Avatar name={user.display_name} url={user.avatar_url} size={80} />
         </div>
-        <div className="mt-1 rounded-lg bg-surface-1 p-3">
-          <div className="text-lg font-bold leading-tight" style={user.accent_color ? { color: user.accent_color } : undefined}>
+        <div className="mt-1 rounded-control bg-main p-3">
+          <div className="font-display text-lg font-semibold leading-tight" style={nameColor ? { color: nameColor } : undefined}>
             {user.display_name}
           </div>
           <div className="text-sm text-fg-muted">@{user.username}</div>
           {user.bio && (
             <>
-              <div className="my-2.5 h-px bg-surface-3" />
-              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-fg-muted">Sobre mim</div>
+              <div className="my-2.5 h-px bg-line" />
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">Sobre mim</div>
               <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
             </>
           )}
-          <div className="my-2.5 h-px bg-surface-3" />
-          <div className="mb-1 text-xs font-bold uppercase tracking-wide text-fg-muted">Membro desde</div>
+          <div className="my-2.5 h-px bg-line" />
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">Membro desde</div>
           <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
           {footer}
         </div>

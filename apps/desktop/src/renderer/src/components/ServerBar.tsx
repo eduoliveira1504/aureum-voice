@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { mediaUrl } from '../lib/api'
@@ -17,39 +18,37 @@ export function ServerBar(): ReactNode {
   const [adding, setAdding] = useState(false)
 
   return (
-    <nav className="flex w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto bg-surface-0 py-3">
+    <nav className="flex w-[72px] shrink-0 flex-col items-center gap-2 overflow-y-auto bg-rail py-3">
       {order.map((id) => {
         const server = servers[id]
         if (!server) return null
         const active = id === selectedId
         return (
-          <div key={id} className="group relative flex w-full justify-center">
-            <span
-              className={`absolute left-0 top-1/2 w-1 -translate-y-1/2 rounded-r bg-fg transition-all ${active ? 'h-10' : 'h-0 group-hover:h-5'}`}
-            />
-            <button
-              type="button"
-              title={server.name}
-              onClick={() => selectServer(id)}
-              className={`flex h-12 w-12 items-center justify-center overflow-hidden text-sm font-semibold transition-all ${
-                active ? 'rounded-2xl bg-accent text-accent-fg' : 'rounded-3xl bg-surface-2 text-fg hover:rounded-2xl hover:bg-accent hover:text-accent-fg'
-              }`}
-            >
-              {server.icon_url ? <img src={mediaUrl(server.icon_url)} alt="" className="h-full w-full object-cover" /> : initials(server.name)}
-            </button>
-          </div>
+          <button
+            key={id}
+            type="button"
+            title={server.name}
+            aria-current={active ? 'page' : undefined}
+            onClick={() => selectServer(id)}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-control font-display text-sm font-semibold ring-offset-2 ring-offset-rail transition-all ${
+              active ? 'bg-accent text-on-accent ring-2 ring-accent' : 'bg-elevated text-fg hover:ring-2 hover:ring-line'
+            }`}
+          >
+            {server.icon_url ? <img src={mediaUrl(server.icon_url)} alt="" className="h-full w-full object-cover" /> : initials(server.name)}
+          </button>
         )
       })}
 
-      {order.length > 0 && <div className="h-0.5 w-8 shrink-0 rounded bg-surface-3" />}
+      {order.length > 0 && <div className="h-0.5 w-8 shrink-0 rounded bg-line" />}
 
       <button
         type="button"
         title="Adicionar um servidor"
         onClick={() => setAdding(true)}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-surface-2 text-2xl text-green-500 transition-all hover:rounded-2xl hover:bg-green-600 hover:text-white"
+        aria-label="Adicionar um servidor"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-control border border-dashed border-line text-accent-text transition-colors hover:border-accent hover:bg-accent hover:text-on-accent"
       >
-        +
+        <Plus size={22} />
       </button>
 
       {adding && <AddServerModal onClose={() => setAdding(false)} />}
