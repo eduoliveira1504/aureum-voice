@@ -17,10 +17,18 @@ class Settings(BaseSettings):
     postgres_user: str
     postgres_password: str
     postgres_db: str
-    postgres_host: str = "localhost"
+    # 127.0.0.1, not "localhost": on Windows the latter tries IPv6 first and stalls ~2s per
+    # connection, because Docker only publishes these ports on IPv4.
+    postgres_host: str = "127.0.0.1"
     postgres_port: int = 5433
     # Disables connection pooling (used by the test suite).
     db_null_pool: bool = False
+
+    redis_host: str = "127.0.0.1"
+    redis_port: int = 6379
+    redis_password: str = ""
+    # Namespaces pub/sub channels and keys (the test suite uses its own prefix).
+    redis_prefix: str = "aureum"
 
     jwt_secret: str
     jwt_algorithm: str = "HS256"
@@ -35,6 +43,10 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/0"
 
 
 @lru_cache

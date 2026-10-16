@@ -86,6 +86,8 @@ services:
       # Inside the compose network the API reaches services by name and container port.
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     depends_on:

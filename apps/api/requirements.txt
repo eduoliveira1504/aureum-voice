@@ -8,3 +8,4 @@ pydantic-settings==2.9.1
 email-validator==2.2.0
 argon2-cffi==23.1.0
 pyjwt==2.10.1
+redis==8.1.0
