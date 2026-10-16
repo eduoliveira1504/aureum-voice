@@ -43,6 +43,74 @@ Revisar TODAS as telas existentes para usar os tokens.
   ligados; simulcast nas câmeras e telas; tiles pequenos/fora de foco recebem a camada
   de menor resolução; tiles fora da tela não recebem vídeo.
 
+## 2.L Layout novo do Aureum (fazer antes do 2.4)
+Objetivo: sair da estrutura do Discord (coluna de servidores + canais + chat + membros).
+Nova estrutura do app (shell):
+
+### Barra superior (abas)
+- Logo à esquerda. Depois, ABAS: a primeira é sempre "Início" (casa) com contador de
+  pendências (pedidos de amizade, DMs não lidas, chamadas perdidas); em seguida, uma
+  aba por servidor aberto (ícone + nome). A aba ativa "encaixa" no conteúdo abaixo
+  (mesma cor do painel, cantos superiores arredondados).
+- Bolinha vermelha na aba quando alguém está transmitindo tela no servidor; badge com
+  número de menções.
+- Botão "+" para abrir/criar/entrar em servidor. Abas podem ser reordenadas por
+  arrastar e fechadas (o servidor continua na conta, só sai da barra). Ordem salva por usuário.
+- À direita: botão de busca global "Buscar · Ctrl K", notificações e o botão de perfil
+  (avatar com status + nome) que abre o menu: ver perfil, status, configurações, sair.
+
+### Barra lateral (contexto da aba atual)
+- Servidor: nome + configurações + botão recolher. Itens: "Visão geral", e as seções
+  colapsáveis SALAS (canais de voz: bolinha verde se tem gente, contador, selo AO VIVO),
+  CONVERSAS (canais de texto, badge de não lidas na cor accent) e ADDONS (canais addon
+  com o ícone do addon).
+- Início: Amigos (com contador), lista de DMs e grupos, botão de novo grupo.
+- Recolhida: vira uma faixa estreita só com ícones. Estado salvo por usuário.
+- Quando o usuário está numa call, o PÉ da barra mostra o card da call (sala, quem
+  está falando, mic, tela, "mostrar janelinha", sair), sempre que a janelinha estiver minimizada.
+
+### Visão geral do servidor (tela padrão ao abrir um servidor)
+- Banner do servidor no topo (com ícone, nome, "N online · N transmitindo · N membros",
+  botão Convidar).
+- "Salas agora": cards das salas de voz, ao vivo. Sala com transmissão mostra a
+  miniatura da tela (snapshot de baixa resolução, atualizado a cada poucos segundos,
+  para não gastar banda) com selo AO VIVO; sem transmissão mostra os avatares grandes
+  com anel em quem fala. Card da sala onde o usuário está tem borda accent e
+  "VOCÊ ESTÁ AQUI". Salas vazias aparecem com borda tracejada e "Abrir a sala".
+- "Addons do servidor": card resumo por addon (ex: quadro com barra de progresso
+  a fazer/fazendo/feito; cinema com quantos assistindo; mapa com status do servidor).
+- Coluna lateral: "Novidades" (últimas mensagens não lidas dos canais) e "Online agora".
+
+### Painéis (área de conteúdo)
+- Conversas, addons e a call em tela grande abrem em PAINÉIS com abas próprias.
+- Até 2 painéis lado a lado (ex: chat + quadro). Abrir com clique do meio, Ctrl+clique
+  ou arrastando a aba para a lateral; divisor arrastável; fechar painel no X.
+- Na barra lateral, item aberto em painel fica destacado e indica "painel 1/2".
+- Layout de painéis salvo por servidor e por usuário.
+- Chat em balões: mensagens dos outros à esquerda com avatar quadrado arredondado;
+  as do próprio usuário à direita, com fundo accent escurecido.
+- Eventos de addon aparecem no chat como linha de sistema
+  (ex: "Eduardo moveu Sistema de classes para Fazendo").
+
+### Call
+- Janelinha flutuante (picture-in-picture) no canto inferior direito, arrastável para os
+  4 cantos: mostra a tela em foco ou quem fala, nome da sala, "X está falando",
+  mic, expandir (abre a call num painel ou tela cheia, com os modos Foco/Grade do 2.2)
+  e sair. Pode ser minimizada para o card no pé da barra lateral.
+- A janelinha usa a camada de menor resolução do vídeo (economia de banda).
+
+### Lista de membros
+- Sai da coluna fixa da direita. Fica acessível por um botão "Membros" no cabeçalho
+  do canal/painel, abrindo um painel lateral recolhível (mesmo agrupamento por cargo do 2.4).
+
+### Responsivo
+- Abaixo de ~1100px: barra lateral recolhe para ícones automaticamente e só 1 painel.
+
+Pronto quando: abrir o app cai no Início; abrir um servidor cai na Visão geral com
+salas ao vivo; dá pra abrir #geral e o Quadro lado a lado; entrar numa call mostra a
+janelinha, que pode ser minimizada para a barra lateral.
+Visual de referência: tokens do 2.1 (tema escuro, accent dourado, Sora + Figtree).
+
 ## 2.3 Social: amigos, DMs e chamadas privadas
 Modelo:
 - friendships: requester_id, addressee_id, status (pending|accepted|blocked), created_at
