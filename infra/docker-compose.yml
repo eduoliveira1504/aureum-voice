@@ -89,6 +89,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       MINIO_ENDPOINT: minio:9000
+      # The port below is bound to localhost, so every outside request comes through the
+      # reverse proxy, which appends the real client IP to X-Forwarded-For (used by rate limits).
+      TRUST_FORWARDED_FOR: "true"
     ports:
       # Localhost only: the public entry point is a reverse proxy (Tailscale Funnel now, Caddy later).
       - "127.0.0.1:${API_PORT:-8000}:8000"
