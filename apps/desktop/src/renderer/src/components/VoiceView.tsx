@@ -2,12 +2,14 @@ import type { Track } from 'livekit-client'
 import {
   Headphones,
   HeadphoneOff,
+  LayoutGrid,
   Maximize2,
   Mic,
   MicOff,
   MonitorOff,
   MonitorUp,
   PhoneOff,
+  Presentation,
   Video,
   VideoOff,
   Volume2,
@@ -20,6 +22,15 @@ import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, u
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
 
+type Layout = 'grid' | 'focus'
+
+/** One box on the call stage: a person (camera or avatar) or a shared screen. */
+interface Tile {
+  key: string
+  identity: string
+  kind: 'person' | 'screen'
+}
+
 /** Columns for n tiles: 1, 2, 2x2, 3x3, then 4 wide. */
 function columns(n: number): number {
   if (n <= 1) return 1
@@ -28,15 +39,38 @@ function columns(n: number): number {
   return 4
 }
 
+/** Shared screens first (they're what people came to watch), then everyone in the call. */
+function callTiles(ids: string[]): Tile[] {
+  const screens = ids.filter((id) => screenTrackOf(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' }))
+  return [...screens, ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))]
+}
+
 export function VoiceView({ server, channel, meId }: { server: ServerDetail; channel: Channel; meId: string }): ReactNode {
   const phase = useVoice((s) => s.phase)
   const activeChannelId = useVoice((s) => s.channelId)
   const join = useVoice((s) => s.join)
   useVoice((s) => s.version) // re-render on room changes
+  // null = automatic: focus on a shared screen when there is one, grid otherwise.
+  const [chosenLayout, setChosenLayout] = useState<Layout | null>(null)
+  const [pinned, setPinned] = useState<string | null>(null)
 
   const inThisChannel = activeChannelId === channel.id && phase !== 'idle'
   const members = new Map(server.members.map((m) => [m.user.id, m]))
   const present = server.voice_states.filter((v) => v.channel_id === channel.id)
+
+  const tiles = inThisChannel ? callTiles(phase === 'connecting' ? [meId] : roomIdentities()) : []
+  const hasScreen = tiles.some((t) => t.kind === 'screen')
+  const layout: Layout = tiles.length < 2 ? 'grid' : (chosenLayout ?? (hasScreen ? 'focus' : 'grid'))
+  // Without a pin (or when the pinned tile went away): someone else's screen, else someone else.
+  // Our own screen is never picked automatically; watching yourself share isn't useful.
+  const others = tiles.filter((t) => t.identity !== meId)
+  const focused =
+    tiles.find((t) => t.key === pinned) ?? others.find((t) => t.kind === 'screen') ?? others[0] ?? tiles[0]
+
+  const focusOn = (key: string): void => {
+    setPinned(key)
+    setChosenLayout('focus')
+  }
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-rail">
@@ -44,11 +78,21 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
         <Volume2 size={20} className="text-fg-subtle" />
         <h2 className="font-semibold">{channel.name}</h2>
         {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">Reconectando…</span>}
+        {tiles.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setChosenLayout(layout === 'focus' ? 'grid' : 'focus')}
+            className="ml-auto flex items-center gap-2 rounded-control border border-line bg-panel px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg"
+          >
+            {layout === 'focus' ? <LayoutGrid size={16} /> : <Presentation size={16} />}
+            {layout === 'focus' ? 'Grade' : 'Foco'}
+          </button>
+        )}
       </header>
 
       {inThisChannel ? (
         <>
-          <ParticipantGrid members={members} meId={meId} connecting={phase === 'connecting'} />
+          <CallStage tiles={tiles} layout={layout} focused={focused} members={members} meId={meId} onFocus={focusOn} />
           <CallControls />
         </>
       ) : (
@@ -72,134 +116,179 @@ export function VoiceView({ server, channel, meId }: { server: ServerDetail; cha
   )
 }
 
-function ParticipantGrid({
+function CallStage({
+  tiles,
+  layout,
+  focused,
   members,
   meId,
-  connecting
+  onFocus
 }: {
+  tiles: Tile[]
+  layout: Layout
+  focused: Tile | undefined
   members: Map<string, Member>
   meId: string
-  connecting: boolean
+  onFocus(key: string): void
 }): ReactNode {
   const speaking = useVoice((s) => s.speaking)
-  const ids = connecting ? [meId] : roomIdentities()
-  const sharing = ids.filter((id) => screenTrackOf(id))
-  const cols = columns(ids.length)
-  const tile = (id: string, compact = false): ReactNode => (
-    <ParticipantTile
-      key={id}
-      identity={id}
-      member={members.get(id)}
-      isLocal={id === meId}
-      speaking={speaking.includes(id)}
-      compact={compact}
-    />
-  )
+  const render = (tile: Tile, size: TileSize): ReactNode => {
+    const props = {
+      identity: tile.identity,
+      member: members.get(tile.identity),
+      isLocal: tile.identity === meId,
+      size,
+      onClick: size === 'focus' ? undefined : () => onFocus(tile.key)
+    }
+    return tile.kind === 'screen' ? (
+      <ScreenTile key={tile.key} {...props} />
+    ) : (
+      <ParticipantTile key={tile.key} {...props} speaking={speaking.includes(tile.identity)} />
+    )
+  }
 
-  if (sharing.length > 0) {
-    // Spotlight: shared screens take the stage, people move to a strip below.
+  if (layout === 'focus' && focused) {
+    // One big tile plus a scrolling strip. Strip tiles are small, so adaptiveStream asks for the
+    // low layer, and the ones scrolled out of view get no video at all.
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-        <div
-          className="grid min-h-0 flex-1 gap-3"
-          style={{ gridTemplateColumns: `repeat(${Math.min(sharing.length, 2)}, minmax(0, 1fr))` }}
-        >
-          {sharing.map((id) => (
-            <ScreenTile key={id} identity={id} name={members.get(id)?.user.display_name ?? 'Alguém'} isLocal={id === meId} />
-          ))}
+      <div className="flex min-h-0 flex-1 gap-3 px-4 pb-4">
+        <div className="flex min-w-0 flex-1">{render(focused, 'focus')}</div>
+        <div className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+          {tiles.filter((t) => t.key !== focused.key).map((t) => render(t, 'strip'))}
         </div>
-        <div className="flex shrink-0 justify-center gap-3 [&>*]:w-44">{ids.map((id) => tile(id, true))}</div>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-      <div className="grid w-full max-w-6xl gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {ids.map((id) => tile(id))}
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-4">
+      <div className="grid w-full max-w-6xl gap-3" style={{ gridTemplateColumns: `repeat(${columns(tiles.length)}, minmax(0, 1fr))` }}>
+        {tiles.map((t) => render(t, 'grid'))}
       </div>
     </div>
   )
 }
 
-function ParticipantTile({
-  identity,
-  member,
-  isLocal,
-  speaking,
-  compact = false
-}: {
+type TileSize = 'grid' | 'focus' | 'strip'
+
+interface TileProps {
   identity: string
   member: Member | undefined
   isLocal: boolean
-  speaking: boolean
-  /** Smaller avatar for the strip under a shared screen. */
-  compact?: boolean
+  size: TileSize
+  /** Puts the tile in focus; absent for the tile already in focus. */
+  onClick?: () => void
+}
+
+/** Clickable frame shared by both tile kinds. */
+function TileFrame({
+  size,
+  label,
+  onClick,
+  ring = false,
+  dark = false,
+  children
+}: {
+  size: TileSize
+  label: string
+  onClick?: () => void
+  ring?: boolean
+  dark?: boolean
+  children: ReactNode
 }): ReactNode {
+  const shape = size === 'focus' ? 'h-full w-full' : 'aspect-video w-full shrink-0'
+  return (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `Colocar ${label} em foco` : label}
+      onClick={onClick}
+      onKeyDown={(e) => onClick && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick())}
+      className={`group relative flex items-center justify-center overflow-hidden rounded-control transition-shadow ${shape} ${
+        dark ? 'bg-scrim' : 'bg-panel'
+      } ${ring ? 'ring-[3px] ring-accent' : 'ring-0'} ${onClick ? 'cursor-pointer outline-none hover:ring-2 hover:ring-line focus-visible:ring-2 focus-visible:ring-accent' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+function ParticipantTile({ identity, member, isLocal, size, onClick, speaking }: TileProps & { speaking: boolean }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
   const name = member?.user.display_name ?? participant?.name ?? 'Alguém'
   const micMuted = !participant?.isMicrophoneEnabled
   const camera = cameraTrackOf(identity)
 
   return (
-    <div
-      className={`relative flex aspect-video items-center justify-center overflow-hidden rounded-control bg-panel transition-shadow ${
-        speaking ? 'ring-[3px] ring-accent' : 'ring-0'
-      }`}
-    >
+    <TileFrame size={size} label={name} onClick={onClick} ring={speaking}>
       {camera ? (
-        <VideoTrackView track={camera} mirror={isLocal} />
+        <VideoTrackView track={camera} mirror={isLocal} fit={size === 'focus' ? 'contain' : 'cover'} />
       ) : (
-        <Avatar name={name} url={member?.user.avatar_url} size={compact ? 40 : 80} />
+        <Avatar name={name} url={member?.user.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
       )}
-      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
-        {micMuted && <MicOff size={14} className="text-danger" />}
-        <span>{name}</span>
+      <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
+        {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
+        <span className="truncate">{name}</span>
       </div>
-    </div>
+    </TileFrame>
   )
 }
 
-function ScreenTile({ identity, name, isLocal }: { identity: string; name: string; isLocal: boolean }): ReactNode {
+function ScreenTile({ identity, member, isLocal, size, onClick }: TileProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   const track = screenTrackOf(identity)
   const audio = isLocal ? undefined : screenAudioOf(identity)
-  const [volume, setVolume] = useState(1)
-
-  useEffect(() => {
-    audio?.setVolume(volume)
-  }, [audio, volume])
+  const volume = useVoice((s) => s.screenVolume[identity] ?? 1)
+  const setVolume = useVoice((s) => s.setScreenVolume)
+  const name = isLocal ? 'Sua tela' : `Tela de ${member?.user.display_name ?? 'alguém'}`
 
   if (!track) return null
+  // Controls must not also put the tile in focus.
+  const stop = (e: { stopPropagation(): void }): void => e.stopPropagation()
+
   return (
-    <div ref={ref} className="group relative flex min-h-0 items-center justify-center overflow-hidden rounded-control bg-scrim">
-      <VideoTrackView track={track} mirror={false} fit="contain" />
-      <div className="absolute left-2 top-2 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
-        {isLocal ? 'Sua tela' : `Tela de ${name}`}
+    <TileFrame size={size} label={name} onClick={onClick} dark>
+      <div ref={ref} className="flex h-full w-full items-center justify-center bg-scrim">
+        <VideoTrackView track={track} mirror={false} fit="contain" />
       </div>
-      <div className="absolute bottom-2 right-2 hidden items-center gap-2 rounded-item bg-scrim/70 px-2 py-1 text-on-scrim group-hover:flex">
-        {audio && (
-          <>
-            <button type="button" aria-label={volume === 0 ? 'Ativar som da tela' : 'Silenciar som da tela'} onClick={() => setVolume(volume === 0 ? 1 : 0)}>
-              {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-            <input
-              type="range"
-              aria-label="Volume da tela"
-              min={0}
-              max={1}
-              step={0.05}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              className="w-24 accent-accent"
-            />
-          </>
-        )}
-        <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={() => void ref.current?.requestFullscreen()}>
-          <Maximize2 size={18} />
-        </button>
+      <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
+        <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+        <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
       </div>
-    </div>
+      {size !== 'strip' && (
+        <div
+          onClick={stop}
+          onKeyDown={stop}
+          className="absolute bottom-2 right-2 flex items-center gap-2 rounded-item bg-scrim/70 px-2 py-1 text-on-scrim opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+        >
+          {audio && (
+            <>
+              <button
+                type="button"
+                title={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
+                aria-label={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
+                onClick={() => setVolume(identity, volume === 0 ? 1 : 0)}
+              >
+                {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
+              <input
+                type="range"
+                aria-label="Volume da transmissão"
+                min={0}
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={(e) => setVolume(identity, Number(e.target.value))}
+                className="w-24 accent-accent"
+              />
+            </>
+          )}
+          <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={() => void ref.current?.requestFullscreen()}>
+            <Maximize2 size={18} />
+          </button>
+        </div>
+      )}
+    </TileFrame>
   )
 }
 

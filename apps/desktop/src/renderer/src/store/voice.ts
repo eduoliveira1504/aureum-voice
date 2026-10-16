@@ -39,6 +39,8 @@ interface VoiceStore {
   speaking: string[]
   /** Bumped on any participant/track change so views re-read the room. */
   version: number
+  /** Volume (0..1) chosen for each participant's screen-share audio; kept while tiles move around. */
+  screenVolume: Record<string, number>
 
   join(serverId: string, channelId: string): Promise<void>
   leave(): Promise<void>
@@ -47,6 +49,7 @@ interface VoiceStore {
   toggleCamera(): Promise<void>
   startScreenShare(options: ScreenShareOptions): Promise<void>
   stopScreenShare(): Promise<void>
+  setScreenVolume(identity: string, volume: number): void
   applyDevicePrefs(): Promise<void>
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
@@ -85,17 +88,21 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     audioSink.replaceChildren()
     shareTracks.forEach((t) => t.stop())
     shareTracks = []
-    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, speaking: [], error })
+    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, speaking: [], screenVolume: {}, error })
     bump()
   }
 
   function wire(r: Room): void {
     const isCurrent = (): boolean => room === r
-    r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+    r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant) => {
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach()
         el.muted = get().deafened
         audioSink.appendChild(el)
+        const volume = get().screenVolume[participant.identity]
+        if (track.source === Track.Source.ScreenShareAudio && volume !== undefined) {
+          ;(track as RemoteAudioTrack).setVolume(volume)
+        }
       }
       bump()
     })
@@ -149,6 +156,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     screen: false,
     speaking: [],
     version: 0,
+    screenVolume: {},
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -157,8 +165,15 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       set({ phase: 'connecting', serverId, channelId, error: null, camera: false })
       const prefs = loadMediaPrefs()
       const r = new Room({
+        // Bandwidth (the LiveKit Cloud quota): adaptiveStream sizes each subscription to the
+        // <video> showing it (small tile -> low layer, off-screen or hidden -> paused), and
+        // dynacast stops encoding layers nobody is receiving.
         adaptiveStream: true,
         dynacast: true,
+        publishDefaults: {
+          simulcast: true,
+          videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360]
+        },
         audioCaptureDefaults: {
           deviceId: prefs.audioInput || undefined,
           noiseSuppression: prefs.noiseSuppression,
@@ -280,7 +295,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         await r.localParticipant.publishTrack(video, {
           source: Track.Source.ScreenShare,
           videoEncoding: (hint === 'motion' ? ScreenSharePresets.h1080fps30 : ScreenSharePresets.h1080fps15).encoding,
-          simulcast: false,
+          // Lower layers for viewers watching in a side tile instead of in focus.
+          simulcast: true,
+          screenShareSimulcastLayers:
+            hint === 'motion'
+              ? [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps30]
+              : [ScreenSharePresets.h360fps3, ScreenSharePresets.h720fps15],
           degradationPreference: hint === 'motion' ? 'maintain-framerate' : 'maintain-resolution'
         })
         if (systemAudio) {
@@ -315,6 +335,11 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         announce()
       }
       bump()
+    },
+
+    setScreenVolume: (identity, volume) => {
+      set((s) => ({ screenVolume: { ...s.screenVolume, [identity]: volume } }))
+      screenAudioOf(identity)?.setVolume(volume)
     },
 
     applyDevicePrefs: async () => {
