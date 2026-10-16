@@ -1,5 +1,7 @@
 # Aureum Voice — Fase 1 (núcleo)
 
+> Fase atual: 2. Spec em docs/decisions/PHASE2.md (um bloco por vez, na ordem).
+
 App de comunicação estilo Discord para grupo pequeno (~10 pessoas).
 Prioridade máxima: voz, câmera e compartilhamento de tela COM áudio do sistema.
 Projeto também é portfólio: README, commits e docs em inglês; commits pequenos e descritivos.
