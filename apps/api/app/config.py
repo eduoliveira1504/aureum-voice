@@ -37,6 +37,13 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["*"]
 
+    # S3-compatible storage (MinIO). It stays private: the API serves files at /api/media.
+    minio_endpoint: str = "127.0.0.1:9000"
+    minio_root_user: str
+    minio_root_password: str
+    minio_bucket: str = "aureum"
+    minio_secure: bool = False
+
     # URL clients use to reach LiveKit (ws:// locally, wss:// in production).
     livekit_url: str = "ws://localhost:7880"
     livekit_api_key: str

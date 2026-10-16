@@ -1,12 +1,25 @@
 import uuid
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
+from app import storage
+from app.access import co_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import User
+from app.realtime import broker
 from app.schemas import UserMe, UserPublic, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+ImageKind = Literal["avatar", "banner"]
+
+
+async def _broadcast_profile(session: SessionDep, user: User) -> None:
+    """Tells everyone who shares a server with the user, so names/avatars update live."""
+    data = UserPublic.model_validate(user).model_dump(mode="json")
+    await broker.publish("user.updated", data, await co_member_ids(session, user.id))
 
 
 @router.get("/me", response_model=UserMe)
@@ -21,7 +34,68 @@ async def update_me(body: UserUpdate, user: CurrentUser, session: SessionDep) ->
             continue  # display_name is required; ignore explicit nulls
         setattr(user, field, value)
     await session.commit()
+    await _broadcast_profile(session, user)
     return user
+
+
+async def _read_limited(upload: UploadFile) -> bytes:
+    data = await upload.read(MAX_IMAGE_BYTES + 1)
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image must be at most 8 MB")
+    return data
+
+
+async def _replace_image(kind: ImageKind, upload: UploadFile, user: User, session: SessionDep) -> User:
+    data = await _read_limited(upload)
+    detected = storage.sniff_image(data)
+    if detected is None:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Use PNG, JPG, GIF or WebP")
+    content_type, ext = detected
+
+    key = f"{kind}s/{user.id}/{uuid.uuid4().hex}.{ext}"
+    await storage.put(key, data, content_type)
+    field = f"{kind}_url"
+    old_key = storage.key_from_url(getattr(user, field))
+    setattr(user, field, storage.url_for(key))
+    await session.commit()
+    if old_key:
+        await storage.delete(old_key)
+    await _broadcast_profile(session, user)
+    return user
+
+
+async def _remove_image(kind: ImageKind, user: User, session: SessionDep) -> User:
+    field = f"{kind}_url"
+    old_key = storage.key_from_url(getattr(user, field))
+    setattr(user, field, None)
+    await session.commit()
+    if old_key:
+        await storage.delete(old_key)
+    await _broadcast_profile(session, user)
+    return user
+
+
+ImageUpload = Annotated[UploadFile, File(description="PNG, JPG, GIF or WebP (animated allowed), up to 8 MB")]
+
+
+@router.post("/me/avatar", response_model=UserMe)
+async def upload_avatar(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
+    return await _replace_image("avatar", file, user, session)
+
+
+@router.post("/me/banner", response_model=UserMe)
+async def upload_banner(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
+    return await _replace_image("banner", file, user, session)
+
+
+@router.delete("/me/avatar", response_model=UserMe)
+async def remove_avatar(user: CurrentUser, session: SessionDep) -> User:
+    return await _remove_image("avatar", user, session)
+
+
+@router.delete("/me/banner", response_model=UserMe)
+async def remove_banner(user: CurrentUser, session: SessionDep) -> User:
+    return await _remove_image("banner", user, session)
 
 
 @router.get("/{user_id}", response_model=UserPublic)
@@ -30,3 +104,27 @@ async def get_user(user_id: uuid.UUID, _: CurrentUser, session: SessionDep) -> U
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+
+# --- Media --------------------------------------------------------------------
+
+media_router = APIRouter(tags=["media"])
+
+
+@media_router.get("/media/{key:path}")
+async def get_media(key: str) -> Response:
+    """Serves stored files. Public on purpose: <img> tags can't send auth headers, and keys
+    contain a random id, so they can't be guessed."""
+    if not key.startswith(("avatars/", "banners/")) or ".." in key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    stored = await storage.get(key)
+    if stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return Response(
+        stored.data,
+        media_type=stored.content_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
