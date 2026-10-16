@@ -3,7 +3,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEv
 
 import type { Channel, Me, Message, User } from '../lib/api'
 import { useReadableColor } from '../store/appearance'
-import { useChat } from '../store/chat'
+import { useChat, viewChannel } from '../store/chat'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
@@ -29,11 +29,12 @@ function formatTimestamp(iso: string): string {
 }
 
 /** Renders text with http(s) links made clickable (they open in the system browser). */
-function Linkified({ text }: { text: string }): ReactNode {
+function Linkified({ text, own = false }: { text: string; own?: boolean }): ReactNode {
   const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g)
   return parts.map((part, i) =>
     i % 2 === 1 ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer" className="text-accent-text hover:underline">
+      // On the accent-tinted bubble the accent text color can lack contrast: underline instead.
+      <a key={i} href={part} target="_blank" rel="noreferrer" className={own ? 'underline' : 'text-accent-text hover:underline'}>
         {part}
       </a>
     ) : (
@@ -45,6 +46,7 @@ function Linkified({ text }: { text: string }): ReactNode {
 export function ChatView({ channel, me, canModerate }: { channel: Channel; me: Me; canModerate: boolean }): ReactNode {
   const entry = useChat((s) => s.messages[channel.id])
   const loadMessages = useChat((s) => s.loadMessages)
+  const markRead = useChat((s) => s.markRead)
   const deleteMessage = useChat((s) => s.deleteMessage)
   const items = entry?.items
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -60,6 +62,12 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
     atBottom.current = true
     setEditingId(null)
   }, [channel.id])
+
+  // On screen: new messages here are read as they arrive.
+  useEffect(() => viewChannel(channel.id), [channel.id])
+  useEffect(() => {
+    if (entry?.loaded) markRead(channel.id)
+  }, [channel.id, entry?.loaded, markRead])
 
   useEffect(() => {
     if (entry?.loaded || entry?.loading) return
@@ -91,11 +99,6 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-main">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
-        <Hash size={20} className="text-fg-subtle" />
-        <h2 className="font-semibold">{channel.name}</h2>
-      </header>
-
       <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
@@ -135,6 +138,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
               )}
               <MessageRow
                 message={message}
+                own={message.author?.id === me.id}
                 grouped={grouped}
                 editing={editingId === message.id}
                 canEdit={message.author?.id === me.id}
@@ -167,6 +171,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
 
 function MessageRow({
   message,
+  own,
   grouped,
   editing,
   canEdit,
@@ -177,6 +182,8 @@ function MessageRow({
   onOpenProfile
 }: {
   message: Message
+  /** Written by the signed-in user: shown on the right, without avatar or name. */
+  own: boolean
   grouped: boolean
   editing: boolean
   canEdit: boolean
@@ -188,59 +195,71 @@ function MessageRow({
 }): ReactNode {
   const author = message.author
   const name = author?.display_name ?? 'Usuário removido'
-  const time = new Date(message.created_at)
   const nameColor = useReadableColor(author?.accent_color)
+  const openProfile = (e: { currentTarget: Element }): void => {
+    if (author) onOpenProfile(author, e.currentTarget)
+  }
 
   return (
-    <div className={`group relative flex gap-4 px-4 py-0.5 pr-16 hover:bg-elevated/40 ${grouped ? '' : 'mt-4'}`}>
-      <div className="w-10 shrink-0">
-        {grouped ? (
-          <span className="invisible block pt-1 text-right text-[11px] text-fg-subtle group-hover:visible">{timeFmt.format(time)}</span>
-        ) : (
-          <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={(e) => author && onOpenProfile(author, e.currentTarget)}>
-            <Avatar name={name} url={author?.avatar_url} size={40} />
-          </button>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        {!grouped && (
-          <div className="flex items-baseline gap-2">
-            <button
-              type="button"
-              disabled={!author}
-              onClick={(e) => author && onOpenProfile(author, e.currentTarget)}
-              className="font-medium hover:underline disabled:no-underline"
-              style={nameColor ? { color: nameColor } : undefined}
-            >
-              {name}
+    <div className={`group relative flex gap-2.5 px-4 ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}>
+      {!own && (
+        <div className="w-9 shrink-0">
+          {!grouped && (
+            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile}>
+              <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
             </button>
+          )}
+        </div>
+      )}
+      <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
+        {!grouped && (
+          <div className={`mb-1 flex items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
+            {!own && (
+              <button
+                type="button"
+                disabled={!author}
+                onClick={openProfile}
+                className="text-sm font-semibold hover:underline disabled:no-underline"
+                style={nameColor ? { color: nameColor } : undefined}
+              >
+                {name}
+              </button>
+            )}
             <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}
         {editing ? (
           <EditBox message={message} onDone={onStopEditing} />
         ) : (
-          <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg/95">
-            <Linkified text={message.content} />
-            {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
-          </p>
+          <div
+            title={grouped ? formatTimestamp(message.created_at) : undefined}
+            className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
+          >
+            <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+              <Linkified text={message.content} own={own} />
+              {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+            </p>
+          </div>
+        )}
+        {!editing && (canEdit || canDelete) && (
+          <div
+            className={`absolute bottom-0 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-hover:flex ${
+              own ? 'right-full mr-2' : 'left-full ml-2'
+            }`}
+          >
+            {canEdit && (
+              <button type="button" title="Editar" aria-label="Editar" onClick={onEdit} className="px-2 py-1.5 hover:bg-elevated hover:text-fg">
+                <Pencil size={16} />
+              </button>
+            )}
+            {canDelete && (
+              <button type="button" title="Excluir" aria-label="Excluir" onClick={onDelete} className="px-2 py-1.5 hover:bg-elevated hover:text-danger">
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
         )}
       </div>
-
-      {!editing && (canEdit || canDelete) && (
-        <div className="absolute -top-3 right-4 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-hover:flex">
-          {canEdit && (
-            <button type="button" title="Editar" aria-label="Editar" onClick={onEdit} className="px-2 py-1.5 hover:bg-elevated hover:text-fg">
-              <Pencil size={16} />
-            </button>
-          )}
-          {canDelete && (
-            <button type="button" title="Excluir" aria-label="Excluir" onClick={onDelete} className="px-2 py-1.5 hover:bg-elevated hover:text-danger">
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -270,7 +289,7 @@ function EditBox({ message, onDone }: { message: Message; onDone(): void }): Rea
   }
 
   return (
-    <div className="mt-1">
+    <div className="w-full">
       <AutoTextarea autoFocus value={value} onChange={setValue} onKeyDown={onKeyDown} />
       <p className="mt-1 text-xs text-fg-subtle">
         {error ? <span className="text-danger">Falha ao salvar. </span> : null}
