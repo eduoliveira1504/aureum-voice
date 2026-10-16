@@ -5,7 +5,7 @@ import { Field, PrimaryButton } from '../components/ui'
 import { ApiError, checkServer, getApiBaseUrl, setApiBaseUrl } from '../lib/api'
 
 type Mode = 'login' | 'register'
-type Errors = Partial<Record<'username' | 'email' | 'password' | 'confirm' | 'form', string>>
+type Errors = Partial<Record<'username' | 'email' | 'password' | 'confirm' | 'invite' | 'form', string>>
 
 const USERNAME_RE = /^[A-Za-z0-9_.]{3,32}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -27,6 +27,12 @@ function validate(mode: Mode, f: Record<string, string>): Errors {
 function describeError(err: unknown, mode: Mode): Errors {
   if (err instanceof ApiError) {
     if (err.status === 401 && mode === 'login') return { form: 'E-mail ou senha incorretos.' }
+    if (err.status === 429) return { form: 'Muitas tentativas. Espere alguns minutos e tente de novo.' }
+    if (err.status === 403 && mode === 'register') {
+      return String(err.detail ?? '').includes('required')
+        ? { invite: 'obrigatório' }
+        : { invite: 'inválido, expirado ou já usado' }
+    }
     if (err.status === 409) {
       const detail = String(err.detail ?? '')
       if (detail.includes('username')) return { username: 'já está em uso' }
@@ -42,7 +48,7 @@ function describeError(err: unknown, mode: Mode): Errors {
 export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean }): ReactNode {
   const { login, register } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
-  const [form, setForm] = useState({ username: '', display_name: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ username: '', display_name: '', email: '', password: '', confirm: '', invite: '' })
   const [errors, setErrors] = useState<Errors>(
     serverUnreachable ? { form: `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.` } : {}
   )
@@ -72,7 +78,8 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
           username: form.username.trim(),
           email: form.email.trim(),
           password: form.password,
-          display_name: form.display_name.trim() || undefined
+          display_name: form.display_name.trim() || undefined,
+          invite_code: form.invite.trim() || undefined
         })
       }
     } catch (err) {
@@ -102,6 +109,14 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
           {mode === 'register' && (
             <>
+              <Field
+                label="Código de convite"
+                value={form.invite}
+                onChange={set('invite')}
+                error={errors.invite}
+                hint="Peça para quem administra o servidor. Você já entra nele ao criar a conta."
+                maxLength={64}
+              />
               <Field label="Nome de exibição" value={form.display_name} onChange={set('display_name')} hint="Como os outros te veem. Opcional." maxLength={64} />
               <Field label="Nome de usuário" autoComplete="username" value={form.username} onChange={set('username')} error={errors.username} hint="Letras, números, _ e ." maxLength={32} />
             </>

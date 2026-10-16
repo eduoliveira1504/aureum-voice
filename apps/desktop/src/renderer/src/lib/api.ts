@@ -216,6 +216,7 @@ export async function register(input: {
   email: string
   password: string
   display_name?: string
+  invite_code?: string
 }): Promise<void> {
   await storeTokens(await api<TokenPair>('/auth/register', { method: 'POST', body: input, auth: false }))
 }

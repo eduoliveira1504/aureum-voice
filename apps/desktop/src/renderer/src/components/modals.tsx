@@ -120,7 +120,8 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
         </button>
       </div>
       <p className="mt-2 text-xs text-fg-subtle">
-        Expira em 7 dias. A pessoa cola o código em <b>+ → Tenho um convite</b>.
+        Expira em 7 dias. Quem ainda não tem conta usa o código no <b>cadastro</b>; quem já tem cola em{' '}
+        <b>+ → Tenho um convite</b>.
       </p>
     </Modal>
   )

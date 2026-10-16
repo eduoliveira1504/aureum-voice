@@ -186,9 +186,10 @@ function ServerMenu({
       </button>
       {open && (
         <div className="absolute left-2 right-2 top-[52px] z-20 rounded bg-surface-0 p-1.5 shadow-xl">
-          {item('Convidar pessoas', { kind: 'invite' })}
+          {/* Invites also create accounts, so only owners/admins can hand them out. */}
+          {canManage && item('Convidar pessoas', { kind: 'invite' })}
           {canManage && item('Criar canal', { kind: 'channel', type: 'text' })}
-          <div className="my-1 h-px bg-surface-3" />
+          {canManage && <div className="my-1 h-px bg-surface-3" />}
           {isOwner ? item('Excluir servidor', { kind: 'delete' }, true) : item('Sair do servidor', { kind: 'leave' }, true)}
         </div>
       )}

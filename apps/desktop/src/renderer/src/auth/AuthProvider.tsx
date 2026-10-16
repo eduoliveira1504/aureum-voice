@@ -11,7 +11,7 @@ type AuthState =
 interface AuthContextValue {
   state: AuthState
   login(email: string, password: string): Promise<void>
-  register(input: { username: string; email: string; password: string; display_name?: string }): Promise<void>
+  register(input: { username: string; email: string; password: string; display_name?: string; invite_code?: string }): Promise<void>
   logout(): Promise<void>
   setUser(user: Me): void
 }
