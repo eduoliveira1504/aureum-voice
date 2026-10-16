@@ -65,6 +65,31 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
     await voice.set_state(state, channel.server_id, _recipients)
 
 
+async def _handle_overview_watch(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:
+    """The client opened (server_id) or closed (null) a server's overview: it gets that
+    server's screen-share thumbnails, starting with the current ones."""
+    raw = data.get("server_id") if isinstance(data, dict) else None
+    if raw is None:
+        return broker.watch(None, websocket)
+    try:
+        server_id = uuid.UUID(str(raw))
+    except ValueError:
+        return await _send_error(websocket, "Invalid overview.watch payload")
+    async with SessionLocal() as session:
+        if await session.get(ServerMember, (server_id, user_id)) is None:
+            return await _send_error(websocket, "Server not found")
+    broker.watch(server_id, websocket)
+    for event in await voice.get_thumbnails(server_id):
+        await websocket.send_json({"type": "screen.thumbnail", "data": event})
+
+
+async def _handle_thumbnail(user_id: uuid.UUID, data: Any) -> None:
+    # Dropped silently when invalid, throttled or not sharing: the client just sends the next one.
+    image = data.get("image") if isinstance(data, dict) else None
+    if voice.valid_thumbnail(image):
+        await voice.store_thumbnail(user_id, image)
+
+
 async def _send_error(websocket: WebSocket, message: str) -> None:
     await websocket.send_json({"type": "error", "data": {"message": message}})
 
@@ -111,6 +136,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
                 await websocket.send_json({"type": "pong", "data": None})
             elif message.get("type") == "voice.update":
                 await _handle_voice_update(websocket, user_id, message.get("data"))
+            elif message.get("type") == "overview.watch":
+                await _handle_overview_watch(websocket, user_id, message.get("data"))
+            elif message.get("type") == "screen.thumbnail":
+                await _handle_thumbnail(user_id, message.get("data"))
     except WebSocketDisconnect:
         pass
     finally:

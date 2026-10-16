@@ -3,6 +3,9 @@
 Every event is published to Redis together with the ids of the users who should receive
 it. Each API process subscribes to the channel and forwards events to the WebSockets it
 holds locally, so any number of API processes can run side by side.
+
+A few high-volume events (screen-share thumbnails) go to connections instead of users:
+only those currently watching a server's overview.
 """
 
 import asyncio
@@ -35,6 +38,8 @@ class Broker:
         self._listener: asyncio.Task[None] | None = None
         self._subscribed = asyncio.Event()
         self._sockets: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
+        # Connections showing a server's overview, by server id.
+        self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
 
     @property
     def redis(self) -> Redis:
@@ -52,6 +57,14 @@ class Broker:
         try:
             await self.redis.publish(self._channel, payload)
         except Exception:  # an event lost to a Redis outage must not fail the HTTP request
+            log.exception("Failed to publish %s event", type_)
+
+    async def publish_to_watchers(self, type_: str, data: Any, server_id: uuid.UUID) -> None:
+        """Sends an event only to connections watching the server's overview."""
+        payload = json.dumps({"type": type_, "data": data, "watchers": str(server_id)}, default=str)
+        try:
+            await self.redis.publish(self._channel, payload)
+        except Exception:
             log.exception("Failed to publish %s event", type_)
 
     async def ensure_listening(self) -> None:
@@ -80,6 +93,14 @@ class Broker:
 
     async def _deliver(self, payload: dict[str, Any]) -> None:
         event = {"type": payload["type"], "data": payload["data"]}
+        if "watchers" in payload:
+            watchers = self._watchers.get(uuid.UUID(payload["watchers"]), set())
+            for ws in list(watchers):
+                try:
+                    await ws.send_json(event)
+                except Exception:
+                    watchers.discard(ws)
+            return
         for user_id in payload["user_ids"]:
             for ws in list(self._sockets.get(uuid.UUID(user_id), ())):
                 try:
@@ -93,11 +114,21 @@ class Broker:
         self._sockets[user_id].add(ws)
 
     def unregister(self, user_id: uuid.UUID, ws: WebSocket) -> None:
+        self.watch(None, ws)
         sockets = self._sockets.get(user_id)
         if sockets is not None:
             sockets.discard(ws)
             if not sockets:
                 del self._sockets[user_id]
+
+    def watch(self, server_id: uuid.UUID | None, ws: WebSocket) -> None:
+        """A connection watches at most one server overview at a time (None: none)."""
+        for sid in [sid for sid, sockets in self._watchers.items() if ws in sockets]:
+            self._watchers[sid].discard(ws)
+            if not self._watchers[sid]:
+                del self._watchers[sid]
+        if server_id is not None:
+            self._watchers[server_id].add(ws)
 
     def _presence_key(self, user_id: uuid.UUID) -> str:
         return f"{self._presence_prefix}:{user_id}"
