@@ -1,9 +1,19 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, ipcMain, safeStorage, session, shell, type IpcMainInvokeEvent } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  safeStorage,
+  session,
+  shell,
+  webContents,
+  type IpcMainInvokeEvent
+} from 'electron'
 
-import type { AppSettings } from '../shared/types'
+import type { AppSettings, ShareSource } from '../shared/types'
 
 const DEFAULT_SETTINGS: AppSettings = { apiUrl: 'http://localhost:8000' }
 
@@ -95,6 +105,51 @@ handle('settings:get', readSettings)
 handle('settings:set', writeSettings)
 
 // ---------------------------------------------------------------------------
+// Screen sharing — the renderer shows its own picker, then calls getDisplayMedia,
+// which lands in the display-media handler below with the source it picked.
+// ---------------------------------------------------------------------------
+
+/** Source picked in the app's picker, consumed by the next getDisplayMedia call. */
+let pendingShare: { sourceId: string; audio: boolean; at: number } | null = null
+const PENDING_SHARE_TTL_MS = 10_000
+
+handle('screen:get-sources', async (): Promise<ShareSource[]> => {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen', 'window'],
+    thumbnailSize: { width: 320, height: 180 },
+    fetchWindowIcons: true
+  })
+  return sources.map((s) => ({
+    id: s.id,
+    name: s.name,
+    kind: s.id.startsWith('screen:') ? 'screen' : 'window',
+    thumbnail: s.thumbnail.toDataURL(),
+    icon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : null
+  }))
+})
+
+handle('screen:select', (sourceId: unknown, audio: unknown) => {
+  if (typeof sourceId !== 'string') throw new Error('Invalid source')
+  pendingShare = { sourceId, audio: audio === true, at: Date.now() }
+})
+
+function installDisplayMediaHandler(isAppWindow: (contents: Electron.WebContents | null) => boolean): void {
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    const pick = pendingShare
+    pendingShare = null
+    const requester = request.frame ? (webContents.fromFrame(request.frame) ?? null) : null
+    if (!pick || Date.now() - pick.at > PENDING_SHARE_TTL_MS || !isAppWindow(requester)) {
+      return callback(null)
+    }
+    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] })
+    const source = sources.find((s) => s.id === pick.sourceId)
+    if (!source) return callback(null)
+    // 'loopback' = system audio (Windows only).
+    callback({ video: source, ...(pick.audio && request.audioRequested ? { audio: 'loopback' as const } : {}) })
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Window
 // ---------------------------------------------------------------------------
 
@@ -157,6 +212,7 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler(
       (contents, permission) => isAppWindow(contents) && ALLOWED_PERMISSIONS.has(permission)
     )
+    installDisplayMediaHandler(isAppWindow)
     createWindow()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

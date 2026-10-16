@@ -11,6 +11,10 @@ const bridge: AureumBridge = {
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (patch) => ipcRenderer.invoke('settings:set', patch)
+  },
+  screen: {
+    getSources: () => ipcRenderer.invoke('screen:get-sources'),
+    select: (sourceId, audio) => ipcRenderer.invoke('screen:select', sourceId, audio)
   }
 }
 

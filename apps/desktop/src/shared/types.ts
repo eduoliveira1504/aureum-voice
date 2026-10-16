@@ -5,6 +5,16 @@ export interface AppSettings {
   apiUrl: string
 }
 
+/** A screen or window that can be shared. */
+export interface ShareSource {
+  id: string
+  name: string
+  kind: 'screen' | 'window'
+  /** PNG data URL. */
+  thumbnail: string
+  icon: string | null
+}
+
 /** API exposed to the renderer as `window.aureum` by the preload script. */
 export interface AureumBridge {
   session: {
@@ -18,5 +28,10 @@ export interface AureumBridge {
   settings: {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
+  }
+  screen: {
+    getSources(): Promise<ShareSource[]>
+    /** Picks what the next getDisplayMedia() call captures, and whether it includes system audio. */
+    select(sourceId: string, audio: boolean): Promise<void>
   }
 }
