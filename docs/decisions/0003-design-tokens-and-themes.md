@@ -26,6 +26,11 @@ accent (button labels) and the accent used *as* text (links), especially on ligh
     for the light theme, but a very dark custom accent is just as unreadable on the dark theme, and
     colors that already pass are left untouched.
   - The same function makes profile colors on names readable (`useReadableColor`).
+- **The neutrals follow the accent.** The spec palettes are drawn around the default gold (a warm,
+  yellowish black). Backgrounds, border and text are re-tinted in OKLCH: lightness stays, the hue turns
+  by the angle between the user's accent and gold, and chroma scales with the accent's (capped at the
+  original). Gold reproduces the spec hex values exactly; purple gives a purple-black, and a gray accent
+  gives plain grays. Status colors (success, danger, idle, dnd) are not tinted: they carry meaning.
 - **Settings live on the server** (`user_settings`: theme, accent, sounds) so they follow the user
   across PCs, and a `settings.updated` event updates the user's other open sessions. The last value is
   also cached in `localStorage`, so the next start (sign-in screen included) opens in the right theme

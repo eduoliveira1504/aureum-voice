@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 import { api, type Theme, type UserSettings } from '../lib/api'
-import { inkOn, readableOn } from '../lib/color'
+import { inkOn, readableOn, retint } from '../lib/color'
 
 export const ACCENT_PRESETS = [
   { name: 'Dourado', hex: '#E8B531' },
@@ -20,6 +20,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
 const CACHE_KEY = 'aureum.appearance'
 const SAVE_DELAY_MS = 400
 const SURFACES = ['--bg-rail', '--bg-panel', '--bg-main', '--bg-elevated'] as const
+/** Palette colors that follow the accent's hue. Status colors keep their meaning and stay put. */
+const NEUTRALS = [...SURFACES, '--border', '--text', '--text-muted'] as const
 
 type Resolved = 'dark' | 'light'
 type Patch = Partial<Omit<UserSettings, 'sounds'>>
@@ -56,13 +58,21 @@ function saveCache(settings: UserSettings): void {
 
 let surfaces: string[] = []
 
-/** Writes the theme to <html>: data-theme picks the palette, the accent vars are computed here. */
+/**
+ * Writes the theme to <html>. data-theme picks the base palette in main.css (drawn around the
+ * default gold); its neutrals are then re-tinted toward the user's accent, so a purple accent gets
+ * purple-black backgrounds. The accent-derived vars are computed here too.
+ */
 function applyToDocument(settings: UserSettings, resolved: Resolved): void {
   const root = document.documentElement
-  root.dataset.theme = resolved
-  const css = getComputedStyle(root)
-  surfaces = SURFACES.map((name) => css.getPropertyValue(name).trim())
   const accent = settings.accent_color
+  root.dataset.theme = resolved
+  for (const name of NEUTRALS) root.style.removeProperty(name) // read the base palette, not last tint
+  const css = getComputedStyle(root)
+  for (const name of NEUTRALS) {
+    root.style.setProperty(name, retint(css.getPropertyValue(name).trim(), accent, DEFAULT_SETTINGS.accent_color))
+  }
+  surfaces = SURFACES.map((name) => root.style.getPropertyValue(name))
   root.style.setProperty('--accent', accent)
   root.style.setProperty('--on-accent', inkOn(accent))
   root.style.setProperty('--accent-text', readableOn(accent, surfaces))

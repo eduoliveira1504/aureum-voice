@@ -5,8 +5,9 @@
 /*
  * Design tokens. The palettes below are the only place colors are defined; components use
  * the Tailwind names mapped in @theme (bg-panel, text-fg-muted, ring-accent, ...).
- * --accent, --on-accent and --accent-text are set at runtime from the user's settings
- * (see theme/appearance.ts), because on-accent and accent-text depend on contrast math.
+ * The neutrals (backgrounds, border, text) are drawn around the default gold accent; at runtime
+ * store/appearance.ts re-tints them toward the user's accent hue and sets --accent, --on-accent
+ * and --accent-text, which depend on contrast math.
  */
 :root,
 :root[data-theme='dark'] {
