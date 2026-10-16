@@ -17,9 +17,9 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import type { Channel, Member, ServerDetail } from '../lib/api'
+import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { ScreenShareModal } from './ScreenShareModal'
@@ -48,7 +48,7 @@ function callTiles(ids: string[]): Tile[] {
   return [...screens, ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))]
 }
 
-/** The expanded call (in a panel or fullscreen), with Grid and Focus layouts. */
+/** A server voice room, expanded (in a panel or fullscreen). */
 export function VoiceView({
   server,
   channel,
@@ -60,18 +60,56 @@ export function VoiceView({
   meId: string
   fullscreen?: boolean
 }): ReactNode {
+  const join = useVoice((s) => s.join)
+  const people = useMemo(() => new Map(server.members.map((m) => [m.user.id, m.user])), [server.members])
+  return (
+    <CallView
+      title={channel.name ?? ''}
+      channelId={channel.id}
+      people={people}
+      present={server.voice_states.filter((v) => v.channel_id === channel.id)}
+      joinLabel="Entrar no canal de voz"
+      onJoin={() => join(server.id, channel.id)}
+      meId={meId}
+      fullscreen={fullscreen}
+    />
+  )
+}
+
+/** A call with Grid and Focus layouts: a server room or a private call (DM or group). */
+export function CallView({
+  title,
+  channelId,
+  people,
+  present,
+  joinLabel,
+  onJoin,
+  meId,
+  fullscreen = false,
+  footer
+}: {
+  title: string
+  channelId: string
+  /** Everyone who may show up in the call, by user id. */
+  people: Map<string, User>
+  /** Who is in it right now (from voice states), shown before joining. */
+  present: VoiceState[]
+  joinLabel: string
+  onJoin(): void
+  meId: string
+  fullscreen?: boolean
+  /** Extra line under the stage (who is still being rung, in private calls). */
+  footer?: ReactNode
+}): ReactNode {
   const setCallFullscreen = useNav((s) => s.setCallFullscreen)
   const phase = useVoice((s) => s.phase)
   const activeChannelId = useVoice((s) => s.channelId)
-  const join = useVoice((s) => s.join)
   useVoice((s) => s.version) // re-render on room changes
   // null = automatic: focus on a shared screen when there is one, grid otherwise.
   const [chosenLayout, setChosenLayout] = useState<Layout | null>(null)
   const [pinned, setPinned] = useState<string | null>(null)
 
-  const inThisChannel = activeChannelId === channel.id && phase !== 'idle'
-  const members = new Map(server.members.map((m) => [m.user.id, m]))
-  const present = server.voice_states.filter((v) => v.channel_id === channel.id)
+  const inThisChannel = activeChannelId === channelId && phase !== 'idle'
 
   const tiles = inThisChannel ? callTiles(phase === 'connecting' ? [meId] : roomIdentities()) : []
   const hasScreen = tiles.some((t) => t.kind === 'screen')
@@ -91,7 +129,7 @@ export function VoiceView({
     <div className="flex min-w-0 flex-1 flex-col bg-rail">
       <header className="flex h-12 shrink-0 items-center gap-2 px-4">
         <Volume2 size={20} className="text-fg-subtle" />
-        <h2 className="font-semibold">{channel.name}</h2>
+        <h2 className="truncate font-semibold">{title}</h2>
         {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">Reconectando…</span>}
         {tiles.length > 1 && (
           <button
@@ -118,23 +156,24 @@ export function VoiceView({
 
       {inThisChannel ? (
         <>
-          <CallStage tiles={tiles} layout={layout} focused={focused} members={members} meId={meId} onFocus={focusOn} />
+          <CallStage tiles={tiles} layout={layout} focused={focused} people={people} meId={meId} onFocus={focusOn} />
+          {footer}
           <CallControls />
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-          <h3 className="text-2xl font-bold">{channel.name}</h3>
+          <h3 className="text-2xl font-bold">{title}</h3>
           <p className="text-fg-muted">
             {present.length === 0
               ? 'Ninguém está aqui ainda.'
-              : `${present.map((v) => members.get(v.user_id)?.user.display_name ?? '…').join(', ')} ${present.length === 1 ? 'está' : 'estão'} no canal.`}
+              : `${present.map((v) => people.get(v.user_id)?.display_name ?? '…').join(', ')} ${present.length === 1 ? 'está' : 'estão'} aqui.`}
           </p>
           <button
             type="button"
-            onClick={() => join(server.id, channel.id)}
+            onClick={onJoin}
             className="rounded-control bg-accent px-6 py-2.5 font-semibold text-on-accent hover:bg-accent-hover"
           >
-            Entrar no canal de voz
+            {joinLabel}
           </button>
         </div>
       )}
@@ -146,14 +185,14 @@ function CallStage({
   tiles,
   layout,
   focused,
-  members,
+  people,
   meId,
   onFocus
 }: {
   tiles: Tile[]
   layout: Layout
   focused: Tile | undefined
-  members: Map<string, Member>
+  people: Map<string, User>
   meId: string
   onFocus(key: string): void
 }): ReactNode {
@@ -161,7 +200,7 @@ function CallStage({
   const render = (tile: Tile, size: TileSize): ReactNode => {
     const props = {
       identity: tile.identity,
-      member: members.get(tile.identity),
+      user: people.get(tile.identity),
       isLocal: tile.identity === meId,
       size,
       onClick: size === 'focus' ? undefined : () => onFocus(tile.key)
@@ -210,7 +249,7 @@ type TileSize = 'grid' | 'focus' | 'strip'
 
 interface TileProps {
   identity: string
-  member: Member | undefined
+  user: User | undefined
   isLocal: boolean
   size: TileSize
   /** Puts the tile in focus; absent for the tile already in focus. */
@@ -250,9 +289,9 @@ function TileFrame({
   )
 }
 
-function ParticipantTile({ identity, member, isLocal, size, onClick, speaking }: TileProps & { speaking: boolean }): ReactNode {
+function ParticipantTile({ identity, user, isLocal, size, onClick, speaking }: TileProps & { speaking: boolean }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
-  const name = member?.user.display_name ?? participant?.name ?? 'Alguém'
+  const name = user?.display_name ?? participant?.name ?? 'Alguém'
   const micMuted = !participant?.isMicrophoneEnabled
   const camera = cameraTrackOf(identity)
 
@@ -261,7 +300,7 @@ function ParticipantTile({ identity, member, isLocal, size, onClick, speaking }:
       {camera ? (
         <VideoTrackView track={camera} mirror={isLocal} fit={size === 'focus' ? 'contain' : 'cover'} />
       ) : (
-        <Avatar name={name} url={member?.user.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
+        <Avatar name={name} url={user?.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
       )}
       <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
         {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
@@ -271,13 +310,13 @@ function ParticipantTile({ identity, member, isLocal, size, onClick, speaking }:
   )
 }
 
-function ScreenTile({ identity, member, isLocal, size, onClick }: TileProps): ReactNode {
+function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   const track = screenTrackOf(identity)
   const audio = isLocal ? undefined : screenAudioOf(identity)
   const volume = useVoice((s) => s.screenVolume[identity] ?? 1)
   const setVolume = useVoice((s) => s.setScreenVolume)
-  const name = isLocal ? 'Sua tela' : `Tela de ${member?.user.display_name ?? 'alguém'}`
+  const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
 
   if (!track) return null
   // Controls must not also put the tile in focus.
