@@ -60,6 +60,9 @@ async def _clean_tables() -> AsyncIterator[None]:
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+    # Rate-limit counters would otherwise leak from one test into the next.
+    async for key in broker.redis.scan_iter(match=f"{get_settings().redis_prefix}:rl:*"):
+        await broker.redis.delete(key)
 
 
 @pytest.fixture

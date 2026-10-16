@@ -58,6 +58,7 @@ async def test_roles(client: AsyncClient) -> None:
     sid = server["id"]
 
     assert (await member.post(f"/servers/{sid}/channels", {"name": "x"})).status_code == 403
+    assert (await member.post(f"/servers/{sid}/invites", {})).status_code == 403  # invites create accounts
     assert (await member.patch(f"/servers/{sid}", {"name": "Hacked"})).status_code == 403
     assert (await member.delete(f"/servers/{sid}")).status_code == 403
 

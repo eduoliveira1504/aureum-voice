@@ -102,3 +102,20 @@ async def test_ping_pong(client: AsyncClient) -> None:
         await next_event(ws, "ready")
         await ws.send_json({"type": "ping"})
         await next_event(ws, "pong")
+
+
+async def test_rejects_other_browser_origins(client: AsyncClient) -> None:
+    user = await make_user(client, "origin")
+    codes = []
+    try:
+        async with ws_client() as wsc, aconnect_ws(ws_url(user), wsc, headers={"Origin": "https://evil.example"}) as ws:
+            await ws.receive_json()
+    except* WebSocketDisconnect as group:
+        codes = [e.code for e in _leaves(group) if isinstance(e, WebSocketDisconnect)]
+    except* Exception as group:  # a refused handshake surfaces as a transport error
+        codes = ["refused" for _ in _leaves(group)]
+    assert codes and codes[0] in (1008, "refused")
+
+    # The packaged app's origin is accepted.
+    async with ws_client() as wsc, aconnect_ws(ws_url(user), wsc, headers={"Origin": "file://"}) as ws:
+        await next_event(ws, "ready")

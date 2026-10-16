@@ -3,14 +3,20 @@ from typing import Any
 from httpx import AsyncClient
 from httpx_ws.transport import ASGIWebSocketTransport
 
+from app.db import SessionLocal
 from app.main import app
+from app.models import User
+from app.security import create_token, hash_password
+
+PASSWORD = "password-123"
 
 
 class ApiUser:
-    def __init__(self, client: AsyncClient, tokens: dict[str, str], me: dict[str, Any]) -> None:
+    def __init__(self, client: AsyncClient, token: str, me: dict[str, Any]) -> None:
         self.client = client
-        self.token = tokens["access_token"]
+        self.token = token
         self.id: str = me["id"]
+        self.email: str = me["email"]
         self.headers = {"Authorization": f"Bearer {self.token}"}
 
     async def get(self, path: str, **kw: Any):  # noqa: ANN201
@@ -27,14 +33,20 @@ class ApiUser:
 
 
 async def make_user(client: AsyncClient, username: str) -> ApiUser:
-    res = await client.post(
-        "/api/auth/register",
-        json={"username": username, "email": f"{username}@example.com", "password": "password-123"},
-    )
-    assert res.status_code == 201, res.text
-    tokens = res.json()
-    me = await client.get("/api/users/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
-    return ApiUser(client, tokens, me.json())
+    """Creates an account directly in the database (sign-up itself needs an invite and is
+    covered by test_auth), then talks to the API with a normal access token."""
+    async with SessionLocal() as session:
+        user = User(
+            username=username,
+            email=f"{username}@example.com",
+            display_name=username,
+            password_hash=hash_password(PASSWORD),
+        )
+        session.add(user)
+        await session.commit()
+    token = create_token(user.id, "access")
+    me = await client.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
+    return ApiUser(client, token, me.json())
 
 
 async def make_server(owner: ApiUser, *members: ApiUser, name: str = "Squad") -> dict[str, Any]:
