@@ -40,3 +40,19 @@ input,
 textarea {
   user-select: text;
 }
+
+/* Thin dark scrollbars instead of the bright Windows defaults. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-0);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #111214;
+}

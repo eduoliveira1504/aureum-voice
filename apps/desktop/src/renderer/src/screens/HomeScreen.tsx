@@ -1,55 +1,97 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
-import { useAuth } from '../auth/AuthProvider'
-import { Avatar } from '../components/ui'
-import type { Me } from '../lib/api'
+import { ChannelSidebar, UserPanel } from '../components/ChannelSidebar'
+import { ChatView } from '../components/ChatView'
+import { MemberList } from '../components/MemberList'
+import { AddServerModal } from '../components/modals'
+import { ServerBar } from '../components/ServerBar'
+import type { Channel, Me } from '../lib/api'
+import { Realtime } from '../lib/realtime'
+import { defaultChannel, useChat } from '../store/chat'
 
-/** App shell: server bar | channel list | content | members. Filled in by task 4. */
+/** App shell: server bar | channel list | content | members. */
 export function HomeScreen({ user }: { user: Me }): ReactNode {
+  const server = useChat((s) => (s.selectedServerId ? s.servers[s.selectedServerId] : undefined))
+  const selectedChannelId = useChat((s) => (server ? s.selectedChannelByServer[server.id] : undefined))
+  const loaded = useChat((s) => s.loaded)
+  const status = useChat((s) => s.status)
+
+  // One real-time connection for the whole signed-in session.
+  useEffect(() => {
+    const chat = useChat.getState()
+    chat.reset(user.id)
+    const realtime = new Realtime(
+      (event) => useChat.getState().applyEvent(event),
+      (s) => useChat.getState().setStatus(s)
+    )
+    realtime.start()
+    chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
+    return () => realtime.stop()
+  }, [user.id])
+
+  const channel = server && (server.channels.find((c) => c.id === selectedChannelId) ?? defaultChannel(server))
+  const myRole = server?.members.find((m) => m.user.id === user.id)?.role
+
   return (
-    <div className="flex h-full">
-      <nav className="flex w-[72px] shrink-0 flex-col items-center gap-2 bg-surface-0 py-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-lg font-bold text-accent-fg">
-          A
+    <div className="flex h-full flex-col">
+      {loaded && status !== 'online' && (
+        <div className="shrink-0 bg-accent py-1 text-center text-sm font-medium text-accent-fg">
+          Conexão perdida. Reconectando…
         </div>
-        <div className="h-0.5 w-8 rounded bg-surface-3" />
-      </nav>
-
-      <aside className="flex w-60 shrink-0 flex-col bg-surface-1">
-        <header className="flex h-12 items-center border-b border-surface-0 px-4 font-semibold shadow-sm">
-          Aureum Voice
-        </header>
-        <div className="flex-1 p-3 text-sm text-fg-subtle">Nenhum servidor ainda.</div>
-        <UserPanel user={user} />
-      </aside>
-
-      <main className="flex flex-1 flex-col items-center justify-center bg-surface-2 p-8 text-center">
-        <h2 className="text-2xl font-semibold">Olá, {user.display_name}!</h2>
-        <p className="mt-2 max-w-md text-fg-muted">
-          Você está conectado. Servidores, canais e mensagens chegam na próxima etapa.
-        </p>
-      </main>
+      )}
+      <div className="flex min-h-0 flex-1">
+        <ServerBar />
+        {server ? (
+          <>
+            <ChannelSidebar server={server} selectedChannelId={channel?.id} me={user} />
+            <Content channel={channel} me={user} canModerate={myRole === 'owner' || myRole === 'admin'} />
+            <MemberList server={server} />
+          </>
+        ) : (
+          <>
+            <aside className="flex w-60 shrink-0 flex-col bg-surface-1">
+              <div className="flex-1" />
+              <UserPanel user={user} />
+            </aside>
+            {loaded ? <NoServers /> : <div className="flex-1 bg-surface-2" />}
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-function UserPanel({ user }: { user: Me }): ReactNode {
-  const { logout } = useAuth()
+function Content({ channel, me, canModerate }: { channel?: Channel; me: Me; canModerate: boolean }): ReactNode {
+  if (!channel) {
+    return <Placeholder title="Nenhum canal" text="Crie um canal pelo menu do servidor." />
+  }
+  if (channel.type === 'text') return <ChatView channel={channel} me={me} canModerate={canModerate} />
+  return <Placeholder title={`🔊 ${channel.name}`} text="Canais de voz chegam na próxima etapa (voz, câmera e tela)." />
+}
+
+function Placeholder({ title, text }: { title: string; text: string }): ReactNode {
   return (
-    <div className="flex h-[52px] items-center gap-2 bg-surface-0/60 px-2">
-      <Avatar name={user.display_name} url={user.avatar_url} />
-      <div className="min-w-0 flex-1 leading-tight">
-        <div className="truncate text-sm font-semibold">{user.display_name}</div>
-        <div className="truncate text-xs text-fg-subtle">@{user.username}</div>
-      </div>
+    <main className="flex flex-1 flex-col items-center justify-center bg-surface-2 p-8 text-center">
+      <h2 className="text-2xl font-semibold">{title}</h2>
+      <p className="mt-2 max-w-md text-fg-muted">{text}</p>
+    </main>
+  )
+}
+
+function NoServers(): ReactNode {
+  const [adding, setAdding] = useState(false)
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center bg-surface-2 p-8 text-center">
+      <h2 className="text-2xl font-semibold">Você ainda não está em nenhum servidor</h2>
+      <p className="mt-2 max-w-md text-fg-muted">Crie um servidor pro seu grupo ou entre com um código de convite.</p>
       <button
         type="button"
-        title="Sair"
-        onClick={logout}
-        className="rounded px-2 py-1 text-xs text-fg-muted hover:bg-surface-3 hover:text-fg"
+        onClick={() => setAdding(true)}
+        className="mt-6 rounded-[3px] bg-accent px-6 py-2.5 font-semibold text-accent-fg hover:bg-accent-hover"
       >
-        Sair
+        Criar ou entrar em um servidor
       </button>
-    </div>
+      {adding && <AddServerModal onClose={() => setAdding(false)} />}
+    </main>
   )
 }
