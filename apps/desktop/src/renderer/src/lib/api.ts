@@ -18,6 +18,55 @@ export interface Me extends User {
   email: string
 }
 
+export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
+export type Role = 'owner' | 'admin' | 'member'
+
+export interface Channel {
+  id: string
+  server_id: string | null
+  name: string | null
+  type: ChannelType
+  position: number
+}
+
+export interface Member {
+  user: User
+  role: Role
+  joined_at: string
+  online: boolean
+}
+
+export interface Server {
+  id: string
+  name: string
+  icon_url: string | null
+  owner_id: string
+  created_at: string
+}
+
+export interface ServerDetail extends Server {
+  channels: Channel[]
+  members: Member[]
+}
+
+export interface Invite {
+  code: string
+  server_id: string
+  expires_at: string | null
+  max_uses: number | null
+  uses: number
+}
+
+export interface Message {
+  id: number
+  channel_id: string
+  author: User | null
+  content: string
+  attachments: unknown[]
+  created_at: string
+  edited_at: string | null
+}
+
 interface TokenPair {
   access_token: string
   refresh_token: string
@@ -95,6 +144,22 @@ export function refreshSession(): Promise<boolean> {
     }
   })()
   return refreshInFlight
+}
+
+function expiresSoon(token: string): boolean {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const { exp } = JSON.parse(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')))
+    return exp * 1000 - Date.now() < 30_000
+  } catch {
+    return true
+  }
+}
+
+/** A valid access token (refreshed if needed), or null when there's no session. */
+export async function getFreshAccessToken(force = false): Promise<string | null> {
+  if (!force && accessToken && !expiresSoon(accessToken)) return accessToken
+  return (await refreshSession()) ? accessToken : null
 }
 
 interface RequestOptions {
