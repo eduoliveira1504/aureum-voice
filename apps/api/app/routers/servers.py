@@ -2,11 +2,13 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import voice
+from app import reads, voice
 from app.access import get_membership, require_manager, server_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Invite, MemberRole, Server, ServerMember
@@ -17,6 +19,8 @@ from app.schemas import (
     InviteCreate,
     InviteOut,
     MemberOut,
+    MessageOut,
+    ReadStateOut,
     ServerCreate,
     ServerDetail,
     ServerOut,
@@ -33,7 +37,8 @@ def normalize_channel_name(name: str, type_: ChannelType) -> str:
     return "-".join(name.lower().split()) if type_ == ChannelType.text else name
 
 
-async def load_detail(session: AsyncSession, server: Server) -> ServerDetail:
+async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID) -> ServerDetail:
+    """The full server as seen by one user (the read state is theirs)."""
     channels = await session.scalars(
         select(Channel).where(Channel.server_id == server.id).order_by(Channel.position, Channel.name)
     )
@@ -52,6 +57,10 @@ async def load_detail(session: AsyncSession, server: Server) -> ServerDetail:
         channels=[ChannelOut.model_validate(c) for c in channels],
         members=[MemberOut.model_validate(m).model_copy(update={"online": m.user_id in online}) for m in members],
         voice_states=voice_states,
+        reads=[
+            ReadStateOut(channel_id=c, last_read_message_id=last, unread_count=unread, mention_count=mentions)
+            for c, last, unread, mentions in await reads.server_states(session, user_id, server.id)
+        ],
     )
 
 
@@ -72,7 +81,7 @@ async def create_server(body: ServerCreate, user: CurrentUser, session: SessionD
     for position, (name, type_) in enumerate(DEFAULT_CHANNELS):
         session.add(Channel(server_id=server.id, name=name, type=type_, position=position))
     await session.commit()
-    return await load_detail(session, server)
+    return await load_detail(session, server, user.id)
 
 
 @router.get("/servers", response_model=list[ServerOut])
@@ -91,7 +100,7 @@ async def get_server(server_id: uuid.UUID, user: CurrentUser, session: SessionDe
     await get_membership(session, server_id, user.id)
     server = await session.get(Server, server_id)
     assert server is not None
-    return await load_detail(session, server)
+    return await load_detail(session, server, user.id)
 
 
 @router.patch("/servers/{server_id}", response_model=ServerOut)
@@ -127,11 +136,24 @@ async def leave_server(server_id: uuid.UUID, user: CurrentUser, session: Session
     if member.role == MemberRole.owner:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The owner can't leave; delete the server instead")
     await session.delete(member)
+    await reads.forget_server(session, user.id, server_id)
     await session.commit()
     recipients = [*await server_member_ids(session, server_id), user.id]
     await voice.leave_server(user.id, server_id, recipients)
     await broker.publish("server.member.left", {"server_id": str(server_id), "user_id": str(user.id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/servers/{server_id}/unread", response_model=list[MessageOut])
+async def unread_messages(
+    server_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list:
+    """Newest unread messages across the server's text channels (the overview's feed)."""
+    await get_membership(session, server_id, user.id)
+    return await reads.unread_feed(session, user.id, server_id, limit)
 
 
 # --- Channels -------------------------------------------------------------------
@@ -184,7 +206,7 @@ async def join_with_invite(code: str, user: CurrentUser, session: SessionDep) ->
     server = await session.get(Server, invite.server_id)
     assert server is not None
     if await session.get(ServerMember, (invite.server_id, user.id)) is not None:
-        return await load_detail(session, server)  # already a member: idempotent, uses not counted
+        return await load_detail(session, server, user.id)  # already a member: idempotent, uses not counted
 
     if await claim_invite(session, code) is None:
         raise HTTPException(status.HTTP_410_GONE, detail="Invite expired or used up")
@@ -193,7 +215,7 @@ async def join_with_invite(code: str, user: CurrentUser, session: SessionDep) ->
     session.add(member)
     await session.commit()
     await announce_member_joined(session, member)
-    return await load_detail(session, server)
+    return await load_detail(session, server, user.id)
 
 
 async def claim_invite(session: AsyncSession, code: str) -> uuid.UUID | None:
@@ -213,6 +235,9 @@ async def claim_invite(session: AsyncSession, code: str) -> uuid.UUID | None:
 
 
 async def announce_member_joined(session: AsyncSession, member: ServerMember) -> None:
+    """Also marks the server's history read for the newcomer."""
+    await reads.seed(session, member.user_id, member.server_id)
+    await session.commit()
     await session.refresh(member)
     out = await member_out(session, member)
     await broker.publish(

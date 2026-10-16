@@ -225,3 +225,22 @@ class Message(Base):
         Index("ix_messages_channel_id_id", "channel_id", "id"),
     )
 
+
+class ChannelRead(Base):
+    """How far a user has read a channel. Unread = messages with a higher id written by
+    someone else. Rows are created when the user joins a server (at the latest message), so
+    a newcomer doesn't start with the whole history unread."""
+
+    __tablename__ = "channel_reads"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    last_read_message_id: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    # @username mentions of this user since the last read.
+    mention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

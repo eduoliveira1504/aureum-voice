@@ -5,14 +5,22 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import voice
+from app import reads, voice
 from app.access import MANAGERS, get_channel_for_member, require_manager, server_member_ids
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Message, ServerMember
 from app.realtime import broker
 from app.routers.servers import normalize_channel_name
-from app.schemas import ChannelOut, ChannelUpdate, MessageCreate, MessageOut, VoiceTokenOut
+from app.schemas import (
+    ChannelOut,
+    ChannelUpdate,
+    MarkRead,
+    MessageCreate,
+    MessageOut,
+    ReadStateOut,
+    VoiceTokenOut,
+)
 
 router = APIRouter(tags=["channels"])
 
@@ -93,13 +101,28 @@ async def list_messages(
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
     channel, _ = await _text_channel(session, channel_id, user.id)
+    assert channel.server_id is not None
     message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
     session.add(message)
+    await session.flush()
+    mentioned = await reads.record_mentions(session, message, channel.server_id)
     await session.commit()
     await session.refresh(message, ["author"])
     out = MessageOut.model_validate(message)
-    assert channel.server_id is not None
-    await broker.publish("message.created", out.model_dump(mode="json"), await server_member_ids(session, channel.server_id))
+    # `mentions` rides along in the event only, so clients can bump their mention badges live.
+    event = {**out.model_dump(mode="json"), "server_id": str(channel.server_id), "mentions": [str(u) for u in mentioned]}
+    await broker.publish("message.created", event, await server_member_ids(session, channel.server_id))
+    return out
+
+
+@router.post("/channels/{channel_id}/read", response_model=ReadStateOut)
+async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep, body: MarkRead | None = None) -> ReadStateOut:
+    channel, _ = await _text_channel(session, channel_id, user.id)
+    last_read, unread = await reads.mark_read(session, user.id, channel_id, body.message_id if body else None)
+    await session.commit()
+    out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=0)
+    # The user's other devices clear their badges too.
+    await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": str(channel.server_id)}, [user.id])
     return out
 
 

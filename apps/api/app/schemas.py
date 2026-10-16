@@ -172,10 +172,19 @@ class MemberOut(BaseModel):
     online: bool = False
 
 
+class ReadStateOut(BaseModel):
+    channel_id: uuid.UUID
+    last_read_message_id: int
+    unread_count: int
+    mention_count: int
+
+
 class ServerDetail(ServerOut):
     channels: list[ChannelOut]
     members: list[MemberOut]
     voice_states: list[VoiceState] = []
+    # The requesting user's unread state per text channel.
+    reads: list[ReadStateOut] = []
 
 
 class VoiceTokenOut(BaseModel):
@@ -205,6 +214,11 @@ Content = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, 
 
 class MessageCreate(BaseModel):
     content: Content
+
+
+class MarkRead(BaseModel):
+    # Read up to this message; omitted = everything.
+    message_id: Annotated[int, Field(ge=0)] | None = None
 
 
 class MessageOut(BaseModel):
