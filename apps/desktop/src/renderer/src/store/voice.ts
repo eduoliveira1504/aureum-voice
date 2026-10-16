@@ -15,6 +15,7 @@ import { create } from 'zustand'
 import { api } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { sendRealtime } from '../lib/realtime'
+import { startThumbnails } from '../lib/thumbnail'
 
 type Phase = 'idle' | 'connecting' | 'connected' | 'reconnecting'
 
@@ -60,6 +61,8 @@ interface VoiceStore {
 let room: Room | null = null
 // Tracks of our own screen share (video + optional system audio).
 let shareTracks: MediaStreamTrack[] = []
+// Stops the overview thumbnails of our screen share.
+let stopThumbnails: () => void = () => {}
 // Remote audio is played through elements we own, so deafen is just `muted` on them.
 const audioSink = document.createElement('div')
 audioSink.hidden = true
@@ -86,6 +89,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
   const reset = (error: string | null = null): void => {
     room = null
     audioSink.replaceChildren()
+    stopThumbnails()
     shareTracks.forEach((t) => t.stop())
     shareTracks = []
     set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, speaking: [], screenVolume: {}, error })
@@ -319,10 +323,13 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       }
       set({ screen: true })
       announce()
+      // After announce(): the server only takes thumbnails from someone marked as sharing.
+      stopThumbnails = startThumbnails(video, (image) => sendRealtime('screen.thumbnail', { image }))
       bump()
     },
 
     stopScreenShare: async () => {
+      stopThumbnails()
       const tracks = shareTracks
       shareTracks = []
       const r = room
