@@ -6,6 +6,7 @@ import {
   BrowserWindow,
   desktopCapturer,
   ipcMain,
+  powerMonitor,
   safeStorage,
   session,
   shell,
@@ -105,6 +106,8 @@ handle('session:set-refresh-token', setRefreshToken)
 handle('session:is-persistent', () => safeStorage.isEncryptionAvailable())
 handle('settings:get', readSettings)
 handle('settings:set', writeSettings)
+// Seconds without keyboard/mouse input on the whole PC (not just this app), for auto-idle.
+handle('system:idle-seconds', () => powerMonitor.getSystemIdleTime())
 
 // ---------------------------------------------------------------------------
 // Screen sharing — the renderer shows its own picker, then calls getDisplayMedia,

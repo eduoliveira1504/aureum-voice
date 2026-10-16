@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
   accent_color: ACCENT_PRESETS[0].hex,
   sounds: { volume: 80, events: {} },
+  status: 'online',
   tab_order: [],
   closed_tabs: [],
   sidebar_collapsed: false,

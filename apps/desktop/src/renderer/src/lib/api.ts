@@ -20,6 +20,11 @@ export interface Me extends User {
 
 export type Theme = 'dark' | 'light' | 'system'
 
+/** The status a user picks; invisible shows them as offline to others. */
+export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible'
+/** What others see of a user. */
+export type Presence = 'online' | 'idle' | 'dnd' | 'offline'
+
 /**
  * What a panel tab shows: 'overview', 'call', `channel:<id>` or `addon:<key>`.
  * The server validates the same shapes.
@@ -42,6 +47,7 @@ export interface UserSettings {
   theme: Theme
   accent_color: string
   sounds: { volume: number; events: Record<string, boolean> }
+  status: UserStatus
   /** Server tabs in the top bar, in the user's order. */
   tab_order: string[]
   /** Servers taken off the top bar (still joined). */
@@ -66,7 +72,50 @@ export interface Member {
   user: User
   role: Role
   joined_at: string
+  status: Presence
   online: boolean
+}
+
+/** friend: accepted | incoming/outgoing: a pending request | blocked: blocked by me. */
+export type FriendKind = 'friend' | 'incoming' | 'outgoing' | 'blocked'
+
+export interface Friend {
+  user: User
+  kind: FriendKind
+  since: string
+  /** Only meaningful for friends; everyone else is 'offline'. */
+  status: Presence
+}
+
+export interface CallParticipant {
+  user_id: string
+  /** null for the caller. */
+  rung_at: string | null
+  joined_at: string | null
+  left_at: string | null
+  declined_at: string | null
+}
+
+/** A private call in a DM or group; active while ended_at is null. */
+export interface Call {
+  id: string
+  channel_id: string
+  started_by: string | null
+  started_at: string
+  ended_at: string | null
+  participants: CallParticipant[]
+}
+
+/** A 1:1 DM or a group DM. */
+export interface Dm {
+  id: string
+  type: 'dm' | 'group_dm'
+  name: string | null
+  members: { user: User; status: Presence }[]
+  last_message_id: number
+  read: ReadState
+  call: Call | null
+  voice_states: VoiceState[]
 }
 
 export interface Server {
@@ -117,6 +166,8 @@ export interface Message {
   attachments: unknown[]
   created_at: string
   edited_at: string | null
+  /** Set on the line a private call leaves in its conversation. */
+  call: Call | null
 }
 
 interface TokenPair {

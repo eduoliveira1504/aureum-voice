@@ -54,6 +54,8 @@ interface ChatState {
    */
   markRead(channelId: string, force?: boolean): void
   addServer(server: ServerDetail): void
+  /** Adds read states loaded elsewhere (DMs come with the social store). */
+  mergeReads(states: ReadState[]): void
   applyEvent(event: ServerEvent): void
 }
 
@@ -133,9 +135,10 @@ export const useChat = create<ChatState>()((set, get) => {
         details = await Promise.all(list.map((s) => api<ServerDetail>(`/servers/${s.id}`)))
         if (startedAt === serverMutations) break // otherwise refetch for a consistent view
       }
-      set(() => {
+      set((st) => {
         const servers = Object.fromEntries(details.map((d) => [d.id, withSortedChannels(d)]))
-        return { servers, order: list.map((s) => s.id), reads: readsOf(details), loaded: true }
+        // Merged, not replaced: DM read states are loaded by the social store.
+        return { servers, order: list.map((s) => s.id), reads: { ...st.reads, ...readsOf(details) }, loaded: true }
       })
     },
 
@@ -194,6 +197,9 @@ export const useChat = create<ChatState>()((set, get) => {
         order: st.order.includes(server.id) ? st.order : [...st.order, server.id]
       }))
     },
+
+    mergeReads: (states) =>
+      set((st) => ({ reads: { ...st.reads, ...Object.fromEntries(states.map((r) => [r.channel_id, r])) } })),
 
     applyEvent: ({ type, data }) => {
       const { meId } = get()
@@ -303,7 +309,10 @@ export const useChat = create<ChatState>()((set, get) => {
               Object.entries(st.servers).map(([id, s]) => [
                 id,
                 s.members.some((m) => m.user.id === data.user_id)
-                  ? { ...s, members: s.members.map((m) => (m.user.id === data.user_id ? { ...m, online: data.online } : m)) }
+                  ? {
+                      ...s,
+                      members: s.members.map((m) => (m.user.id === data.user_id ? { ...m, online: data.online, status: data.status } : m))
+                    }
                   : s
               ])
             )

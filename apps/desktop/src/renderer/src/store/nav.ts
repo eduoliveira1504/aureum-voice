@@ -11,6 +11,8 @@ import { useVoice } from './voice'
  */
 
 export type Place = 'home' | string // 'home' or a server id
+/** What the Home tab shows: the friends list or a conversation (DM or group id). */
+export type HomePage = 'friends' | string
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 export const MAX_PANELS = 2
@@ -65,6 +67,7 @@ function loadPip(): { corner: Corner } {
 
 interface NavState {
   place: Place
+  homePage: HomePage
   /** Panel that receives tabs opened with a plain click, per server. */
   focusedPanel: Record<string, number>
   membersOpen: boolean
@@ -75,6 +78,8 @@ interface NavState {
   narrow: boolean
 
   go(place: Place): void
+  /** Goes to Home, on the friends list or a conversation. */
+  openHome(page: HomePage): void
   /** Goes to a server, putting its tab back on the bar if it was closed. */
   openServer(id: string): void
   closeServerTab(id: string, visibleTabs: string[]): void
@@ -130,6 +135,7 @@ export const useNav = create<NavState>()((set, get) => {
 
   return {
     place: 'home',
+    homePage: 'friends',
     focusedPanel: {},
     membersOpen: false,
     pipMinimized: false,
@@ -138,6 +144,8 @@ export const useNav = create<NavState>()((set, get) => {
     narrow: false,
 
     go: (place) => set({ place }),
+
+    openHome: (homePage) => set({ place: 'home', homePage }),
 
     openServer: (id) => {
       const { settings, update } = useAppearance.getState()
@@ -279,16 +287,23 @@ export const useNav = create<NavState>()((set, get) => {
   }
 })
 
-/** Whether the call is on screen in full (fullscreen, or the active tab of a visible panel). */
+/**
+ * Whether the call is on screen in full: fullscreen, the active tab of a visible panel, or (for a
+ * private call) its conversation open in Home.
+ */
 export function useCallOnScreen(): boolean {
+  const inCall = useVoice((s) => s.phase !== 'idle')
   const serverId = useVoice((s) => (s.phase === 'idle' ? null : s.serverId))
+  const channelId = useVoice((s) => s.channelId)
   const place = useNav((s) => s.place)
+  const homePage = useNav((s) => s.homePage)
   const fullscreen = useNav((s) => s.callFullscreen)
   const narrow = useNav((s) => s.narrow)
   const focused = useNav((s) => (serverId ? (s.focusedPanel[serverId] ?? 0) : 0))
   const layout = useAppearance((s) => (serverId ? s.settings.panel_layouts[serverId] : undefined))
-  if (!serverId) return false
+  if (!inCall) return false
   if (fullscreen) return true
+  if (!serverId) return place === 'home' && homePage === channelId
   if (place !== serverId || !layout) return false
   return visiblePanels(layout, focused, narrow).some((i) => layout.panels[i].active === 'call')
 }

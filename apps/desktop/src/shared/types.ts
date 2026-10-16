@@ -29,6 +29,10 @@ export interface AureumBridge {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
   }
+  system: {
+    /** Seconds since the last keyboard or mouse input anywhere on the PC. */
+    idleSeconds(): Promise<number>
+  }
   screen: {
     getSources(): Promise<ShareSource[]>
     /** Picks what the next getDisplayMedia() call captures, and whether it includes system audio. */

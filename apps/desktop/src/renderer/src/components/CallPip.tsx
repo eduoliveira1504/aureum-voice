@@ -1,10 +1,9 @@
 import { Expand, Maximize2, Minimize2 } from 'lucide-react'
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 
-import { useChat } from '../store/chat'
 import { useCallOnScreen, useNav, type Corner } from '../store/nav'
 import { cameraTrackOf, roomIdentities, screenTrackOf, useVoice } from '../store/voice'
-import { CallButtons, useCallInfo } from './CallCard'
+import { CallButtons, useCallContext } from './CallCard'
 import { Avatar } from './ui'
 import { VideoTrackView } from './VoiceView'
 
@@ -34,19 +33,17 @@ function useSubject(meId: string): { identity: string; kind: 'screen' | 'person'
 
 /** Floating call window (picture-in-picture), draggable to any of the 4 corners. */
 export function CallPip({ meId }: { meId: string }): ReactNode {
-  const info = useCallInfo()
-  const serverId = useVoice((s) => s.serverId)
+  const info = useCallContext(meId)
   const speaking = useVoice((s) => s.speaking)
-  const members = useChat((s) => (serverId ? s.servers[serverId]?.members : undefined))
   const minimized = useNav((s) => s.pipMinimized)
   const corner = useNav((s) => s.pipCorner)
-  const { setPipCorner, setPipMinimized, expandCall, setCallFullscreen } = useNav.getState()
+  const { setPipCorner, setPipMinimized, setCallFullscreen } = useNav.getState()
   const onScreen = useCallOnScreen()
   const subject = useSubject(meId)
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  if (!info || !serverId || minimized || onScreen) return null
+  if (!info || minimized || onScreen) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if ((e.target as HTMLElement).closest('button') || !ref.current) return
@@ -71,8 +68,8 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
     el.addEventListener('pointerup', up)
   }
 
-  const member = subject ? members?.find((m) => m.user.id === subject.identity) : undefined
-  const name = subject?.identity === meId ? 'Você' : (member?.user.display_name ?? 'Alguém')
+  const person = subject ? info.people.get(subject.identity) : undefined
+  const name = subject?.identity === meId ? 'Você' : (person?.display_name ?? 'Alguém')
   // The window is small, so adaptiveStream subscribes to the lowest video layer.
   const track = subject ? (subject.kind === 'screen' ? screenTrackOf(subject.identity) : cameraTrackOf(subject.identity)) : undefined
   const iconButton = 'rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg'
@@ -94,7 +91,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         ) : (
           subject && (
             <span className={`rounded-full ${speaking.includes(subject.identity) ? 'ring-[3px] ring-accent' : ''}`}>
-              <Avatar name={member?.user.display_name ?? name} url={member?.user.avatar_url} size={64} />
+              <Avatar name={person?.display_name ?? name} url={person?.avatar_url} size={64} />
             </span>
           )
         )}
@@ -113,7 +110,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         <div className="mt-1.5 flex items-center gap-0.5">
           <CallButtons compact />
           <span className="flex-1" />
-          <button type="button" title="Expandir num painel" aria-label="Expandir num painel" onClick={() => expandCall(serverId)} className={iconButton}>
+          <button type="button" title="Expandir" aria-label="Expandir" onClick={info.open} className={iconButton}>
             <Maximize2 size={18} />
           </button>
           <button type="button" title="Tela cheia" aria-label="Tela cheia" onClick={() => setCallFullscreen(true)} className={iconButton}>

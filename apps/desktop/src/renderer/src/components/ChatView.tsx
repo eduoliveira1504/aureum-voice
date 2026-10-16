@@ -1,9 +1,10 @@
-import { Hash, Pencil, Trash2 } from 'lucide-react'
+import { Hash, Pencil, Phone, PhoneMissed, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
-import type { Channel, Me, Message, User } from '../lib/api'
+import { ApiError, type Channel, type Me, type Message, type User } from '../lib/api'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
+import { useVoice } from '../store/voice'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
@@ -43,7 +44,20 @@ function Linkified({ text, own = false }: { text: string; own?: boolean }): Reac
   )
 }
 
-export function ChatView({ channel, me, canModerate }: { channel: Channel; me: Me; canModerate: boolean }): ReactNode {
+export function ChatView({
+  channel,
+  me,
+  canModerate,
+  intro,
+  placeholder
+}: {
+  channel: Channel
+  me: Me
+  canModerate: boolean
+  /** Shown above the first message (defaults to the server channel's welcome). */
+  intro?: ReactNode
+  placeholder?: string
+}): ReactNode {
   const entry = useChat((s) => s.messages[channel.id])
   const loadMessages = useChat((s) => s.loadMessages)
   const markRead = useChat((s) => s.markRead)
@@ -102,11 +116,15 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
       <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-fg-muted">
-              <Hash size={36} />
-            </div>
-            <h3 className="mt-3 text-3xl font-bold">Boas-vindas a #{channel.name}!</h3>
-            <p className="mt-1 text-fg-muted">Este é o começo do canal #{channel.name}.</p>
+            {intro ?? (
+              <>
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-fg-muted">
+                  <Hash size={36} />
+                </div>
+                <h3 className="mt-3 text-3xl font-bold">Boas-vindas a #{channel.name}!</h3>
+                <p className="mt-1 text-fg-muted">Este é o começo do canal #{channel.name}.</p>
+              </>
+            )}
           </div>
         )}
         {entry?.loading && <p className="py-3 text-center text-sm text-fg-subtle">Carregando mensagens…</p>}
@@ -125,6 +143,7 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
           const newDay = !prev || !sameDay(new Date(prev.created_at), date)
           const grouped =
             !newDay &&
+            !prev.call &&
             prev.author?.id === message.author?.id &&
             date.getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS
           return (
@@ -136,24 +155,28 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
                   <div className="h-px flex-1 bg-line" />
                 </div>
               )}
-              <MessageRow
-                message={message}
-                own={message.author?.id === me.id}
-                grouped={grouped}
-                editing={editingId === message.id}
-                canEdit={message.author?.id === me.id}
-                canDelete={message.author?.id === me.id || canModerate}
-                onEdit={() => setEditingId(message.id)}
-                onStopEditing={() => setEditingId(null)}
-                onDelete={() => setDeleting(message)}
-                onOpenProfile={profile.open}
-              />
+              {message.call ? (
+                <CallLine message={message} meId={me.id} />
+              ) : (
+                <MessageRow
+                  message={message}
+                  own={message.author?.id === me.id}
+                  grouped={grouped}
+                  editing={editingId === message.id}
+                  canEdit={message.author?.id === me.id}
+                  canDelete={message.author?.id === me.id || canModerate}
+                  onEdit={() => setEditingId(message.id)}
+                  onStopEditing={() => setEditingId(null)}
+                  onDelete={() => setDeleting(message)}
+                  onOpenProfile={profile.open}
+                />
+              )}
             </Fragment>
           )
         })}
       </div>
 
-      <Composer channel={channel} />
+      <Composer channel={channel} placeholder={placeholder ?? `Conversar em #${channel.name}`} />
       {profile.popover}
 
       {deleting && (
@@ -164,6 +187,53 @@ export function ChatView({ channel, me, canModerate }: { channel: Channel; me: M
           onConfirm={() => deleteMessage(deleting.id)}
           onClose={() => setDeleting(null)}
         />
+      )}
+    </div>
+  )
+}
+
+function callDuration(from: string, to: string): string {
+  const seconds = Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 1000))
+  if (seconds < 60) return `${seconds} s`
+  const minutes = Math.round(seconds / 60)
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`
+}
+
+/** The line a private call leaves in its conversation. */
+function CallLine({ message, meId }: { message: Message; meId: string }): ReactNode {
+  const call = message.call!
+  const join = useVoice((s) => s.join)
+  const inIt = useVoice((s) => s.phase !== 'idle' && s.channelId === call.channel_id)
+  const caller = message.author?.id === meId ? 'Você' : (message.author?.display_name ?? 'Alguém')
+  const me = call.participants.find((p) => p.user_id === meId)
+  const anyoneJoined = call.participants.some((p) => p.user_id !== call.started_by && p.joined_at)
+  const missed = !!call.ended_at && !!me?.rung_at && !me.joined_at && !me.declined_at
+
+  let text: string
+  if (!call.ended_at) text = `${caller} começou uma chamada`
+  else if (missed) text = `Chamada perdida de ${caller}`
+  else if (me?.declined_at && !me.joined_at) text = `Você recusou uma chamada de ${caller}`
+  else if (!anyoneJoined) text = caller === 'Você' ? 'Você ligou, mas ninguém atendeu' : `${caller} ligou`
+  else text = `${caller} começou uma chamada · ${callDuration(call.started_at, call.ended_at)}`
+
+  const Icon = missed ? PhoneMissed : Phone
+  return (
+    <div className="mt-4 flex items-center gap-2.5 px-4 text-sm">
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-item ${missed ? 'bg-danger/15 text-danger' : call.ended_at ? 'bg-elevated text-fg-muted' : 'bg-success/15 text-success'}`}
+      >
+        <Icon size={18} />
+      </span>
+      <span className={missed ? 'font-medium text-danger' : 'text-fg-muted'}>{text}</span>
+      <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
+      {!call.ended_at && !inIt && (
+        <button
+          type="button"
+          onClick={() => void join(null, call.channel_id)}
+          className="rounded-control bg-accent px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+        >
+          Entrar
+        </button>
       )}
     </div>
   )
@@ -300,7 +370,7 @@ function EditBox({ message, onDone }: { message: Message; onDone(): void }): Rea
   )
 }
 
-function Composer({ channel }: { channel: Channel }): ReactNode {
+function Composer({ channel, placeholder }: { channel: Channel; placeholder: string }): ReactNode {
   const sendMessage = useChat((s) => s.sendMessage)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
@@ -315,9 +385,13 @@ function Composer({ channel }: { channel: Channel }): ReactNode {
     setError(null)
     try {
       await sendMessage(channel.id, content)
-    } catch {
+    } catch (err) {
       setValue(content) // give the text back so nothing is lost
-      setError('Não foi possível enviar a mensagem.')
+      setError(
+        err instanceof ApiError && err.status === 403
+          ? 'Só amigos podem conversar por mensagem direta.'
+          : 'Não foi possível enviar a mensagem.'
+      )
     }
   }
 
@@ -337,7 +411,7 @@ function Composer({ channel }: { channel: Channel }): ReactNode {
         value={value}
         onChange={setValue}
         onKeyDown={onKeyDown}
-        placeholder={`Conversar em #${channel.name}`}
+        placeholder={placeholder}
       />
       {value.length > MAX_LENGTH - 200 && (
         <p className={`mt-1 text-right text-xs ${value.length > MAX_LENGTH ? 'text-danger' : 'text-fg-subtle'}`}>

@@ -2,9 +2,9 @@ import {
   ChevronDown,
   Hash,
   LayoutDashboard,
-  MessageSquarePlus,
   PanelLeftClose,
   PanelLeftOpen,
+  Phone,
   Plus,
   Settings,
   Trash2,
@@ -16,15 +16,17 @@ import {
 import { useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
-import { api, type Channel, type Me, type ServerDetail } from '../lib/api'
+import { api, type Channel, type Dm, type Me, type ServerDetail } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { addonTab, channelTab, layoutOf, useNav, visiblePanels } from '../store/nav'
+import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
-import { CountBadge, menuClass, MenuItem, ServerIcon, useDismiss } from './ui'
+import { PickFriendsModal } from './socialModals'
+import { CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
 
 type Dialog =
   | { kind: 'invite' }
@@ -46,10 +48,10 @@ export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me })
       {server ? (
         <ServerPlaces server={server} me={me} collapsed={collapsed} onCollapse={narrow ? undefined : setCollapsed} />
       ) : (
-        <HomePlaces collapsed={collapsed} onCollapse={narrow ? undefined : setCollapsed} />
+        <HomePlaces me={me} collapsed={collapsed} onCollapse={narrow ? undefined : setCollapsed} />
       )}
       <VoiceError collapsed={collapsed} />
-      <CallCard collapsed={collapsed} />
+      <CallCard collapsed={collapsed} meId={me.id} />
     </aside>
   )
 }
@@ -148,11 +150,14 @@ function Section({
   title,
   collapsed,
   onAdd,
+  addLabel,
   children
 }: {
   title: string
   collapsed: boolean
   onAdd?: () => void
+  /** What the + button does (default: create something in the section). */
+  addLabel?: string
   children: ReactNode
 }): ReactNode {
   const [open, setOpen] = useState(true)
@@ -170,7 +175,7 @@ function Section({
           {title}
         </button>
         {onAdd && (
-          <button type="button" title="Criar" aria-label={`Criar em ${title}`} onClick={onAdd} className="text-fg-subtle hover:text-fg">
+          <button type="button" title={addLabel ?? 'Criar'} aria-label={addLabel ?? `Criar em ${title}`} onClick={onAdd} className="text-fg-subtle hover:text-fg">
             <Plus size={16} />
           </button>
         )}
@@ -438,8 +443,17 @@ function ServerHeader({
   )
 }
 
-/** Home sidebar: friends and direct messages (filled in by block 2.3). */
-function HomePlaces({ collapsed, onCollapse }: { collapsed: boolean; onCollapse?: (c: boolean) => void }): ReactNode {
+/** Home sidebar: friends, then DMs and groups by latest activity. */
+function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean; onCollapse?: (c: boolean) => void }): ReactNode {
+  const homePage = useNav((s) => s.homePage)
+  const openHome = useNav((s) => s.openHome)
+  const pending = useSocial((s) => Object.values(s.friends).filter((f) => f.kind === 'incoming').length)
+  const dms = useSocial((s) => s.dms)
+  const createGroup = useSocial((s) => s.createGroup)
+  const [creating, setCreating] = useState(false)
+  const [leaving, setLeaving] = useState<Dm | null>(null)
+  const list = Object.values(dms).sort((a, b) => b.last_message_id - a.last_message_id)
+
   return (
     <>
       <div className={`flex border-b border-line ${collapsed ? 'flex-col items-center gap-1 py-2' : 'h-12 items-center pl-3 pr-1.5'}`}>
@@ -447,26 +461,122 @@ function HomePlaces({ collapsed, onCollapse }: { collapsed: boolean; onCollapse?
         <CollapseButton collapsed={collapsed} onCollapse={onCollapse} />
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-        <Item icon={Users} label="Amigos" collapsed={collapsed} active badge={<CountBadge count={0} />} onClick={() => {}} />
-        {!collapsed && (
-          <section>
-            <div className="mb-1 flex items-center px-1">
-              <h3 className="flex-1 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">Mensagens diretas</h3>
-              <button
-                type="button"
-                disabled
-                title="Novo grupo (em breve)"
-                aria-label="Novo grupo"
-                className="text-fg-subtle disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <MessageSquarePlus size={16} />
-              </button>
-            </div>
-            <p className="px-2 py-3 text-sm text-fg-subtle">Suas conversas e grupos vão aparecer aqui.</p>
-          </section>
-        )}
+        <Item
+          icon={Users}
+          label="Amigos"
+          collapsed={collapsed}
+          active={homePage === 'friends'}
+          dot={collapsed && pending > 0 ? 'accent' : undefined}
+          badge={<CountBadge count={pending} tone="danger" />}
+          onClick={() => openHome('friends')}
+        />
+        <Section title="Mensagens diretas" collapsed={collapsed} onAdd={() => setCreating(true)} addLabel="Novo grupo">
+          {list.map((dm) => (
+            <DmItem
+              key={dm.id}
+              dm={dm}
+              meId={me.id}
+              collapsed={collapsed}
+              active={homePage === dm.id}
+              onOpen={() => openHome(dm.id)}
+              onClose={() => (dm.type === 'dm' ? void useSocial.getState().closeDm(dm.id).catch(() => {}) : setLeaving(dm))}
+            />
+          ))}
+          {list.length === 0 && !collapsed && <p className="px-2 py-3 text-sm text-fg-subtle">Suas conversas e grupos aparecem aqui.</p>}
+        </Section>
       </div>
+      {creating && (
+        <PickFriendsModal
+          title="Novo grupo"
+          confirmLabel="Criar grupo"
+          withName
+          onConfirm={async (ids, name) => openHome((await createGroup(ids, name)).id)}
+          onClose={() => setCreating(false)}
+        />
+      )}
+      {leaving && (
+        <ConfirmModal
+          title={`Sair de ${dmTitle(leaving, me.id)}`}
+          message="Você só volta se alguém do grupo te adicionar de novo."
+          confirmLabel="Sair do grupo"
+          onConfirm={() => useSocial.getState().closeDm(leaving.id)}
+          onClose={() => setLeaving(null)}
+        />
+      )}
     </>
+  )
+}
+
+function DmItem({
+  dm,
+  meId,
+  collapsed,
+  active,
+  onOpen,
+  onClose
+}: {
+  dm: Dm
+  meId: string
+  collapsed: boolean
+  active: boolean
+  onOpen(): void
+  onClose(): void
+}): ReactNode {
+  const unread = useChat((s) => s.reads[dm.id]?.unread_count ?? 0)
+  const peer = dmPeer(dm, meId)
+  const status = useSocial((s) => (peer ? (s.presence[peer.id] ?? 'offline') : undefined))
+  const title = dmTitle(dm, meId)
+  const live = !!dm.call && dm.voice_states.length > 0
+  const closeLabel = dm.type === 'dm' ? 'Fechar conversa' : 'Sair do grupo'
+
+  return (
+    <div
+      className={`group relative flex items-center rounded-item ${
+        active ? 'bg-elevated text-fg' : unread ? 'text-fg hover:bg-elevated/60' : 'text-fg-muted hover:bg-elevated/60 hover:text-fg'
+      }`}
+    >
+      <button
+        type="button"
+        title={collapsed ? title : undefined}
+        aria-label={collapsed ? title : undefined}
+        onClick={onOpen}
+        className={`flex min-w-0 flex-1 items-center gap-2.5 py-1.5 text-left ${collapsed ? 'justify-center px-0' : 'px-2'}`}
+      >
+        <span className="relative shrink-0">
+          {peer ? (
+            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border={active ? 'border-elevated' : 'border-panel'} />
+          ) : (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-elevated text-fg-muted">
+              <Users size={15} />
+            </span>
+          )}
+          {collapsed && unread > 0 && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-panel bg-danger" />}
+        </span>
+        {!collapsed && (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{title}</span>
+            {dm.type === 'group_dm' && <span className="block text-xs text-fg-subtle">{dm.members.length} pessoas</span>}
+          </span>
+        )}
+        {!collapsed && live && (
+          <span title="Chamada em andamento" className="shrink-0 text-success">
+            <Phone size={14} />
+          </span>
+        )}
+        {!collapsed && <CountBadge count={unread} tone="danger" />}
+      </button>
+      {!collapsed && (
+        <button
+          type="button"
+          title={closeLabel}
+          aria-label={closeLabel}
+          onClick={onClose}
+          className="hidden px-2 text-fg-subtle hover:text-fg group-hover:block"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
   )
 }
 

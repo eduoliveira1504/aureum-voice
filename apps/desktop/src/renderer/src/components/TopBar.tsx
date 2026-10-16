@@ -1,16 +1,17 @@
-import { Bell, Circle, House, LogOut, Plus, Search, Settings, UserRound, X } from 'lucide-react'
+import { Bell, Check, Circle, House, LogOut, PhoneMissed, Plus, Search, Settings, UserRound, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
-import type { Me, ServerDetail } from '../lib/api'
+import type { Me, Presence, ServerDetail, UserStatus } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { serverTabs, useNav } from '../store/nav'
+import { dmTitle, useSocial } from '../store/social'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { ProfilePopover } from './ProfileCard'
 import { SettingsModal } from './SettingsModal'
-import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, useDismiss } from './ui'
+import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
 
 const TAB_DRAG_TYPE = 'application/x-aureum-server-tab'
 
@@ -67,7 +68,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
         >
           <Search size={18} />
         </button>
-        <NotificationsButton />
+        <NotificationsButton me={me} />
         <ProfileButton me={me} />
       </div>
 
@@ -90,10 +91,18 @@ const tabBase =
 const tabState = (active: boolean): string =>
   active ? 'bg-panel text-fg' : 'text-fg-muted hover:bg-panel/50 hover:text-fg'
 
+/** Friend requests waiting for an answer, plus unread DM and group messages (missed calls
+ * included: each leaves an unread line in its conversation). */
+function useHomePending(): number {
+  const requests = useSocial((s) => Object.values(s.friends).filter((f) => f.kind === 'incoming').length)
+  const dms = useSocial((s) => s.dms)
+  const unread = useChat((s) => Object.keys(dms).reduce((n, id) => n + (s.reads[id]?.unread_count ?? 0), 0))
+  return requests + unread
+}
+
 function HomeTab({ active }: { active: boolean }): ReactNode {
   const go = useNav((s) => s.go)
-  // Pending friend requests, unread DMs and missed calls arrive with block 2.3.
-  const pending = 0
+  const pending = useHomePending()
   return (
     <button type="button" onClick={() => go('home')} aria-current={active ? 'page' : undefined} className={`${tabBase} ${tabState(active)}`}>
       <House size={17} />
@@ -234,44 +243,138 @@ function AddServerButton({ closed }: { closed: string[] }): ReactNode {
   )
 }
 
-function NotificationsButton(): ReactNode {
+const missedFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+/** Friend requests to answer and missed calls. */
+function NotificationsButton({ me }: { me: Me }): ReactNode {
+  const friends = useSocial((s) => s.friends)
+  const missed = useSocial((s) => s.missed)
+  const dms = useSocial((s) => s.dms)
+  const { accept, remove } = useSocial.getState()
+  const openHome = useNav((s) => s.openHome)
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
   useDismiss(ref, open, close)
+  const requests = Object.values(friends).filter((f) => f.kind === 'incoming')
+  const count = requests.length + missed.length
+  const go = (page: string): void => {
+    setOpen(false)
+    openHome(page)
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         title="Notificações"
-        aria-label="Notificações"
+        aria-label={count ? `Notificações (${count})` : 'Notificações'}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg"
+        className="relative rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg"
       >
         <Bell size={18} />
+        {count > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />}
       </button>
       {open && (
-        <div className={`${menuClass} absolute right-0 top-full mt-1 w-72 p-4 text-center`}>
-          <Bell size={28} className="mx-auto text-fg-subtle" />
-          <p className="mt-2 font-medium">Nenhuma notificação</p>
-          <p className="mt-1 text-sm text-fg-muted">Pedidos de amizade e chamadas perdidas vão aparecer aqui.</p>
+        <div className={`${menuClass} absolute right-0 top-full mt-1 w-80`}>
+          {count === 0 ? (
+            <div className="p-3 text-center">
+              <Bell size={28} className="mx-auto text-fg-subtle" />
+              <p className="mt-2 font-medium">Nenhuma notificação</p>
+              <p className="mt-1 text-sm text-fg-muted">Pedidos de amizade e chamadas perdidas aparecem aqui.</p>
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              {requests.length > 0 && <p className="px-2 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Pedidos de amizade</p>}
+              {requests.map((f) => (
+                <div key={f.user.id} className="flex items-center gap-2.5 rounded-item px-2 py-1.5">
+                  <Avatar name={f.user.display_name} url={f.user.avatar_url} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{f.user.display_name}</div>
+                    <div className="truncate text-xs text-fg-subtle">@{f.user.username}</div>
+                  </div>
+                  <button
+                    type="button"
+                    title="Aceitar"
+                    aria-label={`Aceitar ${f.user.display_name}`}
+                    onClick={() => void accept(f.user.id).catch(() => {})}
+                    className="rounded-full bg-elevated p-1.5 text-fg-muted hover:text-success"
+                  >
+                    <Check size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Recusar"
+                    aria-label={`Recusar ${f.user.display_name}`}
+                    onClick={() => void remove(f.user.id).catch(() => {})}
+                    className="rounded-full bg-elevated p-1.5 text-fg-muted hover:text-danger"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+              {missed.length > 0 && <p className="px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Chamadas perdidas</p>}
+              {missed.map((call) => {
+                const dm = dms[call.channel_id]
+                const caller = dm?.members.find((m) => m.user.id === call.started_by)?.user
+                return (
+                  <button
+                    key={call.id}
+                    type="button"
+                    onClick={() => go(call.channel_id)}
+                    className="flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left hover:bg-elevated"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-danger/15 text-danger">
+                      <PhoneMissed size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{caller?.display_name ?? 'Alguém'}</span>
+                      <span className="block truncate text-xs text-fg-subtle">
+                        {dm && dm.type === 'group_dm' ? `${dmTitle(dm, me.id)} · ` : ''}
+                        {missedFmt.format(new Date(call.started_at))}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+              {requests.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => go('friends')}
+                  className="mt-1 w-full rounded-item px-2 py-1.5 text-left text-sm text-accent-text hover:bg-elevated"
+                >
+                  Ver todos os amigos
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
+const STATUS_OPTIONS: { value: UserStatus; label: string; hint?: string; dot: Presence }[] = [
+  { value: 'online', label: 'Online', dot: 'online' },
+  { value: 'idle', label: 'Ausente', dot: 'idle' },
+  { value: 'dnd', label: 'Não perturbe', hint: 'Sem toques nem sons', dot: 'dnd' },
+  { value: 'invisible', label: 'Invisível', hint: 'Aparece offline', dot: 'offline' }
+]
+
 function ProfileButton({ me }: { me: Me }): ReactNode {
   const { logout } = useAuth()
   const status = useChat((s) => s.status)
+  const chosen = useAppearance((s) => s.settings.status)
+  const setStatus = (value: UserStatus): void => useAppearance.getState().update({ status: value })
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState(false)
   const [profile, setProfile] = useState<DOMRect | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
   useDismiss(ref, open, close)
-  const online = status === 'online'
+  const connected = status === 'online'
+  const dot: Presence = connected ? (STATUS_OPTIONS.find((o) => o.value === chosen)?.dot ?? 'online') : 'offline'
 
   return (
     <div ref={ref} className="relative">
@@ -284,10 +387,9 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
       >
         <span className="relative">
           <Avatar name={me.display_name} url={me.avatar_url} size={28} />
-          <span
-            title={online ? 'Online' : 'Reconectando…'}
-            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${online ? 'bg-success' : 'bg-fg-subtle'}`}
-          />
+          <span title={connected ? undefined : 'Reconectando…'} className="absolute -bottom-0.5 -right-0.5">
+            <StatusDot status={dot} border="border-rail" />
+          </span>
         </span>
         <span className="hidden max-w-[140px] truncate text-sm font-semibold lg:inline">{me.display_name}</span>
       </button>
@@ -307,11 +409,9 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
           />
           <div className="my-1 h-px bg-line" />
           <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Status</p>
-          <StatusItem label="Online" tone="bg-success" current />
-          {/* Away, do not disturb and invisible come with presence in block 2.3. */}
-          <StatusItem label="Ausente" tone="bg-idle" />
-          <StatusItem label="Não perturbe" tone="bg-dnd" />
-          <StatusItem label="Invisível" tone="bg-fg-subtle" />
+          {STATUS_OPTIONS.map((o) => (
+            <StatusItem key={o.value} label={o.label} hint={o.hint} dot={o.dot} current={chosen === o.value} onClick={() => setStatus(o.value)} />
+          ))}
           <div className="my-1 h-px bg-line" />
           <MenuItem
             icon={Settings}
@@ -336,18 +436,34 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
   )
 }
 
-function StatusItem({ label, tone, current = false }: { label: string; tone: string; current?: boolean }): ReactNode {
+function StatusItem({
+  label,
+  hint,
+  dot,
+  current,
+  onClick
+}: {
+  label: string
+  hint?: string
+  dot: Presence
+  current: boolean
+  onClick(): void
+}): ReactNode {
   return (
-    <div
-      aria-disabled={!current}
-      title={current ? undefined : 'Em breve'}
-      className={`flex items-center gap-2.5 rounded-item px-2 py-1.5 text-sm ${current ? 'text-fg' : 'cursor-not-allowed text-fg-muted opacity-50'}`}
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={current}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left text-sm hover:bg-elevated ${current ? 'text-fg' : 'text-fg-muted hover:text-fg'}`}
     >
-      <span className={`h-2.5 w-2.5 rounded-full ${tone}`} />
-      <span className="flex-1">{label}</span>
+      <StatusDot status={dot} size={10} border="border-transparent" />
+      <span className="min-w-0 flex-1">
+        <span className="block">{label}</span>
+        {hint && <span className="block text-xs text-fg-subtle">{hint}</span>}
+      </span>
       {current && <Circle size={8} className="fill-current text-accent-text" />}
-      {!current && <span className="text-xs">em breve</span>}
-    </div>
+    </button>
   )
 }
 

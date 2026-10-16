@@ -43,7 +43,8 @@ interface VoiceStore {
   /** Volume (0..1) chosen for each participant's screen-share audio; kept while tiles move around. */
   screenVolume: Record<string, number>
 
-  join(serverId: string, channelId: string): Promise<void>
+  /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
+  join(serverId: string | null, channelId: string): Promise<void>
   leave(): Promise<void>
   toggleMute(): Promise<void>
   toggleDeafen(): void

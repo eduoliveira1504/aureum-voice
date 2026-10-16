@@ -1,18 +1,21 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
+import { IncomingCall, useNoAnswerHangup } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
 import { Panels } from '../components/Panels'
 import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
-import { VoiceView } from '../components/VoiceView'
+import { CallView, VoiceView } from '../components/VoiceView'
 import type { Me } from '../lib/api'
+import { reportIdleAgain, startIdleWatch } from '../lib/idle'
 import { Realtime, setActiveRealtime } from '../lib/realtime'
 import { loadAppearance, useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
+import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 
@@ -28,29 +31,38 @@ export function AppShell({ user }: { user: Me }): ReactNode {
   const membersOpen = useNav((s) => s.membersOpen)
   const narrow = useNav((s) => s.narrow)
   const { setUser } = useAuth()
+  useNoAnswerHangup(user.id)
 
   // One real-time connection for the whole signed-in session.
   useEffect(() => {
     const chat = useChat.getState()
     chat.reset(user.id)
-    useNav.setState({ place: 'home' }) // the app always opens on Home
+    useSocial.getState().reset(user.id)
+    useNav.setState({ place: 'home', homePage: 'friends' }) // the app always opens on Home
     const realtime = new Realtime(
       (event) => {
         // Our own profile changed (maybe on another device): keep the signed-in user fresh.
         if (event.type === 'user.updated' && event.data.id === user.id) setUser({ ...user, ...event.data })
         if (event.type === 'settings.updated') useAppearance.getState().hydrate(event.data)
         if (event.type === 'screen.thumbnail') return applyThumbnail(event.data)
-        if (event.type === 'ready') rewatchOverview()
+        if (event.type === 'ready') {
+          rewatchOverview()
+          reportIdleAgain()
+        }
         useChat.getState().applyEvent(event)
+        useSocial.getState().applyEvent(event)
       },
       (s) => useChat.getState().setStatus(s)
     )
     setActiveRealtime(realtime)
     realtime.start()
+    const stopIdleWatch = startIdleWatch()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
+    useSocial.getState().load().catch(() => {})
     loadAppearance().catch(() => {}) // keep the cached settings if this fails
     return () => {
       void useVoice.getState().leave()
+      stopIdleWatch()
       setActiveRealtime(null)
       realtime.stop()
     }
@@ -79,7 +91,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <TopBar me={user} />
       <div className="relative flex min-h-0 flex-1 bg-panel">
         <Sidebar server={server ?? null} me={user} />
-        {server ? <Panels server={server} me={user} /> : <HomeView />}
+        {server ? <Panels server={server} me={user} /> : <HomeView me={user} />}
         {server && membersOpen && (
           <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
             <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
@@ -90,11 +102,12 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       </div>
       <CallPip meId={user.id} />
       <FullscreenCall meId={user.id} />
+      <IncomingCall meId={user.id} />
     </div>
   )
 }
 
-/** The call over the whole window; Esc goes back. */
+/** The call over the whole window (a server room or a private call); Esc goes back. */
 function FullscreenCall({ meId }: { meId: string }): ReactNode {
   const on = useNav((s) => s.callFullscreen)
   const phase = useVoice((s) => s.phase)
@@ -102,7 +115,9 @@ function FullscreenCall({ meId }: { meId: string }): ReactNode {
   const channelId = useVoice((s) => s.channelId)
   const server = useChat((s) => (serverId ? s.servers[serverId] : undefined))
   const channel = server?.channels.find((c) => c.id === channelId)
-  const inCall = phase !== 'idle' && !!channel
+  const dm = useSocial((s) => (!serverId && channelId ? s.dms[channelId] : undefined))
+  const people = useMemo(() => new Map((dm?.members ?? []).map((m) => [m.user.id, m.user])), [dm?.members])
+  const inCall = phase !== 'idle' && (!!channel || !!dm)
 
   useEffect(() => {
     if (on && !inCall) useNav.getState().setCallFullscreen(false)
@@ -118,10 +133,25 @@ function FullscreenCall({ meId }: { meId: string }): ReactNode {
     return () => window.removeEventListener('keydown', onKey)
   }, [on])
 
-  if (!on || !server || !channel) return null
+  if (!on || !inCall) return null
   return (
     <div className="fixed inset-0 z-40 flex bg-rail">
-      <VoiceView server={server} channel={channel} meId={meId} fullscreen />
+      {server && channel ? (
+        <VoiceView server={server} channel={channel} meId={meId} fullscreen />
+      ) : (
+        dm && (
+          <CallView
+            title={dmTitle(dm, meId)}
+            channelId={dm.id}
+            people={people}
+            present={dm.voice_states}
+            joinLabel="Entrar na chamada"
+            onJoin={() => void useVoice.getState().join(null, dm.id)}
+            meId={meId}
+            fullscreen
+          />
+        )
+      )}
     </div>
   )
 }

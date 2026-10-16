@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import type { Member, ServerDetail, User } from '../lib/api'
 import { useReadableColor } from '../store/appearance'
 import { useProfilePopover } from './ProfileCard'
-import { Avatar } from './ui'
+import { PresenceAvatar } from './ui'
 
 const ROLE_ORDER = { owner: 0, admin: 1, member: 2 }
 
@@ -67,10 +67,7 @@ function MemberRow({ member: m, onOpen }: { member: Member; onOpen(user: User, t
       onClick={(e) => onOpen(m.user, e.currentTarget)}
       className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60 ${m.online ? '' : 'opacity-40'}`}
     >
-      <div className="relative">
-        <Avatar name={m.user.display_name} url={m.user.avatar_url} />
-        {m.online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-panel bg-success" />}
-      </div>
+      <PresenceAvatar name={m.user.display_name} url={m.user.avatar_url} status={m.online ? m.status : undefined} />
       <span className="min-w-0 flex-1 truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
         {m.user.display_name}
       </span>

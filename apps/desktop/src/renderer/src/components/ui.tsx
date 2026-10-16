@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type RefObject } from 'react'
 
-import { mediaUrl } from '../lib/api'
+import { mediaUrl, type Presence } from '../lib/api'
 
 export function Field({
   label,
@@ -200,6 +200,64 @@ export function ServerIcon({ name, url, size = 32 }: { name: string; url: string
   return (
     <span style={style} className="flex shrink-0 items-center justify-center rounded-item bg-elevated font-display font-semibold text-fg">
       {initials}
+    </span>
+  )
+}
+
+export const PRESENCE_LABEL: Record<Presence, string> = {
+  online: 'Online',
+  idle: 'Ausente',
+  dnd: 'Não perturbe',
+  offline: 'Offline'
+}
+
+const PRESENCE_TONE: Record<Presence, string> = {
+  online: 'bg-success',
+  idle: 'bg-idle',
+  dnd: 'bg-dnd',
+  offline: 'bg-fg-subtle'
+}
+
+/** Presence dot. `border` is the color around it (the surface it sits on). */
+export function StatusDot({
+  status,
+  size = 12,
+  border = 'border-panel',
+  className = ''
+}: {
+  status: Presence
+  size?: number
+  border?: string
+  className?: string
+}): ReactNode {
+  return (
+    <span
+      title={PRESENCE_LABEL[status]}
+      style={{ width: size, height: size }}
+      className={`block shrink-0 rounded-full border-2 ${border} ${PRESENCE_TONE[status]} ${className}`}
+    />
+  )
+}
+
+/** Avatar with a presence dot on its corner. */
+export function PresenceAvatar({
+  name,
+  url,
+  status,
+  size = 32,
+  border = 'border-panel'
+}: {
+  name: string
+  url?: string | null
+  status?: Presence
+  size?: number
+  border?: string
+}): ReactNode {
+  const dot = Math.max(10, Math.round(size * 0.38))
+  return (
+    <span className="relative shrink-0">
+      <Avatar name={name} url={url} size={size} />
+      {status && <StatusDot status={status} size={dot} border={border} className="absolute -bottom-0.5 -right-0.5" />}
     </span>
   )
 }
