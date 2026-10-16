@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
-from app import presence, storage
+from app import images, presence, storage
 from app.access import audience_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import User, UserSettings
@@ -12,7 +12,6 @@ from app.schemas import SettingsOut, SettingsUpdate, UserMe, UserPublic, UserUpd
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_PANEL_LAYOUTS = 200  # one per server; stale ones (left servers) are cheap to keep
 ImageKind = Literal["avatar", "banner"]
 
@@ -69,39 +68,13 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
     return row
 
 
-async def _read_limited(upload: UploadFile) -> bytes:
-    data = await upload.read(MAX_IMAGE_BYTES + 1)
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image must be at most 8 MB")
-    return data
-
-
-async def _replace_image(kind: ImageKind, upload: UploadFile, user: User, session: SessionDep) -> User:
-    data = await _read_limited(upload)
-    detected = storage.sniff_image(data)
-    if detected is None:
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Use PNG, JPG, GIF or WebP")
-    content_type, ext = detected
-
-    key = f"{kind}s/{user.id}/{uuid.uuid4().hex}.{ext}"
-    await storage.put(key, data, content_type)
+async def _set_image(kind: ImageKind, upload: UploadFile | None, user: User, session: SessionDep) -> User:
+    """Replaces (or with no upload, removes) the user's avatar or banner."""
+    new_url = await images.store_upload(upload, f"{kind}s/{user.id}") if upload else None
     field = f"{kind}_url"
-    old_key = storage.key_from_url(getattr(user, field))
-    setattr(user, field, storage.url_for(key))
-    await session.commit()
-    if old_key:
-        await storage.delete(old_key)
-    await _broadcast_profile(session, user)
-    return user
-
-
-async def _remove_image(kind: ImageKind, user: User, session: SessionDep) -> User:
-    field = f"{kind}_url"
-    old_key = storage.key_from_url(getattr(user, field))
-    setattr(user, field, None)
-    await session.commit()
-    if old_key:
-        await storage.delete(old_key)
+    old_url = getattr(user, field)
+    setattr(user, field, new_url)
+    await images.replace(old_url, new_url, session.commit)
     await _broadcast_profile(session, user)
     return user
 
@@ -111,22 +84,22 @@ ImageUpload = Annotated[UploadFile, File(description="PNG, JPG, GIF or WebP (ani
 
 @router.post("/me/avatar", response_model=UserMe)
 async def upload_avatar(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
-    return await _replace_image("avatar", file, user, session)
+    return await _set_image("avatar", file, user, session)
 
 
 @router.post("/me/banner", response_model=UserMe)
 async def upload_banner(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
-    return await _replace_image("banner", file, user, session)
+    return await _set_image("banner", file, user, session)
 
 
 @router.delete("/me/avatar", response_model=UserMe)
 async def remove_avatar(user: CurrentUser, session: SessionDep) -> User:
-    return await _remove_image("avatar", user, session)
+    return await _set_image("avatar", None, user, session)
 
 
 @router.delete("/me/banner", response_model=UserMe)
 async def remove_banner(user: CurrentUser, session: SessionDep) -> User:
-    return await _remove_image("banner", user, session)
+    return await _set_image("banner", None, user, session)
 
 
 @router.get("/{user_id}", response_model=UserPublic)
@@ -146,7 +119,7 @@ media_router = APIRouter(tags=["media"])
 async def get_media(key: str) -> Response:
     """Serves stored files. Public on purpose: <img> tags can't send auth headers, and keys
     contain a random id, so they can't be guessed."""
-    if not key.startswith(("avatars/", "banners/")) or ".." in key:
+    if not key.startswith(images.PUBLIC_PREFIXES) or ".." in key:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     stored = await storage.get(key)
     if stored is None:
