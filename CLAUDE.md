@@ -15,6 +15,9 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
 - Se alguma tarefa exigir serviço pago ou que possa virar pago, PARE e pergunte antes,
   explicando o custo e a alternativa grátis.
 - Nunca colocar segredos no código ou no git; apenas no .env (que está no .gitignore).
+- EXCEÇÕES AUTORIZADAS pelo Eduardo (plano B, enquanto não há VM Oracle): LiveKit Cloud
+  no plano GRÁTIS e Tailscale Funnel no plano GRÁTIS. Nunca fazer upgrade de plano em
+  nenhum dos dois; se algo exigir plano pago, PARE e pergunte.
 
 ## Ambiente
 - Dev no Windows com Docker Desktop (WSL2). Tudo roda local até a tarefa 9.
@@ -87,6 +90,22 @@ Redis pub/sub para distribuir eventos.
 7. perfil: upload de avatar/banner (animados), bio, cor
 8. README em inglês com arquitetura e instruções de execução
 9. deploy na VM Oracle (Caddy com HTTPS via DuckDNS, portas do LiveKit, iptables) + instalador para a galera
+
+## Deploy provisório (plano B)
+Enquanto não há VM Oracle (out of capacity). A tarefa 9 (VM Oracle) continua sendo o destino final;
+o plano B é temporário e não deve criar dependências que impeçam a migração.
+- Mídia (voz, câmera, tela): LiveKit Cloud, plano grátis (Build). Credenciais só no .env
+  (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET); nunca imprimir, logar ou commitar.
+  Cota grátis é teto rígido (≈5.000 min de participante e 50 GB de download/mês): ao acabar,
+  as conexões falham até o mês seguinte, sem cobrança.
+- API, WebSocket, Postgres, Redis e MinIO: no PC do Eduardo via docker-compose.
+  Postgres, Redis e MinIO sem portas publicadas no host; a API só em 127.0.0.1.
+  O LiveKit local fica no perfil opcional "local-livekit" (dev 100% local).
+- Acesso público: Tailscale Funnel na 443 (*.ts.net) expondo SOMENTE a API + WebSocket.
+  Imagens (avatar/banner/anexos) saem pela API em /api/media; o MinIO nunca é exposto.
+- Segurança antes de expor: cadastro só com código de convite, rate limit em login/registro,
+  CORS e origem do WebSocket restritos ao app.
+- Amigos só instalam o app (instalador Windows apontando para o endereço do Funnel).
 
 ## Pronto quando
 3 pessoas em PCs diferentes, cada uma na sua internet, entram no mesmo canal de voz,
