@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Surfaces, darkest to lightest (Discord-like layout). */
+  --color-surface-0: #1e1f22; /* server bar */
+  --color-surface-1: #2b2d31; /* channel list */
+  --color-surface-2: #313338; /* main content */
+  --color-surface-3: #383a40; /* inputs, hovers */
+
+  --color-fg: #f2f3f5;
+  --color-fg-muted: #b5bac1;
+  --color-fg-subtle: #80848e;
+
+  /* Aureum gold. */
+  --color-accent: #d4a72c;
+  --color-accent-hover: #e2b83d;
+  --color-accent-fg: #1e1f22;
+
+  --color-danger: #f23f43;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface-0);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
