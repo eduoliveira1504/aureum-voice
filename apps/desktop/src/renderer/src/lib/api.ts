@@ -53,12 +53,21 @@ export interface UserSettings {
   /** Servers taken off the top bar (still joined). */
   closed_tabs: string[]
   sidebar_collapsed: boolean
+  /** The member list next to a server's panels. */
+  members_open: boolean
   /** Open panels per server id. */
   panel_layouts: Record<string, PanelLayout>
 }
 
 export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
-export type Role = 'owner' | 'admin' | 'member'
+
+/** Allow/deny bits for a role (@everyone's id is the server's) or a member in one channel. */
+export interface Override {
+  target_type: 'role' | 'member'
+  target_id: string
+  allow: number
+  deny: number
+}
 
 export interface Channel {
   id: string
@@ -66,14 +75,38 @@ export interface Channel {
   name: string | null
   type: ChannelType
   position: number
+  /** Server channels only. */
+  overrides: Override[]
+}
+
+/** A server role. @everyone has the server's id and position 0; higher positions rank higher. */
+export interface Role {
+  id: string
+  server_id: string
+  name: string
+  color: string | null
+  icon_url: string | null
+  position: number
+  /** Bitfield of lib/permissions Perm. */
+  permissions: number
+  /** Shown as its own group in the member list. */
+  hoist: boolean
+  mentionable: boolean
 }
 
 export interface Member {
   user: User
-  role: Role
+  /** Strongest first; @everyone isn't listed. */
+  role_ids: string[]
   joined_at: string
   status: Presence
   online: boolean
+}
+
+export interface Ban {
+  user: User
+  reason: string | null
+  created_at: string
 }
 
 /** friend: accepted | incoming/outgoing: a pending request | blocked: blocked by me. */
@@ -122,6 +155,7 @@ export interface Server {
   id: string
   name: string
   icon_url: string | null
+  banner_url: string | null
   owner_id: string
   created_at: string
 }
@@ -144,6 +178,9 @@ export interface ReadState {
 }
 
 export interface ServerDetail extends Server {
+  /** Strongest first, @everyone last. */
+  roles: Role[]
+  /** Only the channels the signed-in user can see. */
   channels: Channel[]
   members: Member[]
   voice_states: VoiceState[]
@@ -272,7 +309,7 @@ export async function getFreshAccessToken(force = false): Promise<string | null>
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   /** Send the access token and refresh it on 401. Default true. */
   auth?: boolean

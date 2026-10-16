@@ -193,13 +193,16 @@ export function ConfirmModal({
   message,
   confirmLabel,
   onConfirm,
-  onClose
+  onClose,
+  children
 }: {
   title: string
   message: string
   confirmLabel: string
   onConfirm(): Promise<void>
   onClose(): void
+  /** Extra fields under the message (e.g. a ban reason). */
+  children?: ReactNode
 }): ReactNode {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -218,6 +221,7 @@ export function ConfirmModal({
   return (
     <Modal title={title} onClose={onClose}>
       <p className="text-center text-fg-muted">{message}</p>
+      {children}
       <div className="mt-5 space-y-3">
         <FormError message={error} />
         <div className="grid grid-cols-2 gap-3">

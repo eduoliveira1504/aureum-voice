@@ -28,7 +28,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
   const server = useChat((s) => (place === 'home' ? undefined : s.servers[place]))
   const loaded = useChat((s) => s.loaded)
   const status = useChat((s) => s.status)
-  const membersOpen = useNav((s) => s.membersOpen)
+  const membersOpen = useAppearance((s) => s.settings.members_open)
   const narrow = useNav((s) => s.narrow)
   const { setUser } = useAuth()
   useNoAnswerHangup(user.id)

@@ -2,7 +2,8 @@ import { Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
-import { api, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { basePermissions, has, Perm } from '../lib/permissions'
 import { useChat } from '../store/chat'
 import { addonTab, channelTab, useNav } from '../store/nav'
 import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
@@ -48,7 +49,8 @@ function SectionTitle({ children }: { children: ReactNode }): ReactNode {
 
 function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const [inviting, setInviting] = useState(false)
-  const role = server.members.find((m) => m.user.id === me.id)?.role
+  const canInvite = has(basePermissions(server, me.id), Perm.CREATE_INVITE)
+  const banner = mediaUrl(server.banner_url)
   const online = server.members.filter((m) => m.online).length
   const streaming = server.voice_states.filter((v) => v.screen).length
   const stats = [
@@ -58,21 +60,28 @@ function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   ]
 
   return (
-    // The server banner image arrives with block 2.4; until then, an accent gradient.
-    <div className="flex items-end gap-4 rounded-panel bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)] p-5 pt-14">
-      <span className="rounded-control border-4 border-main">
+    // Without an uploaded banner, an accent gradient.
+    <div
+      style={banner ? { backgroundImage: `url("${banner}")` } : undefined}
+      className={`relative flex items-end gap-4 overflow-hidden rounded-panel bg-cover bg-center p-5 pt-20 ${
+        banner ? '' : 'bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)]'
+      }`}
+    >
+      {/* Keeps the name readable over any image. */}
+      {banner && <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-scrim/30 to-transparent" />}
+      <span className="relative rounded-control border-4 border-main">
         <ServerIcon name={server.name} url={server.icon_url} size={64} />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className={`relative min-w-0 flex-1 ${banner ? 'text-on-scrim' : ''}`}>
         <h2 className="truncate text-2xl font-bold">{server.name}</h2>
-        <p className="mt-0.5 text-sm text-fg-muted">{stats.join(' · ')}</p>
+        <p className={`mt-0.5 text-sm ${banner ? 'text-on-scrim/80' : 'text-fg-muted'}`}>{stats.join(' · ')}</p>
       </div>
-      {/* Invites also create accounts, so only owners/admins can hand them out. */}
-      {(role === 'owner' || role === 'admin') && (
+      {/* Invites also create accounts, so @everyone can't hand them out by default. */}
+      {canInvite && (
         <button
           type="button"
           onClick={() => setInviting(true)}
-          className="flex shrink-0 items-center gap-2 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+          className="relative flex shrink-0 items-center gap-2 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
           <UserPlus size={16} />
           Convidar

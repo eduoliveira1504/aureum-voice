@@ -61,16 +61,18 @@ export function useCallContext(meId: string | null): CallContext | null {
 
 /** Mic, deafen, screen and leave buttons shared by the call card and the floating window. */
 export function CallButtons({ size = 18, compact = false }: { size?: number; compact?: boolean }): ReactNode {
-  const { muted, deafened, screen, phase, toggleMute, toggleDeafen, stopScreenShare, leave } = useVoice()
+  const { muted, deafened, screen, phase, allowed, toggleMute, toggleDeafen, stopScreenShare, leave } = useVoice()
   const [picking, setPicking] = useState(false)
-  const micOff = muted || deafened
+  const micOff = muted || deafened || !allowed.mic
+  const micLabel = !allowed.mic ? 'Sem permissão para falar aqui' : micOff ? 'Ativar microfone' : 'Silenciar'
   const button = 'rounded-item p-1.5 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40'
   return (
     <>
       <button
         type="button"
-        title={micOff ? 'Ativar microfone' : 'Silenciar'}
-        aria-label={micOff ? 'Ativar microfone' : 'Silenciar'}
+        title={micLabel}
+        aria-label={micLabel}
+        disabled={!allowed.mic}
         onClick={toggleMute}
         className={`${button} ${micOff ? 'text-danger' : 'text-fg-muted hover:text-fg'}`}
       >
@@ -92,7 +94,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
           type="button"
           title={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
           aria-label={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
-          disabled={phase !== 'connected'}
+          disabled={phase !== 'connected' || (!screen && !allowed.screen)}
           onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
           className={`${button} ${screen ? 'text-accent-text' : 'text-fg-muted hover:text-fg'}`}
         >

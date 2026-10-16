@@ -11,7 +11,7 @@ import { Field, inputClass, labelClass, PrimaryButton } from './ui'
 const MAX_BYTES = 8 * 1024 * 1024
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
 
-function uploadError(err: unknown): string {
+export function uploadError(err: unknown): string {
   if (err instanceof ApiError && err.status === 413) return 'A imagem passa de 8 MB.'
   if (err instanceof ApiError && err.status === 415) return 'Formato não suportado. Use PNG, JPG, GIF ou WebP.'
   return 'Não foi possível enviar a imagem.'
@@ -50,13 +50,8 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
 
   function pickImage(kind: 'avatar' | 'banner') {
     return (e: ChangeEvent<HTMLInputElement>): void => {
-      const file = e.target.files?.[0]
-      e.target.value = '' // allow picking the same file again
-      if (!file) return
-      if (file.size > MAX_BYTES) return setError('A imagem passa de 8 MB.')
-      const body = new FormData()
-      body.append('file', file)
-      void run(kind, () => api<Me>(`/users/me/${kind}`, { method: 'POST', body }))
+      const body = imageForm(e, setError)
+      if (body) void run(kind, () => api<Me>(`/users/me/${kind}`, { method: 'POST', body }))
     }
   }
 
@@ -141,7 +136,21 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
   )
 }
 
-function ImageRow({
+/** The picked image as an upload body, or null (nothing picked, or too big: reported). */
+export function imageForm(e: ChangeEvent<HTMLInputElement>, onError: (message: string) => void): FormData | null {
+  const file = e.target.files?.[0]
+  e.target.value = '' // allow picking the same file again
+  if (!file) return null
+  if (file.size > MAX_BYTES) {
+    onError('A imagem passa de 8 MB.')
+    return null
+  }
+  const body = new FormData()
+  body.append('file', file)
+  return body
+}
+
+export function ImageRow({
   label,
   busy,
   hasImage,

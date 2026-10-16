@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   tab_order: [],
   closed_tabs: [],
   sidebar_collapsed: false,
+  members_open: false,
   panel_layouts: {}
 }
 

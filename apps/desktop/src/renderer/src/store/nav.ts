@@ -70,7 +70,6 @@ interface NavState {
   homePage: HomePage
   /** Panel that receives tabs opened with a plain click, per server. */
   focusedPanel: Record<string, number>
-  membersOpen: boolean
   pipMinimized: boolean
   pipCorner: Corner
   callFullscreen: boolean
@@ -137,7 +136,6 @@ export const useNav = create<NavState>()((set, get) => {
     place: 'home',
     homePage: 'friends',
     focusedPanel: {},
-    membersOpen: false,
     pipMinimized: false,
     pipCorner: loadPip().corner,
     callFullscreen: false,
@@ -262,7 +260,10 @@ export const useNav = create<NavState>()((set, get) => {
       saveLayout(serverId, tidy({ ...layout, panels: layout.panels.map((p) => without(p, tab)) }))
     },
 
-    toggleMembers: () => set((s) => ({ membersOpen: !s.membersOpen })),
+    toggleMembers: () => {
+      const appearance = useAppearance.getState()
+      appearance.update({ members_open: !appearance.settings.members_open })
+    },
 
     setPipMinimized: (pipMinimized) => set({ pipMinimized }),
 

@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef, useState, type DragEvent, type PointerEven
 
 import { addonInfo } from '../addons/registry'
 import type { Me, Panel, PanelTab, ServerDetail } from '../lib/api'
+import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { DEFAULT_LAYOUT, parseTab, useNav, visiblePanels } from '../store/nav'
 import { useVoice } from '../store/voice'
@@ -166,7 +167,7 @@ function PanelView({
   grow: number
 }): ReactNode {
   const { activateTab, closeTab, closePanel, focusPanel, moveTab, openTab, toggleMembers } = useNav.getState()
-  const membersOpen = useNav((s) => s.membersOpen)
+  const membersOpen = useAppearance((s) => s.settings.members_open)
   const callRoom = useVoice((s) =>
     s.phase !== 'idle' && s.serverId === server.id ? (server.channels.find((c) => c.id === s.channelId)?.name ?? null) : null
   )
@@ -277,8 +278,6 @@ function PanelView({
 function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; me: Me }): ReactNode {
   const callChannelId = useVoice((s) => (s.phase !== 'idle' && s.serverId === server.id ? s.channelId : null))
   const ref = parseTab(tab)
-  const myRole = server.members.find((m) => m.user.id === me.id)?.role
-  const canModerate = myRole === 'owner' || myRole === 'admin'
 
   switch (ref.kind) {
     case 'overview':
@@ -291,7 +290,19 @@ function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; 
     case 'channel': {
       const channel = server.channels.find((c) => c.id === ref.id)
       if (!channel) return <Placeholder title="Carregando…" text="" />
-      if (channel.type === 'text') return <ChatView key={channel.id} channel={channel} me={me} canModerate={canModerate} />
+      if (channel.type === 'text') {
+        const perms = channelPermissions(server, channel, me.id)
+        return (
+          <ChatView
+            key={channel.id}
+            channel={channel}
+            me={me}
+            canModerate={has(perms, Perm.MANAGE_MESSAGES)}
+            canSend={has(perms, Perm.SEND_MESSAGES)}
+            nameColorOf={(userId) => roleColor(server, userId)}
+          />
+        )
+      }
       return <VoiceView server={server} channel={channel} meId={me.id} />
     }
     case 'addon':

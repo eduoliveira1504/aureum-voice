@@ -48,12 +48,18 @@ export function ChatView({
   channel,
   me,
   canModerate,
+  canSend = true,
+  nameColorOf,
   intro,
   placeholder
 }: {
   channel: Channel
   me: Me
+  /** Can delete other people's messages. */
   canModerate: boolean
+  canSend?: boolean
+  /** Color for an author's name (their strongest colored role); their profile color otherwise. */
+  nameColorOf?: (userId: string) => string | null
   /** Shown above the first message (defaults to the server channel's welcome). */
   intro?: ReactNode
   placeholder?: string
@@ -169,6 +175,7 @@ export function ChatView({
                   onStopEditing={() => setEditingId(null)}
                   onDelete={() => setDeleting(message)}
                   onOpenProfile={profile.open}
+                  nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                 />
               )}
             </Fragment>
@@ -176,7 +183,13 @@ export function ChatView({
         })}
       </div>
 
-      <Composer channel={channel} placeholder={placeholder ?? `Conversar em #${channel.name}`} />
+      {canSend ? (
+        <Composer channel={channel} placeholder={placeholder ?? `Conversar em #${channel.name}`} />
+      ) : (
+        <p className="mx-4 mb-6 shrink-0 rounded-control border border-line bg-elevated px-4 py-2.5 text-sm text-fg-subtle">
+          Você não tem permissão para enviar mensagens neste canal.
+        </p>
+      )}
       {profile.popover}
 
       {deleting && (
@@ -249,7 +262,8 @@ function MessageRow({
   onEdit,
   onStopEditing,
   onDelete,
-  onOpenProfile
+  onOpenProfile,
+  nameColor: roleNameColor
 }: {
   message: Message
   /** Written by the signed-in user: shown on the right, without avatar or name. */
@@ -262,10 +276,11 @@ function MessageRow({
   onStopEditing(): void
   onDelete(): void
   onOpenProfile(user: User, target: Element): void
+  nameColor?: string | null
 }): ReactNode {
   const author = message.author
   const name = author?.display_name ?? 'Usuário removido'
-  const nameColor = useReadableColor(author?.accent_color)
+  const nameColor = useReadableColor(roleNameColor ?? author?.accent_color)
   const openProfile = (e: { currentTarget: Element }): void => {
     if (author) onOpenProfile(author, e.currentTarget)
   }
@@ -389,7 +404,9 @@ function Composer({ channel, placeholder }: { channel: Channel; placeholder: str
       setValue(content) // give the text back so nothing is lost
       setError(
         err instanceof ApiError && err.status === 403
-          ? 'Só amigos podem conversar por mensagem direta.'
+          ? channel.server_id
+            ? 'Você não tem permissão para enviar mensagens aqui.'
+            : 'Só amigos podem conversar por mensagem direta.'
           : 'Não foi possível enviar a mensagem.'
       )
     }

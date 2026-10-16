@@ -54,6 +54,8 @@ interface ChatState {
    */
   markRead(channelId: string, force?: boolean): void
   addServer(server: ServerDetail): void
+  /** Refetches one server (its roles or permissions changed: which channels we see may differ). */
+  refreshServer(id: string): Promise<void>
   /** Adds read states loaded elsewhere (DMs come with the social store). */
   mergeReads(states: ReadState[]): void
   applyEvent(event: ServerEvent): void
@@ -198,6 +200,23 @@ export const useChat = create<ChatState>()((set, get) => {
       }))
     },
 
+    refreshServer: async (id) => {
+      let detail: ServerDetail
+      try {
+        detail = await api<ServerDetail>(`/servers/${id}`)
+      } catch {
+        return // gone (kicked or deleted): its own event removes it
+      }
+      if (!get().servers[id]) return // left meanwhile
+      const visible = new Set(detail.channels.map((c) => c.id))
+      for (const channel of get().servers[id]?.channels ?? []) {
+        if (!visible.has(channel.id)) useNav.getState().dropChannelTab(id, channel.id)
+      }
+      const voice = useVoice.getState()
+      if (voice.serverId === id && voice.channelId && !visible.has(voice.channelId)) void voice.leave()
+      get().addServer(detail)
+    },
+
     mergeReads: (states) =>
       set((st) => ({ reads: { ...st.reads, ...Object.fromEntries(states.map((r) => [r.channel_id, r])) } })),
 
@@ -263,6 +282,9 @@ export const useChat = create<ChatState>()((set, get) => {
           break
         case 'server.deleted':
           removeServer(data.id)
+          break
+        case 'server.permissions.updated':
+          void get().refreshServer(data.server_id)
           break
 
         case 'server.member.joined':

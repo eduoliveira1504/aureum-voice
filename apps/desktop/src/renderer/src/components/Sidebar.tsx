@@ -7,6 +7,7 @@ import {
   Phone,
   Plus,
   Settings,
+  SlidersHorizontal,
   Trash2,
   Users,
   Volume2,
@@ -16,15 +17,18 @@ import {
 import { useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
-import { api, type Channel, type Dm, type Me, type ServerDetail } from '../lib/api'
+import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail } from '../lib/api'
+import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { addonTab, channelTab, layoutOf, useNav, visiblePanels } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
+import { ChannelSettingsModal } from './ChannelSettings'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
+import { ServerSettingsModal } from './ServerSettings'
 import { PickFriendsModal } from './socialModals'
 import { CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
 
@@ -34,6 +38,8 @@ type Dialog =
   | { kind: 'leave' }
   | { kind: 'delete' }
   | { kind: 'deleteChannel'; channel: Channel }
+  | { kind: 'settings' }
+  | { kind: 'channelSettings'; channel: Channel }
 
 /** Left column: the current tab's places (server sections or Home), and the call card at the bottom. */
 export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me }): ReactNode {
@@ -205,8 +211,8 @@ function ServerPlaces({
   const join = useVoice((s) => s.join)
   const expandCall = useNav((s) => s.expandCall)
   const [dialog, setDialog] = useState<Dialog | null>(null)
-  const myRole = server.members.find((m) => m.user.id === me.id)?.role
-  const canManage = myRole === 'owner' || myRole === 'admin'
+  const perms = basePermissions(server, me.id)
+  const canCreateChannels = has(perms, Perm.MANAGE_CHANNELS)
 
   // Where each tab is showing: highlighted when it's a panel's active tab.
   const layout = layoutOf(server.id)
@@ -225,8 +231,8 @@ function ServerPlaces({
       <ServerHeader
         server={server}
         collapsed={collapsed}
-        canManage={canManage}
-        isOwner={myRole === 'owner'}
+        perms={perms}
+        isOwner={server.owner_id === me.id}
         onPick={setDialog}
         onCollapse={onCollapse}
       />
@@ -243,7 +249,7 @@ function ServerPlaces({
           onSide={() => openTab(server.id, 'overview', true)}
         />
 
-        <Section title="Salas" collapsed={collapsed} onAdd={canManage ? () => setDialog({ kind: 'channel', type: 'voice' }) : undefined}>
+        <Section title="Salas" collapsed={collapsed} onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: 'voice' }) : undefined}>
           {rooms.map((room) => {
             const here = server.voice_states.filter((v) => v.channel_id === room.id)
             const live = here.some((v) => v.screen)
@@ -262,7 +268,7 @@ function ServerPlaces({
                     {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
                   </span>
                 }
-                trailing={canManage && <DeleteChannel onClick={() => setDialog({ kind: 'deleteChannel', channel: room })} />}
+                trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
                 // Clicking a room joins it (the call shows in the floating window); clicking the
                 // room you're in opens the call in a panel.
                 onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
@@ -271,7 +277,7 @@ function ServerPlaces({
           })}
         </Section>
 
-        <Section title="Conversas" collapsed={collapsed} onAdd={canManage ? () => setDialog({ kind: 'channel', type: 'text' }) : undefined}>
+        <Section title="Conversas" collapsed={collapsed} onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: 'text' }) : undefined}>
           {texts.map((channel) => {
             const tab = channelTab(channel.id)
             const read = reads[channel.id]
@@ -293,7 +299,7 @@ function ServerPlaces({
                     <CountBadge count={unread} />
                   )
                 }
-                trailing={canManage && <DeleteChannel onClick={() => setDialog({ kind: 'deleteChannel', channel })} />}
+                trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
                 dragTab={tab}
                 onClick={() => openTab(server.id, tab)}
                 onSide={() => openTab(server.id, tab, true)}
@@ -325,6 +331,15 @@ function ServerPlaces({
       </div>
 
       {dialog?.kind === 'invite' && <InviteModal server={server} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'settings' && <ServerSettingsModal server={server} meId={me.id} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'channelSettings' && (
+        <ChannelSettingsModal
+          server={server}
+          channel={server.channels.find((c) => c.id === dialog.channel.id) ?? dialog.channel}
+          meId={me.id}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === 'channel' && (
         <CreateChannelModal serverId={server.id} initialType={dialog.type} onClose={() => setDialog(null)} />
       )}
@@ -359,31 +374,59 @@ function ServerPlaces({
   )
 }
 
-function DeleteChannel({ onClick }: { onClick(): void }): ReactNode {
+/** Hover buttons of a channel: its settings and delete, when the user may use them. */
+function ChannelActions({
+  server,
+  channel,
+  meId,
+  onPick
+}: {
+  server: ServerDetail
+  channel: Channel
+  meId: string
+  onPick(d: Dialog): void
+}): ReactNode {
+  const perms = channelPermissions(server, channel, meId)
+  const canEdit = has(perms, Perm.MANAGE_CHANNELS)
+  if (!canEdit && !has(perms, Perm.MANAGE_ROLES)) return null
   return (
-    <button
-      type="button"
-      title="Excluir canal"
-      aria-label="Excluir canal"
-      onClick={onClick}
-      className="hidden px-2 text-fg-subtle hover:text-danger group-hover:block"
-    >
-      <Trash2 size={14} />
-    </button>
+    <span className="hidden items-center pr-1 group-hover:flex">
+      <button
+        type="button"
+        title="Configurações do canal"
+        aria-label="Configurações do canal"
+        onClick={() => onPick({ kind: 'channelSettings', channel })}
+        className="p-1 text-fg-subtle hover:text-fg"
+      >
+        <SlidersHorizontal size={14} />
+      </button>
+      {canEdit && (
+        <button
+          type="button"
+          title="Excluir canal"
+          aria-label="Excluir canal"
+          onClick={() => onPick({ kind: 'deleteChannel', channel })}
+          className="p-1 text-fg-subtle hover:text-danger"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
+    </span>
   )
 }
 
 function ServerHeader({
   server,
   collapsed,
-  canManage,
+  perms,
   isOwner,
   onPick,
   onCollapse
 }: {
   server: ServerDetail
   collapsed: boolean
-  canManage: boolean
+  /** The user's server-wide permissions. */
+  perms: number
   isOwner: boolean
   onPick(d: Dialog): void
   onCollapse?: (c: boolean) => void
@@ -397,11 +440,16 @@ function ServerHeader({
     onPick(d)
   }
 
+  const banner = mediaUrl(server.banner_url)
+  const canInvite = has(perms, Perm.CREATE_INVITE)
+  const canCreate = has(perms, Perm.MANAGE_CHANNELS)
+  const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)
+
   const settingsButton = (
     <button
       type="button"
-      title="Configurações do servidor"
-      aria-label="Configurações do servidor"
+      title="Menu do servidor"
+      aria-label="Menu do servidor"
       aria-expanded={open}
       onClick={() => setOpen((v) => !v)}
       className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
@@ -419,6 +467,16 @@ function ServerHeader({
           </span>
           <CollapseButton collapsed onCollapse={onCollapse} />
         </div>
+      ) : banner ? (
+        // The banner on top, with the name over it.
+        <div style={{ backgroundImage: `url("${banner}")` }} className="relative h-28 bg-cover bg-center">
+          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-scrim/85 via-scrim/20 to-transparent" />
+          <div className="absolute right-1.5 top-1.5 flex gap-1 [&_button]:bg-scrim/50 [&_button]:text-on-scrim">
+            {settingsButton}
+            <CollapseButton collapsed={false} onCollapse={onCollapse} />
+          </div>
+          <h2 className="absolute inset-x-3 bottom-2 truncate font-display text-[15px] font-semibold text-on-scrim">{server.name}</h2>
+        </div>
       ) : (
         <div className="flex h-12 items-center gap-1 pl-3 pr-1.5">
           <h2 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold">{server.name}</h2>
@@ -427,11 +485,12 @@ function ServerHeader({
         </div>
       )}
       {open && (
-        <div className={`${menuClass} absolute left-2 right-2 top-[52px] min-w-[200px]`}>
-          {/* Invites also create accounts, so only owners/admins can hand them out. */}
-          {canManage && <MenuItem label="Convidar pessoas" onClick={pick({ kind: 'invite' })} />}
-          {canManage && <MenuItem label="Criar canal" onClick={pick({ kind: 'channel', type: 'text' })} />}
-          {canManage && <div className="my-1 h-px bg-line" />}
+        <div className={`${menuClass} absolute left-2 right-2 top-full mt-1 min-w-[200px]`}>
+          {canSettings && <MenuItem label="Configurações do servidor" onClick={pick({ kind: 'settings' })} />}
+          {/* Invites also create accounts, so @everyone can't hand them out by default. */}
+          {canInvite && <MenuItem label="Convidar pessoas" onClick={pick({ kind: 'invite' })} />}
+          {canCreate && <MenuItem label="Criar canal" onClick={pick({ kind: 'channel', type: 'text' })} />}
+          {(canSettings || canInvite || canCreate) && <div className="my-1 h-px bg-line" />}
           {isOwner ? (
             <MenuItem label="Excluir servidor" danger onClick={pick({ kind: 'delete' })} />
           ) : (

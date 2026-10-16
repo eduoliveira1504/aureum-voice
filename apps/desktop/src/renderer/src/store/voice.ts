@@ -27,6 +27,29 @@ export interface ScreenShareOptions {
   hint: 'motion' | 'detail'
 }
 
+/** What the room's permissions let us publish (read from the LiveKit token). */
+export interface Publishable {
+  mic: boolean
+  camera: boolean
+  screen: boolean
+}
+
+const ANYTHING: Publishable = { mic: true, camera: true, screen: true }
+
+/** The token's canPublishSources; without it (DM calls) anything goes. */
+function publishableIn(token: string): Publishable {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const { video } = JSON.parse(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')))
+    if (video?.canPublish === false) return { mic: false, camera: false, screen: false }
+    const sources: string[] | undefined = video?.canPublishSources
+    if (!sources) return ANYTHING
+    return { mic: sources.includes('microphone'), camera: sources.includes('camera'), screen: sources.includes('screen_share') }
+  } catch {
+    return ANYTHING
+  }
+}
+
 interface VoiceStore {
   phase: Phase
   serverId: string | null
@@ -36,6 +59,8 @@ interface VoiceStore {
   deafened: boolean
   camera: boolean
   screen: boolean
+  /** What we may publish in the current room; the media server enforces it too. */
+  allowed: Publishable
   /** Identities (user ids) currently speaking. */
   speaking: string[]
   /** Bumped on any participant/track change so views re-read the room. */
@@ -82,9 +107,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
   const bump = (): void => set((s) => ({ version: s.version + 1 }))
 
   const announce = (): void => {
-    const { phase, channelId, muted, deafened, camera, screen } = get()
+    const { phase, channelId, muted, deafened, camera, screen, allowed } = get()
     const inCall = phase !== 'idle' && channelId
-    sendRealtime('voice.update', inCall ? { channel_id: channelId, muted, deafened, camera, screen } : { channel_id: null })
+    sendRealtime(
+      'voice.update',
+      inCall ? { channel_id: channelId, muted: muted || !allowed.mic, deafened, camera, screen } : { channel_id: null }
+    )
   }
 
   const reset = (error: string | null = null): void => {
@@ -93,7 +121,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     stopThumbnails()
     shareTracks.forEach((t) => t.stop())
     shareTracks = []
-    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, speaking: [], screenVolume: {}, error })
+    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, allowed: ANYTHING, speaking: [], screenVolume: {}, error })
     bump()
   }
 
@@ -140,9 +168,9 @@ export const useVoice = create<VoiceStore>()((set, get) => {
   /** Publishes or mutes the mic to match the muted/deafened flags. */
   async function applyMic(): Promise<void> {
     const r = room
-    const { muted, deafened } = get()
+    const { muted, deafened, allowed } = get()
     if (r && r.state === ConnectionState.Connected) {
-      await r.localParticipant.setMicrophoneEnabled(!muted && !deafened).catch(() => {
+      await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic).catch(() => {
         set({ muted: true, error: 'Não foi possível acessar o microfone.' })
       })
     }
@@ -159,6 +187,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     deafened: false,
     camera: false,
     screen: false,
+    allowed: ANYTHING,
     speaking: [],
     version: 0,
     screenVolume: {},
@@ -198,6 +227,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         const { token, url } = await api<{ token: string; url: string }>(`/channels/${channelId}/voice/token`, {
           method: 'POST'
         })
+        set({ allowed: publishableIn(token) })
         await r.connect(url, token)
       } catch {
         if (room === r) {
@@ -211,7 +241,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       set({ phase: 'connected' })
       announce()
       try {
-        await r.localParticipant.setMicrophoneEnabled(!get().muted && !get().deafened)
+        await r.localParticipant.setMicrophoneEnabled(!get().muted && !get().deafened && get().allowed.mic)
       } catch {
         set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
         announce()
@@ -227,7 +257,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     },
 
     toggleMute: async () => {
-      const { muted, deafened } = get()
+      const { muted, deafened, allowed } = get()
+      if (!allowed.mic) return
       // Unmuting while deafened also undeafens, like Discord.
       const nextMuted = deafened ? false : !muted
       set({ muted: nextMuted, deafened: false })
@@ -246,6 +277,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       const r = room
       if (!r || get().phase === 'connecting') return
       const next = !get().camera
+      if (next && !get().allowed.camera) return
       try {
         await r.localParticipant.setCameraEnabled(next)
         set({ camera: next })
@@ -258,7 +290,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     startScreenShare: async ({ sourceId, audio, hint }) => {
       const r = room
-      if (!r || get().phase !== 'connected') return
+      if (!r || get().phase !== 'connected' || !get().allowed.screen) return
       if (get().screen) await get().stopScreenShare()
 
       // The main process hands this source to getDisplayMedia (see setDisplayMediaRequestHandler).

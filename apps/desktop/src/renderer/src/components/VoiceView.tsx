@@ -433,30 +433,35 @@ function ControlButton({
 }
 
 export function CallControls(): ReactNode {
-  const { muted, deafened, camera, screen, phase, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
+  const { muted, deafened, camera, screen, phase, allowed, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
     useVoice()
   const [picking, setPicking] = useState(false)
   const connecting = phase === 'connecting'
   return (
     <div className="flex shrink-0 justify-center gap-3 pb-6">
-      <ControlButton label={muted ? 'Ativar microfone' : 'Silenciar microfone'} active={!muted} onClick={toggleMute}>
-        {muted ? <MicOff size={22} /> : <Mic size={22} />}
+      <ControlButton
+        label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
+        active={!muted && allowed.mic}
+        disabled={!allowed.mic}
+        onClick={toggleMute}
+      >
+        {muted || !allowed.mic ? <MicOff size={22} /> : <Mic size={22} />}
       </ControlButton>
       <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
         {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
       </ControlButton>
       <ControlButton
-        label={camera ? 'Desligar câmera' : 'Ligar câmera'}
+        label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
         active={!camera}
-        disabled={connecting}
+        disabled={connecting || (!camera && !allowed.camera)}
         onClick={toggleCamera}
       >
         {camera ? <Video size={22} /> : <VideoOff size={22} />}
       </ControlButton>
       <ControlButton
-        label={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
+        label={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
         active={!screen}
-        disabled={phase !== 'connected'}
+        disabled={phase !== 'connected' || (!screen && !allowed.screen)}
         onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
       >
         {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
