@@ -5,12 +5,14 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import voice
 from app.access import MANAGERS, get_channel_for_member, require_manager, server_member_ids
+from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Message, ServerMember
 from app.realtime import broker
 from app.routers.servers import normalize_channel_name
-from app.schemas import ChannelOut, ChannelUpdate, MessageCreate, MessageOut
+from app.schemas import ChannelOut, ChannelUpdate, MessageCreate, MessageOut, VoiceTokenOut
 
 router = APIRouter(tags=["channels"])
 
@@ -41,12 +43,22 @@ async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: Sess
     assert server_id is not None
     await session.delete(channel)
     await session.commit()
-    await broker.publish(
-        "channel.deleted",
-        {"id": str(channel_id), "server_id": str(server_id)},
-        await server_member_ids(session, server_id),
-    )
+    recipients = await server_member_ids(session, server_id)
+    await voice.clear_channel(server_id, channel_id, recipients)
+    await broker.publish("channel.deleted", {"id": str(channel_id), "server_id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- Voice ----------------------------------------------------------------------
+
+
+@router.post("/channels/{channel_id}/voice/token", response_model=VoiceTokenOut)
+async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> VoiceTokenOut:
+    channel, _ = await get_channel_for_member(session, channel_id, user.id)
+    if channel.type != ChannelType.voice:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a voice channel")
+    token = voice.livekit_token(room=str(channel.id), identity=str(user.id), name=user.display_name)
+    return VoiceTokenOut(token=token, url=get_settings().livekit_url)
 
 
 # --- Messages -------------------------------------------------------------------

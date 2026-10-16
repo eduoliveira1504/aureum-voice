@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import voice
 from app.access import get_membership, require_manager, server_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Invite, MemberRole, Server, ServerMember
@@ -42,10 +43,15 @@ async def load_detail(session: AsyncSession, server: Server) -> ServerDetail:
         )
     )
     online = await broker.online(m.user_id for m in members)
+    try:
+        voice_states = await voice.get_states(server.id)
+    except Exception:  # Redis down: still serve the server, just without voice info
+        voice_states = []
     return ServerDetail(
         **ServerOut.model_validate(server).model_dump(),
         channels=[ChannelOut.model_validate(c) for c in channels],
         members=[MemberOut.model_validate(m).model_copy(update={"online": m.user_id in online}) for m in members],
+        voice_states=voice_states,
     )
 
 
@@ -110,6 +116,7 @@ async def delete_server(server_id: uuid.UUID, user: CurrentUser, session: Sessio
     server = await session.get(Server, server_id)
     await session.delete(server)
     await session.commit()
+    await voice.clear_server(server_id)
     await broker.publish("server.deleted", {"id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -122,6 +129,7 @@ async def leave_server(server_id: uuid.UUID, user: CurrentUser, session: Session
     await session.delete(member)
     await session.commit()
     recipients = [*await server_member_ids(session, server_id), user.id]
+    await voice.leave_server(user.id, server_id, recipients)
     await broker.publish("server.member.left", {"server_id": str(server_id), "user_id": str(user.id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

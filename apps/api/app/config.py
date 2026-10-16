@@ -37,6 +37,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["*"]
 
+    # URL clients use to reach LiveKit (ws:// locally, wss:// in production).
+    livekit_url: str = "ws://localhost:7880"
+    livekit_api_key: str
+    livekit_api_secret: str
+    voice_token_minutes: int = 60
+
     @property
     def database_url(self) -> str:
         return (

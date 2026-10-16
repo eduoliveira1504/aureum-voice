@@ -5,6 +5,7 @@ from typing import Annotated, Any, Literal
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
 from app.models import ChannelType, MemberRole
+from app.voice import VoiceState
 
 Username = Annotated[
     str,
@@ -117,6 +118,12 @@ class MemberOut(BaseModel):
 class ServerDetail(ServerOut):
     channels: list[ChannelOut]
     members: list[MemberOut]
+    voice_states: list[VoiceState] = []
+
+
+class VoiceTokenOut(BaseModel):
+    token: str
+    url: str
 
 
 class InviteCreate(BaseModel):
