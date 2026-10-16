@@ -45,8 +45,9 @@ async def test_dm_shows_up_for_the_other_side_with_the_first_message(client: Asy
         await next_event(bws, "ready")
         res = await ana.post(f"/channels/{dm['id']}/messages", {"content": "oi"})
         assert res.status_code == 201
+        # The conversation arrives first, without the message; its event then counts it once.
         created = await next_event(bws, "dm.created")
-        assert created["id"] == dm["id"] and created["read"]["unread_count"] == 1
+        assert created["id"] == dm["id"] and created["read"]["unread_count"] == 0
         message = await next_event(bws, "message.created")
         assert message["content"] == "oi" and message["server_id"] is None
 

@@ -114,8 +114,7 @@ async def _open(session: AsyncSession, channel: Channel, caller: uuid.UUID, pres
     return call
 
 
-async def _announce_start(session: AsyncSession, channel: Channel, call: Call) -> None:
-    await dms.reveal(session, channel)
+async def _announce_start(session: AsyncSession, call: Call) -> None:
     await _publish_line(session, call, "message.created")
     await publish(session, call)
     await session.refresh(call, ["participants"])
@@ -132,6 +131,8 @@ async def start(session: AsyncSession, channel: Channel, caller: uuid.UUID) -> t
         other = next(u for u in await channel_member_ids(session, channel.id) if u != caller)
         if not await social.are_friends(session, caller, other):
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only call your friends")
+    # Reopened before the call line exists, so the line is counted unread once (by its event).
+    await dms.reveal(session, channel)
     call = await _open(session, channel, caller, present=[])
     try:
         await session.commit()
@@ -140,7 +141,7 @@ async def start(session: AsyncSession, channel: Channel, caller: uuid.UUID) -> t
         existing = await active_call(session, channel.id)
         assert existing is not None
         return existing, False
-    await _announce_start(session, channel, call)
+    await _announce_start(session, call)
     return call, True
 
 
@@ -192,11 +193,13 @@ async def _move_to_group(
     await session.flush()
     for user_id in everyone:
         session.add(ChannelMember(channel_id=group.id, user_id=user_id))
+    await session.commit()
+    # The group goes out before its call line, like a reopened DM (see start).
+    await dms.announce(session, group, everyone, "dm.created")
     present = [s.user_id for s in await voice.get_states(voice.dm_scope(dm.id))]
     new_call = await _open(session, group, inviter, present)
     await session.commit()
-    await dms.announce(session, group, everyone, "dm.created")
-    await _announce_start(session, group, new_call)
+    await _announce_start(session, new_call)
     await session.refresh(new_call, ["participants"])
     moved = {"from_call_id": str(call.id), "call": CallOut.model_validate(new_call).model_dump(mode="json")}
     await broker.publish("call.moved", moved, present)

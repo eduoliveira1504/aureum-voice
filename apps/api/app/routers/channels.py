@@ -128,6 +128,10 @@ async def list_messages(
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
     channel, _ = await _text_channel(session, channel_id, user.id)
     await _require_dm_friends(session, channel, user.id)
+    if channel.server_id is None:
+        # Reopens the DM for whoever closed it, before the message exists: their read state
+        # then doesn't count it yet, and message.created counts it once.
+        await dms.reveal(session, channel)
     message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
     session.add(message)
     await session.flush()
@@ -135,8 +139,6 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
     mentioned = await reads.record_mentions(session, message, channel.server_id) if channel.server_id else []
     await session.commit()
     await session.refresh(message, ["author"])
-    if channel.server_id is None:
-        await dms.reveal(session, channel)  # before the message, so the conversation exists
     out = MessageOut.model_validate(message)
     # `mentions` rides along in the event only, so clients can bump their mention badges live.
     event = {**out.model_dump(mode="json"), "server_id": _server_id(channel), "mentions": [str(u) for u in mentioned]}
