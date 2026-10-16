@@ -4,7 +4,15 @@ from httpx_ws import aconnect_ws
 from tests.helpers import make_user, ws_client
 from tests.test_ws import next_event
 
-DEFAULTS = {"theme": "dark", "accent_color": "#E8B531", "sounds": {"volume": 80, "events": {}}}
+DEFAULTS = {
+    "theme": "dark",
+    "accent_color": "#E8B531",
+    "sounds": {"volume": 80, "events": {}},
+    "tab_order": [],
+    "closed_tabs": [],
+    "sidebar_collapsed": False,
+    "panel_layouts": {},
+}
 
 
 async def test_defaults_without_a_row(client: AsyncClient) -> None:
@@ -24,6 +32,7 @@ async def test_partial_updates_keep_the_rest(client: AsyncClient) -> None:
     sounds = {"volume": 35, "events": {"call.join": False}}
     await user.patch("/users/me/settings", {"sounds": sounds})
     assert (await user.get("/users/me/settings")).json() == {
+        **DEFAULTS,
         "theme": "light",
         "accent_color": "#8b5cf6",
         "sounds": sounds,
@@ -43,6 +52,11 @@ async def test_validation(client: AsyncClient) -> None:
         {"accent_color": "gold"},
         {"sounds": {"volume": 101}},
         {"sounds": {"events": {"Not A Key": True}}},
+        {"tab_order": ["not-a-uuid"]},
+        {"panel_layouts": {SERVER_A: {"panels": []}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}, {}, {}]}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{"tabs": ["javascript:alert(1)"]}]}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "split": 0.95}}},
     ):
         assert (await user.patch("/users/me/settings", body)).status_code == 422, body
 
@@ -53,3 +67,40 @@ async def test_update_reaches_the_users_other_devices(client: AsyncClient) -> No
         await next_event(ws, "ready")
         await user.patch("/users/me/settings", {"accent_color": "#4f8cc9"})
         assert (await next_event(ws, "settings.updated"))["accent_color"] == "#4f8cc9"
+
+
+SERVER_A = "11111111-1111-4111-8111-111111111111"
+SERVER_B = "22222222-2222-4222-8222-222222222222"
+CHANNEL = "33333333-3333-4333-8333-333333333333"
+
+
+async def test_shell_layout_round_trip(client: AsyncClient) -> None:
+    user = await make_user(client, "layout")
+    body = {
+        "tab_order": [SERVER_B, SERVER_A],
+        "closed_tabs": [SERVER_B],
+        "sidebar_collapsed": True,
+    }
+    assert (await user.patch("/users/me/settings", body)).status_code == 200
+    saved = (await user.get("/users/me/settings")).json()
+    assert {k: saved[k] for k in body} == body
+
+
+async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
+    user = await make_user(client, "panels")
+    split = {
+        "panels": [
+            {"tabs": [f"channel:{CHANNEL}", "overview"], "active": f"channel:{CHANNEL}"},
+            {"tabs": ["addon:board"], "active": "addon:board"},
+        ],
+        "split": 0.6,
+    }
+    single = {"panels": [{"tabs": ["call"], "active": "call"}], "split": 0.5}
+    await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: split}})
+    # Another PC arranges a different server: the first layout survives.
+    await user.patch("/users/me/settings", {"panel_layouts": {SERVER_B: single}})
+    assert (await user.get("/users/me/settings")).json()["panel_layouts"] == {SERVER_A: split, SERVER_B: single}
+
+    # null drops one server's layout.
+    res = await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: None}})
+    assert res.json()["panel_layouts"] == {SERVER_B: single}

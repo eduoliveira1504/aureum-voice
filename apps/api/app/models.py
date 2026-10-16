@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -113,6 +114,16 @@ class UserSettings(Base):
     sounds: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
     )
+    # App shell layout, so it looks the same on every PC. Tabs are server ids.
+    tab_order: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    closed_tabs: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    sidebar_collapsed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    # Open panels per server id (see schemas.PanelLayout).
+    panel_layouts: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -213,3 +224,4 @@ class Message(Base):
         # Covers "latest messages of a channel" and "messages before id X".
         Index("ix_messages_channel_id_id", "channel_id", "id"),
     )
+

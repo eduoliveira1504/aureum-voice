@@ -75,18 +75,49 @@ class SoundSettings(BaseModel):
     events: Annotated[dict[SoundEvent, bool], Field(max_length=32)] = {}
 
 
+# What a panel tab shows: the server overview, the expanded call, a channel or an addon.
+PanelTab = Annotated[
+    str, StringConstraints(pattern=r"^(overview|call|channel:[0-9a-f-]{36}|addon:[a-z0-9_-]{1,32})$")
+]
+
+
+class Panel(BaseModel):
+    tabs: Annotated[list[PanelTab], Field(max_length=12)] = []
+    active: PanelTab | None = None
+
+
+class PanelLayout(BaseModel):
+    """Up to two panels side by side; `split` is the first panel's share of the width."""
+
+    panels: Annotated[list[Panel], Field(min_length=1, max_length=2)]
+    split: Annotated[float, Field(ge=0.2, le=0.8)] = 0.5
+
+
+TabList = Annotated[list[uuid.UUID], Field(max_length=200)]
+
+
 class SettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     theme: Theme = Theme.dark
     accent_color: str = DEFAULT_ACCENT
     sounds: SoundSettings = SoundSettings()
+    tab_order: list[uuid.UUID] = []
+    closed_tabs: list[uuid.UUID] = []
+    sidebar_collapsed: bool = False
+    panel_layouts: dict[uuid.UUID, PanelLayout] = {}
 
 
 class SettingsUpdate(BaseModel):
     theme: Theme | None = None
     accent_color: AccentColor | None = None
     sounds: SoundSettings | None = None
+    tab_order: TabList | None = None
+    closed_tabs: TabList | None = None
+    sidebar_collapsed: bool | None = None
+    # Merged per server: a layout replaces that server's, null removes it, others are kept.
+    # That way two PCs arranging different servers don't overwrite each other.
+    panel_layouts: Annotated[dict[uuid.UUID, PanelLayout | None], Field(max_length=50)] | None = None
 
 
 # --- Servers, channels, invites -------------------------------------------
