@@ -7,6 +7,7 @@ from pathlib import Path
 # Must be set before the app (and its engine) is imported.
 os.environ["POSTGRES_DB"] = "aureum_test"
 os.environ["DB_NULL_POOL"] = "true"
+os.environ["REDIS_PREFIX"] = "aureum-test"
 
 import asyncpg  # noqa: E402
 import pytest  # noqa: E402
@@ -17,6 +18,7 @@ from app.config import get_settings  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Base  # noqa: E402
+from app.realtime import broker  # noqa: E402
 
 API_DIR = Path(__file__).resolve().parents[1]
 
@@ -36,12 +38,14 @@ async def _ensure_test_database() -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def _database() -> None:
+async def _database() -> AsyncIterator[None]:
     await _ensure_test_database()
     # Applying the real migrations also checks they stay in sync with the models.
     subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"], cwd=API_DIR, check=True, env=os.environ
     )
+    yield
+    await broker.close()
 
 
 @pytest.fixture(autouse=True)
@@ -56,3 +60,4 @@ async def _clean_tables() -> AsyncIterator[None]:
 async def client() -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
+
