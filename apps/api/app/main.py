@@ -1,12 +1,30 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, users
+from app.realtime import broker
+from app.routers import auth, channels, servers, users, ws
 
 settings = get_settings()
 
-app = FastAPI(title="Aureum Voice API", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    await broker.ensure_listening()
+    yield
+    await broker.close()
+
+
+app = FastAPI(
+    title="Aureum Voice API",
+    version="0.1.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -17,6 +35,8 @@ app.add_middleware(
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)
 api.include_router(users.router)
+api.include_router(servers.router)
+api.include_router(channels.router)
 
 
 @api.get("/health", tags=["health"])
@@ -25,3 +45,4 @@ async def health() -> dict[str, str]:
 
 
 app.include_router(api)
+app.include_router(ws.router)
