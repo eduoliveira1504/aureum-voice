@@ -14,6 +14,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Servers, text and voice channels, invites with expiry and use limits, roles (owner / admin / member)
 - Real-time chat (send, edit, delete), presence and voice state over a single WebSocket
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection with noise suppression
+- Grid and Focus call layouts (click any tile to focus it), several live screens at once with per-stream
+  volume and fullscreen; simulcast + adaptive stream keep each viewer's download to what is on screen
+  ([ADR 0004](docs/decisions/0004-call-layout-and-bandwidth.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))
 - Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio and profile color
