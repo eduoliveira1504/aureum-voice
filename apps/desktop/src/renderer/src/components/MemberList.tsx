@@ -100,7 +100,7 @@ export function MemberRow({
     <button
       type="button"
       onClick={(e) => onOpen(m.user, e.currentTarget)}
-      onContextMenu={contextMenu(() => <UserMenu user={m.user} meId={meId} />)}
+      onContextMenu={contextMenu(() => <UserMenu user={m.user} meId={meId} serverId={server.id} />)}
       className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60 ${m.online ? '' : 'opacity-40'}`}
     >
       <PresenceAvatar name={name} url={m.user.avatar_url} status={m.online ? m.status : undefined} />

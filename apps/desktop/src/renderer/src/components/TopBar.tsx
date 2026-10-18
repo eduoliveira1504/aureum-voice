@@ -7,8 +7,10 @@ import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { serverTabs, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
+import { contextMenu } from './ContextMenu'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
+import { ServerMenu } from './PlaceMenus'
 import { ProfilePopover } from './ProfileCard'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
@@ -43,7 +45,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
       <nav aria-label="Abas" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
         <HomeTab active={place === 'home'} />
         {tabs.map((id) => (
-          <ServerTab key={id} server={servers[id]} active={place === id} tabs={tabs} />
+          <ServerTab key={id} server={servers[id]} active={place === id} tabs={tabs} meId={me.id} />
         ))}
         <EndDropZone tabs={tabs} />
         <AddServerButton closed={closed.filter((id) => servers[id])} />
@@ -112,7 +114,7 @@ function HomeTab({ active }: { active: boolean }): ReactNode {
   )
 }
 
-function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boolean; tabs: string[] }): ReactNode {
+function ServerTab({ server, active, tabs, meId }: { server: ServerDetail; active: boolean; tabs: string[]; meId: string }): ReactNode {
   const openServer = useNav((s) => s.openServer)
   const closeServerTab = useNav((s) => s.closeServerTab)
   const moveServerTab = useNav((s) => s.moveServerTab)
@@ -148,6 +150,7 @@ function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boo
       }}
       onDragLeave={() => setDropTarget(false)}
       onDrop={onDrop}
+      onContextMenu={contextMenu(() => <ServerMenu server={server} meId={meId} tabs={tabs} />)}
       onMouseEnter={preview.show}
       onMouseLeave={preview.hide}
       onMouseDown={preview.hide}

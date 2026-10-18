@@ -24,6 +24,59 @@ const useMenu = create<MenuState>()((set) => ({
 
 export const closeContextMenu = (): void => useMenu.getState().close()
 
+/** Where the open menu was opened (to place what its items open, like a profile card). */
+export function menuPoint(): DOMRect {
+  const menu = useMenu.getState().menu
+  return new DOMRect(menu?.x ?? window.innerWidth / 2, menu?.y ?? window.innerHeight / 3, 0, 0)
+}
+
+/**
+ * Dialogs opened from menus (confirmations, a nickname, settings): the menu is gone by then,
+ * so they live in the host. `render` gets the function that closes the dialog.
+ */
+const useDialog = create<{ render: ((close: () => void) => ReactNode) | null }>()(() => ({ render: null }))
+
+export function showDialog(render: (close: () => void) => ReactNode): void {
+  useDialog.setState({ render })
+}
+
+/** A short confirmation at the bottom of the window ("Copiado!"). */
+const useToast = create<{ text: string | null; id: number }>()(() => ({ text: null, id: 0 }))
+
+export function toast(text: string): void {
+  useToast.setState((s) => ({ text, id: s.id + 1 }))
+}
+
+/** Copies text and says so. */
+export function copy(text: string, what = 'Copiado'): void {
+  navigator.clipboard.writeText(text).then(
+    () => toast(`${what}!`),
+    () => toast('Não foi possível copiar.')
+  )
+}
+
+const TOAST_MS = 2000
+
+function Toast(): ReactNode {
+  const { text, id } = useToast()
+  useEffect(() => {
+    if (!text) return
+    const timer = setTimeout(() => useToast.setState({ text: null }), TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [text, id])
+  if (!text) return null
+  return (
+    <div role="status" className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-control bg-fg px-4 py-2 text-sm font-medium text-rail shadow-xl">
+      {text}
+    </div>
+  )
+}
+
+function Dialog(): ReactNode {
+  const render = useDialog((s) => s.render)
+  return render ? render(() => useDialog.setState({ render: null })) : null
+}
+
 /** onContextMenu handler that opens a menu with `content`. */
 export function contextMenu(content: () => ReactNode) {
   return (e: ReactMouseEvent): void => {
@@ -74,7 +127,16 @@ export function ContextMenuHost(): ReactNode {
     }
   }, [menu, close])
 
-  if (!menu) return null
+  return (
+    <>
+      {menu && <OpenMenu x={menu.x} y={menu.y} content={menu.content} close={close} />}
+      <Dialog />
+      <Toast />
+    </>
+  )
+}
+
+function OpenMenu({ x, y, content, close }: { x: number; y: number; content: () => ReactNode; close(): void }): ReactNode {
   return (
     <div
       className="fixed inset-0 z-50"
@@ -85,8 +147,8 @@ export function ContextMenuHost(): ReactNode {
       }}
       onWheel={(e) => e.target === e.currentTarget && close()}
     >
-      <MenuBox key={`${menu.x},${menu.y}`} x={menu.x} y={menu.y}>
-        {menu.content()}
+      <MenuBox key={`${x},${y}`} x={x} y={y}>
+        {content()}
       </MenuBox>
     </div>
   )
@@ -122,8 +184,8 @@ export function Item({
       hint={hint}
       danger={danger}
       onClick={() => {
+        onClick() // first: it may read menuPoint()
         closeContextMenu()
-        onClick()
       }}
     />
   )

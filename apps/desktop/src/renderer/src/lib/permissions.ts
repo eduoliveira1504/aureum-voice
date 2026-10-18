@@ -128,8 +128,8 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'KICK_MEMBERS', label: 'Expulsar membros', description: 'Tirar do servidor quem está abaixo de você.' },
       { perm: 'BAN_MEMBERS', label: 'Banir membros', description: 'Expulsar e impedir de voltar.' },
       { perm: 'CREATE_INVITE', label: 'Criar convites', description: 'Convites também criam contas novas no Aureum.' },
-      { perm: 'CHANGE_NICKNAME', label: 'Mudar apelido', description: 'Reservado: apelidos chegam numa próxima versão.' },
-      { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Reservado: apelidos chegam numa próxima versão.' },
+      { perm: 'CHANGE_NICKNAME', label: 'Mudar apelido', description: 'Escolher o próprio apelido neste servidor.' },
+      { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Mudar o apelido de quem está abaixo de você.' },
       { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Reservado: addons chegam numa próxima versão.' }
     ]
   },
@@ -152,9 +152,9 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'SPEAK', label: 'Falar', description: '' },
       { perm: 'VIDEO', label: 'Câmera', description: '' },
       { perm: 'STREAM', label: 'Transmitir tela', description: '' },
-      { perm: 'MUTE_MEMBERS', label: 'Silenciar membros', description: 'Reservado: moderação de voz chega numa próxima versão.' },
-      { perm: 'DEAFEN_MEMBERS', label: 'Ensurdecer membros', description: 'Reservado: moderação de voz chega numa próxima versão.' },
-      { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Reservado: moderação de voz chega numa próxima versão.' }
+      { perm: 'MUTE_MEMBERS', label: 'Silenciar membros', description: 'Desligar o microfone de quem está abaixo de você, até liberar.' },
+      { perm: 'DEAFEN_MEMBERS', label: 'Ensurdecer membros', description: 'Cortar o áudio (e o microfone) de quem está abaixo de você.' },
+      { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Levar quem está abaixo de você para outra sala.' }
     ]
   }
 ]

@@ -307,7 +307,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
       label={name}
       onClick={onClick}
       // Right click: volume, local mute and the rest of the person's menu.
-      onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} />) : undefined}
+      onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} serverId={useVoice.getState().serverId} />) : undefined}
       ring={speaking}
     >
       {camera ? (

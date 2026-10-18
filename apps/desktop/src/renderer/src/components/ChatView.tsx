@@ -1,13 +1,15 @@
 import { Hash, Pencil, Phone, PhoneMissed, Trash2 } from 'lucide-react'
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { ApiError, type Channel, type Me, type Message, type User } from '../lib/api'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
 import { useVoice } from '../store/voice'
+import { contextMenu } from './ContextMenu'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
+import { UserMenu } from './UserMenu'
 
 const MAX_LENGTH = 4000
 const GROUP_WINDOW_MS = 5 * 60 * 1000
@@ -50,6 +52,7 @@ export function ChatView({
   canModerate,
   canSend = true,
   nameColorOf,
+  nameOf,
   intro,
   placeholder
 }: {
@@ -60,6 +63,8 @@ export function ChatView({
   canSend?: boolean
   /** Color for an author's name (their strongest colored role); their profile color otherwise. */
   nameColorOf?: (userId: string) => string | null
+  /** Name to show for an author (their server nickname); their display name otherwise. */
+  nameOf?: (userId: string) => string | null
   /** Shown above the first message (defaults to the server channel's welcome). */
   intro?: ReactNode
   placeholder?: string
@@ -177,7 +182,13 @@ export function ChatView({
                   onStopEditing={() => setEditingId(null)}
                   onDelete={() => setDeleting(message)}
                   onOpenProfile={profile.open}
+                  onAuthorMenu={
+                    message.author
+                      ? contextMenu(() => <UserMenu user={message.author!} meId={me.id} serverId={channel.server_id} />)
+                      : undefined
+                  }
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
+                  authorName={message.author ? nameOf?.(message.author.id) : null}
                 />
               )}
             </Fragment>
@@ -265,7 +276,9 @@ function MessageRow({
   onStopEditing,
   onDelete,
   onOpenProfile,
-  nameColor: roleNameColor
+  onAuthorMenu,
+  nameColor: roleNameColor,
+  authorName
 }: {
   message: Message
   /** Written by the signed-in user: shown on the right, without avatar or name. */
@@ -278,10 +291,13 @@ function MessageRow({
   onStopEditing(): void
   onDelete(): void
   onOpenProfile(user: User, target: Element): void
+  /** Right click on the author: their menu. */
+  onAuthorMenu?: (e: MouseEvent) => void
   nameColor?: string | null
+  authorName?: string | null
 }): ReactNode {
   const author = message.author
-  const name = author?.display_name ?? 'Usuário removido'
+  const name = authorName || (author?.display_name ?? 'Usuário removido')
   const nameColor = useReadableColor(roleNameColor ?? author?.accent_color)
   const openProfile = (e: { currentTarget: Element }): void => {
     if (author) onOpenProfile(author, e.currentTarget)
@@ -292,7 +308,7 @@ function MessageRow({
       {!own && (
         <div className="w-9 shrink-0">
           {!grouped && (
-            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile}>
+            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
               <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
             </button>
           )}
@@ -306,6 +322,7 @@ function MessageRow({
                 type="button"
                 disabled={!author}
                 onClick={openProfile}
+                onContextMenu={onAuthorMenu}
                 className="text-sm font-semibold hover:underline disabled:no-underline"
                 style={nameColor ? { color: nameColor } : undefined}
               >

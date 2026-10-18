@@ -6,9 +6,11 @@ import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
+import { contextMenu } from './ContextMenu'
 import { DmView } from './DmView'
 import { ConfirmModal } from './modals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
+import { UserMenu } from './UserMenu'
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 
@@ -102,7 +104,7 @@ function FriendsPage({ me }: { me: Me }): ReactNode {
                   {TABS.find((t) => t.id === tab)?.label} — {shown.length}
                 </h3>
                 {shown.map((f) => (
-                  <FriendRow key={f.user.id} friend={f} status={statusOf(f)} />
+                  <FriendRow key={f.user.id} friend={f} status={statusOf(f)} meId={me.id} />
                 ))}
               </>
             ) : (
@@ -243,7 +245,7 @@ function RoundButton({
   )
 }
 
-function FriendRow({ friend, status }: { friend: Friend; status: Friend['status'] }): ReactNode {
+function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['status']; meId: string }): ReactNode {
   const { openDm, startCall, accept, remove, unblock } = useSocial.getState()
   const [confirm, setConfirm] = useState<'remove' | 'block' | null>(null)
   const { user, kind } = friend
@@ -257,6 +259,7 @@ function FriendRow({ friend, status }: { friend: Friend; status: Friend['status'
         role={kind === 'friend' ? 'button' : undefined}
         tabIndex={kind === 'friend' ? 0 : undefined}
         onClick={() => kind === 'friend' && void openDm(user.id).catch(fail)}
+        onContextMenu={contextMenu(() => <UserMenu user={user} meId={meId} />)}
         onKeyDown={(e) => kind === 'friend' && e.key === 'Enter' && void openDm(user.id).catch(fail)}
         className={`group flex items-center gap-3 rounded-control border-t border-line px-2 py-2.5 first-of-type:border-t-0 ${
           kind === 'friend' ? 'cursor-pointer hover:bg-elevated/60' : ''

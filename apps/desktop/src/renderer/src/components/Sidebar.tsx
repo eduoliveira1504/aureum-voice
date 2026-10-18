@@ -1,4 +1,5 @@
 import {
+  BellOff,
   ChevronDown,
   Hash,
   HeadphoneOff,
@@ -31,6 +32,7 @@ import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { contextMenu } from './ContextMenu'
+import { ChannelMenu, ServerMenu } from './PlaceMenus'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
@@ -99,13 +101,17 @@ function Item({
   dot,
   trailing,
   dragTab,
+  muted = false,
   onClick,
-  onSide
+  onSide,
+  onContextMenu
 }: {
   icon: LucideIcon
   label: string
   collapsed: boolean
   active?: boolean
+  /** Silenced by the user: dimmed, with a crossed bell. */
+  muted?: boolean
   /** "1/2" when the item is open in one of two panels. */
   panelHint?: string
   badge?: ReactNode
@@ -116,6 +122,7 @@ function Item({
   onClick(): void
   /** Middle click / Ctrl+click: open in the other panel. */
   onSide?: () => void
+  onContextMenu?: (e: MouseEvent) => void
 }): ReactNode {
   const side = (e: MouseEvent): boolean => {
     if (!onSide || !(e.button === 1 || (e.button === 0 && (e.ctrlKey || e.metaKey)))) return false
@@ -125,9 +132,10 @@ function Item({
   }
   return (
     <div
+      onContextMenu={onContextMenu}
       className={`group relative flex items-center rounded-item ${
         active ? 'bg-elevated text-fg' : 'text-fg-muted hover:bg-elevated/60 hover:text-fg'
-      }`}
+      } ${muted && !active ? 'opacity-60' : ''}`}
     >
       <button
         type="button"
@@ -149,6 +157,7 @@ function Item({
           )}
         </span>
         {!collapsed && <span className="min-w-0 flex-1 truncate font-medium">{label}</span>}
+        {!collapsed && muted && <BellOff size={13} aria-label="Silenciado" className="shrink-0 text-fg-subtle" />}
         {!collapsed && panelHint && (
           <span title="Aberto no painel" className="shrink-0 rounded bg-main px-1 text-[10px] font-semibold text-fg-subtle">
             painel {panelHint}
@@ -212,6 +221,8 @@ function ServerPlaces({
   onCollapse?: (c: boolean) => void
 }): ReactNode {
   const reads = useChat((s) => s.reads)
+  const mutedPlaces = useAppearance((s) => s.settings.muted_places)
+  const serverMuted = mutedPlaces.includes(server.id)
   const openTab = useNav((s) => s.openTab)
   const narrow = useNav((s) => s.narrow)
   const focusedPanel = useNav((s) => s.focusedPanel[server.id] ?? 0)
@@ -240,6 +251,7 @@ function ServerPlaces({
     <>
       <ServerHeader
         server={server}
+        meId={me.id}
         collapsed={collapsed}
         perms={perms}
         isOwner={server.owner_id === me.id}
@@ -277,11 +289,12 @@ function ServerPlaces({
                     </span>
                   }
                   trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
+                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={room} meId={me.id} />)}
                   // Clicking a room joins it (the call shows in the floating window); clicking the
                   // room you're in opens the call in a panel.
                   onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
                 />
-                {!collapsed && here.length > 0 && <RoomPeople states={here} people={people} mine={mine} meId={me.id} />}
+                {!collapsed && here.length > 0 && <RoomPeople serverId={server.id} states={here} people={people} mine={mine} meId={me.id} />}
               </Fragment>
             )
           })}
@@ -291,7 +304,9 @@ function ServerPlaces({
           {texts.map((channel) => {
             const tab = channelTab(channel.id)
             const read = reads[channel.id]
-            const unread = read?.unread_count ?? 0
+            const muted = serverMuted || mutedPlaces.includes(channel.id)
+            // Silenced: only mentions show.
+            const unread = muted ? 0 : (read?.unread_count ?? 0)
             const where = placeOf(tab)
             return (
               <Item
@@ -302,6 +317,7 @@ function ServerPlaces({
                 active={where.active}
                 panelHint={where.hint}
                 dot={collapsed && unread > 0 ? 'accent' : undefined}
+                muted={muted}
                 badge={
                   read?.mention_count ? (
                     <CountBadge count={read.mention_count} tone="danger" />
@@ -310,6 +326,7 @@ function ServerPlaces({
                   )
                 }
                 trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
+                onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
                 dragTab={tab}
                 onClick={() => openTab(server.id, tab)}
                 onSide={() => openTab(server.id, tab, true)}
@@ -427,6 +444,7 @@ function ChannelActions({
 
 function ServerHeader({
   server,
+  meId,
   collapsed,
   perms,
   isOwner,
@@ -434,6 +452,7 @@ function ServerHeader({
   onCollapse
 }: {
   server: ServerDetail
+  meId: string
   collapsed: boolean
   /** The user's server-wide permissions. */
   perms: number
@@ -469,7 +488,7 @@ function ServerHeader({
   )
 
   return (
-    <div ref={ref} className="relative border-b border-line">
+    <div ref={ref} onContextMenu={contextMenu(() => <ServerMenu server={server} meId={meId} />)} className="relative border-b border-line">
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-2">
           <span title={server.name}>
@@ -651,11 +670,13 @@ function DmItem({
 
 /** Who's in a room, under it: speaking ring (in our own room), mute, deafen, camera and live. */
 function RoomPeople({
+  serverId,
   states,
   people,
   mine,
   meId
 }: {
+  serverId: string
   states: VoiceState[]
   people: Map<string, User>
   mine: boolean
@@ -671,7 +692,7 @@ function RoomPeople({
         return (
           <li
             key={v.user_id}
-            onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} />) : undefined}
+            onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} serverId={serverId} />) : undefined}
             className="flex items-center gap-2 rounded-item px-1.5 py-0.5 text-fg-muted hover:bg-elevated/60 hover:text-fg"
           >
             <span className={`shrink-0 rounded-full ring-offset-1 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-2 ring-accent' : ''}`}>

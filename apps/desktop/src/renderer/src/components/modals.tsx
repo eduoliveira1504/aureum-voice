@@ -7,7 +7,7 @@ import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
 import { Field, labelClass, PrimaryButton, Segmented } from './ui'
 
-function errorText(err: unknown, fallback: string): string {
+export function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     if (err.status === 404) return 'Convite não encontrado.'
     if (err.status === 410) return 'Esse convite expirou ou atingiu o limite de usos.'

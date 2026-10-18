@@ -5,6 +5,7 @@ import { ADDONS } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { memberName } from '../lib/members'
 import { basePermissions, has, Perm } from '../lib/permissions'
+import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { addonTab, channelTab, useNav } from '../store/nav'
 import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
@@ -256,6 +257,7 @@ function Addons({ serverId }: { serverId: string }): ReactNode {
 function News({ server }: { server: ServerDetail }): ReactNode {
   const openTab = useNav((s) => s.openTab)
   const reads = useChat((s) => s.reads)
+  const mutedPlaces = useAppearance((s) => s.settings.muted_places)
   // Changes whenever a message arrives or a channel is read: the cue to refetch.
   const unread = server.channels.reduce((n, c) => n + (reads[c.id]?.unread_count ?? 0), 0)
   const [items, setItems] = useState<Message[] | null>(null)
@@ -277,6 +279,9 @@ function News({ server }: { server: ServerDetail }): ReactNode {
   // The feed is newest first; group it keeping that order, a few messages per channel.
   const groups = new Map<string, Message[]>()
   for (const m of items ?? []) {
+    // Silenced channels (or the whole server) stay out, unless they mention the user.
+    const silenced = mutedPlaces.includes(server.id) || mutedPlaces.includes(m.channel_id)
+    if (silenced && !reads[m.channel_id]?.mention_count) continue
     const list = groups.get(m.channel_id) ?? []
     if (list.length < PER_CHANNEL) groups.set(m.channel_id, [...list, m])
   }
