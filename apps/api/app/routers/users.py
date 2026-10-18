@@ -12,7 +12,12 @@ from app.schemas import SettingsOut, SettingsUpdate, UserMe, UserPublic, UserUpd
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-MAX_PANEL_LAYOUTS = 200  # one per server; stale ones (left servers) are cheap to keep
+# Settings merged key by key (see SettingsUpdate), and how many keys each may hold.
+MERGED_SETTINGS = {
+    "panel_layouts": 200,  # one per server; stale ones (left servers) are cheap to keep
+    "user_audio": 1000,
+    "column_sizes": 30,
+}
 ImageKind = Literal["avatar", "banner"]
 
 
@@ -52,11 +57,11 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
     for field, value in body.model_dump(mode="json", exclude_unset=True).items():
         if value is None:  # every setting has a value; an explicit null means "unchanged"
             continue
-        if field == "panel_layouts":
-            merged = {**(row.panel_layouts or {}), **value}
+        if field in MERGED_SETTINGS:
+            merged = {**(getattr(row, field) or {}), **value}
             value = {k: v for k, v in merged.items() if v is not None}
-            if len(value) > MAX_PANEL_LAYOUTS:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Too many panel layouts")
+            if len(value) > MERGED_SETTINGS[field]:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Too many entries in {field}")
         setattr(row, field, value)
     await session.commit()
     await session.refresh(row)

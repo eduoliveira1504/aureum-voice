@@ -149,6 +149,12 @@ class UserSettings(Base):
     panel_layouts: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
     )
+    # How loud the user hears each person in calls, by user id (see schemas.UserAudio).
+    user_audio: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    # Widths in px of resizable columns, by column key (sidebar, members, ...).
+    column_sizes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    # Channels and servers the user silenced: no unread badges (mentions still count).
+    muted_places: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

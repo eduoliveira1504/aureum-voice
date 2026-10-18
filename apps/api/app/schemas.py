@@ -109,6 +109,17 @@ class PanelLayout(BaseModel):
 TabList = Annotated[list[uuid.UUID], Field(max_length=200)]
 
 
+class UserAudio(BaseModel):
+    """How loud one person sounds to the user in calls (100 = as sent), and a local mute."""
+
+    volume: Annotated[int, Field(ge=0, le=200)] = 100
+    muted: bool = False
+
+
+ColumnKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.-]{0,39}$")]
+ColumnSize = Annotated[int, Field(ge=48, le=2000)]
+
+
 class SettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -121,6 +132,9 @@ class SettingsOut(BaseModel):
     sidebar_collapsed: bool = False
     members_open: bool = False
     panel_layouts: dict[uuid.UUID, PanelLayout] = {}
+    user_audio: dict[uuid.UUID, UserAudio] = {}
+    column_sizes: dict[ColumnKey, ColumnSize] = {}
+    muted_places: list[uuid.UUID] = []
 
 
 class SettingsUpdate(BaseModel):
@@ -135,6 +149,10 @@ class SettingsUpdate(BaseModel):
     # Merged per server: a layout replaces that server's, null removes it, others are kept.
     # That way two PCs arranging different servers don't overwrite each other.
     panel_layouts: Annotated[dict[uuid.UUID, PanelLayout | None], Field(max_length=50)] | None = None
+    # Merged the same way, per user id and per column key.
+    user_audio: Annotated[dict[uuid.UUID, UserAudio | None], Field(max_length=50)] | None = None
+    column_sizes: Annotated[dict[ColumnKey, ColumnSize | None], Field(max_length=30)] | None = None
+    muted_places: Annotated[list[uuid.UUID], Field(max_length=500)] | None = None
 
 
 # --- Friends --------------------------------------------------------------

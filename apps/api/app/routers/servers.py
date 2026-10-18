@@ -319,6 +319,25 @@ async def unread_messages(
     return await reads.unread_feed(session, user.id, readable, limit)
 
 
+@router.post("/servers/{server_id}/read", response_model=list[ReadStateOut])
+async def mark_server_read(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[ReadStateOut]:
+    """Marks every text channel of the server the user can see as read."""
+    channels = list(
+        await session.scalars(select(Channel).where(Channel.server_id == server_id, Channel.type == ChannelType.text))
+    )
+    access = await server_access(session, server_id, user.id, [c.id for c in channels])
+    states = []
+    for channel in channels:
+        if access.can_view(channel):
+            last_read, unread = await reads.mark_read(session, user.id, channel.id, None)
+            states.append(ReadStateOut(channel_id=channel.id, last_read_message_id=last_read, unread_count=unread, mention_count=0))
+    await session.commit()
+    for state in states:
+        # The user's other devices clear their badges too.
+        await broker.publish("read.updated", {**state.model_dump(mode="json"), "server_id": str(server_id)}, [user.id])
+    return states
+
+
 # --- Channels -------------------------------------------------------------------
 
 

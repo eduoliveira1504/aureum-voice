@@ -13,6 +13,9 @@ DEFAULTS = {
     "sidebar_collapsed": False,
     "members_open": False,
     "panel_layouts": {},
+    "user_audio": {},
+    "column_sizes": {},
+    "muted_places": [],
     "status": "online",
 }
 
@@ -59,6 +62,11 @@ async def test_validation(client: AsyncClient) -> None:
         {"panel_layouts": {SERVER_A: {"panels": [{}, {}, {}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{"tabs": ["javascript:alert(1)"]}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "split": 0.95}}},
+        {"user_audio": {SERVER_A: {"volume": 201}}},
+        {"user_audio": {"not-a-uuid": {"volume": 50}}},
+        {"column_sizes": {"Sidebar": 240}},
+        {"column_sizes": {"sidebar": 10}},
+        {"muted_places": ["nope"]},
     ):
         assert (await user.patch("/users/me/settings", body)).status_code == 422, body
 
@@ -106,3 +114,22 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
     # null drops one server's layout.
     res = await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: None}})
     assert res.json()["panel_layouts"] == {SERVER_B: single}
+
+
+async def test_call_audio_and_columns_merge(client: AsyncClient) -> None:
+    user = await make_user(client, "audio")
+    await user.patch("/users/me/settings", {"user_audio": {SERVER_A: {"volume": 150}}, "column_sizes": {"sidebar": 280}})
+    # Another PC tunes someone else and another column: both changes survive.
+    await user.patch("/users/me/settings", {"user_audio": {SERVER_B: {"muted": True}}, "column_sizes": {"members": 300}})
+    saved = (await user.get("/users/me/settings")).json()
+    assert saved["user_audio"] == {SERVER_A: {"volume": 150, "muted": False}, SERVER_B: {"volume": 100, "muted": True}}
+    assert saved["column_sizes"] == {"sidebar": 280, "members": 300}
+
+    res = await user.patch("/users/me/settings", {"user_audio": {SERVER_A: None}, "column_sizes": {"sidebar": None}})
+    assert res.json()["user_audio"] == {SERVER_B: {"volume": 100, "muted": True}}
+    assert res.json()["column_sizes"] == {"members": 300}
+
+    # Muted places are a plain list, replaced as a whole.
+    await user.patch("/users/me/settings", {"muted_places": [SERVER_A, CHANNEL]})
+    res = await user.patch("/users/me/settings", {"muted_places": [CHANNEL]})
+    assert res.json()["muted_places"] == [CHANNEL]

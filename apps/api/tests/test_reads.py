@@ -149,3 +149,26 @@ async def test_events(client: AsyncClient) -> None:
         await bob.post(f"/channels/{cid}/read")
         updated = await next_event(ws, "read.updated")
         assert (updated["channel_id"], updated["server_id"], updated["mention_count"]) == (cid, server["id"], 0)
+
+
+async def test_mark_a_whole_server_read(client: AsyncClient) -> None:
+    alice, bob = await make_user(client, "alice"), await make_user(client, "bob")
+    server = await make_server(alice, bob)
+    general = text_channel(server)
+    memes = (await alice.post(f"/servers/{server['id']}/channels", {"name": "memes"})).json()["id"]
+    await say(alice, general, "oi @bob")
+    await say(alice, memes, "lol")
+
+    async with ws_client() as wsc, aconnect_ws(ws_url(bob), wsc) as ws:
+        await next_event(ws, "ready")
+        res = await bob.post(f"/servers/{server['id']}/read")
+        assert res.status_code == 200
+        assert {s["channel_id"] for s in res.json()} == {general, memes}
+        # Bob's other devices clear their badges.
+        assert (await next_event(ws, "read.updated"))["server_id"] == server["id"]
+
+    for cid in (general, memes):
+        state = await read_state(bob, server, cid)
+        assert (state["unread_count"], state["mention_count"]) == (0, 0)
+    outsider = await make_user(client, "dave")
+    assert (await outsider.post(f"/servers/{server['id']}/read")).status_code == 404
