@@ -96,7 +96,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         {server && membersOpen && (
           <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
             <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
-              <MemberList server={server} onClose={() => useNav.getState().toggleMembers()} />
+              <MemberList server={server} meId={user.id} onClose={() => useNav.getState().toggleMembers()} />
             </div>
           </div>
         )}

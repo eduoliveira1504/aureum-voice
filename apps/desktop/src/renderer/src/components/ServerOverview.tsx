@@ -1,18 +1,22 @@
-import { Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
+import { ChevronDown, Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { memberName } from '../lib/members'
 import { basePermissions, has, Perm } from '../lib/permissions'
 import { useChat } from '../store/chat'
 import { addonTab, channelTab, useNav } from '../store/nav'
 import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
+import { groupMembers, MemberRow } from './MemberList'
 import { InviteModal } from './modals'
+import { useProfilePopover } from './ProfileCard'
 import { COLUMNS, useColumnWidth } from './Resizer'
-import { Avatar, ServerIcon } from './ui'
+import { Avatar, CountBadge, ServerIcon } from './ui'
 
-const FEED_SIZE = 8
+const FEED_SIZE = 30
+const PER_CHANNEL = 3
 const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
 const dayFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
 
@@ -43,7 +47,7 @@ export function ServerOverview({ server, me }: { server: ServerDetail; me: Me })
         >
           <div className="hidden @3xl:block">{side.handle}</div>
           <News server={server} />
-          <OnlineNow server={server} />
+          <Members server={server} meId={me.id} />
         </aside>
       </div>
     </div>
@@ -140,7 +144,10 @@ function RoomCard({
   const speaking = useVoice((s) => (mine ? s.speaking : null))
   const join = useVoice((s) => s.join)
   const expandCall = useNav((s) => s.expandCall)
-  const nameOf = (id: string): string => members.get(id)?.user.display_name ?? 'Alguém'
+  const nameOf = (id: string): string => {
+    const member = members.get(id)
+    return member ? memberName(member) : 'Alguém'
+  }
 
   if (states.length === 0) {
     return (
@@ -185,10 +192,10 @@ function RoomCard({
             return (
               <span
                 key={v.user_id}
-                title={user?.display_name}
+                title={nameOf(v.user_id)}
                 className={`rounded-full ring-offset-2 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-[3px] ring-accent' : ''}`}
               >
-                <Avatar name={user?.display_name ?? '?'} url={user?.avatar_url} size={52} />
+                <Avatar name={nameOf(v.user_id)} url={user?.avatar_url} size={52} />
               </span>
             )
           })}
@@ -245,11 +252,12 @@ function Addons({ serverId }: { serverId: string }): ReactNode {
   )
 }
 
-/** Newest unread messages across the server's text channels. */
+/** Unread messages grouped by channel (newest channel first), each with a shortcut to open it. */
 function News({ server }: { server: ServerDetail }): ReactNode {
   const openTab = useNav((s) => s.openTab)
+  const reads = useChat((s) => s.reads)
   // Changes whenever a message arrives or a channel is read: the cue to refetch.
-  const unread = useChat((s) => server.channels.reduce((n, c) => n + (s.reads[c.id]?.unread_count ?? 0), 0))
+  const unread = server.channels.reduce((n, c) => n + (reads[c.id]?.unread_count ?? 0), 0)
   const [items, setItems] = useState<Message[] | null>(null)
 
   useEffect(() => {
@@ -266,38 +274,56 @@ function News({ server }: { server: ServerDetail }): ReactNode {
     }
   }, [server.id, unread])
 
+  // The feed is newest first; group it keeping that order, a few messages per channel.
+  const groups = new Map<string, Message[]>()
+  for (const m of items ?? []) {
+    const list = groups.get(m.channel_id) ?? []
+    if (list.length < PER_CHANNEL) groups.set(m.channel_id, [...list, m])
+  }
+
   return (
     <section>
       <SectionTitle>Novidades</SectionTitle>
       {items === null ? (
         <p className="text-sm text-fg-subtle">Carregando…</p>
-      ) : items.length === 0 ? (
+      ) : groups.size === 0 ? (
         <p className="text-sm text-fg-subtle">Tudo em dia. Nenhuma mensagem nova.</p>
       ) : (
-        <ul className="space-y-1">
-          {items.map((m) => {
-            const channel = server.channels.find((c) => c.id === m.channel_id)
-            const name = m.author?.display_name ?? 'Usuário removido'
+        <ul className="space-y-3">
+          {[...groups].map(([channelId, messages]) => {
+            const channel = server.channels.find((c) => c.id === channelId)
+            const read = reads[channelId]
+            const open = (): void => openTab(server.id, channelTab(channelId))
             return (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  onClick={() => openTab(server.id, channelTab(m.channel_id))}
-                  className="flex w-full gap-2.5 rounded-item p-2 text-left hover:bg-elevated/60"
-                >
-                  <Avatar name={name} url={m.author?.avatar_url} size={28} shape="rounded" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline gap-1.5 text-xs">
-                      <span className="truncate font-semibold text-fg">{name}</span>
-                      <span className="flex shrink-0 items-center text-fg-subtle">
-                        <Hash size={11} />
-                        {channel?.name}
+              <li key={channelId} className="overflow-hidden rounded-control border border-line bg-panel/60">
+                <div className="flex items-center gap-1.5 border-b border-line px-2.5 py-1.5">
+                  <Hash size={14} className="shrink-0 text-fg-subtle" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{channel?.name}</span>
+                  <CountBadge count={read?.unread_count ?? messages.length} tone={read?.mention_count ? 'danger' : 'accent'} />
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="shrink-0 rounded-item px-2 py-0.5 text-xs font-semibold text-accent-text hover:bg-elevated"
+                  >
+                    Abrir
+                  </button>
+                </div>
+                {/* Oldest of the group first, like in the chat. */}
+                {[...messages].reverse().map((m) => {
+                  const name = m.author ? nameIn(server, m.author.id, m.author.display_name) : 'Usuário removido'
+                  return (
+                    <button key={m.id} type="button" onClick={open} className="flex w-full gap-2.5 p-2 text-left hover:bg-elevated/60">
+                      <Avatar name={name} url={m.author?.avatar_url} size={24} shape="rounded" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-1.5 text-xs">
+                          <span className="truncate font-semibold text-fg">{name}</span>
+                          <span className="ml-auto shrink-0 text-fg-subtle">{shortTime(m.created_at)}</span>
+                        </span>
+                        <span className="line-clamp-2 break-words text-sm text-fg-muted">{m.content}</span>
                       </span>
-                      <span className="ml-auto shrink-0 text-fg-subtle">{shortTime(m.created_at)}</span>
-                    </span>
-                    <span className="line-clamp-2 break-words text-sm text-fg-muted">{m.content}</span>
-                  </span>
-                </button>
+                    </button>
+                  )
+                })}
               </li>
             )
           })}
@@ -307,31 +333,53 @@ function News({ server }: { server: ServerDetail }): ReactNode {
   )
 }
 
-function OnlineNow({ server }: { server: ServerDetail }): ReactNode {
-  const online = server.members.filter((m) => m.online).sort((a, b) => a.user.display_name.localeCompare(b.user.display_name))
+function nameIn(server: ServerDetail, userId: string, fallback: string): string {
+  const member = server.members.find((m) => m.user.id === userId)
+  return member ? memberName(member) : fallback
+}
+
+/** Everyone in one block: online first, grouped by role, then offline (collapsed). */
+function Members({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
+  const [showOffline, setShowOffline] = useState(false)
+  const profile = useProfilePopover()
+  const roles = new Map(server.roles.map((r) => [r.id, r]))
   const roomOf = new Map(server.voice_states.map((v) => [v.user_id, server.channels.find((c) => c.id === v.channel_id)?.name]))
+  const groups = groupMembers(server)
+  const offline = groups.find((g) => g.key === 'offline')
+  const online = groups.filter((g) => g.key !== 'offline')
+  const onlineCount = online.reduce((n, g) => n + g.members.length, 0)
+  const row = (m: Member): ReactNode => (
+    <MemberRow key={m.user.id} member={m} server={server} roles={roles} meId={meId} room={roomOf.get(m.user.id)} onOpen={profile.open} />
+  )
+
   return (
     <section>
-      <SectionTitle>Online agora — {online.length}</SectionTitle>
-      <ul className="space-y-0.5">
-        {online.map((m) => (
-          <li key={m.user.id} className="flex items-center gap-2.5 rounded-item px-1.5 py-1">
-            <span className="relative">
-              <Avatar name={m.user.display_name} url={m.user.avatar_url} size={28} />
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-main bg-success" />
-            </span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-sm font-medium">{m.user.display_name}</span>
-              {roomOf.get(m.user.id) && (
-                <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
-                  <Volume2 size={11} />
-                  {roomOf.get(m.user.id)}
-                </span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <SectionTitle>
+        Membros — {onlineCount} de {server.members.length} online
+      </SectionTitle>
+      {online.map((g) => (
+        <div key={g.key} className="mb-3">
+          <h4 className="mb-0.5 truncate px-2 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">
+            {g.title} — {g.members.length}
+          </h4>
+          {g.members.map(row)}
+        </div>
+      ))}
+      {offline && (
+        <>
+          <button
+            type="button"
+            aria-expanded={showOffline}
+            onClick={() => setShowOffline((v) => !v)}
+            className="flex w-full items-center gap-1 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg-muted"
+          >
+            <ChevronDown size={12} className={`transition-transform ${showOffline ? '' : '-rotate-90'}`} />
+            Offline — {offline.members.length}
+          </button>
+          {showOffline && offline.members.map(row)}
+        </>
+      )}
+      {profile.popover}
     </section>
   )
 }
