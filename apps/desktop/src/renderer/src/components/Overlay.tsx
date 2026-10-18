@@ -29,7 +29,8 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
   const phase = useVoice((s) => s.phase)
   const inCall = phase === 'connected' || phase === 'reconnecting'
   const editing = state?.editing ?? false
-  const wanted = !!state?.prefs.enabled && (inCall || editing)
+  const notice = state?.notice ?? null
+  const wanted = !!state?.prefs.enabled && (inCall || editing || notice !== null)
   const [popup, setPopup] = useState<Window | null>(null)
   // Bumped when the window is closed from outside, to open a new one if it's still wanted.
   const [reopen, setReopen] = useState(0)
@@ -64,7 +65,7 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
   if (!popup || !state) return null
   return createPortal(
     <LucideProvider strokeWidth={1.8}>
-      <OverlayView me={me} popup={popup} editing={editing} />
+      <OverlayView me={me} popup={popup} editing={editing} notice={notice} />
     </LucideProvider>,
     popup.document.body
   )
@@ -113,7 +114,7 @@ interface Person {
 }
 
 /** People to show: everyone in the call, or a sample while placing the overlay outside a call. */
-function usePeople(me: Me, onlySpeaking: boolean, showCameras: boolean): { people: Person[]; preview: boolean } {
+function usePeople(me: Me, editing: boolean, onlySpeaking: boolean, showCameras: boolean): { people: Person[]; preview: boolean } {
   useVoice((s) => s.version) // re-read the room on participant/track changes
   const speaking = useVoice((s) => s.speaking)
   const ownMuted = useVoice((s) => s.muted || !s.allowed.mic)
@@ -137,6 +138,7 @@ function usePeople(me: Me, onlySpeaking: boolean, showCameras: boolean): { peopl
   }, [nextDrop])
 
   if (!info) {
+    if (!editing) return { preview: false, people: [] }
     return {
       preview: true,
       people: [
@@ -172,9 +174,9 @@ function anchorOf(popup: Window): { right: boolean; bottom: boolean } {
   }
 }
 
-function OverlayView({ me, popup, editing }: { me: Me; popup: Window; editing: boolean }): ReactNode {
+function OverlayView({ me, popup, editing, notice }: { me: Me; popup: Window; editing: boolean; notice: string | null }): ReactNode {
   const prefs = useOverlay((s) => s.state!.prefs)
-  const { people, preview } = usePeople(me, prefs.onlySpeaking, prefs.showCameras)
+  const { people, preview } = usePeople(me, editing, prefs.onlySpeaking, prefs.showCameras)
   const [, setMoved] = useState(0)
   const scale = SCALE[prefs.size]
   const anchor = anchorOf(popup)
@@ -250,6 +252,12 @@ function OverlayView({ me, popup, editing }: { me: Me; popup: Window; editing: b
           >
             Concluir
           </button>
+        </div>
+      )}
+
+      {notice && !editing && (
+        <div role="status" className="max-w-full rounded-control bg-panel/95 px-3 py-1.5 text-[0.85em] font-medium text-fg shadow-lg">
+          {notice}
         </div>
       )}
 

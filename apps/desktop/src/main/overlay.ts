@@ -62,6 +62,10 @@ let active = false
 let mainFocused = true
 let shortcutsPaused = false
 let failedShortcuts: string[] = []
+let notice: string | null = null
+let noticeTimer: NodeJS.Timeout | null = null
+/** Set while "Overlay escondido" shows: when it ends, the overlay turns off. */
+let pendingOff = false
 let saveTimer: NodeJS.Timeout | null = null
 let notify: (state: OverlayState) => void = () => {}
 
@@ -136,7 +140,7 @@ function saveSoon(): void {
 }
 
 export function getState(): OverlayState {
-  return { prefs, editing, failedShortcuts }
+  return { prefs, editing, failedShortcuts, notice }
 }
 
 function changed(): void {
@@ -166,6 +170,8 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
     }
   }
   prefs = next
+  // Turned on or off on purpose: a pending "escondido" no longer applies.
+  if (patch.enabled !== undefined) pendingOff = false
   if (shortcutsChanged) registerShortcuts()
   if (!prefs.enabled) editing = false
   await savePrefs()
@@ -191,11 +197,50 @@ function registerShortcuts(): void {
   failedShortcuts = []
   if (shortcutsPaused) return
   const bindings: [string, () => void][] = [
-    [prefs.toggleShortcut, () => void setPrefs({ enabled: !prefs.enabled })],
+    [prefs.toggleShortcut, toggleFromShortcut],
     [prefs.editShortcut, () => setEditing(!editing)]
   ]
   for (const [accelerator, callback] of bindings) {
     if (!tryRegister(accelerator, callback)) failedShortcuts.push(accelerator)
+  }
+}
+
+const NOTICE_MS = 2200
+
+/** Shows a message on the overlay for a moment (even outside a call), then runs `after`. */
+function flash(text: string, after?: () => void): void {
+  if (noticeTimer) clearTimeout(noticeTimer)
+  notice = text
+  apply()
+  changed()
+  noticeTimer = setTimeout(() => {
+    noticeTimer = null
+    notice = null
+    after?.()
+    apply()
+    changed()
+  }, NOTICE_MS)
+}
+
+/** The show/hide shortcut. It says what it did, since a hidden overlay looks the same as a broken one. */
+function toggleFromShortcut(): void {
+  const key = prefs.toggleShortcut.replace('Control', 'Ctrl')
+  if (pendingOff) {
+    // Pressed again while "escondido" was showing: keep it on.
+    pendingOff = false
+    flash('Overlay visível')
+  } else if (prefs.enabled) {
+    pendingOff = true
+    if (editing) setEditing(false)
+    flash(`Overlay escondido · ${key} mostra de novo`, () => {
+      if (!pendingOff) return
+      pendingOff = false
+      void setPrefs({ enabled: false })
+    })
+  } else {
+    void setPrefs({ enabled: true }).then(() =>
+      flash(active ? 'Overlay visível' : 'Overlay ligado · aparece quando você estiver numa chamada')
+    )
   }
 }
 
@@ -232,7 +277,7 @@ function placed(bounds: OverlayBounds | null): OverlayBounds {
 function apply(): void {
   if (!win || win.isDestroyed()) return
   // Hidden while the app itself is in front: it's for when you're in another window (the game).
-  const show = prefs.enabled && (editing || (active && !mainFocused))
+  const show = prefs.enabled && (editing || notice !== null || (active && !mainFocused))
   if (!show) {
     if (win.isVisible()) win.hide()
     return

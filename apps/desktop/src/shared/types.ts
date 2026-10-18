@@ -73,6 +73,8 @@ export interface OverlayState {
   editing: boolean
   /** Shortcuts another program already took (they don't work until changed). */
   failedShortcuts: string[]
+  /** A short message on the overlay after a shortcut (e.g. "Overlay escondido"), or null. */
+  notice: string | null
 }
 
 /** API exposed to the renderer as `window.aureum` by the preload script. */
