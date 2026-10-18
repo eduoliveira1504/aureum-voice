@@ -15,6 +15,7 @@ import { create } from 'zustand'
 
 import { api } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
+import { useAppearance } from './appearance'
 import { NOISE_FILTER, NoiseFilter } from '../lib/noiseFilter'
 import { sendRealtime } from '../lib/realtime'
 import { startThumbnails } from '../lib/thumbnail'
@@ -90,6 +91,9 @@ interface VoiceStore {
   version: number
   /** Volume (0..1) chosen for each participant's screen-share audio; kept while tiles move around. */
   screenVolume: Record<string, number>
+  /** Muted / deafened by a moderator in the current server room. */
+  serverMuted: boolean
+  serverDeafened: boolean
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -100,6 +104,8 @@ interface VoiceStore {
   startScreenShare(options: ScreenShareOptions): Promise<void>
   stopScreenShare(): Promise<void>
   setScreenVolume(identity: string, volume: number): void
+  /** A moderator changed our server mute / deafen (from our own voice state). */
+  setModeration(muted: boolean, deafened: boolean): void
   applyDevicePrefs(): Promise<void>
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
@@ -112,13 +118,45 @@ let room: Room | null = null
 let shareTracks: MediaStreamTrack[] = []
 // Stops the overview thumbnails of our screen share.
 let stopThumbnails: () => void = () => {}
-// Remote audio is played through elements we own, so deafen is just `muted` on them.
+// Remote audio tracks get attached to elements we own, but play through the room's Web Audio
+// graph (webAudioMix): a gain per track, which allows the 0-200% volumes. See applyVolumes.
 const audioSink = document.createElement('div')
 audioSink.hidden = true
 document.body.appendChild(audioSink)
 
 export function getRoom(): Room | null {
   return room
+}
+
+// What the room's token lets us publish; `allowed` also takes a server mute into account.
+let tokenAllowed: Publishable = ANYTHING
+
+/** How loud a remote audio track plays: 0 while deafened (by us or the server), else the
+ * screen-share volume for stream audio, or the person's volume (0-2) unless muted locally. */
+function volumeFor(identity: string, source: Track.Source): number {
+  const { deafened, serverDeafened, screenVolume } = useVoice.getState()
+  if (deafened || serverDeafened) return 0
+  if (source === Track.Source.ScreenShareAudio) return screenVolume[identity] ?? 1
+  const audio = useAppearance.getState().settings.user_audio[identity]
+  return audio?.muted ? 0 : (audio?.volume ?? 100) / 100
+}
+
+function applyVolumes(): void {
+  for (const p of room?.remoteParticipants.values() ?? []) {
+    for (const pub of p.audioTrackPublications.values()) {
+      ;(pub.track as RemoteAudioTrack | undefined)?.setVolume(volumeFor(p.identity, pub.source))
+    }
+  }
+}
+
+// Volumes set on another PC (or in a menu) apply right away.
+useAppearance.subscribe((s, prev) => s.settings.user_audio !== prev.settings.user_audio && applyVolumes())
+
+/** Sets how loud someone sounds to us (0-200%) and/or mutes them just for us. Saved per user. */
+export function setUserAudio(userId: string, change: { volume?: number; muted?: boolean }): void {
+  const cur = useAppearance.getState().settings.user_audio[userId] ?? { volume: 100, muted: false }
+  const next = { ...cur, ...change }
+  useAppearance.getState().updateEntry('user_audio', userId, next.volume === 100 && !next.muted ? null : next)
 }
 
 // Test builds (electron-vite build --mode test) expose internals to end-to-end scripts.
@@ -144,7 +182,20 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     stopThumbnails()
     shareTracks.forEach((t) => t.stop())
     shareTracks = []
-    set({ phase: 'idle', serverId: null, channelId: null, camera: false, screen: false, allowed: ANYTHING, speaking: [], screenVolume: {}, error })
+    tokenAllowed = ANYTHING
+    set({
+      phase: 'idle',
+      serverId: null,
+      channelId: null,
+      camera: false,
+      screen: false,
+      allowed: ANYTHING,
+      serverMuted: false,
+      serverDeafened: false,
+      speaking: [],
+      screenVolume: {},
+      error
+    })
     bump()
   }
 
@@ -152,13 +203,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     const isCurrent = (): boolean => room === r
     r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant) => {
       if (track.kind === Track.Kind.Audio) {
-        const el = track.attach()
-        el.muted = get().deafened
-        audioSink.appendChild(el)
-        const volume = get().screenVolume[participant.identity]
-        if (track.source === Track.Source.ScreenShareAudio && volume !== undefined) {
-          ;(track as RemoteAudioTrack).setVolume(volume)
-        }
+        audioSink.appendChild(track.attach())
+        ;(track as RemoteAudioTrack).setVolume(volumeFor(participant.identity, track.source))
       }
       bump()
     })
@@ -215,6 +261,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     speaking: [],
     version: 0,
     screenVolume: {},
+    serverMuted: false,
+    serverDeafened: false,
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -242,7 +290,9 @@ export const useVoice = create<VoiceStore>()((set, get) => {
           deviceId: prefs.videoInput || undefined,
           resolution: VideoPresets.h720.resolution
         },
-        audioOutput: prefs.audioOutput ? { deviceId: prefs.audioOutput } : undefined
+        audioOutput: prefs.audioOutput ? { deviceId: prefs.audioOutput } : undefined,
+        // Remote audio through Web Audio gains: per-person volume can go above 100%.
+        webAudioMix: true
       })
       room = r
       wire(r)
@@ -251,7 +301,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         const { token, url } = await api<{ token: string; url: string }>(`/channels/${channelId}/voice/token`, {
           method: 'POST'
         })
-        set({ allowed: publishableIn(token) })
+        tokenAllowed = publishableIn(token)
+        set({ allowed: tokenAllowed })
         await r.connect(url, token)
       } catch {
         if (room === r) {
@@ -264,6 +315,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
       set({ phase: 'connected' })
       announce()
+      // With webAudioMix the output device is set on the room's AudioContext.
+      if (prefs.audioOutput) await r.switchActiveDevice('audiooutput', prefs.audioOutput).catch(() => {})
       try {
         await r.localParticipant.setMicrophoneEnabled(!get().muted && !get().deafened && get().allowed.mic)
         await syncNoiseFilter(r)
@@ -287,14 +340,13 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       // Unmuting while deafened also undeafens, like Discord.
       const nextMuted = deafened ? false : !muted
       set({ muted: nextMuted, deafened: false })
-      audioSink.querySelectorAll('audio').forEach((el) => (el.muted = false))
+      applyVolumes()
       await applyMic()
     },
 
     toggleDeafen: () => {
-      const deafened = !get().deafened
-      set({ deafened })
-      audioSink.querySelectorAll('audio').forEach((el) => (el.muted = deafened))
+      set({ deafened: !get().deafened })
+      applyVolumes()
       void applyMic()
     },
 
@@ -404,7 +456,15 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     setScreenVolume: (identity, volume) => {
       set((s) => ({ screenVolume: { ...s.screenVolume, [identity]: volume } }))
-      screenAudioOf(identity)?.setVolume(volume)
+      applyVolumes()
+    },
+
+    setModeration: (serverMuted, serverDeafened) => {
+      if (serverMuted === get().serverMuted && serverDeafened === get().serverDeafened) return
+      set({ serverMuted, serverDeafened, allowed: { ...tokenAllowed, mic: tokenAllowed.mic && !serverMuted && !serverDeafened } })
+      applyVolumes()
+      // Lifted: the mic comes back as the user had it (and our state is re-announced).
+      void applyMic()
     },
 
     applyDevicePrefs: async () => {

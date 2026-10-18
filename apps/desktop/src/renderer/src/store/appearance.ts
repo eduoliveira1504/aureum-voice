@@ -20,7 +20,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   closed_tabs: [],
   sidebar_collapsed: false,
   members_open: false,
-  panel_layouts: {}
+  panel_layouts: {},
+  user_audio: {},
+  column_sizes: {},
+  muted_places: []
 }
 
 const CACHE_KEY = 'aureum.appearance'
@@ -30,9 +33,11 @@ const SURFACES = ['--bg-rail', '--bg-panel', '--bg-main', '--bg-elevated'] as co
 const NEUTRALS = [...SURFACES, '--border', '--text', '--text-muted'] as const
 
 type Resolved = 'dark' | 'light'
-type Patch = Partial<Omit<UserSettings, 'sounds' | 'panel_layouts'>>
-/** What goes to PATCH /users/me/settings; panel layouts only for the servers that changed. */
-type Pending = Patch & { panel_layouts?: Record<string, PanelLayout> }
+/** Settings the server merges key by key: only changed keys are sent, null removes one. */
+type Merged = 'panel_layouts' | 'user_audio' | 'column_sizes'
+type Patch = Partial<Omit<UserSettings, 'sounds' | Merged>>
+/** What goes to PATCH /users/me/settings; merged settings only with the keys that changed. */
+type Pending = Patch & { [K in Merged]?: Record<string, UserSettings[K][string] | null> }
 
 interface AppearanceState {
   settings: UserSettings
@@ -44,6 +49,8 @@ interface AppearanceState {
   update(patch: Patch): void
   /** Same, for one server's panel layout (the server merges layouts per server). */
   updateLayout(serverId: string, layout: PanelLayout): void
+  /** Same, for one key of a merged setting; null removes it. */
+  updateEntry<K extends Merged>(field: K, key: string, value: UserSettings[K][string] | null): void
 }
 
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -127,10 +134,15 @@ export const useAppearance = create<AppearanceState>()((set, get) => ({
     scheduleFlush()
   },
 
-  updateLayout: (serverId, layout) => {
+  updateLayout: (serverId, layout) => get().updateEntry('panel_layouts', serverId, layout),
+
+  updateEntry: (field, key, value) => {
     const settings = get().settings
-    set({ settings: { ...settings, panel_layouts: { ...settings.panel_layouts, [serverId]: layout } } })
-    pending = { ...pending, panel_layouts: { ...pending?.panel_layouts, [serverId]: layout } }
+    const entries = { ...settings[field] } as Record<string, unknown>
+    if (value === null) delete entries[key]
+    else entries[key] = value
+    set({ settings: { ...settings, [field]: entries } })
+    pending = { ...pending, [field]: { ...pending?.[field], [key]: value } }
     scheduleFlush()
   }
 }))

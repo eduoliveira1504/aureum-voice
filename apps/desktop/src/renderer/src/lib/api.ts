@@ -57,6 +57,17 @@ export interface UserSettings {
   members_open: boolean
   /** Open panels per server id. */
   panel_layouts: Record<string, PanelLayout>
+  /** How loud each person sounds in calls (volume %, 0-200) and local mutes, by user id. */
+  user_audio: Record<string, UserAudio>
+  /** Widths in px of resizable columns, by column key. */
+  column_sizes: Record<string, number>
+  /** Silenced channels and servers: no unread badges (mentions still count). */
+  muted_places: string[]
+}
+
+export interface UserAudio {
+  volume: number
+  muted: boolean
 }
 
 export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
@@ -99,6 +110,11 @@ export interface Member {
   /** Strongest first; @everyone isn't listed. */
   role_ids: string[]
   joined_at: string
+  /** Shown instead of the display name inside this server. */
+  nickname: string | null
+  /** Server mute / deafen by a moderator. */
+  voice_muted: boolean
+  voice_deafened: boolean
   status: Presence
   online: boolean
 }
@@ -167,6 +183,9 @@ export interface VoiceState {
   deafened: boolean
   camera: boolean
   screen: boolean
+  /** Set by a moderator (server rooms only). */
+  server_muted?: boolean
+  server_deafened?: boolean
 }
 
 /** The signed-in user's read state of a text channel. */

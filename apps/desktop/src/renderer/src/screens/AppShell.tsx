@@ -2,6 +2,7 @@ import { useEffect, useMemo, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
+import { ContextMenuHost } from '../components/ContextMenu'
 import { IncomingCall, useNoAnswerHangup } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
@@ -103,6 +104,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <CallPip meId={user.id} />
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />
+      <ContextMenuHost />
     </div>
   )
 }

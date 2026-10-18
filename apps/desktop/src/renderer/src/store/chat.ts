@@ -294,6 +294,9 @@ export const useChat = create<ChatState>()((set, get) => {
             upsertMember(data.server_id, data.member)
           }
           break
+        case 'server.member.updated':
+          upsertMember(data.server_id, data.member)
+          break
         case 'server.member.left':
           if (data.user_id === meId) removeServer(data.server_id)
           else patchServer(data.server_id, (s) => ({ ...s, members: s.members.filter((m) => m.user.id !== data.user_id) }))
@@ -317,11 +320,20 @@ export const useChat = create<ChatState>()((set, get) => {
           break
         }
 
-        case 'voice.state':
+        case 'voice.state': {
           patchServer(data.server_id, (s) => ({
             ...s,
             voice_states: [...s.voice_states.filter((v) => v.user_id !== data.user_id), ...(data.state ? [data.state] : [])]
           }))
+          const voice = useVoice.getState()
+          if (data.user_id === meId && data.state && data.server_id && voice.serverId === data.server_id) {
+            voice.setModeration(!!data.state.server_muted, !!data.state.server_deafened)
+          }
+          break
+        }
+        case 'voice.moved':
+          // A moderator moved us to another room of the server.
+          if (useVoice.getState().serverId === data.server_id) void useVoice.getState().join(data.server_id, data.channel_id)
           break
 
         case 'presence.updated':

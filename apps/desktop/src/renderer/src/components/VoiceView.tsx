@@ -17,13 +17,15 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { contextMenu } from './ContextMenu'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
+import { LocallyMuted, UserMenu } from './UserMenu'
 
 type Layout = 'grid' | 'focus'
 
@@ -208,7 +210,7 @@ function CallStage({
     return tile.kind === 'screen' ? (
       <ScreenTile key={tile.key} {...props} />
     ) : (
-      <ParticipantTile key={tile.key} {...props} speaking={speaking.includes(tile.identity)} />
+      <ParticipantTile key={tile.key} {...props} speaking={speaking.includes(tile.identity)} meId={meId} />
     )
   }
 
@@ -261,6 +263,7 @@ function TileFrame({
   size,
   label,
   onClick,
+  onContextMenu,
   ring = false,
   dark = false,
   children
@@ -268,6 +271,7 @@ function TileFrame({
   size: TileSize
   label: string
   onClick?: () => void
+  onContextMenu?: (e: MouseEvent) => void
   ring?: boolean
   dark?: boolean
   children: ReactNode
@@ -279,6 +283,7 @@ function TileFrame({
       tabIndex={onClick ? 0 : undefined}
       aria-label={onClick ? `Colocar ${label} em foco` : label}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onKeyDown={(e) => onClick && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick())}
       className={`group relative flex items-center justify-center overflow-hidden rounded-control transition-shadow ${shape} ${
         dark ? 'bg-scrim' : 'bg-panel'
@@ -289,14 +294,21 @@ function TileFrame({
   )
 }
 
-function ParticipantTile({ identity, user, isLocal, size, onClick, speaking }: TileProps & { speaking: boolean }): ReactNode {
+function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meId }: TileProps & { speaking: boolean; meId: string }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
   const name = user?.display_name ?? participant?.name ?? 'Alguém'
   const micMuted = !participant?.isMicrophoneEnabled
   const camera = cameraTrackOf(identity)
 
   return (
-    <TileFrame size={size} label={name} onClick={onClick} ring={speaking}>
+    <TileFrame
+      size={size}
+      label={name}
+      onClick={onClick}
+      // Right click: volume, local mute and the rest of the person's menu.
+      onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} />) : undefined}
+      ring={speaking}
+    >
       {camera ? (
         <VideoTrackView track={camera} mirror={isLocal} fit={size === 'focus' ? 'contain' : 'cover'} />
       ) : (
@@ -304,6 +316,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking }: T
       )}
       <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
         {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
+        {!isLocal && <LocallyMuted userId={identity} />}
         <span className="truncate">{name}</span>
       </div>
     </TileFrame>
