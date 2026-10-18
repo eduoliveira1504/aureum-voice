@@ -90,3 +90,74 @@ async def test_profile_changes_reach_server_members_live(client: AsyncClient) ->
 
         await upload(friend, "avatar", PNG)
         assert (await next_event(ws, "user.updated"))["avatar_url"].startswith("/api/media/avatars/")
+
+
+async def test_rich_profile_fields(client: AsyncClient) -> None:
+    user = await make_user(client, "rich")
+    body = {
+        "pronouns": "ele/dele",
+        "custom_status": {"text": "Fazendo a fase 2", "emoji": "🛠️"},
+        "avatar_frame": "amethyst",
+        "favorite_song": {"title": "Aquarela", "artist": "Toquinho", "url": "https://example.com/aquarela"},
+        "links": [{"label": "GitHub", "url": "https://github.com/rich"}],
+    }
+    res = await user.patch("/users/me", body)
+    assert res.status_code == 200, res.text
+    me = res.json()
+    assert me["pronouns"] == "ele/dele"
+    assert me["custom_status"] == {"text": "Fazendo a fase 2", "emoji": "🛠️", "expires_at": None}
+    assert me["avatar_frame"] == "amethyst"
+    assert me["favorite_song"]["artist"] == "Toquinho"
+    assert me["links"] == [{"label": "GitHub", "url": "https://github.com/rich"}]
+    assert me["badges"] == []
+
+    other = await make_user(client, "viewer")
+    assert (await other.get(f"/users/{user.id}")).json()["avatar_frame"] == "amethyst"
+
+    cleared = (await user.patch("/users/me", {"custom_status": None, "avatar_frame": None, "links": None, "pronouns": ""})).json()
+    assert cleared["custom_status"] is None
+    assert cleared["avatar_frame"] == "none"
+    assert cleared["links"] == []
+    assert cleared["pronouns"] is None
+
+
+async def test_profile_validation(client: AsyncClient) -> None:
+    user = await make_user(client, "strict")
+    link = {"label": "x", "url": "https://example.com"}
+    bad = [
+        {"links": [link] * 6},
+        {"links": [{"label": "x", "url": "http://example.com"}]},
+        {"links": [{"label": "x", "url": "javascript:alert(1)"}]},
+        {"favorite_song": {"title": "t", "artist": "a", "url": "ftp://example.com"}},
+        {"favorite_song": {"title": "", "artist": "a"}},
+        {"custom_status": {"text": ""}},
+        {"avatar_frame": "rainbow"},
+        {"badges": ["founder"]},  # ignored: badges aren't user-editable
+    ]
+    for body in bad[:-1]:
+        assert (await user.patch("/users/me", body)).status_code == 422, body
+    res = await user.patch("/users/me", bad[-1])
+    assert res.status_code == 200 and res.json()["badges"] == []
+
+
+async def test_expired_custom_status_is_hidden(client: AsyncClient) -> None:
+    user = await make_user(client, "brb")
+    past, future = "2020-01-01T00:00:00Z", "2999-01-01T00:00:00Z"
+    res = await user.patch("/users/me", {"custom_status": {"text": "volto já", "expires_at": future}})
+    assert res.json()["custom_status"]["text"] == "volto já"
+    res = await user.patch("/users/me", {"custom_status": {"text": "volto já", "expires_at": past}})
+    assert res.json()["custom_status"] is None
+    assert (await user.get("/users/me")).json()["custom_status"] is None
+
+
+async def test_badges_are_granted_by_the_cli(client: AsyncClient) -> None:
+    from app import cli
+
+    user = await make_user(client, "pioneer")
+    assert await cli.badges("grant", "pioneer", "beta") == 0
+    assert await cli.badges("grant", "pioneer", "founder") == 0
+    assert (await user.get("/users/me")).json()["badges"] == ["founder", "beta"]
+    assert await cli.badges("revoke", "pioneer", "beta") == 0
+    assert (await user.get("/users/me")).json()["badges"] == ["founder"]
+    assert await cli.badges("grant", "pioneer", "admin") == 2
+    assert await cli.badges("grant", "nobody", "beta") == 1

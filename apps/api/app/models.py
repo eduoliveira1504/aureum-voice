@@ -105,7 +105,16 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(512))
     banner_url: Mapped[str | None] = mapped_column(String(512))
     bio: Mapped[str | None] = mapped_column(String(190))
-    accent_color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb"
+    accent_color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb", the profile card color
+    pronouns: Mapped[str | None] = mapped_column(String(40))
+    # {"text", "emoji", "expires_at"}; shown as a bubble next to the avatar until it expires.
+    custom_status: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # "none", "accent" or a preset key (see schemas.AVATAR_FRAMES).
+    avatar_frame: Mapped[str] = mapped_column(String(16), default="none", server_default="none", nullable=False)
+    favorite_song: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # {"title", "artist", "url"}
+    links: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    # Granted by the system (python -m app.cli badges), never by the user (see schemas.BADGES).
+    badges: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     created_at: Mapped[datetime] = _created_at()
 
 

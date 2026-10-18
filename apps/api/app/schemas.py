@@ -1,8 +1,19 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, StringConstraints, computed_field
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.models import DEFAULT_ACCENT, ChannelType, OverrideTarget, Theme, UserStatus
 from app.voice import VoiceState
@@ -41,6 +52,51 @@ class TokenPair(BaseModel):
     token_type: str = "bearer"
 
 
+def _https_only(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname:
+        raise ValueError("Only https:// links are allowed")
+    return url
+
+
+HttpsUrl = Annotated[str, StringConstraints(strip_whitespace=True, max_length=512), AfterValidator(_https_only)]
+ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+
+# Avatar frames: none, the profile color, or a fixed preset (colors live in the app).
+AvatarFrame = Literal["none", "accent", "gold", "amethyst", "emerald", "ember", "sapphire"]
+# Badges are granted by the system (python -m app.cli badges), never chosen by the user.
+BADGES = ("founder", "beta")
+MAX_LINKS = 5
+
+
+class CustomStatus(BaseModel):
+    """Status bubble next to the avatar: optional emoji plus text, until it expires."""
+
+    text: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)] = ""
+    emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=16)] | None = None
+    expires_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "CustomStatus":
+        if not self.text and not self.emoji:
+            raise ValueError("A status needs text or an emoji")
+        return self
+
+    def expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at <= datetime.now(UTC)
+
+
+class FavoriteSong(BaseModel):
+    title: ShortText
+    artist: ShortText
+    url: HttpsUrl | None = None
+
+
+class ProfileLink(BaseModel):
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
+    url: HttpsUrl
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,7 +107,19 @@ class UserPublic(BaseModel):
     banner_url: str | None
     bio: str | None
     accent_color: str | None
+    pronouns: str | None = None
+    custom_status: CustomStatus | None = None
+    avatar_frame: str = "none"
+    favorite_song: FavoriteSong | None = None
+    links: list[ProfileLink] = []
+    badges: list[str] = []
     created_at: datetime
+
+    @field_validator("custom_status", mode="after")
+    @classmethod
+    def _hide_expired(cls, value: CustomStatus | None) -> CustomStatus | None:
+        # Expired statuses stay in the database until replaced; nobody sees them.
+        return None if value is not None and value.expired() else value
 
 
 class UserMe(UserPublic):
@@ -72,9 +140,21 @@ class WithPresence(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    """Profile fields; an explicit null clears a field (except display_name)."""
+
     display_name: DisplayName | None = None
     bio: Annotated[str, Field(max_length=190)] | None = None
     accent_color: AccentColor | None = None
+    pronouns: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None = None
+    custom_status: CustomStatus | None = None
+    avatar_frame: AvatarFrame | None = None
+    favorite_song: FavoriteSong | None = None
+    links: Annotated[list[ProfileLink], Field(max_length=MAX_LINKS)] | None = None
+
+    @field_validator("pronouns", mode="after")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value or None
 
 
 SoundEvent = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z_.]{0,31}$")]

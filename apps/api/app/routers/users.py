@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
@@ -19,6 +19,8 @@ MERGED_SETTINGS = {
     "column_sizes": 30,
 }
 ImageKind = Literal["avatar", "banner"]
+# Profile fields where null means "back to the default".
+NOT_NULL_PROFILE: dict[str, Any] = {"avatar_frame": "none", "links": []}
 
 
 async def _broadcast_profile(session: SessionDep, user: User) -> None:
@@ -34,9 +36,11 @@ async def get_me(user: CurrentUser) -> User:
 
 @router.patch("/me", response_model=UserMe)
 async def update_me(body: UserUpdate, user: CurrentUser, session: SessionDep) -> User:
-    for field, value in body.model_dump(exclude_unset=True).items():
+    for field, value in body.model_dump(mode="json", exclude_unset=True).items():
         if field == "display_name" and value is None:
             continue  # display_name is required; ignore explicit nulls
+        if value is None and field in NOT_NULL_PROFILE:
+            value = NOT_NULL_PROFILE[field]
         setattr(user, field, value)
     await session.commit()
     await _broadcast_profile(session, user)
