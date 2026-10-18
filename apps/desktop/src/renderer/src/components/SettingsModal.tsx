@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { useVoice } from '../store/voice'
+import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
 import { Modal } from './Modal'
 import { ProfileSettings } from './ProfileSettings'
@@ -30,7 +31,7 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'appearance' | 'voice'
+type Tab = 'profile' | 'activity' | 'appearance' | 'voice'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -42,6 +43,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {(
           [
             ['profile', 'Meu perfil'],
+            ['activity', 'Atividade'],
             ['appearance', 'Aparência'],
             ['voice', 'Voz e vídeo']
           ] as const
@@ -59,6 +61,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
 
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} />}
+        {tab === 'activity' && <ActivitySettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}
       </div>

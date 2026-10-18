@@ -20,8 +20,9 @@ const MAX_NAME = 64
 const DEFAULT_PREFS: GamePrefs = { enabled: true, custom: [], hidden: [], manual: null }
 
 // Lists processes that have a main window: games always do, background services don't.
+// Output is forced to UTF-8 so accented window titles survive.
 const LIST_WINDOWS =
-  'Get-Process | Where-Object MainWindowTitle | Select-Object ProcessName,MainWindowTitle | ConvertTo-Json -Compress'
+  '[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Process | Where-Object MainWindowTitle | Select-Object ProcessName,MainWindowTitle | ConvertTo-Json -Compress'
 
 const prefsPath = (): string => join(app.getPath('userData'), 'games.json')
 

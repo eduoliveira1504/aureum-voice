@@ -1,4 +1,4 @@
-import { Bell, Check, Circle, House, LogOut, PhoneMissed, Plus, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
+import { Bell, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -11,7 +11,9 @@ import { contextMenu } from './ContextMenu'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { ServerMenu } from './PlaceMenus'
+import { CustomStatusModal } from './CustomStatus'
 import { ProfilePopover } from './ProfileCard'
+import { StatusBubble } from './profileBits'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
 
@@ -435,6 +437,7 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
   const setStatus = (value: UserStatus): void => useAppearance.getState().update({ status: value })
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [statusEditor, setStatusEditor] = useState(false)
   const [profile, setProfile] = useState<DOMRect | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
@@ -464,6 +467,7 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
           <div className="px-2 pb-2 pt-1">
             <div className="truncate font-semibold">{me.display_name}</div>
             <div className="truncate text-xs text-fg-subtle">@{me.username}</div>
+            <StatusBubble user={me} tail="left" size="xs" className="ml-1 mt-1.5" />
           </div>
           <MenuItem
             icon={UserRound}
@@ -471,6 +475,14 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
             onClick={() => {
               setOpen(false)
               setProfile(ref.current?.getBoundingClientRect() ?? null)
+            }}
+          />
+          <MenuItem
+            icon={MessageSquareText}
+            label={me.custom_status ? 'Editar status personalizado' : 'Definir status personalizado'}
+            onClick={() => {
+              setOpen(false)
+              setStatusEditor(true)
             }}
           />
           <div className="my-1 h-px bg-line" />
@@ -491,10 +503,11 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
         </div>
       )}
       {settings && <SettingsModal onClose={() => setSettings(false)} />}
+      {statusEditor && <CustomStatusModal me={me} onClose={() => setStatusEditor(false)} />}
       {profile && (
         <ProfilePopover
           user={me}
-          anchor={new DOMRect(profile.right - 300 - 8, profile.bottom + 8, 0, 0)}
+          anchor={new DOMRect(profile.right - 340 - 8, profile.bottom + 8, 0, 0)}
           onClose={() => setProfile(null)}
         />
       )}
