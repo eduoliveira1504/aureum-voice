@@ -74,6 +74,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Automatic "Jogando X": the app spots open games from a bundled list plus games the user adds, and sends
   only the game's name. It can be turned off, games can be hidden, and a manual activity can be set
   ([ADR 0010](docs/decisions/0010-rich-profiles-and-game-activity.md))
+- Add-ons that run in their own channels. Adding one takes the Manage add-ons permission, and each
+  add-on is an isolated module in the API (its own router, tables and Alembic branch) and in the app.
+  The first is a deliberately small example, a shared notes page with autosave and conflict warnings;
+  the Kanban board and "watch together" are next ([ADR 0013](docs/decisions/0013-addon-framework.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](docs/decisions/0003-design-tokens-and-themes.md))
 
@@ -107,6 +111,10 @@ flowchart LR
   published to Redis and fanned out to each user's WebSocket connections, so the API can scale past one
   process. Presence and voice state live in Redis with heartbeats and TTLs. Voice state is kept per
   scope: a server's rooms, or a DM/group's private call, so both use the same voice flow.
+- **Add-ons**: each one is a package in `apps/api/app/addons/<key>` and a folder in
+  `apps/desktop/src/renderer/src/addons/<key>`. Add-on code reaches channels only through a shared
+  helper that checks permissions, so add-ons never reimplement access control. Their migrations are
+  separate Alembic branches, applied with `alembic upgrade heads`.
 - **Media**: the API issues a LiveKit token per voice channel (room = channel id, identity = user id) and
   returns the LiveKit URL with it, so the desktop app holds no media secrets. LiveKit can be self-hosted
   (included in compose) or LiveKit Cloud.
@@ -257,6 +265,6 @@ LiveKit URL from the API, and the API URL is only a build setting.
 
 - Role mentions: the permission already exists
 - The app's own sound set
-- Add-ons: a Kanban board and "watch together" first (shown as placeholders in the shell), later a
-  BlueMap Minecraft map and listening to music together
+- Add-ons: a Kanban board and "watch together" next (the framework is in place), later a BlueMap
+  Minecraft map and listening to music together
 - Sign in with Google and Discord (the `oauth_accounts` table is already in the schema)
