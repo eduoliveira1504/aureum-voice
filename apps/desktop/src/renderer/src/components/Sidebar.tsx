@@ -34,6 +34,7 @@ import { contextMenu } from './ContextMenu'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
+import { COLUMNS, useColumnWidth } from './Resizer'
 import { PickFriendsModal } from './socialModals'
 import { Avatar, CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
 import { LocallyMuted, UserMenu } from './UserMenu'
@@ -54,9 +55,11 @@ export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me })
   const setCollapsed = useNav((s) => s.setSidebarCollapsed)
   // A narrow window always shows icons only, without changing the saved choice.
   const collapsed = saved || narrow
+  const { width, handle } = useColumnWidth(COLUMNS.sidebar, 'right')
 
   return (
-    <aside className={`flex shrink-0 flex-col bg-panel transition-[width] ${collapsed ? 'w-[64px]' : 'w-60'}`}>
+    <aside style={collapsed ? undefined : { width }} className={`relative flex shrink-0 flex-col bg-panel ${collapsed ? 'w-[64px]' : ''}`}>
+      {!collapsed && handle}
       {server ? (
         <ServerPlaces server={server} me={me} collapsed={collapsed} onCollapse={narrow ? undefined : setCollapsed} />
       ) : (

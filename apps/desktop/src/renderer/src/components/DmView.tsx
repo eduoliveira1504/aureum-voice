@@ -7,6 +7,7 @@ import { dmPeer, dmTitle, RING_MS, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { ConfirmModal } from './modals'
+import { COLUMNS, useColumnWidth } from './Resizer'
 import { PickFriendsModal, RenameGroupModal } from './socialModals'
 import { Avatar, PRESENCE_LABEL, PresenceAvatar } from './ui'
 import { CallView } from './VoiceView'
@@ -24,6 +25,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(true)
+  const chatWidth = useColumnWidth(COLUMNS.callChat, 'left')
   const title = dmTitle(dm, me.id)
   const group = dm.type === 'group_dm'
   const call = dm.call
@@ -157,7 +159,12 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             meId={me.id}
             footer={<RingingLine dm={dm} meId={me.id} />}
           />
-          {chatOpen && <aside className="flex min-h-0 w-[min(380px,40%)] shrink-0 border-l border-line">{chat}</aside>}
+          {chatOpen && (
+            <aside style={{ width: chatWidth.width }} className="relative flex min-h-0 max-w-[60%] shrink-0 border-l border-line">
+              {chatWidth.handle}
+              {chat}
+            </aside>
+          )}
         </div>
       ) : (
         chat

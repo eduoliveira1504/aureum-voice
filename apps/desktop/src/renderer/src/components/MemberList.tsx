@@ -5,6 +5,7 @@ import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '
 import { roleColor } from '../lib/permissions'
 import { useReadableColor } from '../store/appearance'
 import { useProfilePopover } from './ProfileCard'
+import { COLUMNS, useColumnWidth } from './Resizer'
 import { PresenceAvatar } from './ui'
 
 interface Group {
@@ -38,9 +39,11 @@ function groupMembers(server: ServerDetail): Group[] {
 export function MemberList({ server, onClose }: { server: ServerDetail; onClose(): void }): ReactNode {
   const profile = useProfilePopover()
   const roles = new Map(server.roles.map((r) => [r.id, r]))
+  const { width, handle } = useColumnWidth(COLUMNS.members, 'left')
 
   return (
-    <aside aria-label="Membros" className="flex h-full w-60 shrink-0 flex-col bg-panel">
+    <aside aria-label="Membros" style={{ width }} className="relative flex h-full shrink-0 flex-col bg-panel">
+      {handle}
       <header className="flex h-12 shrink-0 items-center border-b border-line pl-4 pr-2">
         <h2 className="flex-1 font-display text-[15px] font-semibold">Membros</h2>
         <button

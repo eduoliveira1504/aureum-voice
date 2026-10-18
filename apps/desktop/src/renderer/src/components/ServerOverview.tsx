@@ -1,5 +1,5 @@
 import { Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
@@ -9,6 +9,7 @@ import { addonTab, channelTab, useNav } from '../store/nav'
 import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 import { InviteModal } from './modals'
+import { COLUMNS, useColumnWidth } from './Resizer'
 import { Avatar, ServerIcon } from './ui'
 
 const FEED_SIZE = 8
@@ -25,6 +26,7 @@ export function ServerOverview({ server, me }: { server: ServerDetail; me: Me })
   // While this is on screen, the API sends the server's screen-share thumbnails.
   useEffect(() => watchOverview(server.id), [server.id])
   const members = new Map(server.members.map((m) => [m.user.id, m]))
+  const side = useColumnWidth(COLUMNS.overviewSide, 'left')
 
   return (
     <div className="@container flex min-h-0 flex-1 overflow-y-auto">
@@ -34,7 +36,12 @@ export function ServerOverview({ server, me }: { server: ServerDetail; me: Me })
           <Rooms server={server} members={members} />
           <Addons serverId={server.id} />
         </div>
-        <aside className="flex shrink-0 flex-col gap-7 border-line p-5 @3xl:w-72 @3xl:border-l">
+        {/* Beside the rooms on wide panels (resizable), below them on narrow ones. */}
+        <aside
+          style={{ '--side-w': `${side.width}px` } as CSSProperties}
+          className="relative flex shrink-0 flex-col gap-7 border-line p-5 @3xl:w-(--side-w) @3xl:border-l"
+        >
+          <div className="hidden @3xl:block">{side.handle}</div>
           <News server={server} />
           <OnlineNow server={server} />
         </aside>
