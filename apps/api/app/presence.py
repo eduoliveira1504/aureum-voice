@@ -6,12 +6,19 @@ no input for a while, and the user shows as idle once all their connections are.
 users show as offline.
 
 `presence.updated` goes out only when the visible status actually changes.
+
+Activities ("Jogando X") live here too: each connection reports the game its PC is running
+(only the name), and the user's activity is the most recently started one. They're never
+stored in the database and vanish with the connection; offline/invisible users have none.
 """
 
+import json
 import logging
 import time
 import uuid
 from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 from app.access import audience_ids
 from app.config import get_settings
@@ -41,6 +48,21 @@ async def set_idle(user_id: uuid.UUID, connection_id: str, idle: bool) -> None:
 
 async def forget_connection(user_id: uuid.UUID, connection_id: str) -> None:
     await broker.redis.srem(_key("idle", user_id), connection_id)
+    await broker.redis.hdel(_key("activity", user_id), connection_id)
+
+
+async def set_activity(user_id: uuid.UUID, connection_id: str, name: str | None) -> None:
+    """Records what a connection is playing (None: nothing). The start time is kept while
+    the name stays the same, so "for 2h" survives repeated reports."""
+    key = _key("activity", user_id)
+    if name is None:
+        await broker.redis.hdel(key, connection_id)
+        return
+    previous = await broker.redis.hget(key, connection_id)
+    if previous is not None and json.loads(previous).get("name") == name:
+        return
+    activity = {"type": "playing", "name": name, "started_at": datetime.now(UTC).isoformat()}
+    await broker.redis.hset(key, connection_id, json.dumps(activity))
 
 
 def _visible(alive: list[str], idle: set[str], chosen: str | None) -> Presence:
@@ -75,6 +97,39 @@ async def statuses(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Presence]:
     }
 
 
+async def activities(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
+    """Visible activity per user, only for users who have one and aren't offline."""
+    ids = list(dict.fromkeys(user_ids))
+    if not ids:
+        return {}
+    try:
+        async with broker.redis.pipeline(transaction=False) as pipe:
+            for user_id in ids:
+                pipe.hvals(_key("activity", user_id))
+            raw = await pipe.execute()
+    except Exception:
+        log.exception("Failed to read activities")
+        return {}
+    found = {
+        user_id: max((json.loads(v) for v in values), key=lambda a: a["started_at"])
+        for user_id, values in zip(ids, raw, strict=True)
+        if values
+    }
+    visible = await statuses(found)
+    return {user_id: a for user_id, a in found.items() if visible[user_id] != "offline"}
+
+
+async def announce_activity(user_id: uuid.UUID) -> None:
+    """Sends activity.updated to everyone who sees the user, if their visible activity changed."""
+    activity = (await activities([user_id])).get(user_id)
+    encoded = json.dumps(activity)
+    if await broker.redis.getset(_key("last-activity", user_id), encoded) == encoded:
+        return
+    async with SessionLocal() as session:
+        recipients = await audience_ids(session, user_id)
+    await broker.publish("activity.updated", {"user_id": str(user_id), "activity": activity}, recipients)
+
+
 async def changed(user_id: uuid.UUID) -> Presence | None:
     """The user's visible status if it differs from the last one announced, else None."""
     status = (await statuses([user_id]))[user_id]
@@ -89,5 +144,8 @@ async def announce(user_id: uuid.UUID) -> None:
         return
     async with SessionLocal() as session:
         recipients = await audience_ids(session, user_id)
-    data = {"user_id": str(user_id), "status": status, "online": status != "offline"}
+    # Going offline/invisible hides the activity, coming back shows it again.
+    activity = (await activities([user_id])).get(user_id)
+    await broker.redis.set(_key("last-activity", user_id), json.dumps(activity))
+    data = {"user_id": str(user_id), "status": status, "online": status != "offline", "activity": activity}
     await broker.publish("presence.updated", data, recipients)

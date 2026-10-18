@@ -7,7 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from app import calls, presence, voice
-from app.access import channel_member_ids, server_member_ids
+from app.access import audience_ids, channel_member_ids, server_member_ids
 from app.permissions import Perm, channel_viewers, server_access, visible_channel_ids
 from app.config import get_settings
 from app.db import SessionLocal
@@ -122,6 +122,29 @@ async def _handle_thumbnail(user_id: uuid.UUID, data: Any) -> None:
         await voice.store_thumbnail(user_id, image, _viewers_of)
 
 
+ACTIVITY_NAME_MAX = 64
+
+
+async def _handle_activity(user_id: uuid.UUID, connection_id: str, data: Any) -> None:
+    """The client's PC started (name) or stopped (null) playing a game. Only the name is sent."""
+    name = data.get("name") if isinstance(data, dict) else None
+    if isinstance(name, str):
+        name = " ".join(name.split())[:ACTIVITY_NAME_MAX] or None
+    else:
+        name = None
+    await presence.set_activity(user_id, connection_id, name)
+    await presence.announce_activity(user_id)
+
+
+async def _send_activity_snapshot(websocket: WebSocket, user_id: uuid.UUID) -> None:
+    """What everyone the user sees is playing right now; updates follow as activity.updated."""
+    async with SessionLocal() as session:
+        ids = await audience_ids(session, user_id)
+    current = await presence.activities(ids)
+    data = {str(u): activity for u, activity in current.items()}
+    await websocket.send_json({"type": "activity.snapshot", "data": data})
+
+
 async def _send_error(websocket: WebSocket, message: str) -> None:
     await websocket.send_json({"type": "error", "data": {"message": message}})
 
@@ -155,6 +178,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
         await broker.heartbeat(user_id, connection_id)
         await presence.announce(user_id)
         await websocket.send_json({"type": "ready", "data": {"user_id": str(user_id)}})
+        await _send_activity_snapshot(websocket, user_id)
 
         while True:
             try:
@@ -182,6 +206,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
                 idle = isinstance(data, dict) and data.get("idle") is True
                 await presence.set_idle(user_id, connection_id, idle)
                 await presence.announce(user_id)
+            elif message.get("type") == "activity.set":
+                await _handle_activity(user_id, connection_id, message.get("data"))
     except WebSocketDisconnect:
         pass
     finally:
@@ -191,3 +217,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
             # Last connection gone: the user can't be in a call anymore.
             await voice.leave(user_id, _recipients)
         await presence.announce(user_id)
+        await presence.announce_activity(user_id)

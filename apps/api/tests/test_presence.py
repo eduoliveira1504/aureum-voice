@@ -41,7 +41,7 @@ async def test_chosen_statuses(client: AsyncClient) -> None:
             assert (await presence_of(aws, bia))["status"] == "online"
 
             await bia.patch("/users/me/settings", {"status": "dnd"})
-            assert (await presence_of(aws, bia)) == {"user_id": bia.id, "status": "dnd", "online": True}
+            assert (await presence_of(aws, bia)) == {"user_id": bia.id, "status": "dnd", "online": True, "activity": None}
             assert (await statuses(ana, server["id"]))[bia.id] == "dnd"
 
             # Invisible looks offline to everyone else.
@@ -93,3 +93,53 @@ async def test_status_survives_reconnects(client: AsyncClient) -> None:
         async with aconnect_ws(ws_url(bia), wsc) as bws:
             await next_event(bws, "ready")
             assert (await presence_of(aws, bia))["status"] == "dnd"
+
+
+async def activity_of(ws: AsyncWebSocketSession, user: ApiUser) -> dict | None:
+    """The next activity.updated about this user."""
+    while (event := await next_event(ws, "activity.updated"))["user_id"] != user.id:
+        pass
+    return event["activity"]
+
+
+async def test_game_activity(client: AsyncClient) -> None:
+    ana, bia = await make_user(client, "ana"), await make_user(client, "bia")
+    stranger = await make_user(client, "zed")
+    await make_server(ana, bia)
+
+    async with ws_client() as wsc, aconnect_ws(ws_url(ana), wsc) as aws:
+        await next_event(aws, "ready")
+        assert await next_event(aws, "activity.snapshot") == {}
+        async with aconnect_ws(ws_url(bia), wsc) as pc, aconnect_ws(ws_url(stranger), wsc) as zws:
+            await next_event(pc, "ready")
+            await next_event(zws, "ready")
+            await pc.send_json({"type": "activity.set", "data": {"name": "  Minecraft\n"}})
+            playing = await activity_of(aws, bia)
+            assert playing is not None
+            assert playing["name"] == "Minecraft" and playing["type"] == "playing"
+            # Reporting the same game again keeps its start time and announces nothing.
+            await pc.send_json({"type": "activity.set", "data": {"name": "Minecraft"}})
+            with pytest.raises(TimeoutError):
+                async with asyncio.timeout(0.5):
+                    await activity_of(aws, bia)
+
+            # New connections get what people are playing right away; strangers don't.
+            async with aconnect_ws(ws_url(ana), wsc) as laptop:
+                await next_event(laptop, "ready")
+                assert (await next_event(laptop, "activity.snapshot"))[bia.id]["started_at"] == playing["started_at"]
+            with pytest.raises(TimeoutError):
+                async with asyncio.timeout(0.5):
+                    await activity_of(zws, bia)
+
+            # Invisible hides it; coming back shows it again.
+            await bia.patch("/users/me/settings", {"status": "invisible"})
+            assert (await presence_of(aws, bia))["activity"] is None
+            await bia.patch("/users/me/settings", {"status": "online"})
+            assert (await presence_of(aws, bia))["activity"]["name"] == "Minecraft"
+
+            await pc.send_json({"type": "activity.set", "data": None})
+            assert await activity_of(aws, bia) is None
+            await pc.send_json({"type": "activity.set", "data": {"name": "x" * 200}})
+            assert len((await activity_of(aws, bia))["name"]) == 64
+        # The game ends with the connection.
+        assert (await presence_of(aws, bia))["activity"] is None
