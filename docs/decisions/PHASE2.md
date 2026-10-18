@@ -1,12 +1,16 @@
 # Aureum Voice — Fase 2
 
 Base: fase 1 pronta e rodando no plano B (LiveKit Cloud + Tailscale Funnel).
-Regras do CLAUDE.md continuam valendo (custo R$0, segredos só no .env, commits em inglês).
+Regras do CLAUDE.md continuam valendo (custo R$0, segredos só no .env, commits em inglês,
+sem IA no produto).
 Executar UM bloco por vez, na ordem. Cada bloco: migrações Alembic, testes da API,
 atualização do README e um docs/decisions quando houver escolha de arquitetura.
 Nada copiado do Discord (sons, ícones, textos, layout idêntico): o Aureum tem identidade própria.
 
-## 2.1 Design system e temas (fazer primeiro)
+Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: Polimentos (2.8 concluído; Cinema adiado).
+Ordem restante: 2.8 → Polimentos → 2.9.
+
+## 2.1 Design system e temas ✅ concluído
 Todo o app passa a usar tokens (CSS variables + Tailwind theme). Nenhuma cor hardcoded nos componentes.
 
 Fontes (Google Fonts, empacotadas localmente no app): Sora (títulos: 500/600/700),
@@ -31,190 +35,114 @@ Esmeralda #3FBF7F, Brasa #E06A4E, Safira #4F8CC9, mais seletor livre.
 - Preferências por usuário salvas no servidor (tabela user_settings: theme
   dark|light|system, accent_color, sound settings) e aplicadas ao logar.
 Tela de Configurações > Aparência: tema, accent (presets + seletor), prévia ao vivo.
-Revisar TODAS as telas existentes para usar os tokens.
 
-## 2.2 Call: foco e grade
+## 2.2 Call: foco e grade ✅ concluído
 - Dois modos na call: Grade (todos iguais) e Foco (um tile grande + faixa lateral
   com os outros). Clicar em qualquer tile coloca ele em foco. Botão Foco/Grade no topo.
 - Tile de tela compartilhada tem selo "AO VIVO", botão de volume da transmissão e tela cheia.
 - Quem está falando ganha anel na cor accent.
 - Várias telas ao vivo ao mesmo tempo devem funcionar.
-- Economia de banda (IMPORTANTE, cota do LiveKit Cloud): adaptiveStream e dynacast
-  ligados; simulcast nas câmeras e telas; tiles pequenos/fora de foco recebem a camada
-  de menor resolução; tiles fora da tela não recebem vídeo.
+- Economia de banda: adaptiveStream e dynacast ligados; simulcast nas câmeras e telas;
+  tiles pequenos/fora de foco recebem a camada de menor resolução; tiles fora da tela
+  não recebem vídeo.
 
-## 2.L Layout novo do Aureum (fazer antes do 2.4)
+## 2.L Layout novo do Aureum ✅ concluído
 Objetivo: sair da estrutura do Discord (coluna de servidores + canais + chat + membros).
-Nova estrutura do app (shell):
 
 ### Barra superior (abas)
 - Logo à esquerda. Depois, ABAS: a primeira é sempre "Início" (casa) com contador de
   pendências (pedidos de amizade, DMs não lidas, chamadas perdidas); em seguida, uma
-  aba por servidor aberto (ícone + nome). A aba ativa "encaixa" no conteúdo abaixo
-  (mesma cor do painel, cantos superiores arredondados).
+  aba por servidor aberto (ícone + nome). A aba ativa "encaixa" no conteúdo abaixo.
 - Bolinha vermelha na aba quando alguém está transmitindo tela no servidor; badge com
   número de menções.
-- Botão "+" para abrir/criar/entrar em servidor. Abas podem ser reordenadas por
-  arrastar e fechadas (o servidor continua na conta, só sai da barra). Ordem salva por usuário.
-- À direita: botão de busca global "Buscar · Ctrl K", notificações e o botão de perfil
-  (avatar com status + nome) que abre o menu: ver perfil, status, configurações, sair.
+- Botão "+" para abrir/criar/entrar em servidor. Abas reordenáveis e fecháveis
+  (o servidor continua na conta). Ordem salva por usuário.
+- À direita: busca global "Buscar · Ctrl K", notificações e botão de perfil
+  (avatar com status + nome): ver perfil, status, configurações, sair.
 
 ### Barra lateral (contexto da aba atual)
-- Servidor: nome + configurações + botão recolher. Itens: "Visão geral", e as seções
-  colapsáveis SALAS (canais de voz: bolinha verde se tem gente, contador, selo AO VIVO),
-  CONVERSAS (canais de texto, badge de não lidas na cor accent) e ADDONS (canais addon
-  com o ícone do addon).
+- Servidor: nome + configurações + recolher. Itens: "Visão geral", e as seções
+  colapsáveis SALAS, CONVERSAS e ADDONS.
 - Início: Amigos (com contador), lista de DMs e grupos, botão de novo grupo.
-- Recolhida: vira uma faixa estreita só com ícones. Estado salvo por usuário.
-- Quando o usuário está numa call, o PÉ da barra mostra o card da call (sala, quem
-  está falando, mic, tela, "mostrar janelinha", sair), sempre que a janelinha estiver minimizada.
+- Recolhida: faixa estreita só com ícones. Estado salvo por usuário.
 
 ### Visão geral do servidor (tela padrão ao abrir um servidor)
-- Banner do servidor no topo (com ícone, nome, "N online · N transmitindo · N membros",
-  botão Convidar).
-- "Salas agora": cards das salas de voz, ao vivo. Sala com transmissão mostra a
-  miniatura da tela (snapshot de baixa resolução, atualizado a cada poucos segundos,
-  para não gastar banda) com selo AO VIVO; sem transmissão mostra os avatares grandes
-  com anel em quem fala. Card da sala onde o usuário está tem borda accent e
-  "VOCÊ ESTÁ AQUI". Salas vazias aparecem com borda tracejada e "Abrir a sala".
-- "Addons do servidor": card resumo por addon (ex: quadro com barra de progresso
-  a fazer/fazendo/feito; cinema com quantos assistindo; mapa com status do servidor).
-- Coluna lateral: "Novidades" (últimas mensagens não lidas dos canais) e "Online agora".
+- Banner do servidor no topo (ícone, nome, "N online · N transmitindo · N membros", Convidar).
+- "Salas agora": cards das salas de voz ao vivo (miniatura da tela em baixa resolução
+  pela API/WebSocket; avatares com anel em quem fala; "VOCÊ ESTÁ AQUI"; salas vazias
+  tracejadas com "Abrir a sala").
+- "Addons do servidor": card resumo por addon.
+- Coluna lateral: "Novidades" e "Membros" (ver 2.R).
 
 ### Painéis (área de conteúdo)
 - Conversas, addons e a call em tela grande abrem em PAINÉIS com abas próprias.
-- Até 2 painéis lado a lado (ex: chat + quadro). Abrir com clique do meio, Ctrl+clique
-  ou arrastando a aba para a lateral; divisor arrastável; fechar painel no X.
-- Na barra lateral, item aberto em painel fica destacado e indica "painel 1/2".
-- Layout de painéis salvo por servidor e por usuário.
-- Chat em balões: mensagens dos outros à esquerda com avatar quadrado arredondado;
-  as do próprio usuário à direita, com fundo accent escurecido.
-- Eventos de addon aparecem no chat como linha de sistema
-  (ex: "Eduardo moveu Sistema de classes para Fazendo").
+- Até 2 painéis lado a lado; divisor arrastável; layout salvo por servidor e usuário.
+- Chat em balões; eventos de addon aparecem como linha de sistema no chat.
 
 ### Call
-- Janelinha flutuante (picture-in-picture) no canto inferior direito, arrastável para os
-  4 cantos: mostra a tela em foco ou quem fala, nome da sala, "X está falando",
-  mic, expandir (abre a call num painel ou tela cheia, com os modos Foco/Grade do 2.2)
-  e sair. Pode ser minimizada para o card no pé da barra lateral.
-- A janelinha usa a camada de menor resolução do vídeo (economia de banda).
+- Janelinha flutuante (picture-in-picture), arrastável para os 4 cantos, com a camada
+  de menor resolução; expandir abre a call em painel/tela cheia (Foco/Grade do 2.2).
 
 ### Lista de membros
-- Sai da coluna fixa da direita. Fica acessível por um botão "Membros" no cabeçalho
-  do canal/painel, abrindo um painel lateral recolhível (mesmo agrupamento por cargo do 2.4).
+- Painel lateral recolhível aberto pelo botão "Membros" no cabeçalho do canal/painel.
 
 ### Responsivo
-- Abaixo de ~1100px: barra lateral recolhe para ícones automaticamente e só 1 painel.
+- Abaixo de ~1100px: barra lateral recolhe para ícones e só 1 painel.
 
-Pronto quando: abrir o app cai no Início; abrir um servidor cai na Visão geral com
-salas ao vivo; dá pra abrir #geral e o Quadro lado a lado; entrar numa call mostra a
-janelinha, que pode ser minimizada para a barra lateral.
-Visual de referência: tokens do 2.1 (tema escuro, accent dourado, Sora + Figtree).
+Read-state mínimo: channel_reads (user_id, channel_id, last_read_message_id, mention_count).
 
-## 2.3 Social: amigos, DMs e chamadas privadas
-Modelo:
-- friendships: requester_id, addressee_id, status (pending|accepted|blocked), created_at
-- channels type dm (2 pessoas) e group_dm (até 10), server_id NULL; channel_members
-- calls: id, channel_id, started_by, started_at, ended_at; call_participants
-Funcionalidades:
-- Tela Amigos (Início): abas Online, Todos, Pendentes (com contador), Bloqueados;
-  "Adicionar amigo" por @username; aceitar/recusar/cancelar/bloquear.
-- Lista de DMs e grupos na barra lateral do Início; criar grupo a partir dos amigos.
-- Chamada privada em DM/grupo: botão ligar → evento call.ringing via WebSocket →
-  popup "X está te ligando" com atender/recusar e som de toque; tempo limite de 30s;
-  adicionar mais pessoas a uma call em andamento.
-- Painel "Ativo agora": amigos em call (com botão entrar) e atividade atual.
-- Presença: online, ausente (inatividade), não perturbe (silencia toques e sons), invisível.
-- Só amigos podem iniciar DM e ligação (configurável depois).
+## 2.3 Social: amigos, DMs e chamadas privadas ✅ concluído
+- friendships (pending|accepted|blocked); channels dm/group_dm (até 10) com channel_members;
+  calls + call_participants.
+- Tela Amigos (Online, Todos, Pendentes, Bloqueados), adicionar por @username.
+- DMs e grupos na barra do Início; chamada privada com toque (call.ringing), atender/recusar,
+  tempo limite de 30s, adicionar pessoas à call.
+- Painel "Ativo agora"; presença: online, ausente, não perturbe, invisível.
+- Só amigos podem iniciar DM e ligação.
 
-## 2.4 Servidor: cargos, banner/ícone, barra de membros
-- Ícone e banner do servidor (PNG/JPG/GIF/WebP animado, máx 8MB, MinIO), exibidos
-  como no mockup: banner no topo da lista de canais com o nome por cima.
-- Barra de membros recolhível (botão no cabeçalho do canal), estado lembrado por usuário.
-- Membros agrupados por cargo "exibido separadamente", com contador; offline no fim.
-Cargos completos:
-- roles: id, server_id, name, color, icon_url, position (hierarquia), permissions (bigint
-  bitfield), hoist (exibir separado), mentionable; member_roles (N:N); cargo @everyone implícito.
-- Permissões (mínimo): ADMINISTRATOR, MANAGE_SERVER, MANAGE_ROLES, MANAGE_CHANNELS,
-  KICK_MEMBERS, BAN_MEMBERS, CREATE_INVITE, CHANGE_NICKNAME, MANAGE_NICKNAMES,
-  VIEW_CHANNEL, SEND_MESSAGES, ATTACH_FILES, ADD_REACTIONS, MENTION_EVERYONE,
-  MANAGE_MESSAGES, READ_HISTORY, CONNECT, SPEAK, VIDEO, STREAM, MUTE_MEMBERS,
-  DEAFEN_MEMBERS, MOVE_MEMBERS, MANAGE_ADDONS.
-- Hierarquia: ninguém edita/atribui cargo igual ou acima do seu; dono ignora tudo.
-- Overrides por canal: channel_permission_overrides (channel_id, target role|member,
-  allow bitfield, deny bitfield). Ordem de cálculo documentada em docs/decisions.
-- Todas as rotas e eventos do WebSocket checam permissão no servidor (nunca só no front).
-- Telas: Configurações do servidor > Cargos (criar, reordenar por arrastar, cor,
-  permissões com toggles), Membros (atribuir cargos, expulsar, banir), e aba
-  Permissões nas configurações de cada canal.
-- Testes cobrindo o cálculo de permissões e a hierarquia.
+## 2.4 Servidor: cargos, banner/ícone, barra de membros ✅ concluído
+- Ícone e banner do servidor (PNG/JPG/GIF/WebP animado, máx 8MB).
+- Cargos: roles (name, color, icon_url, position, permissions bitfield, hoist, mentionable),
+  member_roles, @everyone implícito; hierarquia; dono ignora tudo.
+- Permissões: ADMINISTRATOR, MANAGE_SERVER, MANAGE_ROLES, MANAGE_CHANNELS, KICK_MEMBERS,
+  BAN_MEMBERS, CREATE_INVITE, CHANGE_NICKNAME, MANAGE_NICKNAMES, VIEW_CHANNEL,
+  SEND_MESSAGES, ATTACH_FILES, ADD_REACTIONS, MENTION_EVERYONE, MANAGE_MESSAGES,
+  READ_HISTORY, CONNECT, SPEAK, VIDEO, STREAM, MUTE_MEMBERS, DEAFEN_MEMBERS,
+  MOVE_MEMBERS, MANAGE_ADDONS.
+- Overrides por canal: channel_permission_overrides (allow/deny bitfields).
+  (Correção da tela de permissões do canal: ver Polimentos.)
+- Rotas e eventos do WebSocket checam permissão no servidor.
 
-## 2.R Ajustes dos testes com a galera (fazer depois do 2.4)
-Bugs (prioridade):
-- Chat dentro da call privada (DM/grupo) fica cortado e às vezes "rouba" o foco, escondendo
-  quem está na call. Corrigir o layout: participantes sempre visíveis; chat como painel
-  lateral recolhível ao lado da call, com rolagem própria, sem sobrepor os vídeos.
-- Supressão de ruído não funciona. Implementar com RNNoise (WASM) como processador de
-  áudio local do microfone (track processor do livekit-client), ligado por padrão e com
-  toggle em Configurações > Voz. Não usar Krisp/recursos pagos do LiveKit Cloud.
-  Manter também echoCancellation e autoGainControl ligados.
+## 2.R Ajustes dos testes com a galera ✅ concluído
+- Chat da call privada como painel lateral recolhível, participantes sempre visíveis.
+- Supressão de ruído com RNNoise (WASM), sem recursos pagos; echoCancellation e
+  autoGainControl ligados.
+- Volume individual por participante (0–200%) e mutar localmente.
+- Painel da call no pé da barra lateral sempre visível durante a call.
+- Participantes listados embaixo de cada sala de voz na barra lateral.
+- Colunas redimensionáveis; aba "Visão geral" sempre a primeira e fixa.
+- Abas com ícone do servidor e prévia com banner ao passar o mouse.
+- Visão geral: bloco único "Membros" + "Novidades" por canal.
+- Menus de contexto (botão direito) em usuários, canais e servidores, respeitando permissões.
 
-Call:
-- Volume individual por participante (0–200%) no clique/botão direito do participante,
-  em calls de servidor e privadas; salvo por usuário (user_settings), e mutar localmente.
-- Painel da call no pé da barra lateral SEMPRE visível enquanto estiver em call (não só
-  com a janelinha minimizada): nome da sala/call, quem está e quem fala, mic, fone
-  (ensurdecer), câmera, tela, sair. A janelinha flutuante continua opcional.
-- Barra lateral: embaixo de cada sala de voz, listar quem está nela (avatar pequeno,
-  anel de quem fala, ícones de mudo/ao vivo), igual a lista de uma sala.
+## 2.5 Perfil turbinado ✅ concluído
+- custom_status (texto + expiração), profile_color, avatar_frame, favorite_song, links (máx 5,
+  só https), activity; cartão de perfil completo; Configurações > Perfil com prévia ao vivo.
+- Balão de status junto do avatar.
+- "Jogando X" automático: lista de processos do Windows comparada com uma lista PRÓPRIA
+  de jogos (JSON local) + jogos adicionados pelo usuário; opção de desligar e esconder jogos.
+  Não usar a lista de jogos do Discord.
 
-Layout:
-- Colunas redimensionáveis por arrastar: barra lateral, painéis e colunas internas
-  (ex: coluna de Novidades da Visão geral, chat ao lado da call). Larguras mínimas e
-  máximas; tamanhos salvos por usuário.
-- Aba "Visão geral" sempre a primeira e fixa (sem fechar, não pode ser movida).
-- Abas superiores: ícone do servidor na aba; ao passar o mouse, prévia com o banner,
-  nome e "N online · N em call".
-- Visão geral: juntar "Online agora" e a lista de membros num bloco só "Membros"
-  (online primeiro, agrupados por cargo, depois offline recolhido). "Novidades" mostra
-  as últimas mensagens não lidas por canal, com nome do canal e atalho para abrir.
-
-Menus de contexto (botão direito), respeitando permissões do 2.4:
-- Em qualquer usuário (lista de membros, chat, call, amigos): Ver perfil, Mensagem,
-  Ligar, Adicionar/remover amigo, Definir apelido (próprio ou de outros com
-  MANAGE_NICKNAMES), Cargos (com MANAGE_ROLES), Silenciar localmente, Volume (se em call),
-  Mutar/ensurdecer no servidor (MUTE_MEMBERS/DEAFEN_MEMBERS), Mover de sala
-  (MOVE_MEMBERS), Expulsar/Banir (KICK/BAN), Copiar ID, Bloquear.
-- Em canais e servidores: marcar como lido, silenciar, configurações (com permissão),
-  copiar link de convite.
-- Itens sem permissão não aparecem.
-
-## 2.5 Perfil turbinado
-Campos novos:custom_status (texto + expiração), profile_color (cor do cartão),
-avatar_frame (moldura: none | accent | escolha de presets), favorite_song (título,
-artista, link opcional), links (lista de {label, url}, máx 5, só https), activity
-(jogando X: manual por enquanto; detecção automática de jogo fica pra depois).
-Insígnias (badges) são definidas pelo sistema, não pelo usuário (ex: Fundador, Beta).
-Cartão de perfil (popover ao clicar no nome/avatar) igual ao mockup: banner, avatar com
-moldura e status, insígnias, nome, @user · pronomes, status personalizado, Sobre mim,
-"Membro desde", bloco AGORA (jogando / música do perfil), cargos do servidor atual,
-links, botões Mensagem / Ligar / mais opções.
-Tela Configurações > Perfil com prévia ao vivo do cartão.
-- Balão de status: o status personalizado aparece como um balãozinho junto do avatar
-  (lista de membros, cartão de perfil, call), com emoji opcional e expiração.
-- "Jogando X" automático: o app desktop detecta jogos abertos (lista de processos do
-  Windows comparada com uma lista local de jogos conhecidos + jogos adicionados pelo
-  usuário), mostra no perfil e na lista de membros, com opção de desligar e de esconder
-  jogos específicos. Nada é enviado além do nome do jogo.
-
-## 2.6 Sons
-Eventos: entrar na call, sair, alguém entrou, alguém saiu, mutar, desmutar,
-ensurdecer, mensagem nova (DM/menção), chamada tocando (loop), chamada recusada/encerrada,
-tela compartilhada iniciada.
-- Sons próprios: gerar via síntese (Web Audio / script que exporta .ogg) OU usar
-  bibliotecas CC0 (ex: Kenney). Registrar origem e licença de cada arquivo em
-  docs/sounds/LICENSES.md. Nada de sons do Discord ou de outros apps.
-- Configurações > Sons: volume geral e liga/desliga por evento. Não perturbe silencia.
+## 2.6 Sons ✅ concluído
+- Sons gerados por síntese (scripts/generate-sounds.mjs, ffmpeg como requisito de dev),
+  família tonal em Mi maior, timbre de sino leve. Licença: © Aureum, todos os direitos
+  reservados (não CC0). Registro em docs/sounds/LICENSES.md.
+- Eventos: call-join, call-leave, user-join, user-leave, mute, unmute, deafen, undeafen,
+  message, call-ringing (loop), call-outgoing, call-ended, screen-share.
+- Durante call, som de mensagem com volume reduzido; não toca se for do canal/DM da call.
+- Não perturbe: silencia sons gerados por outras pessoas e o popup de chamada (vira
+  "chamada perdida" + badge no Início); sons de ação do próprio usuário continuam.
+- Configurações > Sons: volume geral e liga/desliga por evento.
 
 ## 2.7 Overlay em jogo ✅ concluído
 - BrowserWindow separada: transparente, sem moldura, alwaysOnTop nível 'screen-saver',
@@ -222,41 +150,121 @@ tela compartilhada iniciada.
 - Mostra: participantes da call atual (avatar, nome, anel de quem fala, ícone de mudo)
   e, opcionalmente, câmeras ligadas em miniatura (incluindo a própria).
 - Atalho global para ligar/desligar o overlay e para entrar em "modo edição"
-  (aí recebe clique, dá pra arrastar e redimensionar; posição salva).
+  (aí recebe clique, dá pra arrastar e redimensionar; posição salva). Atalhos que não
+  conflitem com jogos comuns; configuráveis.
 - Configurações > Overlay: ligar/desligar, posição, tamanho, opacidade, mostrar câmeras.
 - Limitação documentada: funciona em jogos no modo janela/sem borda; tela cheia
   exclusiva não é suportada. Sem injeção em processo de jogo (anti-cheat).
 
 ## 2.8 Addons
+Em 3 partes: 1) framework + addon de exemplo "notes" ✅ concluída (ver
+docs/decisions/0013-addon-framework.md); 2) Kanban ✅ concluída, com linhas de sistema no
+chat e o "notes" removido (ver docs/decisions/0014-kanban-addon.md); 3) Assistir junto
+(Cinema): ADIADO, ver abaixo.
 Framework:
 - Novo tipo de canal: addon (channels.type = 'addon', addon_key, config jsonb).
 - Registro de addons no backend (addon_key, nome, ícone, rotas, permissões);
   cada addon é um módulo isolado em apps/api/app/addons/<key>/ com router, models
   (tabelas com prefixo addon_<key>_) e migrações próprias, e no desktop em
   apps/desktop/src/addons/<key>/. Permissão MANAGE_ADDONS para criar/configurar.
+- Substituir os placeholders "EM BREVE" da barra lateral e da Visão geral pelos addons reais.
 Addon 1 — Kanban (quadro): pensado para virar produto separado no futuro, então
   nenhuma dependência direta de servidor/canal dentro do módulo além de uma
   "workspace_id" genérica. Colunas, cards (título, descrição, responsável, etiquetas,
   prazo), arrastar entre colunas, tempo real via WebSocket, histórico de alterações.
-Addon 2 — Assistir junto (YouTube): YouTube IFrame Player API oficial; fila de vídeos,
-  play/pause/seek/troca sincronizados via WebSocket (um "host" com controle, transferível);
-  card no chat "Assistir junto · #canal · N assistindo · Entrar".
-  PROIBIDO: bloquear anúncios, baixar ou extrair o stream do vídeo, ou qualquer coisa
-  que viole os termos do YouTube. Anúncios aparecem normalmente (quem tem Premium não vê).
+  Card resumo na Visão geral com progresso a fazer/fazendo/feito.
+Addon 2 — Cinema (salas de cinema com YouTube): ADIADO para depois do beta.
+  Ideia guardada: canal fixo de cinema, host com fila, quem entra cai no vídeo/tempo atual,
+  voz embutida, arquitetura de "player" por provedor (YouTube, depois Twitch/Vimeo/link direto).
+  Sem bloquear anúncio, sem baixar vídeo, sem fontes piratas.
 Depois (não agora): mapa Minecraft (BlueMap), status do servidor de Mine, dados/fichas
   de RPG, ouvir junto no Spotify.
 
-## Pronto quando
+## Polimentos (fazer depois do 2.8)
+- Barra de título customizada: titleBarStyle 'hidden' + titleBarOverlay (cores dos tokens);
+  abas do Aureum ocupam o topo; área arrastável nas partes vazias da barra.
+- Banner padrão do servidor: padrão geométrico com a cor accent (sem degradê);
+  com banner enviado, mostrar a imagem.
+- Campo de pronomes no perfil (aparece no cartão "@user · pronomes"; conferir se existe
+  no modelo e na tela de Configurações > Perfil; se não, adicionar).
+- Qualidade de transmissão (base para o futuro plano Aureum+):
+  - Limite padrão para todos: compartilhamento de tela até 720p; câmera até 720p.
+  - Dois modos no seletor de tela: "Texto nítido" (720p, 15 fps, contentHint 'detail',
+    prioriza resolução) e "Movimento" (720p, 30 fps, contentHint 'motion', prioriza fps).
+  - O limite vem do servidor: a API devolve, junto com o token de voz, o "media tier" do
+    usuário (ex: { maxScreen: '720p', maxFps: 30 }) e o app aplica nas opções de publicação.
+    Guardar o tier no usuário (users.plan = 'free' por padrão), pronto para planos futuros.
+  - Simulcast mantido: quem assiste em janela pequena recebe camada menor.
+- Permissões por canal (corrigir o 2.4):
+  - Criar canal (texto e voz): toggle "Canal privado" + seleção de cargos e/ou membros
+    que podem ver/entrar. Ao ativar: @everyone recebe deny VIEW_CHANNEL (e CONNECT em voz)
+    no canal, e os cargos/membros escolhidos recebem allow.
+  - A tela "Permissões" das configurações do CANAL deve editar só os overrides daquele
+    canal (channel_permission_overrides), nunca as permissões globais do cargo.
+    Layout: lista de cargos/membros com override no canal + botão "Adicionar cargo ou
+    membro"; para cada um, cada permissão em 3 estados: Permitir / Herdar (neutro) /
+    Negar. Texto de ajuda: "Herdar = usa a permissão do cargo no servidor".
+  - Canal privado mostra cadeado na barra lateral; quem não tem VIEW_CHANNEL não vê o
+    canal em lugar nenhum (barra, Visão geral, busca, Novidades, notificações).
+  - Testes: membro sem o cargo não lista, não lê, não envia e não entra na call do canal
+    privado (inclusive via API direta e WebSocket).
+- Visão geral do servidor: esconder o botão "Membros" (👥) do cabeçalho e não exibir o
+  painel lateral de membros nessa aba, porque a Visão geral já tem o bloco "Membros".
+  Ao voltar para #canal/call/addon, o painel volta ao estado salvo (aberto/fechado)
+  daquela aba. O estado do painel de membros é salvo por aba, não global.
+- Menu de contexto do usuário em TODO lugar onde aparece uma pessoa (um único componente
+  UserContextMenu reutilizado, com as mesmas regras de permissão do 2.R):
+  barra lateral do Início (lista de Mensagens diretas e grupos), cabeçalho da DM,
+  membros de grupo DM, nome e avatar do autor no chat, menções (@usuario), tiles e lista
+  de participantes da call, participantes embaixo das salas na barra lateral, bloco
+  Membros da Visão geral, painel lateral de Membros, "Ativo agora" e cartão de perfil.
+- Itens extras no botão direito de uma conversa na lista de Mensagens diretas:
+  Marcar como lida, Silenciar conversa, Fechar DM (some da lista até nova mensagem);
+  em grupo DM também: Renomear grupo, Alterar ícone, Sair do grupo.
+- Teste: clicar com o botão direito em cada um desses lugares abre o menu, com os itens
+  corretos para a permissão do usuário.
+
+## 2.9 Pré-beta (fazer por último, antes de chamar os testers)
+Essenciais:
+- Atualização automática: electron-updater com releases no GitHub (privado ou público);
+  checa ao abrir e a cada 6h, baixa em segundo plano, aviso "Reiniciar para atualizar".
+  Instalador e updates com o mesmo appId; canal "beta".
+- Botão "Reportar problema" (menu do perfil e atalho Ctrl+Shift+R): descrição, print
+  opcional da janela, versão, SO e últimos logs anexados automaticamente; vai para a
+  API (tabela bug_reports) e aparece numa tela simples só para o dono.
+Insígnias (sistema "família"):
+- Tabelas badges (id, key, nome, descrição, ícone SVG, raridade: comum|rara|lendaria,
+  numbered: bool) e user_badges (user_id, badge_id, number nullable, granted_at,
+  granted_by). Concedidas pelo sistema ou pelo dono do app, nunca pelo próprio usuário.
+- Visual padrão: moldura hexagonal; a cor do metal indica a raridade
+  (comum = bronze #C08A5A, rara = prata #C9D1DA, lendária = ouro #E8B531 com moldura dupla).
+  Ícone interno em SVG próprio, nunca emoji.
+- Exibição: ao lado do avatar no cartão de perfil (até 5 visíveis + "+N"), com tooltip:
+  nome, raridade, descrição, número (se numerada) e data de recebimento.
+- Insígnias do beta:
+  - "Fundador" (lendária): só para a conta do dono do app.
+  - Insígnia do beta (lendária, NUMERADA por ordem de cadastro, ex: "#7"): nome e ícone
+    ainda em votação; usar o placeholder "Pioneiro" com a bússola até decidir.
+    Concedida automaticamente a quem criar conta durante o beta.
+- Deixar fácil adicionar novas insígnias depois (seed/migração), já prevendo:
+  Caçador de bugs (rara, ao marcar um bug_report como resolvido), Veterano (rara, por ano
+  de conta), Construtor (comum, servidor com 5+ membros), Aureum+ (lendária, futuro).
+Comunicação:
+- Mensagem de voz: segurar o botão de microfone no campo de mensagem para gravar
+  (ou clicar para começar/parar), máx 5 min, Opus/WebM, enviada como anexo de áudio;
+  player com forma de onda, duração e velocidade 1x/1.5x/2x. Arrastar para cancelar.
+- Push-to-talk: modo de entrada "Detecção de voz" ou "Pressionar para falar" em
+  Configurações > Voz; atalho global configurável (funciona com o app em segundo plano),
+  som curto ao apertar/soltar (opcional).
+Personalização:
+- Tema por servidor: o dono define a cor de destaque do servidor; dentro daquele
+  servidor o accent muda para todos. Opção do usuário "Usar sempre minha cor".
+
+## Pronto quando (Fase 2 completa)
 - Tema claro/escuro e accent personalizável em todas as telas.
 - Duas pessoas que são amigas se ligam sem servidor; dá pra adicionar uma terceira.
 - Um servidor com cargos personalizados restringe um canal só para um cargo.
 - Call com 2 telas ao vivo + câmeras, com foco por clique.
 - Overlay mostra quem fala por cima de um jogo em janela sem borda.
-- Kanban e Assistir junto funcionando em canais de addon.
-
-## Polimentos (fazer depois do 2.4)
-- Barra de título customizada: titleBarStyle 'hidden' + titleBarOverlay (cores dos tokens);
-  abas do Aureum ocupam o topo; área arrastável nas partes vazias da barra.
-- Aba "Visão geral" fixa (sem botão fechar).
-- Banner padrão do servidor: padrão geométrico com a cor accent (sem degradê);
-  com banner enviado, mostrar a imagem.
+- Kanban funcionando em canal de addon.
+- App se atualiza sozinho; testers conseguem reportar bugs de dentro do app.
