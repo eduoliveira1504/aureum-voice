@@ -34,6 +34,7 @@ from app.schemas import (
     InviteCreate,
     InviteOut,
     MemberOut,
+    MemberUpdate,
     MessageOut,
     OverrideOut,
     ReadStateOut,
@@ -66,7 +67,11 @@ def member_out(member: ServerMember, ctx: Context, status_: str = "offline") -> 
     # Strongest role first, so clients can take the name color from the first colored one.
     role_ids = sorted(ctx.member_roles.get(member.user_id, ()), key=lambda r: -ctx.roles[r].position if r in ctx.roles else 0)
     return MemberOut(
-        user=UserPublic.model_validate(member.user), role_ids=role_ids, joined_at=member.joined_at, status=status_
+        user=UserPublic.model_validate(member.user),
+        role_ids=role_ids,
+        joined_at=member.joined_at,
+        nickname=member.nickname,
+        status=status_,
     )
 
 
@@ -262,6 +267,33 @@ async def kick_member(server_id: uuid.UUID, user_id: uuid.UUID, user: CurrentUse
     _require_can_moderate(access, user_id, Perm.KICK_MEMBERS)
     await _remove_member(session, member)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/servers/{server_id}/members/{user_id}", response_model=MemberOut)
+async def update_member(
+    server_id: uuid.UUID, user_id: uuid.UUID, body: MemberUpdate, user: CurrentUser, session: SessionDep
+) -> MemberOut:
+    """Sets a member's nickname: your own with CHANGE_NICKNAME, someone ranked below you with
+    MANAGE_NICKNAMES."""
+    access = await server_access(session, server_id, user.id)
+    member = await session.get(ServerMember, (server_id, user_id))
+    if member is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Member not found")
+    if user_id == user.id:
+        access.require(Perm.CHANGE_NICKNAME)
+    else:
+        access.require(Perm.MANAGE_NICKNAMES)
+        access.require_outranks(access.ctx.rank(user_id), "this member")
+    member.nickname = body.nickname or None
+    await session.commit()
+    await session.refresh(member)
+    out = member_out(member, access.ctx, (await presence.statuses([user_id]))[user_id])
+    await broker.publish(
+        "server.member.updated",
+        {"server_id": str(server_id), "member": out.model_dump(mode="json")},
+        await server_member_ids(session, server_id),
+    )
+    return out
 
 
 @router.get("/servers/{server_id}/bans", response_model=list[BanOut])

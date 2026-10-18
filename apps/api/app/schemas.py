@@ -293,6 +293,12 @@ class MemberOut(WithPresence):
     # Without @everyone, which everyone has.
     role_ids: list[uuid.UUID] = []
     joined_at: datetime
+    nickname: str | None = None
+
+
+class MemberUpdate(BaseModel):
+    # Empty or null clears it.
+    nickname: Annotated[str, StringConstraints(strip_whitespace=True, max_length=32)] | None
 
 
 class ReadStateOut(BaseModel):

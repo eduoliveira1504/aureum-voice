@@ -257,6 +257,8 @@ class ServerMember(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     joined_at: Mapped[datetime] = _created_at()
+    # Shown instead of the display name inside this server.
+    nickname: Mapped[str | None] = mapped_column(String(32))
 
     user: Mapped[User] = relationship(lazy="joined")
 
