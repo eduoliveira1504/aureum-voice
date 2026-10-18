@@ -22,14 +22,11 @@ export type TabRef =
   | { kind: 'overview' }
   | { kind: 'call' }
   | { kind: 'channel'; id: string }
-  | { kind: 'addon'; key: string }
 
 export const channelTab = (id: string): PanelTab => `channel:${id}`
-export const addonTab = (key: string): PanelTab => `addon:${key}`
 
 export function parseTab(tab: PanelTab): TabRef {
   if (tab.startsWith('channel:')) return { kind: 'channel', id: tab.slice('channel:'.length) }
-  if (tab.startsWith('addon:')) return { kind: 'addon', key: tab.slice('addon:'.length) }
   return { kind: tab === 'call' ? 'call' : 'overview' }
 }
 
@@ -41,11 +38,15 @@ function without(panel: Panel, tab: PanelTab): Panel {
   return { tabs, active }
 }
 
+/** Placeholder addon tabs from before addons were channels (`addon:<key>`). */
+const isLegacyTab = (tab: PanelTab): boolean => tab.startsWith('addon:')
+
 /**
  * The overview is pinned: always the first tab of the first panel, and nowhere else. Also fixes
- * layouts saved before it was pinned.
+ * layouts saved before it was pinned, and drops the old addon placeholder tabs.
  */
-export function pinOverview(layout: PanelLayout): PanelLayout {
+export function pinOverview(saved: PanelLayout): PanelLayout {
+  const layout = { ...saved, panels: saved.panels.map((p) => p.tabs.filter(isLegacyTab).reduce(without, p)) }
   const [first, ...rest] = layout.panels
   const others = rest.map((p) => without(p, 'overview')).filter((p) => p.tabs.length > 0)
   const tabs = ['overview', ...(first?.tabs ?? []).filter((t) => t !== 'overview')]

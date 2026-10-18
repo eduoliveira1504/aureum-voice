@@ -60,8 +60,8 @@ export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible'
 export type Presence = 'online' | 'idle' | 'dnd' | 'offline'
 
 /**
- * What a panel tab shows: 'overview', 'call', `channel:<id>` or `addon:<key>`.
- * The server validates the same shapes.
+ * What a panel tab shows: 'overview', 'call' or `channel:<id>` (addons are channels too).
+ * The server validates the same shapes (it still accepts the old `addon:<key>` placeholders).
  */
 export type PanelTab = string
 
@@ -104,7 +104,7 @@ export interface UserAudio {
   muted: boolean
 }
 
-export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm'
+export type ChannelType = 'text' | 'voice' | 'dm' | 'group_dm' | 'addon'
 
 /** Allow/deny bits for a role (@everyone's id is the server's) or a member in one channel. */
 export interface Override {
@@ -120,8 +120,22 @@ export interface Channel {
   name: string | null
   type: ChannelType
   position: number
+  /** Addon channels only: which addon runs it, and its settings (shape set by the addon). */
+  addon_key: string | null
+  config: Record<string, unknown>
   /** Server channels only. */
   overrides: Override[]
+}
+
+/** An addon the API runs (GET /addons). */
+export interface AddonInfo {
+  key: string
+  name: string
+  description: string
+  icon: string
+  /** Action name -> the channel permission bit it needs ("view" included). */
+  permissions: Record<string, number>
+  config_schema: Record<string, unknown> | null
 }
 
 /** A server role. @everyone has the server's id and position 0; higher positions rank higher. */

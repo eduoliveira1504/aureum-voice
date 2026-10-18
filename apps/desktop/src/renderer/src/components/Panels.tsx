@@ -1,8 +1,8 @@
 import { Columns2, Hash, LayoutDashboard, Users, Volume2, X, type LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
-import { addonInfo } from '../addons/registry'
-import type { Me, Panel, PanelTab, ServerDetail } from '../lib/api'
+import { addonIcon, addonModule } from '../addons/registry'
+import type { Channel, Me, Panel, PanelTab, ServerDetail } from '../lib/api'
 import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { DEFAULT_LAYOUT, parseTab, pinOverview, useNav, visiblePanels } from '../store/nav'
@@ -141,11 +141,8 @@ function tabInfo(tab: PanelTab, server: ServerDetail, callRoom: string | null): 
       return { icon: Volume2, label: callRoom ? `Chamada · ${callRoom}` : 'Chamada' }
     case 'channel': {
       const channel = server.channels.find((c) => c.id === ref.id)
-      return { icon: channel?.type === 'voice' ? Volume2 : Hash, label: channel?.name ?? '…' }
-    }
-    case 'addon': {
-      const addon = addonInfo(ref.key)
-      return { icon: addon?.icon ?? LayoutDashboard, label: addon?.name ?? ref.key }
+      const icon = channel?.type === 'voice' ? Volume2 : channel?.type === 'addon' ? addonIcon(channel.addon_key) : Hash
+      return { icon, label: channel?.name ?? '…' }
     }
   }
 }
@@ -295,6 +292,7 @@ function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; 
     case 'channel': {
       const channel = server.channels.find((c) => c.id === ref.id)
       if (!channel) return <Placeholder title="Carregando…" text="" />
+      if (channel.type === 'addon') return <AddonView key={channel.id} server={server} channel={channel} me={me} />
       if (channel.type === 'text') {
         const perms = channelPermissions(server, channel, me.id)
         return (
@@ -311,8 +309,6 @@ function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; 
       }
       return <VoiceView server={server} channel={channel} meId={me.id} />
     }
-    case 'addon':
-      return <AddonPlaceholder addonKey={ref.key} />
   }
 }
 
@@ -326,17 +322,11 @@ export function Placeholder({ title, text, children }: { title: string; text: st
   )
 }
 
-function AddonPlaceholder({ addonKey }: { addonKey: string }): ReactNode {
-  const addon = addonInfo(addonKey)
-  const Icon = addon?.icon ?? LayoutDashboard
-  return (
-    <Placeholder title={addon?.name ?? 'Addon'} text={addon?.description ?? ''}>
-      <div className="order-first mb-4 flex h-16 w-16 items-center justify-center rounded-panel bg-elevated text-accent-text">
-        <Icon size={32} />
-      </div>
-      <span className="mt-4 rounded-full border border-line px-3 py-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-        Em breve
-      </span>
-    </Placeholder>
-  )
+/** An addon channel: its addon's own panel, or a note when this app version doesn't have it. */
+function AddonView({ server, channel, me }: { server: ServerDetail; channel: Channel; me: Me }): ReactNode {
+  const addon = addonModule(channel.addon_key)
+  if (!addon) {
+    return <Placeholder title={channel.name ?? 'Addon'} text="Este addon não existe nesta versão do Aureum. Atualize o app para usá-lo." />
+  }
+  return <addon.Panel server={server} channel={channel} me={me} perms={channelPermissions(server, channel, me.id)} />
 }

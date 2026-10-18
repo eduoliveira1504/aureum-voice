@@ -1,17 +1,17 @@
-import { ChevronDown, Hash, Radio, UserPlus, Volume2 } from 'lucide-react'
+import { ChevronDown, Hash, Plus, Radio, UserPlus, Volume2 } from 'lucide-react'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
-import { ADDONS } from '../addons/registry'
+import { addonIcon, addonModule } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { memberName } from '../lib/members'
-import { basePermissions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
-import { addonTab, channelTab, useNav } from '../store/nav'
+import { channelTab, useNav } from '../store/nav'
 import { useThumbnails, watchOverview, type Thumbnail } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 import { groupMembers, MemberRow } from './MemberList'
-import { InviteModal } from './modals'
+import { CreateAddonModal, InviteModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { Avatar, CountBadge, ServerIcon } from './ui'
@@ -39,7 +39,7 @@ export function ServerOverview({ server, me }: { server: ServerDetail; me: Me })
         <div className="flex min-w-0 flex-1 flex-col gap-7 p-5">
           <Banner server={server} me={me} />
           <Rooms server={server} members={members} />
-          <Addons serverId={server.id} />
+          <Addons server={server} me={me} />
         </div>
         {/* Beside the rooms on wide panels (resizable), below them on narrow ones. */}
         <aside
@@ -225,30 +225,59 @@ function RoomCard({
   )
 }
 
-function Addons({ serverId }: { serverId: string }): ReactNode {
+/** A card per addon channel, with the addon's live summary; or a way to add the first one. */
+function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const openTab = useNav((s) => s.openTab)
+  const [adding, setAdding] = useState(false)
+  const channels = server.channels.filter((c) => c.type === 'addon')
+  const perms = basePermissions(server, me.id)
+  const canAdd = has(perms, Perm.MANAGE_CHANNELS) && has(perms, Perm.MANAGE_ADDONS)
+  if (!channels.length && !canAdd) return null
+
   return (
     <section>
       <SectionTitle>Addons do servidor</SectionTitle>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
-        {ADDONS.map(({ key, name, icon: Icon, description }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => openTab(serverId, addonTab(key))}
-            className="flex flex-col gap-2 rounded-control border border-dashed border-line p-4 text-left hover:border-accent/60"
-          >
-            <span className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-item bg-elevated text-accent-text">
-                <Icon size={18} />
+        {channels.map((channel) => {
+          const addon = addonModule(channel.addon_key)
+          const Icon = addonIcon(channel.addon_key)
+          return (
+            <button
+              key={channel.id}
+              type="button"
+              onClick={() => openTab(server.id, channelTab(channel.id))}
+              className="flex flex-col gap-2 rounded-control border border-line bg-panel/40 p-4 text-left hover:border-accent/60"
+            >
+              <span className="flex items-center gap-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-item bg-elevated text-accent-text">
+                  <Icon size={18} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{channel.name}</span>
+                  {addon?.name !== channel.name && (
+                    <span className="block truncate text-xs text-fg-subtle">{addon?.name ?? 'Addon desconhecido'}</span>
+                  )}
+                </span>
               </span>
-              <span className="flex-1 font-semibold">{name}</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">em breve</span>
-            </span>
-            <span className="line-clamp-2 text-sm text-fg-muted">{description}</span>
+              {addon?.Summary ? (
+                <addon.Summary server={server} channel={channel} me={me} perms={channelPermissions(server, channel, me.id)} />
+              ) : (
+                <span className="line-clamp-2 text-sm text-fg-muted">{addon?.description ?? 'Atualize o app para usar este addon.'}</span>
+              )}
+            </button>
+          )
+        })}
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex min-h-[96px] items-center justify-center gap-2 rounded-control border border-dashed border-line p-4 text-sm font-medium text-fg-muted hover:border-accent/60 hover:text-fg"
+          >
+            <Plus size={16} /> Adicionar addon
           </button>
-        ))}
+        )}
       </div>
+      {adding && <CreateAddonModal serverId={server.id} onClose={() => setAdding(false)} />}
     </section>
   )
 }

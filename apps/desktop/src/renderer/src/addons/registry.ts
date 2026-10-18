@@ -1,32 +1,26 @@
-import { Clapperboard, SquareKanban, type LucideIcon } from 'lucide-react'
+import { Puzzle, type LucideIcon } from 'lucide-react'
+
+import type { ServerEvent } from '../lib/realtime'
+import type { AddonModule } from './types'
 
 /**
- * Addons shown in the shell. Placeholders for now: block 2.8 brings addon channels
- * (channels.type = 'addon') and replaces this list with the server's addon registry.
+ * The addons this app version ships. A channel whose addon isn't here (an older app talking to
+ * a newer API) still shows up, with a note to update the app. Adding one: create
+ * src/addons/<key>/ and list it here.
  */
-export interface AddonInfo {
-  key: string
-  name: string
-  icon: LucideIcon
-  /** What the addon will do, shown on its placeholder panel and overview card. */
-  description: string
+const MODULES: Record<string, AddonModule> = Object.fromEntries(([] as AddonModule[]).map((m) => [m.key, m]))
+
+export function addonModule(key: string | null | undefined): AddonModule | undefined {
+  return key ? MODULES[key] : undefined
 }
 
-export const ADDONS: AddonInfo[] = [
-  {
-    key: 'board',
-    name: 'Quadro',
-    icon: SquareKanban,
-    description: 'Colunas e cards do grupo, com responsável, etiquetas e prazo, atualizados em tempo real.'
-  },
-  {
-    key: 'cinema',
-    name: 'Cinema',
-    icon: Clapperboard,
-    description: 'Assistam YouTube juntos, com fila de vídeos e play/pause sincronizados.'
-  }
-]
+export function addonIcon(key: string | null | undefined): LucideIcon {
+  return addonModule(key)?.icon ?? Puzzle
+}
 
-export function addonInfo(key: string): AddonInfo | undefined {
-  return ADDONS.find((a) => a.key === key)
+/** Forwards `addon.<key>.<event>` WebSocket events to their addon, and 'ready' (connected or
+ * reconnected: refetch what may have been missed) to all of them. */
+export function dispatchAddonEvent(event: ServerEvent): void {
+  if (event.type === 'ready') Object.values(MODULES).forEach((m) => m.onEvent?.(event))
+  else if (event.type.startsWith('addon.')) addonModule(event.type.split('.')[1])?.onEvent?.(event)
 }

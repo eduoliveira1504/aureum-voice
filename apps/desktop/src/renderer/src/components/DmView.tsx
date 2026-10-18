@@ -31,7 +31,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const call = dm.call
 
   const channel: Channel = useMemo(
-    () => ({ id: dm.id, server_id: null, name: title, type: dm.type, position: 0, overrides: [] }),
+    () => ({ id: dm.id, server_id: null, name: title, type: dm.type, position: 0, addon_key: null, config: {}, overrides: [] }),
     [dm.id, dm.type, title]
   )
   const people = useMemo(() => new Map(dm.members.map((m) => [m.user.id, m.user])), [dm.members])

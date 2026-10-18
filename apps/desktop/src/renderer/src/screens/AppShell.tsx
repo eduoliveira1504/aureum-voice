@@ -1,5 +1,6 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 
+import { dispatchAddonEvent } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
 import { ContextMenuHost } from '../components/ContextMenu'
@@ -54,6 +55,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
           reportIdleAgain()
           reportActivityAgain()
         }
+        dispatchAddonEvent(event)
         useActivity.getState().applyEvent(event)
         useChat.getState().applyEvent(event)
         useSocial.getState().applyEvent(event)

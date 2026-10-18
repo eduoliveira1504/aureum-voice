@@ -1,6 +1,8 @@
 import { Check, Minus, Plus, X } from 'lucide-react'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 
+import { addonModule } from '../addons/registry'
+import type { AddonModule } from '../addons/types'
 import { api, ApiError, type Channel, type Override, type ServerDetail } from '../lib/api'
 import { channelPermissions, has, outranks, Perm, PERM_INFO, rankOf, type PermName } from '../lib/permissions'
 import { useChat } from '../store/chat'
@@ -10,12 +12,23 @@ import { Avatar, Field, menuClass, PrimaryButton, useDismiss } from './ui'
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
 const TEXT: PermName[] = ['SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'MENTION_EVERYONE']
 const VOICE: PermName[] = ['CONNECT', 'SPEAK', 'VIDEO', 'STREAM', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS', 'MOVE_MEMBERS']
+const ADDON: PermName[] = ['SEND_MESSAGES', 'MANAGE_ADDONS']
+
+/** How a permission reads in an addon channel, where it's not about messages or rooms. */
+const ADDON_LABELS: Partial<Record<PermName, { label: string; description: string }>> = {
+  SEND_MESSAGES: { label: 'Participar', description: 'Mexer no conteúdo do addon (editar a página, mover cards...).' },
+  MANAGE_ADDONS: { label: 'Gerenciar addon', description: 'Mudar as configurações do addon e, com Gerenciar canais, excluí-lo.' }
+}
+
+function permNames(channel: Channel): PermName[] {
+  return [...COMMON, ...(channel.type === 'voice' ? VOICE : channel.type === 'addon' ? ADDON : TEXT)]
+}
 
 function errorText(err: unknown): string {
   return err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar.'
 }
 
-type Tab = 'general' | 'permissions'
+type Tab = 'general' | 'addon' | 'permissions'
 
 export function ChannelSettingsModal({
   server,
@@ -29,9 +42,11 @@ export function ChannelSettingsModal({
   onClose(): void
 }): ReactNode {
   const perms = channelPermissions(server, channel, meId)
+  const addon = channel.type === 'addon' ? addonModule(channel.addon_key) : undefined
   const tabs = (
     [
       ['general', 'Geral', has(perms, Perm.MANAGE_CHANNELS)],
+      ['addon', 'Addon', !!addon?.Settings && has(perms, Perm.MANAGE_ADDONS)],
       ['permissions', 'Permissões', has(perms, Perm.MANAGE_ROLES)]
     ] as const
   ).filter(([, , allowed]) => allowed)
@@ -54,6 +69,7 @@ export function ChannelSettingsModal({
       </div>
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === 'general' && <GeneralTab channel={channel} />}
+        {tab === 'addon' && addon?.Settings && <AddonTab channel={channel} Settings={addon.Settings} />}
         {tab === 'permissions' && <PermissionsTab server={server} channel={channel} meId={meId} />}
       </div>
     </Modal>
@@ -95,6 +111,38 @@ function GeneralTab({ channel }: { channel: Channel }): ReactNode {
         </PrimaryButton>
       </div>
     </form>
+  )
+}
+
+/** The addon's own settings form, saved as the channel's config. */
+function AddonTab({ channel, Settings }: { channel: Channel; Settings: NonNullable<AddonModule['Settings']> }): ReactNode {
+  const [config, setConfig] = useState(channel.config)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const dirty = JSON.stringify(config) !== JSON.stringify(channel.config)
+
+  async function save(): Promise<void> {
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`/channels/${channel.id}`, { method: 'PATCH', body: { config } })
+    } catch (err) {
+      setError(errorText(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="max-w-[520px] space-y-3">
+      <FormError message={error} />
+      <Settings config={config} onChange={setConfig} />
+      <div className="w-32">
+        <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void save()}>
+          {busy ? 'Salvando…' : 'Salvar'}
+        </PrimaryButton>
+      </div>
+    </div>
   )
 }
 
@@ -254,7 +302,7 @@ function OverrideEditor({
   const myPerms = channelPermissions(server, channel, meId)
   const editable = target.id === server.id || outranks(server, meId, target.rank)
   const dirty = allow !== (override?.allow ?? 0) || deny !== (override?.deny ?? 0)
-  const names = [...COMMON, ...(channel.type === 'voice' ? VOICE : TEXT)]
+  const names = permNames(channel)
 
   const stateOf = (bit: number): State => (has(allow, bit) ? 'allow' : has(deny, bit) ? 'deny' : 'inherit')
   const set = (bit: number, state: State): void => {
@@ -291,7 +339,7 @@ function OverrideEditor({
       <div className="space-y-1.5">
         {names.map((name) => {
           const bit = Perm[name]
-          const info = PERM_INFO[name]
+          const info = (channel.type === 'addon' && ADDON_LABELS[name]) || PERM_INFO[name]
           // Nobody grants (or denies) a permission they don't have here.
           const allowed = editable && has(myPerms, bit)
           return (

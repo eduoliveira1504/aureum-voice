@@ -1,7 +1,8 @@
 import { Check, Hash, Volume2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
-import { api, ApiError, type Channel, type Invite, type ServerDetail } from '../lib/api'
+import { addonModule } from '../addons/registry'
+import { api, ApiError, type AddonInfo, type Channel, type Invite, type ServerDetail } from '../lib/api'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
@@ -182,6 +183,86 @@ export function CreateChannelModal({
         <Field autoFocus label="Nome do canal" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={type === 'text' ? 'novo-canal' : 'Sala de jogo'} />
         <PrimaryButton type="submit" disabled={busy}>
           {busy ? 'Criando…' : 'Criar canal'}
+        </PrimaryButton>
+      </form>
+    </Modal>
+  )
+}
+
+/** Adds an addon to the server: picks one of the addons both the API and this app know, and
+ * creates its channel. */
+export function CreateAddonModal({ serverId, onClose }: { serverId: string; onClose(): void }): ReactNode {
+  const openTab = useNav((s) => s.openTab)
+  const [addons, setAddons] = useState<AddonInfo[] | null>(null)
+  const [key, setKey] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<AddonInfo[]>('/addons')
+      .then((list) => {
+        const usable = list.filter((a) => addonModule(a.key))
+        setAddons(usable)
+        if (usable[0]) {
+          setKey(usable[0].key)
+          setName(usable[0].name)
+        }
+      })
+      .catch((err) => setError(errorText(err, 'Não foi possível carregar os addons.')))
+  }, [])
+
+  const pick = (addon: AddonInfo): void => {
+    // Keep a name the user typed; follow the addon's name otherwise.
+    if (!name.trim() || name === addons?.find((a) => a.key === key)?.name) setName(addon.name)
+    setKey(addon.key)
+  }
+
+  async function submit(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!key) return
+    if (!name.trim()) return setError('Dê um nome ao addon.')
+    setBusy(true)
+    try {
+      const channel = await api<Channel>(`/servers/${serverId}/channels`, {
+        method: 'POST',
+        body: { name: name.trim(), type: 'addon', addon_key: key }
+      })
+      openTab(serverId, channelTab(channel.id))
+      onClose()
+    } catch (err) {
+      setError(errorText(err, 'Não foi possível adicionar o addon.'))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title="Adicionar addon" onClose={onClose}>
+      <form className="space-y-4" onSubmit={submit}>
+        <FormError message={error} />
+        {addons === null && !error && <p className="text-sm text-fg-muted">Carregando…</p>}
+        {addons?.length === 0 && <p className="text-sm text-fg-muted">Nenhum addon disponível nesta versão.</p>}
+        <div className="space-y-2">
+          {addons?.map((addon) => {
+            const Icon = addonModule(addon.key)!.icon
+            return (
+              <label
+                key={addon.key}
+                className={`flex cursor-pointer items-center gap-3 rounded-control border px-3 py-2.5 ${key === addon.key ? 'border-accent bg-accent/10' : 'border-line bg-main hover:bg-elevated'}`}
+              >
+                <input type="radio" name="addon" checked={key === addon.key} onChange={() => pick(addon)} className="accent-accent" />
+                <Icon size={18} className="shrink-0 text-fg-muted" />
+                <span>
+                  <span className="block font-medium">{addon.name}</span>
+                  <span className="block text-xs text-fg-subtle">{addon.description}</span>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+        {key && <Field label="Nome" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
+        <PrimaryButton type="submit" disabled={busy || !key}>
+          {busy ? 'Adicionando…' : 'Adicionar'}
         </PrimaryButton>
       </form>
     </Modal>

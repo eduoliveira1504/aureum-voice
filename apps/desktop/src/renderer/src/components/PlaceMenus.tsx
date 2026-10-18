@@ -2,7 +2,7 @@ import { CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, Us
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
-import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelActions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
@@ -39,13 +39,18 @@ function LiveServer({ id, onClose, children }: { id: string; onClose(): void; ch
   return server ? children(server) : null
 }
 
+/** What the confirmation says before a channel is deleted. */
+export function deleteChannelMessage(channel: Channel): string {
+  if (channel.type === 'text') return 'Todas as mensagens do canal serão apagadas.'
+  if (channel.type === 'addon') return 'O addon e tudo o que foi feito nele serão apagados.'
+  return 'A sala de voz será removida.'
+}
+
 export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; channel: Channel; meId: string }): ReactNode {
   const read = useChat((s) => s.reads[channel.id])
   const muted = useMuted(channel.id)
-  const perms = channelPermissions(server, channel, meId)
   const text = channel.type === 'text'
-  const canEdit = has(perms, Perm.MANAGE_CHANNELS)
-  const canSettings = canEdit || has(perms, Perm.MANAGE_ROLES)
+  const { canSettings, canDelete } = channelActions(server, channel, meId)
   const label = `${text ? '#' : ''}${channel.name}`
 
   return (
@@ -74,7 +79,7 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
       {has(basePermissions(server, meId), Perm.CREATE_INVITE) && <Item icon={Link} label="Copiar convite" onClick={() => copyInvite(server.id)} />}
       <Separator />
       <Item icon={Copy} label="Copiar ID" onClick={() => copy(channel.id, 'ID copiado')} />
-      {canEdit && (
+      {canDelete && (
         <Item
           icon={Trash2}
           label="Excluir canal"
@@ -83,7 +88,7 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
             showDialog((close) => (
               <ConfirmModal
                 title={`Excluir ${label}`}
-                message={text ? 'Todas as mensagens do canal serão apagadas.' : 'A sala de voz será removida.'}
+                message={deleteChannelMessage(channel)}
                 confirmLabel="Excluir canal"
                 onConfirm={() => api(`/channels/${channel.id}`, { method: 'DELETE' })}
                 onClose={close}

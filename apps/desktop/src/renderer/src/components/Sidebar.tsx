@@ -20,20 +20,20 @@ import {
 } from 'lucide-react'
 import { Fragment, useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import { ADDONS } from '../addons/registry'
+import { addonIcon } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
-import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelActions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
-import { addonTab, channelTab, layoutOf, useNav, visiblePanels } from '../store/nav'
+import { channelTab, layoutOf, useNav, visiblePanels } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { contextMenu } from './ContextMenu'
-import { ChannelMenu, ServerMenu } from './PlaceMenus'
-import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
+import { ChannelMenu, deleteChannelMessage, ServerMenu } from './PlaceMenus'
+import { ConfirmModal, CreateAddonModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
 import { COLUMNS, useColumnWidth } from './Resizer'
@@ -44,6 +44,7 @@ import { LocallyMuted, UserMenu } from './UserMenu'
 type Dialog =
   | { kind: 'invite' }
   | { kind: 'channel'; type: 'text' | 'voice' }
+  | { kind: 'addon' }
   | { kind: 'leave' }
   | { kind: 'delete' }
   | { kind: 'deleteChannel'; channel: Channel }
@@ -233,6 +234,7 @@ function ServerPlaces({
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const perms = basePermissions(server, me.id)
   const canCreateChannels = has(perms, Perm.MANAGE_CHANNELS)
+  const canAddAddons = canCreateChannels && has(perms, Perm.MANAGE_ADDONS)
 
   // Where each tab is showing: highlighted when it's a panel's active tab.
   const layout = layoutOf(server.id)
@@ -246,6 +248,7 @@ function ServerPlaces({
   const rooms = server.channels.filter((c) => c.type === 'voice')
   const people = serverPeople(server)
   const texts = server.channels.filter((c) => c.type === 'text')
+  const addons = server.channels.filter((c) => c.type === 'addon')
 
   return (
     <>
@@ -335,26 +338,32 @@ function ServerPlaces({
           })}
         </Section>
 
-        <Section title="Addons" collapsed={collapsed}>
-          {ADDONS.map((addon) => {
-            const tab = addonTab(addon.key)
-            const where = placeOf(tab)
-            return (
-              <Item
-                key={addon.key}
-                icon={addon.icon}
-                label={addon.name}
-                collapsed={collapsed}
-                active={where.active}
-                panelHint={where.hint}
-                badge={<span className="shrink-0 text-[10px] font-semibold uppercase text-fg-subtle">em breve</span>}
-                dragTab={tab}
-                onClick={() => openTab(server.id, tab)}
-                onSide={() => openTab(server.id, tab, true)}
-              />
-            )
-          })}
-        </Section>
+        {(addons.length > 0 || canAddAddons) && (
+          <Section title="Addons" collapsed={collapsed} onAdd={canAddAddons ? () => setDialog({ kind: 'addon' }) : undefined} addLabel="Adicionar addon">
+            {addons.map((channel) => {
+              const tab = channelTab(channel.id)
+              const where = placeOf(tab)
+              return (
+                <Item
+                  key={channel.id}
+                  icon={addonIcon(channel.addon_key)}
+                  label={channel.name ?? ''}
+                  collapsed={collapsed}
+                  active={where.active}
+                  panelHint={where.hint}
+                  trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
+                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
+                  dragTab={tab}
+                  onClick={() => openTab(server.id, tab)}
+                  onSide={() => openTab(server.id, tab, true)}
+                />
+              )
+            })}
+            {addons.length === 0 && !collapsed && (
+              <p className="px-2 py-1 text-sm text-fg-subtle">Quadros, notas e outros extras do grupo aparecem aqui.</p>
+            )}
+          </Section>
+        )}
       </div>
 
       {dialog?.kind === 'invite' && <InviteModal server={server} onClose={() => setDialog(null)} />}
@@ -370,6 +379,7 @@ function ServerPlaces({
       {dialog?.kind === 'channel' && (
         <CreateChannelModal serverId={server.id} initialType={dialog.type} onClose={() => setDialog(null)} />
       )}
+      {dialog?.kind === 'addon' && <CreateAddonModal serverId={server.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'leave' && (
         <ConfirmModal
           title={`Sair de ${server.name}`}
@@ -391,7 +401,7 @@ function ServerPlaces({
       {dialog?.kind === 'deleteChannel' && (
         <ConfirmModal
           title={`Excluir ${dialog.channel.type === 'text' ? '#' : ''}${dialog.channel.name}`}
-          message={dialog.channel.type === 'text' ? 'Todas as mensagens do canal serão apagadas.' : 'A sala de voz será removida.'}
+          message={deleteChannelMessage(dialog.channel)}
           confirmLabel="Excluir canal"
           onConfirm={() => api(`/channels/${dialog.channel.id}`, { method: 'DELETE' })}
           onClose={() => setDialog(null)}
@@ -413,9 +423,8 @@ function ChannelActions({
   meId: string
   onPick(d: Dialog): void
 }): ReactNode {
-  const perms = channelPermissions(server, channel, meId)
-  const canEdit = has(perms, Perm.MANAGE_CHANNELS)
-  if (!canEdit && !has(perms, Perm.MANAGE_ROLES)) return null
+  const { canSettings, canDelete } = channelActions(server, channel, meId)
+  if (!canSettings) return null
   return (
     <span className="hidden items-center pr-1 group-hover:flex">
       <button
@@ -427,7 +436,7 @@ function ChannelActions({
       >
         <SlidersHorizontal size={14} />
       </button>
-      {canEdit && (
+      {canDelete && (
         <button
           type="button"
           title="Excluir canal"
@@ -472,6 +481,7 @@ function ServerHeader({
   const banner = mediaUrl(server.banner_url)
   const canInvite = has(perms, Perm.CREATE_INVITE)
   const canCreate = has(perms, Perm.MANAGE_CHANNELS)
+  const canAddAddons = canCreate && has(perms, Perm.MANAGE_ADDONS)
   const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)
 
   const settingsButton = (
@@ -519,6 +529,7 @@ function ServerHeader({
           {/* Invites also create accounts, so @everyone can't hand them out by default. */}
           {canInvite && <MenuItem label="Convidar pessoas" onClick={pick({ kind: 'invite' })} />}
           {canCreate && <MenuItem label="Criar canal" onClick={pick({ kind: 'channel', type: 'text' })} />}
+          {canAddAddons && <MenuItem label="Adicionar addon" onClick={pick({ kind: 'addon' })} />}
           {(canSettings || canInvite || canCreate) && <div className="my-1 h-px bg-line" />}
           {isOwner ? (
             <MenuItem label="Excluir servidor" danger onClick={pick({ kind: 'delete' })} />

@@ -107,6 +107,17 @@ export function channelPermissions(server: ServerDetail, channel: Channel, userI
   return perms & ALL
 }
 
+/** What the user may do to a channel itself: open its settings (any tab) and delete it.
+ * Deleting an addon channel deletes the addon's data too, so it also takes MANAGE_ADDONS. */
+export function channelActions(server: ServerDetail, channel: Channel, userId: string): { canSettings: boolean; canDelete: boolean } {
+  const perms = channelPermissions(server, channel, userId)
+  const addon = channel.type === 'addon'
+  return {
+    canSettings: has(perms, Perm.MANAGE_CHANNELS | Perm.MANAGE_ROLES) || (addon && has(perms, Perm.MANAGE_ADDONS)),
+    canDelete: has(perms, Perm.MANAGE_CHANNELS) && (!addon || has(perms, Perm.MANAGE_ADDONS))
+  }
+}
+
 /** The member's strongest role with a color (names are shown in it), if any. */
 export function roleColor(server: ServerDetail, userId: string): string | null {
   return (
@@ -130,7 +141,7 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'CREATE_INVITE', label: 'Criar convites', description: 'Convites também criam contas novas no Aureum.' },
       { perm: 'CHANGE_NICKNAME', label: 'Mudar apelido', description: 'Escolher o próprio apelido neste servidor.' },
       { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Mudar o apelido de quem está abaixo de você.' },
-      { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Reservado: addons chegam numa próxima versão.' }
+      { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Adicionar, configurar e excluir addons (com Gerenciar canais).' }
     ]
   },
   {
