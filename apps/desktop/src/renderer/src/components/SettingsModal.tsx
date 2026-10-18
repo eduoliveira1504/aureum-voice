@@ -7,6 +7,7 @@ import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
 import { Modal } from './Modal'
 import { ProfileSettings } from './ProfileSettings'
+import { SoundSettings } from './SoundSettings'
 import { inputClass, labelClass, ToggleRow } from './ui'
 
 interface Devices {
@@ -31,7 +32,7 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'activity' | 'appearance' | 'voice'
+type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -45,7 +46,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['profile', 'Meu perfil'],
             ['activity', 'Atividade'],
             ['appearance', 'Aparência'],
-            ['voice', 'Voz e vídeo']
+            ['voice', 'Voz e vídeo'],
+            ['sounds', 'Sons']
           ] as const
         ).map(([key, label]) => (
           <button
@@ -64,6 +66,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'activity' && <ActivitySettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}
+        {tab === 'sounds' && <SoundSettings />}
       </div>
 
       <div className="mt-5 border-t border-line pt-4">
