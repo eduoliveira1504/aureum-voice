@@ -24,6 +24,16 @@
   --idle: #e8b531;
   --dnd: #e5484d;
   --accent-hover-mix: white 12%;
+  /* Label colors (Kanban labels): read on the panel background. */
+  --label-gray: #a8a090;
+  --label-red: #e5676b;
+  --label-orange: #e8894a;
+  --label-yellow: #e8c547;
+  --label-green: #4fc98a;
+  --label-teal: #3fbfb4;
+  --label-blue: #5b9cf0;
+  --label-purple: #a98af0;
+  --label-pink: #e57aa8;
 }
 
 :root[data-theme='light'] {
@@ -40,6 +50,15 @@
   --idle: #c98f00;
   --dnd: #c7363b;
   --accent-hover-mix: black 10%;
+  --label-gray: #6b6354;
+  --label-red: #c7363b;
+  --label-orange: #c25e16;
+  --label-yellow: #9a6f00;
+  --label-green: #2e9e65;
+  --label-teal: #158a80;
+  --label-blue: #2f6fd0;
+  --label-purple: #7a52cc;
+  --label-pink: #c23e7a;
 }
 
 :root {

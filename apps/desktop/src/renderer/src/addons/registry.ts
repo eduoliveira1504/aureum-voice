@@ -1,7 +1,7 @@
 import { Puzzle, type LucideIcon } from 'lucide-react'
 
 import type { ServerEvent } from '../lib/realtime'
-import notes from './notes'
+import kanban from './kanban'
 import type { AddonModule } from './types'
 
 /**
@@ -9,7 +9,7 @@ import type { AddonModule } from './types'
  * a newer API) still shows up, with a note to update the app. Adding one: create
  * src/addons/<key>/ and list it here.
  */
-const MODULES: Record<string, AddonModule> = Object.fromEntries([notes].map((m) => [m.key, m]))
+const MODULES: Record<string, AddonModule> = Object.fromEntries([kanban].map((m) => [m.key, m]))
 
 export function addonModule(key: string | null | undefined): AddonModule | undefined {
   return key ? MODULES[key] : undefined

@@ -360,7 +360,7 @@ function ServerPlaces({
               )
             })}
             {addons.length === 0 && !collapsed && (
-              <p className="px-2 py-1 text-sm text-fg-subtle">Quadros, notas e outros extras do grupo aparecem aqui.</p>
+              <p className="px-2 py-1 text-sm text-fg-subtle">Quadros e outros extras do grupo aparecem aqui.</p>
             )}
           </Section>
         )}
