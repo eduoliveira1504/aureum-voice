@@ -20,6 +20,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
+import { serverPeople } from '../lib/members'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { contextMenu } from './ContextMenu'
@@ -63,7 +64,7 @@ export function VoiceView({
   fullscreen?: boolean
 }): ReactNode {
   const join = useVoice((s) => s.join)
-  const people = useMemo(() => new Map(server.members.map((m) => [m.user.id, m.user])), [server.members])
+  const people = useMemo(() => serverPeople(server), [server])
   return (
     <CallView
       title={channel.name ?? ''}

@@ -1,7 +1,9 @@
 import {
   ChevronDown,
   Hash,
+  HeadphoneOff,
   LayoutDashboard,
+  MicOff,
   PanelLeftClose,
   PanelLeftOpen,
   Phone,
@@ -10,14 +12,16 @@ import {
   SlidersHorizontal,
   Trash2,
   Users,
+  Video,
   Volume2,
   X,
   type LucideIcon
 } from 'lucide-react'
-import { useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { ADDONS } from '../addons/registry'
-import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail } from '../lib/api'
+import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
+import { serverPeople } from '../lib/members'
 import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
@@ -26,11 +30,13 @@ import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ChannelSettingsModal } from './ChannelSettings'
+import { contextMenu } from './ContextMenu'
 import { ConfirmModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
 import { PickFriendsModal } from './socialModals'
-import { CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
+import { Avatar, CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
+import { LocallyMuted, UserMenu } from './UserMenu'
 
 type Dialog =
   | { kind: 'invite' }
@@ -224,6 +230,7 @@ function ServerPlaces({
   }
 
   const rooms = server.channels.filter((c) => c.type === 'voice')
+  const people = serverPeople(server)
   const texts = server.channels.filter((c) => c.type === 'text')
 
   return (
@@ -255,24 +262,26 @@ function ServerPlaces({
             const live = here.some((v) => v.screen)
             const mine = callChannelId === room.id
             return (
-              <Item
-                key={room.id}
-                icon={Volume2}
-                label={room.name ?? ''}
-                collapsed={collapsed}
-                active={mine}
-                dot={here.length ? 'success' : undefined}
-                badge={
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
-                    {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
-                  </span>
-                }
-                trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
-                // Clicking a room joins it (the call shows in the floating window); clicking the
-                // room you're in opens the call in a panel.
-                onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
-              />
+              <Fragment key={room.id}>
+                <Item
+                  icon={Volume2}
+                  label={room.name ?? ''}
+                  collapsed={collapsed}
+                  active={mine}
+                  dot={here.length ? 'success' : undefined}
+                  badge={
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
+                      {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
+                    </span>
+                  }
+                  trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
+                  // Clicking a room joins it (the call shows in the floating window); clicking the
+                  // room you're in opens the call in a panel.
+                  onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
+                />
+                {!collapsed && here.length > 0 && <RoomPeople states={here} people={people} mine={mine} meId={me.id} />}
+              </Fragment>
             )
           })}
         </Section>
@@ -636,6 +645,50 @@ function DmItem({
         </button>
       )}
     </div>
+  )
+}
+
+/** Who's in a room, under it: speaking ring (in our own room), mute, deafen, camera and live. */
+function RoomPeople({
+  states,
+  people,
+  mine,
+  meId
+}: {
+  states: VoiceState[]
+  people: Map<string, User>
+  mine: boolean
+  meId: string
+}): ReactNode {
+  // Who's speaking is only known inside our own call.
+  const speaking = useVoice((s) => (mine ? s.speaking : null))
+  return (
+    <ul aria-label="Na sala" className="mb-1 ml-6 space-y-px">
+      {states.map((v) => {
+        const user = people.get(v.user_id)
+        const name = user?.display_name ?? 'Alguém'
+        return (
+          <li
+            key={v.user_id}
+            onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} />) : undefined}
+            className="flex items-center gap-2 rounded-item px-1.5 py-0.5 text-fg-muted hover:bg-elevated/60 hover:text-fg"
+          >
+            <span className={`shrink-0 rounded-full ring-offset-1 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-2 ring-accent' : ''}`}>
+              <Avatar name={name} url={user?.avatar_url} size={20} />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[13px]">{name}</span>
+            {v.screen && <span className="shrink-0 rounded bg-danger px-1 text-[9px] font-bold leading-4 text-on-danger">AO VIVO</span>}
+            {v.camera && <Video size={13} aria-label="Câmera ligada" className="shrink-0" />}
+            {v.user_id !== meId && <LocallyMuted userId={v.user_id} size={13} />}
+            {v.deafened ? (
+              <HeadphoneOff size={13} aria-label={v.server_deafened ? 'Áudio desativado pelo servidor' : 'Sem áudio'} className={`shrink-0 ${v.server_deafened ? 'text-danger' : ''}`} />
+            ) : (
+              v.muted && <MicOff size={13} aria-label={v.server_muted ? 'Silenciado pelo servidor' : 'Microfone desligado'} className={`shrink-0 ${v.server_muted ? 'text-danger' : ''}`} />
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

@@ -116,7 +116,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
           <button type="button" title="Tela cheia" aria-label="Tela cheia" onClick={() => setCallFullscreen(true)} className={iconButton}>
             <Expand size={18} />
           </button>
-          <button type="button" title="Minimizar" aria-label="Minimizar" onClick={() => setPipMinimized(true)} className={iconButton}>
+          <button type="button" title="Esconder janelinha" aria-label="Esconder janelinha" onClick={() => setPipMinimized(true)} className={iconButton}>
             <Minimize2 size={18} />
           </button>
         </div>
