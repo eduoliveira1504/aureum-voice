@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import images, presence, reads, voice
 from app.access import get_membership, server_member_ids
+from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelType, Invite, Role, Server, ServerBan, ServerMember, User
 from app.permissions import (
@@ -223,6 +224,10 @@ async def delete_server(server_id: uuid.UUID, user: CurrentUser, session: Sessio
     if server.owner_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only the owner can delete the server")
     recipients = await server_member_ids(session, server_id)
+    addon_channels = await session.execute(
+        select(Channel.addon_key, Channel.id).where(Channel.server_id == server_id, Channel.type == ChannelType.addon)
+    )
+    await addons.cleanup(session, addon_channels.tuples())
     await session.delete(server)
     await session.commit()
     await voice.clear_server(server_id)
@@ -377,14 +382,24 @@ async def mark_server_read(server_id: uuid.UUID, user: CurrentUser, session: Ses
 
 @router.post("/servers/{server_id}/channels", response_model=ChannelOut, status_code=status.HTTP_201_CREATED)
 async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: CurrentUser, session: SessionDep) -> ChannelOut:
-    (await server_access(session, server_id, user.id)).require(Perm.MANAGE_CHANNELS)
+    access = await server_access(session, server_id, user.id)
+    access.require(Perm.MANAGE_CHANNELS)
     type_ = ChannelType(body.type)
+    config: dict = {}
+    if type_ == ChannelType.addon:
+        access.require(Perm.MANAGE_ADDONS)
+        addon = addons.get_addon(body.addon_key)
+        if addon is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown addon")
+        config = addon.parse_config(body.config)
     last = await session.scalar(select(func.max(Channel.position)).where(Channel.server_id == server_id))
     channel = Channel(
         server_id=server_id,
         name=normalize_channel_name(body.name, type_),
         type=type_,
         position=(last + 1) if last is not None else 0,
+        addon_key=body.addon_key,
+        config=config,
     )
     session.add(channel)
     await session.commit()

@@ -5,6 +5,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import app.addons.registry  # noqa: F401  (registers the addons' tables in Base.metadata)
 from app.config import get_settings
 from app.models import Base
 

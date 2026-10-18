@@ -252,6 +252,20 @@ class FriendOut(WithPresence):
     since: datetime
 
 
+# --- Addons ---------------------------------------------------------------
+
+
+class AddonOut(BaseModel):
+    key: str
+    name: str
+    description: str
+    icon: str
+    # Action name -> the channel permission bit it needs ("view" included).
+    permissions: dict[str, int]
+    # JSON Schema of the addon's channel settings, if it has any.
+    config_schema: dict[str, Any] | None
+
+
 # --- Servers, channels, invites -------------------------------------------
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
@@ -344,14 +358,30 @@ class BanOut(BaseModel):
     created_at: datetime
 
 
+AddonKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_-]{1,32}$")]
+
+
 class ChannelCreate(BaseModel):
     name: Name
-    type: Literal["text", "voice"] = "text"
+    type: Literal["text", "voice", "addon"] = "text"
+    # Addon channels only.
+    addon_key: AddonKey | None = None
+    config: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _addon_fields(self) -> "ChannelCreate":
+        if (self.type == "addon") != (self.addon_key is not None):
+            raise ValueError("addon_key is required for addon channels, and only for them")
+        if self.config is not None and self.type != "addon":
+            raise ValueError("Only addon channels have settings")
+        return self
 
 
 class ChannelUpdate(BaseModel):
     name: Name | None = None
     position: Annotated[int, Field(ge=0)] | None = None
+    # Addon channels only; replaces the settings as a whole.
+    config: dict[str, Any] | None = None
 
 
 class ChannelOut(BaseModel):
@@ -362,6 +392,9 @@ class ChannelOut(BaseModel):
     name: str | None
     type: ChannelType
     position: int
+    # Addon channels only.
+    addon_key: str | None = None
+    config: dict[str, Any] = {}
     # Server channels only.
     overrides: list[OverrideOut] = []
 

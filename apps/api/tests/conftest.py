@@ -44,7 +44,7 @@ async def _database() -> AsyncIterator[None]:
     await _ensure_test_database()
     # Applying the real migrations also checks they stay in sync with the models.
     subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"], cwd=API_DIR, check=True, env=os.environ
+        [sys.executable, "-m", "alembic", "upgrade", "heads"], cwd=API_DIR, check=True, env=os.environ
     )
     await storage.ensure_bucket()
     yield

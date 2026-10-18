@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import calls, dms, reads, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
+from app.addons import registry as addons
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelOverride, ChannelType, Message, OverrideTarget, Role, ServerMember
@@ -34,11 +35,21 @@ router = APIRouter(tags=["channels"])
 @router.patch("/channels/{channel_id}", response_model=ChannelOut)
 async def update_channel(channel_id: uuid.UUID, body: ChannelUpdate, user: CurrentUser, session: SessionDep) -> ChannelOut:
     channel, access = await get_channel_for_member(session, channel_id, user.id)
-    access.require_in(channel, Perm.MANAGE_CHANNELS)
+    # Renaming and moving are channel management; an addon's settings only need MANAGE_ADDONS.
+    if body.name is not None or body.position is not None or body.config is None:
+        access.require_in(channel, Perm.MANAGE_CHANNELS)
     if body.name is not None:
         channel.name = normalize_channel_name(body.name, channel.type)
     if body.position is not None:
         channel.position = body.position
+    if body.config is not None:
+        if channel.type != ChannelType.addon:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only addon channels have settings")
+        access.require_in(channel, Perm.MANAGE_ADDONS)
+        addon = addons.get_addon(channel.addon_key)
+        if addon is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="This addon is no longer available")
+        channel.config = addon.parse_config(body.config)
     await session.commit()
     out = channel_out(channel, (await channel_overwrites(session, [channel.id]))[channel.id])
     await broker.publish("channel.updated", out.model_dump(mode="json"), await channel_viewers(session, channel))
@@ -49,6 +60,10 @@ async def update_channel(channel_id: uuid.UUID, body: ChannelUpdate, user: Curre
 async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
     channel, access = await get_channel_for_member(session, channel_id, user.id)
     access.require_in(channel, Perm.MANAGE_CHANNELS)
+    if channel.type == ChannelType.addon:
+        # Deleting an addon channel also deletes the addon's data in it.
+        access.require_in(channel, Perm.MANAGE_ADDONS)
+        await addons.cleanup(session, [(channel.addon_key, channel.id)])
     server_id = channel.server_id
     assert server_id is not None
     recipients = await channel_viewers(session, channel)

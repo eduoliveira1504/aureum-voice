@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -92,6 +93,8 @@ class ChannelType(str, enum.Enum):
     voice = "voice"
     dm = "dm"
     group_dm = "group_dm"
+    # A server channel run by an addon (see app/addons).
+    addon = "addon"
 
 
 class User(Base):
@@ -305,6 +308,13 @@ class Channel(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     # 1:1 DMs only: "<smaller user id>:<larger user id>", so a pair can't end up with two DMs.
     dm_key: Mapped[str | None] = mapped_column(String(73), unique=True)
+    # Addon channels only: which addon runs the channel, and its settings (shape set by the addon).
+    addon_key: Mapped[str | None] = mapped_column(String(32))
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}", nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("(type = 'addon') = (addon_key IS NOT NULL)", name="addon_key"),
+    )
 
 
 class ChannelOverride(Base):

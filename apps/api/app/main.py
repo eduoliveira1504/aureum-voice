@@ -6,9 +6,10 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import storage
+from app.addons.registry import ADDONS
 from app.config import get_settings
 from app.realtime import broker
-from app.routers import auth, calls, channels, dms, friends, moderation, roles, servers, users, ws
+from app.routers import addons, auth, calls, channels, dms, friends, moderation, roles, servers, users, ws
 
 settings = get_settings()
 
@@ -49,6 +50,10 @@ api.include_router(moderation.router)
 api.include_router(friends.router)
 api.include_router(dms.router)
 api.include_router(calls.router)
+api.include_router(addons.router)
+for addon in ADDONS.values():
+    if addon.router is not None:
+        api.include_router(addon.router, prefix=f"/addons/{addon.key}", tags=[f"addon:{addon.key}"])
 
 
 @api.get("/health", tags=["health"])

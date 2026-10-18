@@ -18,4 +18,4 @@ RUN useradd --create-home --uid 1000 aureum
 USER aureum
 
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
+CMD ["sh", "-c", "alembic upgrade heads && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
