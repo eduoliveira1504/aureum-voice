@@ -7,9 +7,9 @@ from collections.abc import Iterable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.addons.base import AddonManifest
-from app.addons.notes import manifest as notes
+from app.addons.kanban import manifest as kanban
 
-ADDONS: dict[str, AddonManifest] = {a.key: a for a in (notes,)}
+ADDONS: dict[str, AddonManifest] = {a.key: a for a in (kanban,)}
 
 
 def get_addon(key: str | None) -> AddonManifest | None:
