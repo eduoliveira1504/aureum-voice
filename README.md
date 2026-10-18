@@ -17,6 +17,12 @@ for real-time media. The whole stack is open source and designed to run at zero 
   private. The API checks every route and WebSocket event, and LiveKit tokens only allow what the member
   may publish. Kick and ban from the server settings
   ([ADR 0007](docs/decisions/0007-roles-and-permissions.md))
+- Per-server nicknames, and voice moderation: server mute, server deafen and moving people between
+  rooms, enforced on the media server too through LiveKit's server API
+  ([ADR 0009](docs/decisions/0009-call-audio-moderation-and-menus.md))
+- Right-click menus on people, channels and servers. Each shows only what the user is allowed to do:
+  profile, message, call, friendship, volume, nickname, roles, moderation, kick and ban, mark as read,
+  silence, settings, invite, copy ID
 - A collapsible member list grouped by the roles shown separately, with offline members at the end
 - Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
 - Unread counters and `@username` mention badges per channel, synced across devices
@@ -34,11 +40,16 @@ for real-time media. The whole stack is open source and designed to run at zero 
   - up to two panels side by side, each with its own tabs.
   
   The layout follows the user to any PC ([ADR 0005](docs/decisions/0005-app-shell-panels-and-read-state.md)).
+  Columns resize by dragging, with sizes saved per user too. The overview tab is pinned first, and
+  hovering a server tab previews its banner and who's online and in calls.
 - A server overview showing who's in which room and live screen thumbnails (low-res JPEGs over the
-  API WebSocket, so watching costs no media bandwidth), unread news and who's online
-- A floating call window that snaps to any corner and minimizes to the sidebar; the call expands
-  into a panel or fullscreen
+  API WebSocket, so watching costs no media bandwidth), unread news grouped by channel, and the
+  members, online first
+- A call panel at the bottom of the sidebar for the whole call (who's in it, who's talking, mic, deafen,
+  camera, screen, leave), people listed under each room, and an optional floating call window that
+  snaps to any corner; the call expands into a panel or fullscreen
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection
+- Each person's volume from 0 to 200% and a local mute, saved per user
 - Local mic noise suppression with RNNoise (WebAssembly), free and on by default
   ([ADR 0008](docs/decisions/0008-noise-suppression.md))
 - Grid and Focus call layouts (click any tile to focus it), several live screens at once with per-stream

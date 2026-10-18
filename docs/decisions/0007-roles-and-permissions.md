@@ -89,12 +89,13 @@ The desktop app mirrors the calculation in `lib/permissions.ts`, but only to dec
   stay connected until its token expires. Forcing a disconnect needs LiveKit's server API, which comes
   with voice moderation.
 - Some permissions are defined but **reserved** until their feature exists:
-  - CHANGE_NICKNAME and MANAGE_NICKNAMES (nicknames);
   - ATTACH_FILES (attachments);
   - ADD_REACTIONS (reactions);
   - MENTION_EVERYONE (role mentions, which `mentionable` is also for);
-  - MUTE_MEMBERS, DEAFEN_MEMBERS and MOVE_MEMBERS (voice moderation);
   - MANAGE_ADDONS (block 2.8).
+
+  Nicknames and voice moderation came later, in block 2.R
+  ([ADR 0009](0009-call-audio-moderation-and-menus.md)).
 
   The settings screens label them as such.
 - Permissions are a 24-bit field, safe as a JSON number. Adding more later only appends bits.
