@@ -11,8 +11,10 @@ import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
 import { CallView, VoiceView } from '../components/VoiceView'
 import type { Me } from '../lib/api'
+import { reportActivityAgain, startActivityReporting } from '../lib/gameActivity'
 import { reportIdleAgain, startIdleWatch } from '../lib/idle'
 import { Realtime, setActiveRealtime } from '../lib/realtime'
+import { useActivity } from '../store/activity'
 import { loadAppearance, useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
@@ -49,7 +51,9 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         if (event.type === 'ready') {
           rewatchOverview()
           reportIdleAgain()
+          reportActivityAgain()
         }
+        useActivity.getState().applyEvent(event)
         useChat.getState().applyEvent(event)
         useSocial.getState().applyEvent(event)
       },
@@ -58,12 +62,15 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     setActiveRealtime(realtime)
     realtime.start()
     const stopIdleWatch = startIdleWatch()
+    const stopActivity = startActivityReporting()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
     useSocial.getState().load().catch(() => {})
     loadAppearance().catch(() => {}) // keep the cached settings if this fails
     return () => {
       void useVoice.getState().leave()
       stopIdleWatch()
+      stopActivity()
+      useActivity.setState({ byUser: {} })
       setActiveRealtime(null)
       realtime.stop()
     }

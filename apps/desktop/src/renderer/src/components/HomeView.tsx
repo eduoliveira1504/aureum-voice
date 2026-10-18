@@ -2,6 +2,7 @@ import { Ban, Check, EllipsisVertical, MessageCircle, Phone, UserMinus, UserPlus
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { ApiError, type Friend, type Me, type User } from '../lib/api'
+import { useActivity, useUserActivity } from '../store/activity'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
@@ -10,6 +11,7 @@ import { contextMenu } from './ContextMenu'
 import { DmView } from './DmView'
 import { ConfirmModal } from './modals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
+import { ActivityLine, activityLabel, StatusBubble, useElapsed } from './profileBits'
 import { UserMenu } from './UserMenu'
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
@@ -249,6 +251,7 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
   const { openDm, startCall, accept, remove, unblock } = useSocial.getState()
   const [confirm, setConfirm] = useState<'remove' | 'block' | null>(null)
   const { user, kind } = friend
+  const playing = !!useUserActivity(user.id)
   const subtitle =
     kind === 'friend' ? PRESENCE_LABEL[status] : kind === 'incoming' ? 'Pedido recebido' : kind === 'outgoing' ? 'Pedido enviado' : 'Bloqueado'
   const fail = (): void => {} // the next friend.* event or reload shows the real state
@@ -270,7 +273,12 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
           <div className="truncate font-semibold">
             {user.display_name} <span className="font-normal text-fg-subtle">@{user.username}</span>
           </div>
-          <div className="truncate text-xs text-fg-muted">{subtitle}</div>
+          {kind === 'friend' && status !== 'offline' && <StatusBubble user={user} size="xs" className="my-0.5" />}
+          {kind === 'friend' && playing ? (
+            <ActivityLine userId={user.id} />
+          ) : (
+            <div className="truncate text-xs text-fg-muted">{subtitle}</div>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {kind === 'friend' && (
@@ -368,7 +376,9 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
   const servers = useChat((s) => s.servers)
   const voiceChannel = useVoice((s) => (s.phase === 'idle' ? null : s.channelId))
   const join = useVoice((s) => s.join)
+  const playing = useActivity((s) => s.byUser)
   const isFriend = (id: string): boolean => friends[id]?.kind === 'friend'
+  const gamers = Object.values(friends).filter((f) => f.kind === 'friend' && playing[f.user.id])
 
   const activities: Activity[] = []
   for (const server of Object.values(servers)) {
@@ -406,8 +416,8 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
   return (
     <aside aria-label="Ativo agora" className="hidden w-72 shrink-0 overflow-y-auto border-l border-line p-4 xl:block">
       <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">Ativo agora</h3>
-      {activities.length === 0 && (
-        <p className="text-sm text-fg-muted">Quando seus amigos entrarem numa chamada, aparece aqui.</p>
+      {activities.length === 0 && gamers.length === 0 && (
+        <p className="text-sm text-fg-muted">Quando seus amigos entrarem numa chamada ou abrirem um jogo, aparece aqui.</p>
       )}
       <div className="space-y-2">
         {activities.map((a) => (
@@ -438,7 +448,27 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
             )}
           </div>
         ))}
+        {gamers.map((f) => (
+          <PlayingCard key={f.user.id} user={f.user} />
+        ))}
       </div>
     </aside>
+  )
+}
+
+/** A friend playing a game, in Active now. */
+function PlayingCard({ user }: { user: User }): ReactNode {
+  const activity = useUserActivity(user.id)
+  const elapsed = useElapsed(activity?.started_at)
+  if (!activity) return null
+  return (
+    <div className="flex items-center gap-3 rounded-control border border-line bg-panel p-3">
+      <Avatar name={user.display_name} url={user.avatar_url} size={32} />
+      <div className="min-w-0 leading-tight">
+        <div className="truncate text-sm font-semibold">{user.display_name}</div>
+        <div className="truncate text-xs text-fg-muted">{activityLabel(activity)}</div>
+        {elapsed && <div className="text-[11px] text-fg-subtle">{elapsed}</div>}
+      </div>
+    </div>
   )
 }

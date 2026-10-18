@@ -7,6 +7,7 @@ import { roleColor } from '../lib/permissions'
 import { useReadableColor } from '../store/appearance'
 import { contextMenu } from './ContextMenu'
 import { useProfilePopover } from './ProfileCard'
+import { ActivityLine, StatusBubble } from './profileBits'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { PresenceAvatar } from './ui'
 import { UserMenu } from './UserMenu'
@@ -108,11 +109,14 @@ export function MemberRow({
         <span className="block truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
           {name}
         </span>
-        {room && (
+        {m.online && <StatusBubble user={m.user} size="xs" className="my-0.5" />}
+        {room ? (
           <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
             <Volume2 size={11} className="shrink-0" />
             {room}
           </span>
+        ) : (
+          <ActivityLine userId={m.user.id} />
         )}
       </span>
       {icon?.icon_url && <img src={mediaUrl(icon.icon_url)} alt={icon.name} title={icon.name} className="h-4 w-4 shrink-0 object-contain" />}

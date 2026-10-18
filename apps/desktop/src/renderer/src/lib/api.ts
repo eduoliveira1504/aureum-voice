@@ -3,6 +3,25 @@
  * kept encrypted by the main process. A 401 triggers a single refresh + retry.
  */
 
+export interface CustomStatus {
+  text: string
+  emoji: string | null
+  expires_at: string | null
+}
+
+export interface FavoriteSong {
+  title: string
+  artist: string
+  url: string | null
+}
+
+export interface ProfileLink {
+  label: string
+  url: string
+}
+
+export type AvatarFrame = 'none' | 'accent' | 'gold' | 'amethyst' | 'emerald' | 'ember' | 'sapphire'
+
 export interface User {
   id: string
   username: string
@@ -10,8 +29,23 @@ export interface User {
   avatar_url: string | null
   banner_url: string | null
   bio: string | null
+  /** Profile card color. */
   accent_color: string | null
+  pronouns: string | null
+  custom_status: CustomStatus | null
+  avatar_frame: AvatarFrame
+  favorite_song: FavoriteSong | null
+  links: ProfileLink[]
+  /** Granted by the system: 'founder', 'beta'. */
+  badges: string[]
   created_at: string
+}
+
+/** What someone is doing right now ("Jogando X"); comes over the WebSocket only. */
+export interface Activity {
+  type: 'playing'
+  name: string
+  started_at: string
 }
 
 export interface Me extends User {

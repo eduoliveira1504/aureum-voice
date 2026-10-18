@@ -24,6 +24,7 @@ import { serverPeople } from '../lib/members'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { contextMenu } from './ContextMenu'
+import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
 import { LocallyMuted, UserMenu } from './UserMenu'
@@ -314,6 +315,11 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
         <VideoTrackView track={camera} mirror={isLocal} fit={size === 'focus' ? 'contain' : 'cover'} />
       ) : (
         <Avatar name={name} url={user?.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
+      )}
+      {user && size !== 'strip' && (
+        <div className="absolute bottom-10 left-2 flex max-w-[calc(100%-1rem)]">
+          <StatusBubble user={user} tail="bottom-left" size="xs" />
+        </div>
       )}
       <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
         {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
