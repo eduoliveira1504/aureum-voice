@@ -15,7 +15,7 @@ import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app import storage  # noqa: E402
+from app import livekit_admin, storage  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
@@ -70,3 +70,19 @@ async def client() -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
+
+
+@pytest.fixture(autouse=True)
+def livekit_calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, dict]]:
+    """Records LiveKit server API calls instead of sending them. GetParticipant answers with
+    an unmuted mic track."""
+    calls: list[tuple[str, str, dict]] = []
+
+    async def fake_post(method: str, room: str, body: dict) -> dict:
+        calls.append((method, room, body))
+        if method == "GetParticipant":
+            return {"tracks": [{"sid": "TR_mic", "source": "MICROPHONE", "muted": False}]}
+        return {}
+
+    monkeypatch.setattr(livekit_admin, "_post", fake_post)
+    return calls

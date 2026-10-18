@@ -53,6 +53,9 @@ class Settings(BaseSettings):
 
     # URL clients use to reach LiveKit (ws:// locally, wss:// in production).
     livekit_url: str = "ws://localhost:7880"
+    # How the API itself reaches LiveKit's server API, when that differs from livekit_url
+    # (e.g. http://livekit:7880 with LiveKit in this compose). Default: livekit_url over http(s).
+    livekit_api_url: str | None = None
     livekit_api_key: str
     livekit_api_secret: str
     voice_token_minutes: int = 60
@@ -63,6 +66,11 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def livekit_http_url(self) -> str:
+        url = self.livekit_api_url or self.livekit_url
+        return url.replace("wss://", "https://", 1).replace("ws://", "http://", 1).rstrip("/")
 
     @property
     def redis_url(self) -> str:

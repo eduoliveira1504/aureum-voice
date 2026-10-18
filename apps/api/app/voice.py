@@ -80,6 +80,17 @@ class VoiceFlags(BaseModel):
 class VoiceState(VoiceFlags):
     user_id: uuid.UUID
     channel_id: uuid.UUID
+    # Set by a moderator (server rooms only); clients can't change them.
+    server_muted: bool = False
+    server_deafened: bool = False
+
+
+def apply_moderation(state: VoiceState, *, muted: bool, deafened: bool) -> None:
+    """A server deafen also mutes; either one shows as muted."""
+    state.server_muted = muted
+    state.server_deafened = deafened
+    state.muted = state.muted or muted or deafened
+    state.deafened = state.deafened or deafened
 
 
 # LiveKit track sources (VideoGrant.canPublishSources).
@@ -88,9 +99,12 @@ SOURCE_CAMERA = "camera"
 SOURCE_SCREEN = ["screen_share", "screen_share_audio"]
 
 
-def livekit_token(*, room: str, identity: str, name: str, sources: list[str] | None = None) -> str:
+def livekit_token(
+    *, room: str, identity: str, name: str, sources: list[str] | None = None, can_subscribe: bool = True
+) -> str:
     """LiveKit access token: a JWT signed with the API secret (see docs.livekit.io).
-    `sources` limits what the user may publish (None: anything); the media server enforces it."""
+    `sources` limits what the user may publish (None: anything); the media server enforces it.
+    Without `can_subscribe` they hear and see nobody (server deafen)."""
     settings = get_settings()
     now = datetime.now(UTC)
     claims = {
@@ -103,7 +117,7 @@ def livekit_token(*, room: str, identity: str, name: str, sources: list[str] | N
             "room": room,
             "roomJoin": True,
             "canPublish": sources is None or bool(sources),
-            "canSubscribe": True,
+            "canSubscribe": can_subscribe,
             "canPublishData": True,
         },
     }

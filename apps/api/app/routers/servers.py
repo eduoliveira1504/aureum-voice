@@ -71,6 +71,8 @@ def member_out(member: ServerMember, ctx: Context, status_: str = "offline") -> 
         role_ids=role_ids,
         joined_at=member.joined_at,
         nickname=member.nickname,
+        voice_muted=member.voice_muted,
+        voice_deafened=member.voice_deafened,
         status=status_,
     )
 

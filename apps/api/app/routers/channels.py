@@ -67,6 +67,7 @@ async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: Session
     """For a server voice channel, or for the call in progress in a DM/group."""
     channel, access = await get_channel_access(session, channel_id, user.id)
     sources = None
+    can_subscribe = True
     if channel.type in dms.DM_TYPES:
         if await calls.current_call(session, channel.id) is None:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="No call in progress")
@@ -74,8 +75,13 @@ async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: Session
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a voice channel")
     else:
         assert access is not None
-        sources = voice_sources(access.channel(channel))
-    token = voice.livekit_token(room=str(channel.id), identity=str(user.id), name=user.display_name, sources=sources)
+        member = await session.get(ServerMember, (channel.server_id, user.id))
+        assert member is not None
+        sources = moderated_sources(voice_sources(access.channel(channel)), member)
+        can_subscribe = not member.voice_deafened
+    token = voice.livekit_token(
+        room=str(channel.id), identity=str(user.id), name=user.display_name, sources=sources, can_subscribe=can_subscribe
+    )
     return VoiceTokenOut(token=token, url=get_settings().livekit_url)
 
 
@@ -90,6 +96,13 @@ def voice_sources(perms: Perm) -> list[str]:
         sources.append(voice.SOURCE_CAMERA)
     if perms & Perm.STREAM:
         sources.extend(voice.SOURCE_SCREEN)
+    return sources
+
+
+def moderated_sources(sources: list[str], member: ServerMember) -> list[str]:
+    """A server mute or deafen also takes the mic away."""
+    if member.voice_muted or member.voice_deafened:
+        return [s for s in sources if s != voice.SOURCE_MIC]
     return sources
 
 

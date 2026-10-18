@@ -48,22 +48,24 @@ async def _viewers_of(channel_id: uuid.UUID) -> list[uuid.UUID]:
         return await channel_viewers(session, channel) if channel and channel.server_id else []
 
 
-async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> tuple[voice.Scope, Perm | None] | None:
+async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> tuple[voice.Scope, Perm | None, ServerMember | None] | None:
     """Where joining this channel puts the user: a server voice channel they can connect to
-    (with their permissions there), or a DM/group of theirs with a call in progress
-    (permissions None: anything goes). None if they can't join it."""
+    (with their permissions there and their membership, for moderation flags), or a DM/group
+    of theirs with a call in progress (permissions None: anything goes). None if they can't
+    join it."""
     async with SessionLocal() as session:
         channel = await session.get(Channel, channel_id)
         if channel is None:
             return None
         if channel.type == ChannelType.voice and channel.server_id is not None:
-            if await session.get(ServerMember, (channel.server_id, user_id)) is None:
+            member = await session.get(ServerMember, (channel.server_id, user_id))
+            if member is None:
                 return None
             perms = (await server_access(session, channel.server_id, user_id, [channel.id])).channel(channel)
-            return (voice.server_scope(channel.server_id), perms) if perms & Perm.CONNECT else None
+            return (voice.server_scope(channel.server_id), perms, member) if perms & Perm.CONNECT else None
         if channel.type in DM_TYPES and await session.get(ChannelMember, (channel_id, user_id)) is not None:
             if await calls.active_call(session, channel_id) is not None:
-                return voice.dm_scope(channel_id), None
+                return voice.dm_scope(channel_id), None, None
         return None
 
 
@@ -79,13 +81,15 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
     found = await _voice_scope(update.channel_id, user_id)
     if found is None:
         return await _send_error(websocket, "Voice channel not found")
-    scope, perms = found
+    scope, perms, member = found
     if perms is not None:
         # What others see matches what the media server lets them publish.
         update.muted = update.muted or not perms & Perm.SPEAK
         update.camera = update.camera and bool(perms & Perm.VIDEO)
         update.screen = update.screen and bool(perms & Perm.STREAM)
     state = voice.VoiceState(user_id=user_id, **update.model_dump())
+    if member is not None:
+        voice.apply_moderation(state, muted=member.voice_muted, deafened=member.voice_deafened)
     await voice.set_state(state, scope, _recipients)
     if scope.kind == "dm":
         await calls.joined(scope.id, user_id)

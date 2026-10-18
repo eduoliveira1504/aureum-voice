@@ -294,6 +294,17 @@ class MemberOut(WithPresence):
     role_ids: list[uuid.UUID] = []
     joined_at: datetime
     nickname: str | None = None
+    # Server mute / deafen by a moderator.
+    voice_muted: bool = False
+    voice_deafened: bool = False
+
+
+class VoiceModeration(BaseModel):
+    """Any of: server mute, server deafen, or move to another room (channel_id)."""
+
+    muted: bool | None = None
+    deafened: bool | None = None
+    channel_id: uuid.UUID | None = None
 
 
 class MemberUpdate(BaseModel):

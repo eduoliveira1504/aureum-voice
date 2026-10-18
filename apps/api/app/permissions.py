@@ -247,6 +247,10 @@ class ServerAccess:
     def channel(self, channel: Channel) -> Perm:
         return self.ctx.in_channel(self.user_id, self._overwrites.get(channel.id, []), voice=is_voice(channel))
 
+    def of_member(self, user_id: uuid.UUID, channel: Channel) -> Perm:
+        """Someone else's permissions in a channel whose overrides were loaded."""
+        return self.ctx.in_channel(user_id, self._overwrites.get(channel.id, []), voice=is_voice(channel))
+
     def can_view(self, channel: Channel) -> bool:
         return bool(self.channel(channel) & Perm.VIEW_CHANNEL)
 

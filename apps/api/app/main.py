@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import storage
 from app.config import get_settings
 from app.realtime import broker
-from app.routers import auth, calls, channels, dms, friends, roles, servers, users, ws
+from app.routers import auth, calls, channels, dms, friends, moderation, roles, servers, users, ws
 
 settings = get_settings()
 
@@ -45,6 +45,7 @@ api.include_router(users.media_router)
 api.include_router(servers.router)
 api.include_router(channels.router)
 api.include_router(roles.router)
+api.include_router(moderation.router)
 api.include_router(friends.router)
 api.include_router(dms.router)
 api.include_router(calls.router)

@@ -259,6 +259,9 @@ class ServerMember(Base):
     joined_at: Mapped[datetime] = _created_at()
     # Shown instead of the display name inside this server.
     nickname: Mapped[str | None] = mapped_column(String(32))
+    # Server mute / deafen by a moderator: kept across calls until lifted.
+    voice_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    voice_deafened: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     user: Mapped[User] = relationship(lazy="joined")
 
