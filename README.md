@@ -115,6 +115,7 @@ Design decisions are recorded in [`docs/decisions`](docs/decisions).
 ```
 apps/api/        FastAPI app, Alembic migrations, pytest suite
 apps/desktop/    Electron + React desktop app
+scripts/         generate-sounds.mjs, which synthesizes the UI sounds
 infra/           docker-compose files and LiveKit config
 docs/decisions/  architecture decision records
 .env.example     every setting the stack reads
@@ -161,6 +162,21 @@ python -m venv .venv
 ```
 
 For the desktop app, `npm run typecheck` checks both the main and renderer processes.
+
+### Sounds
+
+The UI sounds (`apps/desktop/src/renderer/src/assets/sounds/*.ogg`) are synthesized by
+`scripts/generate-sounds.mjs` and committed, so ffmpeg is only needed to change them. To regenerate,
+install ffmpeg (`winget install ffmpeg` on Windows), edit the sound's entry in the script, and run:
+
+```sh
+cd apps/desktop
+npm run sounds            # all sounds
+npm run sounds -- message # only the named ones
+```
+
+Output is byte-identical between runs, so git only shows the sounds that actually changed. The sounds
+are © Aureum, all rights reserved (see `docs/sounds/LICENSES.md`).
 
 ### Building the Windows installer
 

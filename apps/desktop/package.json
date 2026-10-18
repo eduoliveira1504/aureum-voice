@@ -11,7 +11,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
     "build": "npm run typecheck && electron-vite build",
-    "build:win": "npm run build && electron-builder --win"
+    "build:win": "npm run build && electron-builder --win",
+    "sounds": "node ../../scripts/generate-sounds.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/figtree": "5.3.0",
