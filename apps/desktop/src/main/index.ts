@@ -14,8 +14,9 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 
-import type { AppSettings, GamePrefs, ShareSource } from '../shared/types'
+import type { AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource } from '../shared/types'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
+import * as overlay from './overlay'
 
 // Set at build time (apps/desktop/.env.production.local), so the installer friends get
 // already points at the public server; users can still change it on the login screen.
@@ -117,6 +118,19 @@ handle('games:known', knownGames)
 handle('games:running', runningApps)
 handle('games:current', currentGame)
 
+// In-game overlay (see overlay.ts).
+const CORNERS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
+handle('overlay:get-state', overlay.getState)
+handle('overlay:set-prefs', (patch: Partial<OverlayPrefs>) => overlay.setPrefs(patch))
+handle('overlay:set-editing', (editing: unknown) => overlay.setEditing(editing === true))
+handle('overlay:set-active', (active: unknown) => overlay.setActive(active === true))
+handle('overlay:set-bounds', overlay.setBounds)
+handle('overlay:snap', (corner: unknown) => {
+  if (typeof corner !== 'string' || !CORNERS.has(corner)) throw new Error('Invalid corner')
+  return overlay.snap(corner as OverlayCorner)
+})
+handle('overlay:pause-shortcuts', (paused: unknown) => overlay.pauseShortcuts(paused === true))
+
 // ---------------------------------------------------------------------------
 // Screen sharing — the renderer shows its own picker, then calls getDisplayMedia,
 // which lands in the display-media handler below with the source it picked.
@@ -185,7 +199,16 @@ function createWindow(): void {
   })
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => (mainWindow = null))
+  mainWindow.on('focus', () => overlay.setMainFocused(true))
+  mainWindow.on('blur', () => overlay.setMainFocused(false))
+  mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
+    if (frameName === overlay.OVERLAY_FRAME_NAME) overlay.attachWindow(created)
+  })
+  mainWindow.on('closed', () => {
+    mainWindow = null
+    // Not a child window (it would minimize along with the app), so close it by hand.
+    overlay.closeWindow()
+  })
 
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -200,7 +223,11 @@ app.on('web-contents-created', (_, contents) => {
     const devUrl = process.env['ELECTRON_RENDERER_URL']
     if (!(devUrl && url.startsWith(devUrl))) event.preventDefault()
   })
-  contents.setWindowOpenHandler(({ url }) => {
+  contents.setWindowOpenHandler(({ url, frameName }) => {
+    // The app's window opens the overlay as a blank page and renders into it itself.
+    if (contents === mainWindow?.webContents && frameName === overlay.OVERLAY_FRAME_NAME && url === 'about:blank') {
+      return { action: 'allow', overrideBrowserWindowOptions: overlay.OVERLAY_WINDOW_OPTIONS }
+    }
     if (url.startsWith('https://')) shell.openExternal(url)
     return { action: 'deny' }
   })
@@ -227,6 +254,7 @@ if (!app.requestSingleInstanceLock()) {
     )
     installDisplayMediaHandler(isAppWindow)
     createWindow()
+    void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
     void startGameDetection((game) => mainWindow?.webContents.send('games:changed', game))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AureumBridge } from '../shared/types'
+import type { AureumBridge, OverlayState } from '../shared/types'
 
 const bridge: AureumBridge = {
   session: {
@@ -30,6 +30,20 @@ const bridge: AureumBridge = {
   screen: {
     getSources: () => ipcRenderer.invoke('screen:get-sources'),
     select: (sourceId, audio) => ipcRenderer.invoke('screen:select', sourceId, audio)
+  },
+  overlay: {
+    getState: () => ipcRenderer.invoke('overlay:get-state'),
+    setPrefs: (patch) => ipcRenderer.invoke('overlay:set-prefs', patch),
+    setEditing: (editing) => ipcRenderer.invoke('overlay:set-editing', editing),
+    setActive: (active) => ipcRenderer.invoke('overlay:set-active', active),
+    setBounds: (bounds) => ipcRenderer.invoke('overlay:set-bounds', bounds),
+    snap: (corner) => ipcRenderer.invoke('overlay:snap', corner),
+    pauseShortcuts: (paused) => ipcRenderer.invoke('overlay:pause-shortcuts', paused),
+    onState: (listener) => {
+      const wrapped = (_: unknown, state: OverlayState): void => listener(state)
+      ipcRenderer.on('overlay:state', wrapped)
+      return () => ipcRenderer.removeListener('overlay:state', wrapped)
+    }
   }
 }
 

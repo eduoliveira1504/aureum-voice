@@ -40,6 +40,41 @@ export interface RunningApp {
   title: string
 }
 
+export type OverlaySize = 'small' | 'medium' | 'large'
+export type OverlayCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+/** Where the overlay box sits, in screen coordinates (DIPs). */
+export interface OverlayBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** In-game overlay preferences. They stay on this PC: the position depends on its monitors. */
+export interface OverlayPrefs {
+  enabled: boolean
+  /** Electron accelerators, e.g. "Control+Shift+F9". */
+  toggleShortcut: string
+  editShortcut: string
+  /** null until placed: the top-left corner of the primary monitor. */
+  bounds: OverlayBounds | null
+  size: OverlaySize
+  /** 30-100 (%). */
+  opacity: number
+  showCameras: boolean
+  onlySpeaking: boolean
+}
+
+/** What the main process tells the app's window about the overlay. */
+export interface OverlayState {
+  prefs: OverlayPrefs
+  /** Edit mode: the overlay takes clicks so it can be moved and resized. */
+  editing: boolean
+  /** Shortcuts another program already took (they don't work until changed). */
+  failedShortcuts: string[]
+}
+
 /** API exposed to the renderer as `window.aureum` by the preload script. */
 export interface AureumBridge {
   session: {
@@ -74,5 +109,20 @@ export interface AureumBridge {
     getSources(): Promise<ShareSource[]>
     /** Picks what the next getDisplayMedia() call captures, and whether it includes system audio. */
     select(sourceId: string, audio: boolean): Promise<void>
+  }
+  overlay: {
+    getState(): Promise<OverlayState>
+    /** Saves preferences; rejects when a new shortcut is invalid or taken by another program. */
+    setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlayState>
+    setEditing(editing: boolean): Promise<void>
+    /** Whether the app has something to show (a call is going on). */
+    setActive(active: boolean): Promise<void>
+    /** Moves/resizes the box while editing (saved when editing ends). */
+    setBounds(bounds: OverlayBounds): Promise<void>
+    /** Puts the box in a corner of the monitor it's on. */
+    snap(corner: OverlayCorner): Promise<void>
+    /** Pauses the global shortcuts (while Settings records a new one). */
+    pauseShortcuts(paused: boolean): Promise<void>
+    onState(listener: (state: OverlayState) => void): () => void
   }
 }
