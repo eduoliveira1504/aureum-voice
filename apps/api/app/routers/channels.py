@@ -35,25 +35,57 @@ router = APIRouter(tags=["channels"])
 @router.patch("/channels/{channel_id}", response_model=ChannelOut)
 async def update_channel(channel_id: uuid.UUID, body: ChannelUpdate, user: CurrentUser, session: SessionDep) -> ChannelOut:
     channel, access = await get_channel_for_member(session, channel_id, user.id)
+    addon_fields = body.model_fields_set & {"config", "announce_channel_id"}
     # Renaming and moving are channel management; an addon's settings only need MANAGE_ADDONS.
-    if body.name is not None or body.position is not None or body.config is None:
+    if body.name is not None or body.position is not None or not addon_fields:
         access.require_in(channel, Perm.MANAGE_CHANNELS)
     if body.name is not None:
         channel.name = normalize_channel_name(body.name, channel.type)
     if body.position is not None:
         channel.position = body.position
-    if body.config is not None:
+    if addon_fields:
         if channel.type != ChannelType.addon:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only addon channels have settings")
         access.require_in(channel, Perm.MANAGE_ADDONS)
         addon = addons.get_addon(channel.addon_key)
         if addon is None:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="This addon is no longer available")
-        channel.config = addon.parse_config(body.config)
+        if body.config is not None:
+            channel.config = addon.parse_config(body.config)
+        if "announce_channel_id" in addon_fields:
+            if body.announce_channel_id is not None and not addon.announces:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This addon doesn't post to a chat")
+            await _check_announce_channel(session, channel, body.announce_channel_id, body.confirm_wider_audience, user.id)
+            channel.announce_channel_id = body.announce_channel_id
     await session.commit()
     out = channel_out(channel, (await channel_overwrites(session, [channel.id]))[channel.id])
     await broker.publish("channel.updated", out.model_dump(mode="json"), await channel_viewers(session, channel))
     return out
+
+
+async def _check_announce_channel(
+    session: AsyncSession, channel: Channel, target_id: uuid.UUID | None, confirmed: bool, user_id: uuid.UUID
+) -> None:
+    """The announce channel must be a text channel of the same server that the user can see.
+    Picking one that people who can't see the addon channel can see needs a confirmation (409
+    "wider_audience" until then): they'd read what the addon posts there."""
+    if target_id is None or target_id == channel.announce_channel_id:
+        return
+    target, _ = await get_channel_for_member(session, target_id, user_id)
+    if target.server_id != channel.server_id or target.type != ChannelType.text:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Pick a text channel of this server")
+    if confirmed:
+        return
+    outside = set(await channel_viewers(session, target)) - set(await channel_viewers(session, channel))
+    if outside:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={
+                "code": "wider_audience",
+                "message": "People who can't see this addon channel can see the announce channel",
+                "count": len(outside),
+            },
+        )
 
 
 @router.delete("/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -218,8 +250,8 @@ async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, 
     message, channel, _ = await _message_for_member(session, message_id, user.id)
     if message.author_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only edit your own messages")
-    if message.call_id is not None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Call lines can't be edited")
+    if message.call_id is not None or message.system is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="System lines can't be edited")
     message.content = body.content
     message.edited_at = func.now()
     await session.commit()

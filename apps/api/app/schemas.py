@@ -264,6 +264,8 @@ class AddonOut(BaseModel):
     permissions: dict[str, int]
     # JSON Schema of the addon's channel settings, if it has any.
     config_schema: dict[str, Any] | None
+    # Whether it posts system lines to a text channel (channels.announce_channel_id).
+    announces: bool = False
 
 
 # --- Servers, channels, invites -------------------------------------------
@@ -382,6 +384,11 @@ class ChannelUpdate(BaseModel):
     position: Annotated[int, Field(ge=0)] | None = None
     # Addon channels only; replaces the settings as a whole.
     config: dict[str, Any] | None = None
+    # Addon channels only: where the addon posts its system lines; null turns them off.
+    announce_channel_id: uuid.UUID | None = None
+    # Set after the user was warned that the announce channel is seen by people who can't see
+    # the addon channel (the API answers 409 "wider_audience" until then).
+    confirm_wider_audience: bool = False
 
 
 class ChannelOut(BaseModel):
@@ -395,6 +402,7 @@ class ChannelOut(BaseModel):
     # Addon channels only.
     addon_key: str | None = None
     config: dict[str, Any] = {}
+    announce_channel_id: uuid.UUID | None = None
     # Server channels only.
     overrides: list[OverrideOut] = []
 
@@ -557,3 +565,5 @@ class MessageOut(BaseModel):
     edited_at: datetime | None
     # The call this line stands for (DMs only).
     call: CallOut | None = None
+    # A system line posted by an addon: {"addon_key", "source_channel_id", "lines": [...]}.
+    system: dict[str, Any] | None = None

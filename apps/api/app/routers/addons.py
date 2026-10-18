@@ -18,6 +18,7 @@ async def list_addons(_: CurrentUser) -> list[AddonOut]:
             icon=a.icon,
             permissions={"view": int(a.action_perm("view")), **{k: int(p) for k, p in a.permissions.items()}},
             config_schema=a.config_model.model_json_schema() if a.config_model else None,
+            announces=a.announces,
         )
         for a in ADDONS.values()
     ]

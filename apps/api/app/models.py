@@ -311,6 +311,10 @@ class Channel(Base):
     # Addon channels only: which addon runs the channel, and its settings (shape set by the addon).
     addon_key: Mapped[str | None] = mapped_column(String(32))
     config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}", nullable=False)
+    # Addon channels only: the text channel where the addon posts its system lines (none = off).
+    announce_channel_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("channels.id", ondelete="SET NULL")
+    )
 
     __table_args__ = (
         CheckConstraint("(type = 'addon') = (addon_key IS NOT NULL)", name="addon_key"),
@@ -371,6 +375,9 @@ class Message(Base):
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Set on the line a private call leaves in its DM ("X started a call", "missed call").
     call_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("calls.id", ondelete="SET NULL"))
+    # Set on a system line an addon posts (see app.addons.base.AddonChannel.announce):
+    # {"addon_key", "source_channel_id", "group", "lines": [...]}. Its content stays empty.
+    system: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
