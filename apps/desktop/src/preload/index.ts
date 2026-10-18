@@ -15,6 +15,18 @@ const bridge: AureumBridge = {
   system: {
     idleSeconds: () => ipcRenderer.invoke('system:idle-seconds')
   },
+  games: {
+    getPrefs: () => ipcRenderer.invoke('games:get-prefs'),
+    setPrefs: (patch) => ipcRenderer.invoke('games:set-prefs', patch),
+    known: () => ipcRenderer.invoke('games:known'),
+    running: () => ipcRenderer.invoke('games:running'),
+    current: () => ipcRenderer.invoke('games:current'),
+    onChange: (listener) => {
+      const wrapped = (_: unknown, game: string | null): void => listener(game)
+      ipcRenderer.on('games:changed', wrapped)
+      return () => ipcRenderer.removeListener('games:changed', wrapped)
+    }
+  },
   screen: {
     getSources: () => ipcRenderer.invoke('screen:get-sources'),
     select: (sourceId, audio) => ipcRenderer.invoke('screen:select', sourceId, audio)

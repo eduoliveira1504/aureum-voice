@@ -11,6 +11,7 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "outDir": "node_modules/.tsc/node"
   },
   "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"]

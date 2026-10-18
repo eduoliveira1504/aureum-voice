@@ -14,7 +14,8 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 
-import type { AppSettings, ShareSource } from '../shared/types'
+import type { AppSettings, GamePrefs, ShareSource } from '../shared/types'
+import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 
 // Set at build time (apps/desktop/.env.production.local), so the installer friends get
 // already points at the public server; users can still change it on the login screen.
@@ -108,6 +109,13 @@ handle('settings:get', readSettings)
 handle('settings:set', writeSettings)
 // Seconds without keyboard/mouse input on the whole PC (not just this app), for auto-idle.
 handle('system:idle-seconds', () => powerMonitor.getSystemIdleTime())
+
+// "Jogando X": the renderer forwards only the detected game's name to the server.
+handle('games:get-prefs', getPrefs)
+handle('games:set-prefs', (patch: Partial<GamePrefs>) => setPrefs(patch))
+handle('games:known', knownGames)
+handle('games:running', runningApps)
+handle('games:current', currentGame)
 
 // ---------------------------------------------------------------------------
 // Screen sharing — the renderer shows its own picker, then calls getDisplayMedia,
@@ -219,6 +227,7 @@ if (!app.requestSingleInstanceLock()) {
     )
     installDisplayMediaHandler(isAppWindow)
     createWindow()
+    void startGameDetection((game) => mainWindow?.webContents.send('games:changed', game))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
