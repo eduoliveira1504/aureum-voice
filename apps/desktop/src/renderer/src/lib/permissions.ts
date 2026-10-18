@@ -107,6 +107,10 @@ export function channelPermissions(server: ServerDetail, channel: Channel, userI
   return perms & ALL
 }
 
+/** A private channel: hidden from @everyone (only some roles or members see it). */
+export const isPrivate = (server: ServerDetail, channel: Channel): boolean =>
+  channel.overrides.some((o) => o.target_type === 'role' && o.target_id === server.id && has(o.deny, Perm.VIEW_CHANNEL))
+
 /** What the user may do to a channel itself: open its settings (any tab) and delete it.
  * Deleting an addon channel deletes the addon's data too, so it also takes MANAGE_ADDONS. */
 export function channelActions(server: ServerDetail, channel: Channel, userId: string): { canSettings: boolean; canDelete: boolean } {

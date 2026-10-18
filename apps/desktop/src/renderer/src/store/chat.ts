@@ -227,8 +227,14 @@ export const useChat = create<ChatState>()((set, get) => {
       }
       if (!get().servers[id]) return // left meanwhile
       const visible = new Set(detail.channels.map((c) => c.id))
-      for (const channel of get().servers[id]?.channels ?? []) {
-        if (!visible.has(channel.id)) useNav.getState().dropChannelTab(id, channel.id)
+      const hidden = (get().servers[id]?.channels ?? []).filter((c) => !visible.has(c.id)).map((c) => c.id)
+      for (const channelId of hidden) useNav.getState().dropChannelTab(id, channelId)
+      if (hidden.length) {
+        // Nothing of a channel the user can't see anymore stays around (messages, badges).
+        set((st) => ({
+          messages: Object.fromEntries(Object.entries(st.messages).filter(([c]) => !hidden.includes(c))),
+          reads: Object.fromEntries(Object.entries(st.reads).filter(([c]) => !hidden.includes(c)))
+        }))
       }
       const voice = useVoice.getState()
       if (voice.serverId === id && voice.channelId && !visible.has(voice.channelId)) void voice.leave()

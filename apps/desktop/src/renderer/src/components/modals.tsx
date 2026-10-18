@@ -3,10 +3,12 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { addonModule } from '../addons/registry'
 import { api, ApiError, type AddonInfo, type Channel, type Invite, type ServerDetail } from '../lib/api'
+import { memberName } from '../lib/members'
+import { basePermissions, has, outranks, Perm, rankOf } from '../lib/permissions'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
-import { Field, labelClass, PrimaryButton, Segmented } from './ui'
+import { Avatar, Field, labelClass, PrimaryButton, Segmented, ToggleRow } from './ui'
 
 export function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
@@ -130,6 +132,75 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
   )
 }
 
+/** Who may see a channel being created: everyone, or (private) only the picked roles and members. */
+type Access = { private: boolean; roles: string[]; members: string[] }
+const PUBLIC: Access = { private: false, roles: [], members: [] }
+
+function accessBody(access: Access): Record<string, unknown> {
+  return access.private ? { private: true, allowed_roles: access.roles, allowed_members: access.members } : {}
+}
+
+/** "Canal privado" and, when on, the roles and members who get in. Shown only to who can edit
+ * permissions; lists only roles and members ranked below the user (the API's rule). */
+function PrivateAccess({
+  serverId,
+  voice,
+  value,
+  onChange
+}: {
+  serverId: string
+  voice: boolean
+  value: Access
+  onChange(access: Access): void
+}): ReactNode {
+  const server = useChat((s) => s.servers[serverId])
+  const meId = useChat((s) => s.meId)
+  if (!server || !meId || !has(basePermissions(server, meId), Perm.MANAGE_ROLES)) return null
+
+  const roles = server.roles.filter((r) => r.id !== server.id && outranks(server, meId, r.position))
+  const members = server.members.filter((m) => m.user.id !== meId && outranks(server, meId, rankOf(server, m.user.id)))
+  const toggle = (list: 'roles' | 'members', id: string): void =>
+    onChange({ ...value, [list]: value[list].includes(id) ? value[list].filter((x) => x !== id) : [...value[list], id] })
+  const row = 'flex cursor-pointer items-center gap-2 rounded-item px-2 py-1.5 text-sm hover:bg-elevated'
+
+  return (
+    <div className="space-y-2">
+      <ToggleRow
+        title="Canal privado"
+        description={`Só os cargos e membros escolhidos ${voice ? 'veem e entram na sala' : 'veem o canal'}.`}
+        checked={value.private}
+        onChange={(on) => onChange({ ...value, private: on })}
+      />
+      {value.private && (
+        <div className="rounded-control border border-line bg-main p-1.5">
+          <div className="max-h-48 overflow-y-auto">
+            {roles.length > 0 && <p className={`${labelClass} px-2 pt-1`}>Cargos</p>}
+            {roles.map((r) => (
+              <label key={r.id} className={row}>
+                <input type="checkbox" checked={value.roles.includes(r.id)} onChange={() => toggle('roles', r.id)} className="accent-accent" />
+                <span
+                  style={{ background: r.color ?? undefined }}
+                  className={`inline-block h-3 w-3 shrink-0 rounded-full ${r.color ? '' : 'bg-fg-subtle'}`}
+                />
+                <span className="truncate">{r.name}</span>
+              </label>
+            ))}
+            {members.length > 0 && <p className={`${labelClass} px-2 pt-2`}>Membros</p>}
+            {members.map((m) => (
+              <label key={m.user.id} className={row}>
+                <input type="checkbox" checked={value.members.includes(m.user.id)} onChange={() => toggle('members', m.user.id)} className="accent-accent" />
+                <Avatar name={memberName(m)} url={m.user.avatar_url} size={18} />
+                <span className="truncate">{memberName(m)}</span>
+              </label>
+            ))}
+          </div>
+          <p className="px-2 pb-1 pt-2 text-xs text-fg-subtle">Você continua com acesso. Dá pra ajustar depois em Configurações do canal → Permissões.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function CreateChannelModal({
   serverId,
   initialType,
@@ -142,6 +213,7 @@ export function CreateChannelModal({
   const openTab = useNav((s) => s.openTab)
   const [type, setType] = useState(initialType)
   const [name, setName] = useState('')
+  const [access, setAccess] = useState<Access>(PUBLIC)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -150,7 +222,7 @@ export function CreateChannelModal({
     if (!name.trim()) return setError('Dê um nome ao canal.')
     setBusy(true)
     try {
-      const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type } })
+      const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type, ...accessBody(access) } })
       if (type === 'text') openTab(serverId, channelTab(channel.id))
       onClose()
     } catch (err) {
@@ -181,6 +253,7 @@ export function CreateChannelModal({
           ))}
         </div>
         <Field autoFocus label="Nome do canal" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={type === 'text' ? 'novo-canal' : 'Sala de jogo'} />
+        <PrivateAccess serverId={serverId} voice={type === 'voice'} value={access} onChange={setAccess} />
         <PrimaryButton type="submit" disabled={busy}>
           {busy ? 'Criando…' : 'Criar canal'}
         </PrimaryButton>
@@ -196,6 +269,7 @@ export function CreateAddonModal({ serverId, onClose }: { serverId: string; onCl
   const [addons, setAddons] = useState<AddonInfo[] | null>(null)
   const [key, setKey] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const [access, setAccess] = useState<Access>(PUBLIC)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -226,7 +300,7 @@ export function CreateAddonModal({ serverId, onClose }: { serverId: string; onCl
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, {
         method: 'POST',
-        body: { name: name.trim(), type: 'addon', addon_key: key }
+        body: { name: name.trim(), type: 'addon', addon_key: key, ...accessBody(access) }
       })
       openTab(serverId, channelTab(channel.id))
       onClose()
@@ -261,6 +335,7 @@ export function CreateAddonModal({ serverId, onClose }: { serverId: string; onCl
           })}
         </div>
         {key && <Field label="Nome" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
+        {key && <PrivateAccess serverId={serverId} voice={false} value={access} onChange={setAccess} />}
         <PrimaryButton type="submit" disabled={busy || !key}>
           {busy ? 'Adicionando…' : 'Adicionar'}
         </PrimaryButton>

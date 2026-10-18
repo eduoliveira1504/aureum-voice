@@ -13,8 +13,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Invite-only sign-up: a new account needs an invite code, which also puts the user in that server
 - Servers with an icon and an animated banner, text and voice channels, invites with expiry and use limits
 - Roles with a color, an icon and 24 permissions, ranked by drag and drop: nobody manages a role or a
-  member at or above their own, and per-channel overrides for roles and members can make a channel
-  private. The API checks every route and WebSocket event, and LiveKit tokens only allow what the member
+  member at or above their own, and per-channel overrides (allow / inherit / deny) for roles and members.
+  A channel, room or add-on can be created private, open only to picked roles and members, with a lock
+  in the sidebar; whoever can't see it doesn't get it anywhere (lists, history, feed, events, voice). The API checks every route and WebSocket event, and LiveKit tokens only allow what the member
   may publish. Kick and ban from the server settings
   ([ADR 0007](docs/decisions/0007-roles-and-permissions.md))
 - Per-server nicknames, and voice moderation: server mute, server deafen and moving people between

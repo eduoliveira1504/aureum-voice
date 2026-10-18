@@ -1,10 +1,10 @@
-import { ChevronDown, Hash, Plus, Radio, UserPlus, Volume2 } from 'lucide-react'
+import { ChevronDown, Hash, Lock, Plus, Radio, UserPlus, Volume2 } from 'lucide-react'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { memberName } from '../lib/members'
-import { basePermissions, channelPermissions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelPermissions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
@@ -154,7 +154,10 @@ function RoomCard({
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-line p-5 text-center">
         <Volume2 size={22} className="text-fg-subtle" />
-        <span className="font-medium">{room.name}</span>
+        <span className="flex items-center gap-1 font-medium">
+          {room.name}
+          <PrivateMark server={server} channel={room} />
+        </span>
         <button
           type="button"
           onClick={() => void join(server.id, room.id)}
@@ -206,7 +209,10 @@ function RoomCard({
       <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
         <div className="min-w-0 flex-1">
           {mine && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-accent-text">Você está aqui</span>}
-          <span className="block truncate font-medium">{room.name}</span>
+          <span className="flex items-center gap-1 font-medium">
+            <span className="truncate">{room.name}</span>
+            <PrivateMark server={server} channel={room} />
+          </span>
           <span className="block text-xs text-fg-subtle">
             {states.length} {states.length === 1 ? 'pessoa' : 'pessoas'}
           </span>
@@ -223,6 +229,11 @@ function RoomCard({
       </div>
     </div>
   )
+}
+
+function PrivateMark({ server, channel }: { server: ServerDetail; channel: Channel }): ReactNode {
+  if (!isPrivate(server, channel)) return null
+  return <Lock size={12} aria-label="Canal privado" className="shrink-0 text-fg-subtle" />
 }
 
 /** A card per addon channel, with the addon's live summary; or a way to add the first one. */
@@ -253,7 +264,10 @@ function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
                   <Icon size={18} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{channel.name}</span>
+                  <span className="flex items-center gap-1 font-semibold">
+                    <span className="truncate">{channel.name}</span>
+                    <PrivateMark server={server} channel={channel} />
+                  </span>
                   {addon?.name !== channel.name && (
                     <span className="block truncate text-xs text-fg-subtle">{addon?.name ?? 'Addon desconhecido'}</span>
                   )}
@@ -308,6 +322,8 @@ function News({ server }: { server: ServerDetail }): ReactNode {
   // The feed is newest first; group it keeping that order, a few messages per channel.
   const groups = new Map<string, Message[]>()
   for (const m of items ?? []) {
+    // A feed fetched before the user lost access to a channel can't show it anymore.
+    if (!server.channels.some((c) => c.id === m.channel_id)) continue
     // Silenced channels (or the whole server) stay out, unless they mention the user.
     const silenced = mutedPlaces.includes(server.id) || mutedPlaces.includes(m.channel_id)
     if (silenced && !reads[m.channel_id]?.mention_count) continue
@@ -333,6 +349,7 @@ function News({ server }: { server: ServerDetail }): ReactNode {
                 <div className="flex items-center gap-1.5 border-b border-line px-2.5 py-1.5">
                   <Hash size={14} className="shrink-0 text-fg-subtle" />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{channel?.name}</span>
+                  {channel && <PrivateMark server={server} channel={channel} />}
                   <CountBadge count={read?.unread_count ?? messages.length} tone={read?.mention_count ? 'danger' : 'accent'} />
                   <button
                     type="button"

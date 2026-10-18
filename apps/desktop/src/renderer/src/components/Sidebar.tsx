@@ -4,6 +4,7 @@ import {
   Hash,
   HeadphoneOff,
   LayoutDashboard,
+  Lock,
   MicOff,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,7 +24,7 @@ import { Fragment, useCallback, useRef, useState, type MouseEvent, type ReactNod
 import { addonIcon } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
-import { basePermissions, channelActions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelActions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { channelTab, layoutOf, useNav, visiblePanels } from '../store/nav'
@@ -103,6 +104,7 @@ function Item({
   trailing,
   dragTab,
   muted = false,
+  locked = false,
   onClick,
   onSide,
   onContextMenu
@@ -111,6 +113,8 @@ function Item({
   label: string
   collapsed: boolean
   active?: boolean
+  /** A private channel: a small lock on the icon. */
+  locked?: boolean
   /** Silenced by the user: dimmed, with a crossed bell. */
   muted?: boolean
   /** "1/2" when the item is open in one of two panels. */
@@ -151,6 +155,11 @@ function Item({
       >
         <span className="relative shrink-0">
           <Icon size={18} className={active ? 'opacity-100' : 'opacity-75'} />
+          {locked && (
+            <span title="Canal privado" className="absolute -bottom-1 -right-1 rounded-full bg-panel p-px">
+              <Lock size={9} strokeWidth={3} aria-label="Canal privado" />
+            </span>
+          )}
           {dot && (
             <span
               className={`absolute -right-1 -top-1 h-2 w-2 rounded-full border border-panel ${dot === 'success' ? 'bg-success' : 'bg-accent'}`}
@@ -283,6 +292,7 @@ function ServerPlaces({
                   icon={Volume2}
                   label={room.name ?? ''}
                   collapsed={collapsed}
+                  locked={isPrivate(server, room)}
                   active={mine}
                   dot={here.length ? 'success' : undefined}
                   badge={
@@ -317,6 +327,7 @@ function ServerPlaces({
                 icon={Hash}
                 label={channel.name ?? ''}
                 collapsed={collapsed}
+                locked={isPrivate(server, channel)}
                 active={where.active}
                 panelHint={where.hint}
                 dot={collapsed && unread > 0 ? 'accent' : undefined}
@@ -349,6 +360,7 @@ function ServerPlaces({
                   icon={addonIcon(channel.addon_key)}
                   label={channel.name ?? ''}
                   collapsed={collapsed}
+                  locked={isPrivate(server, channel)}
                   active={where.active}
                   panelHint={where.hint}
                   trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}

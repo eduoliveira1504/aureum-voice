@@ -318,7 +318,7 @@ function AddTarget({ candidates, onPick }: { candidates: Target[]; onPick(t: Tar
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-center gap-1.5 rounded-control border border-dashed border-line py-2 text-sm font-medium text-fg-muted hover:border-accent hover:text-fg disabled:opacity-50"
       >
-        <Plus size={16} /> Cargo ou membro
+        <Plus size={16} /> Adicionar cargo ou membro
       </button>
       {open && (
         <div className={`${menuClass} absolute left-0 right-0 top-11 max-h-64 overflow-y-auto`}>
@@ -400,6 +400,13 @@ function OverrideEditor({
         <p className="rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">Está no seu nível ou acima: só dá pra ver.</p>
       )}
       <FormError message={error} />
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-subtle">
+        {STATES.map(({ value, label, icon: Icon }) => (
+          <span key={value} className="flex items-center gap-1">
+            <Icon size={12} /> {value === 'inherit' ? 'Herdar = usa a permissão do cargo no servidor' : label}
+          </span>
+        ))}
+      </p>
       <div className="space-y-1.5">
         {names.map((name) => {
           const bit = Perm[name]
