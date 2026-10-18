@@ -1,9 +1,11 @@
 import { Hash, Pencil, Phone, PhoneMissed, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 
+import { addonIcon } from '../addons/registry'
 import { ApiError, type Channel, type Me, type Message, type User } from '../lib/api'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
+import { channelTab, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { contextMenu } from './ContextMenu'
 import { ConfirmModal } from './modals'
@@ -157,6 +159,8 @@ export function ChatView({
           const grouped =
             !newDay &&
             !prev.call &&
+            !prev.system &&
+            !message.system &&
             prev.author?.id === message.author?.id &&
             date.getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS
           return (
@@ -170,6 +174,13 @@ export function ChatView({
               )}
               {message.call ? (
                 <CallLine message={message} meId={me.id} />
+              ) : message.system ? (
+                <SystemLine
+                  message={message}
+                  serverId={channel.server_id}
+                  authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : 'Alguém'}
+                  onDelete={message.author?.id === me.id || canModerate ? () => setDeleting(message) : undefined}
+                />
               ) : (
                 <MessageRow
                   message={message}
@@ -259,6 +270,66 @@ function CallLine({ message, meId }: { message: Message; meId: string }): ReactN
           className="rounded-control bg-accent px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
         >
           Entrar
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** A line an addon posts about what happened in it ("Ana moveu “Login” para Feito"). Quick runs
+ * of actions by the same person come as one message with several lines. */
+function SystemLine({
+  message,
+  serverId,
+  authorName,
+  onDelete
+}: {
+  message: Message
+  serverId: string | null
+  authorName: string
+  onDelete?: () => void
+}): ReactNode {
+  const system = message.system!
+  const source = useChat((s) => (serverId ? s.servers[serverId]?.channels.find((c) => c.id === system.source_channel_id) : undefined))
+  const openTab = useNav((s) => s.openTab)
+  const Icon = addonIcon(system.addon_key)
+  const [first, ...rest] = system.lines
+  const where = source && serverId && (
+    <>
+      {' · em '}
+      <button type="button" onClick={() => openTab(serverId, channelTab(source.id))} className="font-medium text-fg hover:underline">
+        {source.name}
+      </button>
+    </>
+  )
+  return (
+    <div className="group mt-4 flex items-start gap-2.5 px-4 text-sm">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-item bg-elevated text-fg-muted">
+        <Icon size={18} />
+      </span>
+      <div className="min-w-0 flex-1 pt-2 text-fg-muted">
+        <p>
+          <span className="font-semibold text-fg">{authorName}</span>
+          {rest.length === 0 && ` ${first}`}
+          {where}
+          <span className="ml-2 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
+        </p>
+        {rest.length > 0 && (
+          <ul className="mt-1 space-y-0.5">
+            {system.lines.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {onDelete && (
+        <button
+          type="button"
+          aria-label="Excluir"
+          onClick={onDelete}
+          className="mt-1.5 rounded-item p-1.5 text-fg-subtle opacity-0 hover:bg-elevated hover:text-danger focus:opacity-100 group-hover:opacity-100"
+        >
+          <Trash2 size={16} />
         </button>
       )}
     </div>

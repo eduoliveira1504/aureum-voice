@@ -35,6 +35,15 @@ export interface AddonModule {
   Summary?: ComponentType<AddonViewProps>
   /** Form for channels.config, shown in the channel settings to who can manage addons. */
   Settings?: ComponentType<AddonSettingsProps>
+  /** Set when the addon posts system lines to a chat (its API manifest says `announces`): the
+   * channel settings then offer a text channel to post them in, with these texts. */
+  announces?: {
+    /** Label of the channel picker ("Avisar movimentações em"). */
+    label: string
+    hint: string
+    /** Shown before picking a channel that people who can't see the addon channel can see. */
+    warning: string
+  }
   /** Its `addon.<key>.*` events from the WebSocket, plus 'ready' after every (re)connection. */
   onEvent?(event: ServerEvent): void
 }

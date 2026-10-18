@@ -254,7 +254,7 @@ export const useChat = create<ChatState>()((set, get) => {
           patchMessages(data.channel_id, (items) => mergeMessages(items, [message]))
           if (message.author?.id === meId) break
           // A call's line in the conversation has the ringtone instead.
-          if (!message.call) messageSound(data.channel_id, data.server_id, !!meId && !!mentions?.includes(meId))
+          if (!message.call && !message.system) messageSound(data.channel_id, data.server_id, !!meId && !!mentions?.includes(meId))
           if (viewing.has(data.channel_id)) {
             get().markRead(data.channel_id, true)
             break

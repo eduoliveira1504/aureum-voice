@@ -6,8 +6,8 @@ import type { AddonModule } from '../addons/types'
 import { api, ApiError, type Channel, type Override, type ServerDetail } from '../lib/api'
 import { channelPermissions, has, outranks, Perm, PERM_INFO, rankOf, type PermName } from '../lib/permissions'
 import { useChat } from '../store/chat'
-import { FormError, Modal } from './Modal'
-import { Avatar, Field, menuClass, PrimaryButton, useDismiss } from './ui'
+import { FormError, Modal, SecondaryButton } from './Modal'
+import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, useDismiss } from './ui'
 
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
 const TEXT: PermName[] = ['SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'MENTION_EVERYONE']
@@ -46,7 +46,7 @@ export function ChannelSettingsModal({
   const tabs = (
     [
       ['general', 'Geral', has(perms, Perm.MANAGE_CHANNELS)],
-      ['addon', 'Addon', !!addon?.Settings && has(perms, Perm.MANAGE_ADDONS)],
+      ['addon', 'Addon', !!(addon?.Settings || addon?.announces) && has(perms, Perm.MANAGE_ADDONS)],
       ['permissions', 'Permissões', has(perms, Perm.MANAGE_ROLES)]
     ] as const
   ).filter(([, , allowed]) => allowed)
@@ -69,7 +69,7 @@ export function ChannelSettingsModal({
       </div>
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === 'general' && <GeneralTab channel={channel} />}
-        {tab === 'addon' && addon?.Settings && <AddonTab channel={channel} Settings={addon.Settings} />}
+        {tab === 'addon' && addon && <AddonTab server={server} channel={channel} addon={addon} />}
         {tab === 'permissions' && <PermissionsTab server={server} channel={channel} meId={meId} />}
       </div>
     </Modal>
@@ -114,20 +114,38 @@ function GeneralTab({ channel }: { channel: Channel }): ReactNode {
   )
 }
 
-/** The addon's own settings form, saved as the channel's config. */
-function AddonTab({ channel, Settings }: { channel: Channel; Settings: NonNullable<AddonModule['Settings']> }): ReactNode {
+/** The addon's own settings form, saved as the channel's config, and the chat it posts its
+ * system lines to, if it posts any. */
+function AddonTab({ server, channel, addon }: { server: ServerDetail; channel: Channel; addon: AddonModule }): ReactNode {
+  const { Settings, announces } = addon
+  const textChannels = server.channels.filter((c) => c.type === 'text')
+  // A deleted announce channel means the lines are off.
+  const savedAnnounce = textChannels.some((c) => c.id === channel.announce_channel_id) ? channel.announce_channel_id! : ''
   const [config, setConfig] = useState(channel.config)
+  const [announce, setAnnounce] = useState(savedAnnounce)
+  // Set when the API asks to confirm a chat seen by more people than the addon channel.
+  const [wider, setWider] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const dirty = JSON.stringify(config) !== JSON.stringify(channel.config)
+  const configDirty = JSON.stringify(config) !== JSON.stringify(channel.config)
+  const dirty = configDirty || announce !== savedAnnounce
 
-  async function save(): Promise<void> {
+  async function save(confirmed = false): Promise<void> {
     setBusy(true)
     setError(null)
     try {
-      await api(`/channels/${channel.id}`, { method: 'PATCH', body: { config } })
+      const body: Record<string, unknown> = {}
+      if (configDirty) body.config = config
+      if (announce !== savedAnnounce) {
+        body.announce_channel_id = announce || null
+        body.confirm_wider_audience = confirmed
+      }
+      await api(`/channels/${channel.id}`, { method: 'PATCH', body })
+      setWider(null)
     } catch (err) {
-      setError(errorText(err))
+      const detail = err instanceof ApiError && err.status === 409 ? (err.detail as { code?: string; count?: number }) : null
+      if (detail?.code === 'wider_audience') setWider(detail.count ?? 0)
+      else setError(errorText(err))
     } finally {
       setBusy(false)
     }
@@ -136,12 +154,58 @@ function AddonTab({ channel, Settings }: { channel: Channel; Settings: NonNullab
   return (
     <div className="max-w-[520px] space-y-3">
       <FormError message={error} />
-      <Settings config={config} onChange={setConfig} />
-      <div className="w-32">
-        <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void save()}>
-          {busy ? 'Salvando…' : 'Salvar'}
-        </PrimaryButton>
-      </div>
+      {Settings && <Settings config={config} onChange={setConfig} />}
+      {announces && (
+        <label className="block">
+          <span className={labelClass}>{announces.label}</span>
+          <select
+            value={announce}
+            onChange={(e) => {
+              setAnnounce(e.target.value)
+              setWider(null)
+            }}
+            className={inputClass}
+          >
+            <option value="">Desligado</option>
+            {textChannels.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1.5 block text-xs text-fg-subtle">{announces.hint}</span>
+        </label>
+      )}
+      {wider !== null && announces ? (
+        <div role="alert" className="space-y-3 rounded-control border border-idle/50 bg-idle/10 px-3 py-2.5 text-sm">
+          <p>
+            {announces.warning}{' '}
+            {wider > 0 && (
+              <span className="text-fg-muted">
+                ({wider} {wider === 1 ? 'pessoa vê' : 'pessoas veem'} o canal, mas não o addon.)
+              </span>
+            )}
+          </p>
+          <div className="flex gap-2">
+            <div className="w-44">
+              <PrimaryButton type="button" disabled={busy} onClick={() => void save(true)}>
+                Usar mesmo assim
+              </PrimaryButton>
+            </div>
+            <div className="w-32">
+              <SecondaryButton type="button" disabled={busy} onClick={() => setWider(null)}>
+                Cancelar
+              </SecondaryButton>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="w-32">
+          <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void save()}>
+            {busy ? 'Salvando…' : 'Salvar'}
+          </PrimaryButton>
+        </div>
+      )}
     </div>
   )
 }

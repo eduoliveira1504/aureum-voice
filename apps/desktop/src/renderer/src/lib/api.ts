@@ -123,6 +123,8 @@ export interface Channel {
   /** Addon channels only: which addon runs it, and its settings (shape set by the addon). */
   addon_key: string | null
   config: Record<string, unknown>
+  /** Addon channels only: the text channel where the addon posts its system lines (null = off). */
+  announce_channel_id?: string | null
   /** Server channels only. */
   overrides: Override[]
 }
@@ -136,6 +138,8 @@ export interface AddonInfo {
   /** Action name -> the channel permission bit it needs ("view" included). */
   permissions: Record<string, number>
   config_schema: Record<string, unknown> | null
+  /** Whether it posts system lines to a text channel picked in the channel's settings. */
+  announces: boolean
 }
 
 /** A server role. @everyone has the server's id and position 0; higher positions rank higher. */
@@ -272,6 +276,16 @@ export interface Message {
   edited_at: string | null
   /** Set on the line a private call leaves in its conversation. */
   call: Call | null
+  /** Set on a system line posted by an addon ("moveu “X” para Feito"); content is empty. */
+  system?: MessageSystem | null
+}
+
+export interface MessageSystem {
+  addon_key: string
+  /** The addon channel it came from. */
+  source_channel_id: string
+  /** Several quick actions by the same person go into one message, one line each. */
+  lines: string[]
 }
 
 interface TokenPair {
