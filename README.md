@@ -58,8 +58,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - An in-game overlay with who's in the call, who's talking, who's muted and (optionally) cameras. It's a
   transparent, click-through window over games in **windowed or borderless mode** (exclusive fullscreen
   isn't supported, and nothing is injected into the game, so anti-cheats have nothing to flag). It hides
-  while Aureum is focused and stays out of screenshots and screen shares. Ctrl+Shift+F9 shows or hides
-  it and Ctrl+Shift+F10 enters edit mode to drag and resize it; both can be changed. Size, opacity and
+  while Aureum is focused and stays out of screenshots and screen shares. Ctrl+Shift+F9 hides or shows
+  it and Ctrl+Shift+F10 enters edit mode to drag and resize it; both can be changed. They also work in
+  games that block Windows hotkeys (such as League of Legends). During a call with the overlay on, the
+  app reads only those shortcuts' keys, never any other key, and records nothing. Size, opacity and
   "only who's speaking" are in Settings > Overlay ([ADR 0012](docs/decisions/0012-in-game-overlay.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))

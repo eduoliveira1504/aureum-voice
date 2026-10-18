@@ -46,23 +46,57 @@ also not get in the way of the game, its keys, or a screen share.
   the app's window, that size wins. That's acceptable, because cameras in the overlay are optional.
 
 **Shortcuts and edit mode**
-- The defaults are **Ctrl+Shift+F9** (show/hide) and **Ctrl+Shift+F10** (edit mode). A global shortcut
-  takes the key away from every other program, so the defaults avoid:
+- The defaults are **Ctrl+Shift+F9** (hide/show for the rest of the call) and **Ctrl+Shift+F10** (edit
+  mode). A global shortcut takes the key away from every other program, so the defaults avoid:
   - letters with Ctrl+Alt, which is AltGr on ABNT2 and US-International layouts (AltGr+E = °,
     AltGr+Q = /, accented letters);
   - Shift+Tab (Steam), Alt+F9/F10/Z (NVIDIA), Ctrl+Shift+S/E/R (AMD), Win+Alt+… (Xbox Game Bar),
     and F12;
   - Discord's shortcuts.
 - Both shortcuts can be changed in Settings > Overlay by pressing the new combination.
-  - Accepted combos need a modifier with an F-key or a navigation key, or Ctrl/Alt with a letter or
-    digit. F13–F24 work alone.
+  - Accepted combos need a modifier with an F-key, or Ctrl/Alt with a letter or digit. F13–F24 work
+    alone. Navigation keys need two modifiers, because Ctrl+Insert, Shift+Insert and Shift+Delete
+    are copy, paste and cut in every program.
   - If another program already took a combo, the app says so and keeps the old one.
   - The current shortcuts pause while a new one is recorded.
+- The shortcut says what it did on the overlay for a moment ("Overlay escondido · Ctrl+Shift+F9 mostra
+  de novo", "Overlay visível"), because a hidden overlay looks just like a broken one. Hiding lasts
+  until the shortcut is pressed again or the call ends. Turning the overlay off for good is in
+  Settings.
 - Edit mode makes the window take clicks and focus, with a dashed accent border. Dragging moves it, the
   corner handle resizes it, and Esc, Enter, Concluir or clicking back into the app ends it. Outside a
   call it shows a preview, so it can be placed before a game. Settings also has four corner buttons.
 - The content hugs the screen corner the box is nearest to, so a box at the bottom right grows up and
   to the left.
+
+**Shortcuts inside games: the key watch**
+
+Windows hotkeys (`RegisterHotKey`, which Electron's `globalShortcut` uses) don't reach the app while
+some games have focus. League of Legends is one: a probe on 2026-10-18 saw Ctrl+Shift+F11 pressed in
+a match every time through `GetAsyncKeyState` and Raw Input, and never through `RegisterHotKey`. The
+game wasn't running as administrator. A test window that registers keyboard Raw Input with
+`RIDEV_NOHOTKEYS`, which is what games do to turn app hotkeys off while focused, blocks them the
+same way.
+
+- `main/keyWatch.ts` polls `GetAsyncKeyState` every 25 ms for the keys of the configured
+  shortcuts. It calls it through **koffi** (MIT, prebuilt, no build tools), because Electron can't
+  call Win32 functions itself. Reading key state is passive, the same as OBS does, and nothing is
+  injected into the game, so anti-cheats have nothing to flag.
+- The Windows hotkeys stay registered too. They cover the app's own focus and games that allow them,
+  and the system reports only the exact combo, so they read nothing. A press seen by both paths runs
+  once: the same action within 400 ms is ignored.
+- Raw Input in the background was the other option. It wasn't chosen because Windows allows one
+  keyboard Raw Input target per process, and Chromium uses Raw Input itself.
+
+**Privacy rule for reading the keyboard.** It applies to the overlay now and to push-to-talk (2.9)
+later:
+1. Only the keys that make up a configured shortcut are read: its modifiers and its key. No other key
+   is ever read.
+2. Nothing about the keyboard is logged, stored or sent anywhere. The only output is "this shortcut
+   was pressed", which triggers its action.
+3. The watch runs only while it's needed and stops otherwise. For the overlay, that's while the user is
+   in a call with the overlay turned on. For push-to-talk, it will be only while push-to-talk is the
+   active input mode in a call. It also stops while Settings records a new shortcut.
 
 **Preferences stay on this PC**
 - The preferences are kept in `overlay.json` in the app's data folder: on/off, shortcuts, bounds, size,
@@ -75,6 +109,8 @@ also not get in the way of the game, its keys, or a screen share.
 ## Consequences
 
 - No API change and no migration.
+- New runtime dependency: `koffi` (its Windows x64 binary is about 2 MB, unpacked from the asar
+  by electron-builder).
 - Exclusive-fullscreen games show no overlay. Users have to switch the game to borderless.
 - Over a non-game window (a browser, say), the overlay also shows while the app isn't focused. The
   show/hide shortcut covers that. Gating it on the detected game (0010) could come later.
