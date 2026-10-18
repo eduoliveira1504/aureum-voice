@@ -81,8 +81,11 @@ async def test_leaving_the_call_drops_the_thumbnail(client: AsyncClient) -> None
             await sws.send_json({"type": "voice.update", "data": {"channel_id": vid, "screen": True}})
             await sws.send_json({"type": "screen.thumbnail", "data": {"image": JPEG}})
             assert (await next_event(wws, "screen.thumbnail"))["image"] == JPEG
-        # Disconnecting (last connection) leaves the call.
-        assert (await next_event(wws, "screen.thumbnail"))["image"] is None
+        # Disconnecting (last connection) leaves the call. The watch may have been handled after
+        # the thumbnail was stored, sending it again as the current one: skip repeats.
+        while (image := (await next_event(wws, "screen.thumbnail"))["image"]) == JPEG:
+            pass
+        assert image is None
 
 
 async def test_only_members_can_watch(client: AsyncClient) -> None:
