@@ -104,8 +104,12 @@ export function OverlaySettings(): ReactNode {
 
       <section className="space-y-2">
         <span className={labelClass}>Atalhos (funcionam com o Aureum em segundo plano)</span>
-        <ShortcutRow title="Mostrar / esconder" field="toggleShortcut" prefs={prefs} />
+        <ShortcutRow title="Esconder / mostrar durante a chamada" field="toggleShortcut" prefs={prefs} />
         <ShortcutRow title="Editar posição" field="editShortcut" prefs={prefs} />
+        <p className="text-xs text-fg-subtle">
+          Alguns jogos bloqueiam atalhos do Windows. Para funcionar neles, durante uma chamada com o overlay ligado o
+          Aureum confere só as teclas desses dois atalhos. Nenhuma outra tecla é lida e nada é gravado.
+        </p>
       </section>
 
       <section>

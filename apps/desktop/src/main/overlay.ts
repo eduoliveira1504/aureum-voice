@@ -7,12 +7,13 @@
  * the call's state and video tracks); this module owns everything about the window itself:
  * its flags, when it shows, edit mode, the global shortcuts and the saved preferences.
  */
-import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
 
 import type { OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
+import { watchCombos } from './keyWatch'
 
 /** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
  *  closing is never reused; any other popup stays denied. */
@@ -64,8 +65,11 @@ let shortcutsPaused = false
 let failedShortcuts: string[] = []
 let notice: string | null = null
 let noticeTimer: NodeJS.Timeout | null = null
-/** Set while "Overlay escondido" shows: when it ends, the overlay turns off. */
-let pendingOff = false
+/** Hidden with the show/hide shortcut for the rest of this call (the setting stays on). */
+let hidden = false
+/** Stops the key watch (see keyWatch.ts); null while it isn't running. */
+let stopWatch: (() => void) | null = null
+const lastFired = new Map<string, number>()
 let saveTimer: NodeJS.Timeout | null = null
 let notify: (state: OverlayState) => void = () => {}
 
@@ -174,9 +178,9 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
     }
   }
   prefs = next
-  // Turned on or off on purpose: a pending "escondido" no longer applies.
-  if (patch.enabled !== undefined) pendingOff = false
+  // Re-registers the hotkeys and restarts the key watch; turning the overlay off stops the watch.
   if (shortcutsChanged) registerShortcuts()
+  else syncKeyWatch()
   if (!prefs.enabled) editing = false
   await savePrefs()
   apply()
@@ -188,44 +192,56 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
 // Global shortcuts
 // ---------------------------------------------------------------------------
 
-const logPath = (): string => join(app.getPath('userData'), 'overlay.log')
-const MAX_LOG_BYTES = 200_000
-
-/** Shortcut diagnostics on this PC (registered? did the press arrive while a game had focus?). */
-function log(line: string): void {
-  const entry = `${new Date().toISOString()} ${line} | enabled=${prefs.enabled} editing=${editing} active=${active} appFocused=${mainFocused} window=${
-    win && !win.isDestroyed() ? (win.isVisible() ? 'visible' : 'hidden') : 'none'
-  }
-`
-  void stat(logPath())
-    .then((s) => (s.size > MAX_LOG_BYTES ? writeFile(logPath(), entry) : appendFile(logPath(), entry)))
-    .catch(() => appendFile(logPath(), entry))
-    .catch(() => {})
-}
-
 function tryRegister(accelerator: string, callback: () => void): boolean {
   try {
-    return globalShortcut.register(accelerator, () => {
-      log(`pressed ${accelerator}`)
-      callback()
-    })
+    return globalShortcut.register(accelerator, callback)
   } catch {
     return false
   }
 }
 
+/**
+ * Runs a shortcut's action once per press. A press can arrive twice: from the Windows hotkey and
+ * from the key watch (which also sees it outside games).
+ */
+function fire(action: 'toggle' | 'edit'): void {
+  const now = Date.now()
+  if (now - (lastFired.get(action) ?? 0) < 400) return
+  lastFired.set(action, now)
+  if (action === 'toggle') toggleFromShortcut()
+  else setEditing(!editing)
+}
+
+/**
+ * Windows hotkeys: the system tells us only when the exact combo is pressed (no keyboard reading).
+ * Some games turn them off while focused; the key watch below covers that.
+ */
 function registerShortcuts(): void {
   globalShortcut.unregisterAll()
   failedShortcuts = []
-  if (shortcutsPaused) return
-  const bindings: [string, () => void][] = [
-    [prefs.toggleShortcut, toggleFromShortcut],
-    [prefs.editShortcut, () => setEditing(!editing)]
-  ]
-  for (const [accelerator, callback] of bindings) {
-    if (!tryRegister(accelerator, callback)) failedShortcuts.push(accelerator)
+  if (!shortcutsPaused) {
+    for (const [accelerator, action] of [
+      [prefs.toggleShortcut, 'toggle'],
+      [prefs.editShortcut, 'edit']
+    ] as const) {
+      if (!tryRegister(accelerator, () => fire(action))) failedShortcuts.push(accelerator)
+    }
   }
-  log(`registered ${bindings.map(([a]) => a).join(', ')}${failedShortcuts.length ? ` — FAILED: ${failedShortcuts.join(', ')}` : ''}`)
+  syncKeyWatch()
+}
+
+/**
+ * Reads the shortcuts' own keys (and no others) only while in a call with the overlay on, so the
+ * shortcuts work in games that block Windows hotkeys. Stopped at any other time.
+ */
+function syncKeyWatch(): void {
+  stopWatch?.()
+  stopWatch = null
+  if (!active || !prefs.enabled || shortcutsPaused) return
+  stopWatch = watchCombos([
+    { accelerator: prefs.toggleShortcut, onPress: () => fire('toggle') },
+    { accelerator: prefs.editShortcut, onPress: () => fire('edit') }
+  ])
 }
 
 const NOTICE_MS = 2200
@@ -245,25 +261,22 @@ function flash(text: string, after?: () => void): void {
   }, NOTICE_MS)
 }
 
-/** The show/hide shortcut. It says what it did, since a hidden overlay looks the same as a broken one. */
+/**
+ * The show/hide shortcut hides the overlay for the rest of the call; the on/off setting lives in
+ * Settings. It says what it did, since a hidden overlay looks the same as a broken one.
+ */
 function toggleFromShortcut(): void {
   const key = prefs.toggleShortcut.replace('Control', 'Ctrl')
-  if (pendingOff) {
-    // Pressed again while "escondido" was showing: keep it on.
-    pendingOff = false
-    flash('Overlay visível')
-  } else if (prefs.enabled) {
-    pendingOff = true
-    if (editing) setEditing(false)
-    flash(`Overlay escondido · ${key} mostra de novo`, () => {
-      if (!pendingOff) return
-      pendingOff = false
-      void setPrefs({ enabled: false })
-    })
-  } else {
+  if (!prefs.enabled) {
     void setPrefs({ enabled: true }).then(() =>
-      flash(active ? 'Overlay visível' : 'Overlay ligado · aparece quando você estiver numa chamada')
+      flash(active ? 'Overlay ligado' : 'Overlay ligado · aparece quando você estiver numa chamada')
     )
+  } else if (!active) {
+    flash('O overlay aparece quando você estiver numa chamada')
+  } else {
+    hidden = !hidden
+    if (hidden && editing) setEditing(false)
+    flash(hidden ? `Overlay escondido · ${key} mostra de novo` : 'Overlay visível')
   }
 }
 
@@ -300,7 +313,7 @@ function placed(bounds: OverlayBounds | null): OverlayBounds {
 function apply(): void {
   if (!win || win.isDestroyed()) return
   // Hidden while the app itself is in front: it's for when you're in another window (the game).
-  const show = prefs.enabled && (editing || notice !== null || (active && !mainFocused))
+  const show = prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden))
   if (!show) {
     if (win.isVisible()) win.hide()
     return
@@ -317,9 +330,11 @@ function apply(): void {
 export function setEditing(next: boolean): void {
   if (next === editing) return
   editing = next
+  if (editing) hidden = false
   if (editing && !prefs.enabled) {
     prefs = { ...prefs, enabled: true }
     saveSoon()
+    syncKeyWatch()
   }
   if (!editing && saveTimer) void savePrefs()
   apply()
@@ -327,7 +342,11 @@ export function setEditing(next: boolean): void {
 }
 
 export function setActive(next: boolean): void {
+  if (next === active) return
   active = next
+  // A new call starts with the overlay showing again.
+  if (!active) hidden = false
+  syncKeyWatch()
   apply()
 }
 
@@ -394,6 +413,7 @@ export async function startOverlay(onState: (state: OverlayState) => void): Prom
   apply()
   app.on('will-quit', () => {
     globalShortcut.unregisterAll()
+    stopWatch?.()
     if (saveTimer) void savePrefs()
   })
 }
