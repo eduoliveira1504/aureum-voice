@@ -254,9 +254,7 @@ function ServerPlaces({
           collapsed={collapsed}
           active={placeOf('overview').active}
           panelHint={placeOf('overview').hint}
-          dragTab="overview"
           onClick={() => openTab(server.id, 'overview')}
-          onSide={() => openTab(server.id, 'overview', true)}
         />
 
         <Section title="Salas" collapsed={collapsed} onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: 'voice' }) : undefined}>

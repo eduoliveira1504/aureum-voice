@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { PanelLayout, PanelTab } from '../lib/api'
+import type { Panel, PanelLayout, PanelTab } from '../lib/api'
 import { useAppearance } from './appearance'
 import { useVoice } from './voice'
 
@@ -33,9 +33,30 @@ export function parseTab(tab: PanelTab): TabRef {
   return { kind: tab === 'call' ? 'call' : 'overview' }
 }
 
+/** A panel's tabs without `tab`; keeps a sensible active tab. */
+function without(panel: Panel, tab: PanelTab): Panel {
+  const index = panel.tabs.indexOf(tab)
+  const tabs = panel.tabs.filter((t) => t !== tab)
+  const active = panel.active === tab ? (tabs[Math.min(index, tabs.length - 1)] ?? null) : panel.active
+  return { tabs, active }
+}
+
+/**
+ * The overview is pinned: always the first tab of the first panel, and nowhere else. Also fixes
+ * layouts saved before it was pinned.
+ */
+export function pinOverview(layout: PanelLayout): PanelLayout {
+  const [first, ...rest] = layout.panels
+  const others = rest.map((p) => without(p, 'overview')).filter((p) => p.tabs.length > 0)
+  const tabs = ['overview', ...(first?.tabs ?? []).filter((t) => t !== 'overview')]
+  const moved = rest.some((p) => p.active === 'overview')
+  const active = moved ? 'overview' : (first?.active ?? 'overview')
+  return { ...layout, panels: [{ tabs, active }, ...others] }
+}
+
 export function layoutOf(serverId: string): PanelLayout {
   const saved = useAppearance.getState().settings.panel_layouts[serverId]
-  return saved?.panels.length ? saved : DEFAULT_LAYOUT
+  return pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT)
 }
 
 /** The panels on screen: all of them, or only the focused one in a narrow window. */
@@ -118,18 +139,10 @@ export const useNav = create<NavState>()((set, get) => {
   const setFocused = (serverId: string, panel: number): void =>
     set((s) => ({ focusedPanel: { ...s.focusedPanel, [serverId]: panel } }))
 
-  /** A panel's tabs without `tab`; keeps a sensible active tab. */
-  const without = (panel: { tabs: PanelTab[]; active: PanelTab | null }, tab: PanelTab) => {
-    const index = panel.tabs.indexOf(tab)
-    const tabs = panel.tabs.filter((t) => t !== tab)
-    const active = panel.active === tab ? (tabs[Math.min(index, tabs.length - 1)] ?? null) : panel.active
-    return { tabs, active }
-  }
-
-  /** Drops empty panels; an empty layout falls back to the overview. */
+  /** Drops empty panels and keeps the overview pinned. */
   const tidy = (layout: PanelLayout): PanelLayout => {
     const panels = layout.panels.filter((p) => p.tabs.length > 0)
-    return panels.length ? { ...layout, panels } : DEFAULT_LAYOUT
+    return pinOverview(panels.length ? { ...layout, panels } : DEFAULT_LAYOUT)
   }
 
   return {
@@ -208,6 +221,7 @@ export const useNav = create<NavState>()((set, get) => {
     },
 
     closeTab: (serverId, panel, tab) => {
+      if (tab === 'overview') return // pinned
       const layout = layoutOf(serverId)
       const next = tidy({ ...layout, panels: layout.panels.map((p, i) => (i === panel ? without(p, tab) : p)) })
       saveLayout(serverId, next)
@@ -215,6 +229,7 @@ export const useNav = create<NavState>()((set, get) => {
     },
 
     moveTab: (serverId, from, tab, to) => {
+      if (tab === 'overview') return // pinned
       const layout = layoutOf(serverId)
       const alone = layout.panels.length === 1 && layout.panels[from].tabs.length === 1
       if (to === from || (to === 'side' && (get().narrow || alone))) return

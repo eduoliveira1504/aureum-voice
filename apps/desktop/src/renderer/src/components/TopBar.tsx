@@ -1,8 +1,8 @@
-import { Bell, Check, Circle, House, LogOut, PhoneMissed, Plus, Search, Settings, UserRound, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { Bell, Check, Circle, House, LogOut, PhoneMissed, Plus, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
-import type { Me, Presence, ServerDetail, UserStatus } from '../lib/api'
+import { mediaUrl, type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { serverTabs, useNav } from '../store/nav'
@@ -119,6 +119,7 @@ function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boo
   const mentions = useChat((s) => server.channels.reduce((n, c) => n + (s.reads[c.id]?.mention_count ?? 0), 0))
   const live = server.voice_states.some((v) => v.screen)
   const [dropTarget, setDropTarget] = useState(false)
+  const preview = useHoverPreview()
 
   const onDrop = (e: DragEvent): void => {
     setDropTarget(false)
@@ -131,7 +132,7 @@ function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boo
       role="button"
       tabIndex={0}
       draggable
-      title={server.name}
+      aria-label={server.name}
       aria-current={active ? 'page' : undefined}
       onClick={() => openServer(server.id)}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openServer(server.id)}
@@ -147,8 +148,12 @@ function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boo
       }}
       onDragLeave={() => setDropTarget(false)}
       onDrop={onDrop}
+      onMouseEnter={preview.show}
+      onMouseLeave={preview.hide}
+      onMouseDown={preview.hide}
       className={`${tabBase} ${tabState(active)} max-w-[220px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent`}
     >
+      {preview.anchor && <ServerPreview server={server} anchor={preview.anchor} />}
       {dropTarget && <span className="absolute inset-y-1 -left-1 w-0.5 rounded bg-accent" />}
       <span className="relative">
         <ServerIcon name={server.name} url={server.icon_url} size={22} />
@@ -170,6 +175,64 @@ function ServerTab({ server, active, tabs }: { server: ServerDetail; active: boo
       >
         <X size={14} />
       </button>
+    </div>
+  )
+}
+
+const PREVIEW_DELAY_MS = 450
+
+/** Shows a preview after the pointer rests on an element for a moment. */
+function useHoverPreview(): { anchor: DOMRect | null; show(e: MouseEvent): void; hide(): void } {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return {
+    anchor,
+    show: (e) => {
+      const target = e.currentTarget as HTMLElement
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => setAnchor(target.getBoundingClientRect()), PREVIEW_DELAY_MS)
+    },
+    hide: () => {
+      clearTimeout(timer.current)
+      setAnchor(null)
+    }
+  }
+}
+
+/** Hover card of a server tab: banner, icon, name, and who's around. */
+function ServerPreview({ server, anchor }: { server: ServerDetail; anchor: DOMRect }): ReactNode {
+  const banner = mediaUrl(server.banner_url)
+  const online = server.members.filter((m) => m.online).length
+  const inCall = server.voice_states.length
+  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - 264 - 8))
+  return (
+    <div
+      role="tooltip"
+      style={{ left, top: anchor.bottom + 6 }}
+      className="pointer-events-none fixed z-50 w-64 overflow-hidden rounded-panel border border-line bg-panel text-left shadow-2xl"
+    >
+      <div
+        style={banner ? { backgroundImage: `url("${banner}")` } : undefined}
+        className={`h-20 bg-cover bg-center ${
+          banner ? '' : 'bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)]'
+        }`}
+      />
+      <div className="flex items-end gap-2.5 px-3 pb-3">
+        <span className="-mt-6 rounded-item border-4 border-panel">
+          <ServerIcon name={server.name} url={server.icon_url} size={40} />
+        </span>
+        <div className="min-w-0 flex-1 pt-1.5">
+          <div className="truncate font-display font-semibold text-fg">{server.name}</div>
+          <div className="flex items-center gap-1.5 text-xs text-fg-muted">
+            <span className="h-2 w-2 rounded-full bg-success" />
+            {online} online
+            <span className="text-fg-subtle">·</span>
+            <Volume2 size={12} />
+            {inCall} em call
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { Columns2, Hash, LayoutDashboard, Users, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonInfo } from '../addons/registry'
 import type { Me, Panel, PanelTab, ServerDetail } from '../lib/api'
 import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
-import { DEFAULT_LAYOUT, parseTab, useNav, visiblePanels } from '../store/nav'
+import { DEFAULT_LAYOUT, parseTab, pinOverview, useNav, visiblePanels } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { ServerOverview } from './ServerOverview'
@@ -52,7 +52,8 @@ function usePanelDragging(): boolean {
 
 /** The server's content area: one or two panels side by side, each with its own tabs. */
 export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
-  const layout = useAppearance((s) => s.settings.panel_layouts[server.id]) ?? DEFAULT_LAYOUT
+  const saved = useAppearance((s) => s.settings.panel_layouts[server.id])
+  const layout = useMemo(() => pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT), [saved])
   const focused = useNav((s) => Math.min(s.focusedPanel[server.id] ?? 0, layout.panels.length - 1))
   const narrow = useNav((s) => s.narrow)
   const { openTab, moveTab, setSplit } = useNav.getState()
@@ -206,13 +207,15 @@ function PanelView({
           {panel.tabs.map((tab) => {
             const { icon: Icon, label } = tabInfo(tab, server, callRoom)
             const active = tab === panel.active
+            // The overview is pinned: first, can't be closed or dragged away.
+            const pinned = tab === 'overview'
             return (
               <div
                 key={tab}
                 role="tab"
                 tabIndex={0}
                 aria-selected={active}
-                draggable
+                draggable={!pinned}
                 onDragStart={(e) => {
                   e.dataTransfer.setData(PANEL_DRAG_TYPE, JSON.stringify({ tab, from: index }))
                   e.dataTransfer.effectAllowed = 'move'
@@ -227,18 +230,20 @@ function PanelView({
               >
                 <Icon size={15} className="shrink-0 opacity-80" />
                 <span className="truncate">{label}</span>
-                <button
-                  type="button"
-                  title="Fechar aba"
-                  aria-label={`Fechar ${label}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    closeTab(server.id, index, tab)
-                  }}
-                  className={`rounded p-0.5 text-fg-subtle hover:bg-elevated hover:text-fg ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
-                >
-                  <X size={13} />
-                </button>
+                {!pinned && (
+                  <button
+                    type="button"
+                    title="Fechar aba"
+                    aria-label={`Fechar ${label}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeTab(server.id, index, tab)
+                    }}
+                    className={`rounded p-0.5 text-fg-subtle hover:bg-elevated hover:text-fg ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
             )
           })}
