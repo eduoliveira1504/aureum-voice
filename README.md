@@ -57,7 +57,15 @@ for real-time media. The whole stack is open source and designed to run at zero 
   ([ADR 0004](docs/decisions/0004-call-layout-and-bandwidth.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))
-- Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio and profile color
+- Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio, profile color,
+  pronouns, an avatar frame, a profile song, up to 5 links and system badges (granted with
+  `python -m app.cli badges`). The profile card also shows "Now", roles in the current server and
+  Message / Call buttons, and Settings has a live preview
+- A custom status with an emoji and an expiry, shown as a bubble next to the avatar in member lists, the
+  profile card and call tiles
+- Automatic "Jogando X": the app spots open games from a bundled list plus games the user adds, and sends
+  only the game's name. It can be turned off, games can be hidden, and a manual activity can be set
+  ([ADR 0010](docs/decisions/0010-rich-profiles-and-game-activity.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](docs/decisions/0003-design-tokens-and-themes.md))
 
@@ -223,8 +231,8 @@ LiveKit URL from the API, and the API URL is only a build setting.
 
 ## Roadmap
 
-- Nicknames, role mentions and voice moderation (server mute, move): their permissions already exist
-- Richer profiles and the app's own sound set
+- Role mentions: the permission already exists
+- The app's own sound set
 - In-game camera overlay
 - Add-ons: a Kanban board and "watch together" first (shown as placeholders in the shell), later a
   BlueMap Minecraft map and listening to music together
