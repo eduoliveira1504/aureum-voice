@@ -118,8 +118,10 @@ export function ChatView({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-main">
-      <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pb-4">
+    // min-h-0 on both: in a column, a flex item otherwise grows to fit its messages instead of
+    // scrolling them, and pushes whatever sits next to it (a call) out of view.
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-main">
+      <div ref={listRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
             {intro ?? (

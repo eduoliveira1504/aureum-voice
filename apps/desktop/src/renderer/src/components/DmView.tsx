@@ -1,4 +1,4 @@
-import { LogOut, Pencil, Phone, UserPlus, Users } from 'lucide-react'
+import { LogOut, MessageSquare, Pencil, Phone, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { ApiError, type Channel, type Dm, type Me } from '../lib/api'
@@ -23,6 +23,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const { startCall, ringMore, addMembers, createGroup } = useSocial.getState()
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [chatOpen, setChatOpen] = useState(true)
   const title = dmTitle(dm, me.id)
   const group = dm.type === 'group_dm'
   const call = dm.call
@@ -53,8 +54,19 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
 
   const headerButton = 'rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg disabled:cursor-not-allowed disabled:opacity-40'
 
+  const chat = (
+    <ChatView
+      key={dm.id}
+      channel={channel}
+      me={me}
+      canModerate={false}
+      intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
+      placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}
+    />
+  )
+
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-2">
         {peer ? (
           <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border="border-main" />
@@ -92,6 +104,18 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             <Phone size={20} />
           </button>
         )}
+        {inCall && call && (
+          <button
+            type="button"
+            title={chatOpen ? 'Esconder conversa' : 'Mostrar conversa'}
+            aria-label={chatOpen ? 'Esconder conversa' : 'Mostrar conversa'}
+            aria-pressed={chatOpen}
+            onClick={() => setChatOpen(!chatOpen)}
+            className={`${headerButton} ${chatOpen ? 'text-fg' : ''}`}
+          >
+            <MessageSquare size={20} />
+          </button>
+        )}
         <button
           type="button"
           title={inCall ? 'Adicionar pessoas à chamada' : group ? 'Adicionar pessoas' : 'Criar grupo com mais pessoas'}
@@ -119,8 +143,10 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         </div>
       )}
 
-      {inCall && call && (
-        <div className="flex h-[55%] min-h-[280px] shrink-0 border-b border-line">
+      {inCall && call ? (
+        // In a call, the people in it always keep the main area; the chat moves to a side panel
+        // with its own scroll, so it never pushes the call off screen.
+        <div className="flex min-h-0 flex-1">
           <CallView
             title={title}
             channelId={dm.id}
@@ -131,17 +157,11 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             meId={me.id}
             footer={<RingingLine dm={dm} meId={me.id} />}
           />
+          {chatOpen && <aside className="flex min-h-0 w-[min(380px,40%)] shrink-0 border-l border-line">{chat}</aside>}
         </div>
+      ) : (
+        chat
       )}
-
-      <ChatView
-        key={dm.id}
-        channel={channel}
-        me={me}
-        canModerate={false}
-        intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
-        placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}
-      />
 
       {dialog === 'add' && (
         <PickFriendsModal
