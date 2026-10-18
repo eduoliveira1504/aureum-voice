@@ -369,6 +369,10 @@ class ChannelCreate(BaseModel):
     # Addon channels only.
     addon_key: AddonKey | None = None
     config: dict[str, Any] | None = None
+    # A private channel is hidden from @everyone and open to the picked roles and members.
+    private: bool = False
+    allowed_roles: Annotated[list[uuid.UUID], Field(max_length=250)] = []
+    allowed_members: Annotated[list[uuid.UUID], Field(max_length=250)] = []
 
     @model_validator(mode="after")
     def _addon_fields(self) -> "ChannelCreate":
@@ -376,6 +380,8 @@ class ChannelCreate(BaseModel):
             raise ValueError("addon_key is required for addon channels, and only for them")
         if self.config is not None and self.type != "addon":
             raise ValueError("Only addon channels have settings")
+        if not self.private and (self.allowed_roles or self.allowed_members):
+            raise ValueError("Only private channels have allowed roles and members")
         return self
 
 

@@ -13,7 +13,18 @@ from app import images, presence, reads, voice
 from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
-from app.models import Channel, ChannelType, Invite, Role, Server, ServerBan, ServerMember, User
+from app.models import (
+    Channel,
+    ChannelOverride,
+    ChannelType,
+    Invite,
+    OverrideTarget,
+    Role,
+    Server,
+    ServerBan,
+    ServerMember,
+    User,
+)
 from app.permissions import (
     DEFAULT_EVERYONE,
     Context,
@@ -402,10 +413,52 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
         config=config,
     )
     session.add(channel)
+    await session.flush()
+    overwrites = await _private_overrides(session, access, channel, body) if body.private else []
     await session.commit()
-    out = channel_out(channel)
+    out = channel_out(channel, overwrites)
     await broker.publish("channel.created", out.model_dump(mode="json"), await channel_viewers(session, channel))
     return out
+
+
+async def _private_overrides(
+    session: AsyncSession, access: ServerAccess, channel: Channel, body: ChannelCreate
+) -> list[Overwrite]:
+    """Makes a new channel private: @everyone is denied seeing it (and joining, for a room) and
+    the picked roles and members are allowed. Same rules as editing overrides (MANAGE_ROLES,
+    targets ranked below the creator, only bits the creator has); the creator keeps access."""
+    access.require(Perm.MANAGE_ROLES)
+    bits = Perm.VIEW_CHANNEL | (Perm.CONNECT if channel.type == ChannelType.voice else Perm(0))
+    access.require_grantable(int(bits))
+    server_id = channel.server_id
+    assert server_id is not None
+    overwrites = [Overwrite(OverrideTarget.role, server_id, 0, int(bits))]
+    for role_id in dict.fromkeys(body.allowed_roles):
+        role = access.ctx.roles.get(role_id)
+        if role is None or role_id == server_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Role not found")
+        access.require_outranks(role.position, "this role")
+        overwrites.append(Overwrite(OverrideTarget.role, role_id, int(bits), 0))
+    member_ids = list(dict.fromkeys(body.allowed_members))
+    found = set(
+        await session.scalars(
+            select(ServerMember.user_id).where(ServerMember.server_id == server_id, ServerMember.user_id.in_(member_ids))
+        )
+    )
+    for user_id in member_ids:
+        if user_id not in found:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Member not found")
+        if user_id != access.user_id:
+            access.require_outranks(access.ctx.rank(user_id), "this member")
+        overwrites.append(Overwrite(OverrideTarget.member, user_id, int(bits), 0))
+    voice_room = channel.type == ChannelType.voice
+    if not access.ctx.in_channel(access.user_id, overwrites, voice=voice_room) & Perm.VIEW_CHANNEL:
+        overwrites.append(Overwrite(OverrideTarget.member, access.user_id, int(bits), 0))
+    session.add_all(
+        ChannelOverride(channel_id=channel.id, target_type=o.target, target_id=o.target_id, allow=o.allow, deny=o.deny)
+        for o in overwrites
+    )
+    return overwrites
 
 
 # --- Invites --------------------------------------------------------------------
