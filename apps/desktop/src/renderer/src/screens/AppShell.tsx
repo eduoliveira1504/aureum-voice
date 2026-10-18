@@ -6,6 +6,7 @@ import { ContextMenuHost } from '../components/ContextMenu'
 import { IncomingCall, MissedCallNotice, useOutgoingCall } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
+import { OverlayHost } from '../components/Overlay'
 import { Panels } from '../components/Panels'
 import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
@@ -109,6 +110,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         )}
       </div>
       <CallPip meId={user.id} />
+      <OverlayHost me={user} />
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />
       <MissedCallNotice meId={user.id} />
