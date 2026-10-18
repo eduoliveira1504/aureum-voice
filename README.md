@@ -38,7 +38,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   API WebSocket, so watching costs no media bandwidth), unread news and who's online
 - A floating call window that snaps to any corner and minimizes to the sidebar; the call expands
   into a panel or fullscreen
-- Voice channels with camera, speaking indicator, mute / deafen, and device selection with noise suppression
+- Voice channels with camera, speaking indicator, mute / deafen, and device selection
+- Local mic noise suppression with RNNoise (WebAssembly), free and on by default
+  ([ADR 0008](docs/decisions/0008-noise-suppression.md))
 - Grid and Focus call layouts (click any tile to focus it), several live screens at once with per-stream
   volume and fullscreen; simulcast + adaptive stream keep each viewer's download to what is on screen
   ([ADR 0004](docs/decisions/0004-call-layout-and-bandwidth.md))
