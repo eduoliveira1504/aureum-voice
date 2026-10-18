@@ -116,7 +116,7 @@ function VoiceSettings(): ReactNode {
         {select('Câmera', 'videoInput', devices?.videoinput)}
         <ToggleRow
           title="Supressão de ruído"
-          description="Reduz barulho de fundo, como teclado e ventilador."
+          description="Reduz barulho de fundo, como teclado e ventilador. Processado no seu PC, antes do áudio sair."
           checked={prefs.noiseSuppression}
           onChange={(noiseSuppression) => update({ noiseSuppression })}
         />

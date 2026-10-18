@@ -3,10 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Aureum Voice</title>
-    <!-- connect-src stays open to http/https/ws because the API URL is user-configurable. -->
+    <!-- connect-src stays open to http/https/ws because the API URL is user-configurable.
+         wasm-unsafe-eval lets the mic noise filter (RNNoise) compile WebAssembly; it allows no JS eval. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:"
     />
   </head>
   <body>

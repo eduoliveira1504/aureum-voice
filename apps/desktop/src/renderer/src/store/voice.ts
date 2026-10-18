@@ -6,6 +6,7 @@ import {
   ScreenSharePresets,
   Track,
   VideoPresets,
+  type LocalAudioTrack,
   type RemoteAudioTrack,
   type RemoteTrack,
   type RemoteTrackPublication
@@ -14,6 +15,7 @@ import { create } from 'zustand'
 
 import { api } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
+import { NOISE_FILTER, NoiseFilter } from '../lib/noiseFilter'
 import { sendRealtime } from '../lib/realtime'
 import { startThumbnails } from '../lib/thumbnail'
 
@@ -35,6 +37,27 @@ export interface Publishable {
 }
 
 const ANYTHING: Publishable = { mic: true, camera: true, screen: true }
+
+let noiseFilterSync: Promise<void> = Promise.resolve()
+
+/** Puts the RNNoise filter on the mic track, or takes it off, to match the setting. Calls are
+ * queued so a quick toggle can't set up two filters at once. */
+function syncNoiseFilter(r: Room): Promise<void> {
+  noiseFilterSync = noiseFilterSync.then(async () => {
+    const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
+    if (!track) return
+    const want = loadMediaPrefs().noiseSuppression
+    const has = track.getProcessor()?.name === NOISE_FILTER
+    try {
+      if (want && !has) await track.setProcessor(new NoiseFilter())
+      else if (!want && has) await track.stopProcessor()
+    } catch (err) {
+      // The mic still works without it (with the browser's own, weaker suppression).
+      console.warn('Noise filter unavailable', err)
+    }
+  })
+  return noiseFilterSync
+}
 
 /** The token's canPublishSources; without it (DM calls) anything goes. */
 function publishableIn(token: string): Publishable {
@@ -173,6 +196,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic).catch(() => {
         set({ muted: true, error: 'Não foi possível acessar o microfone.' })
       })
+      await syncNoiseFilter(r)
     }
     announce()
     bump()
@@ -242,6 +266,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       announce()
       try {
         await r.localParticipant.setMicrophoneEnabled(!get().muted && !get().deafened && get().allowed.mic)
+        await syncNoiseFilter(r)
       } catch {
         set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
         announce()
@@ -388,7 +413,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       const prefs = loadMediaPrefs()
       if (prefs.audioOutput) await r.switchActiveDevice('audiooutput', prefs.audioOutput).catch(() => {})
       if (get().camera && prefs.videoInput) await r.switchActiveDevice('videoinput', prefs.videoInput).catch(() => {})
-      // Restart the mic so a new device and/or noise-suppression setting take effect.
+      // Restart the mic so a new device and the browser's noise-suppression setting take effect.
       if (r.localParticipant.isMicrophoneEnabled) {
         await r.localParticipant.setMicrophoneEnabled(false)
         await r.localParticipant
@@ -400,6 +425,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
           })
           .catch(() => set({ error: 'Não foi possível usar esse microfone.' }))
       }
+      await syncNoiseFilter(r)
       bump()
     },
 
