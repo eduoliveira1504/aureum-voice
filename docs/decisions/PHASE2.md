@@ -149,8 +149,48 @@ Cargos completos:
   Permissões nas configurações de cada canal.
 - Testes cobrindo o cálculo de permissões e a hierarquia.
 
+## 2.R Ajustes dos testes com a galera (fazer depois do 2.4)
+Bugs (prioridade):
+- Chat dentro da call privada (DM/grupo) fica cortado e às vezes "rouba" o foco, escondendo
+  quem está na call. Corrigir o layout: participantes sempre visíveis; chat como painel
+  lateral recolhível ao lado da call, com rolagem própria, sem sobrepor os vídeos.
+- Supressão de ruído não funciona. Implementar com RNNoise (WASM) como processador de
+  áudio local do microfone (track processor do livekit-client), ligado por padrão e com
+  toggle em Configurações > Voz. Não usar Krisp/recursos pagos do LiveKit Cloud.
+  Manter também echoCancellation e autoGainControl ligados.
+
+Call:
+- Volume individual por participante (0–200%) no clique/botão direito do participante,
+  em calls de servidor e privadas; salvo por usuário (user_settings), e mutar localmente.
+- Painel da call no pé da barra lateral SEMPRE visível enquanto estiver em call (não só
+  com a janelinha minimizada): nome da sala/call, quem está e quem fala, mic, fone
+  (ensurdecer), câmera, tela, sair. A janelinha flutuante continua opcional.
+- Barra lateral: embaixo de cada sala de voz, listar quem está nela (avatar pequeno,
+  anel de quem fala, ícones de mudo/ao vivo), igual a lista de uma sala.
+
+Layout:
+- Colunas redimensionáveis por arrastar: barra lateral, painéis e colunas internas
+  (ex: coluna de Novidades da Visão geral, chat ao lado da call). Larguras mínimas e
+  máximas; tamanhos salvos por usuário.
+- Aba "Visão geral" sempre a primeira e fixa (sem fechar, não pode ser movida).
+- Abas superiores: ícone do servidor na aba; ao passar o mouse, prévia com o banner,
+  nome e "N online · N em call".
+- Visão geral: juntar "Online agora" e a lista de membros num bloco só "Membros"
+  (online primeiro, agrupados por cargo, depois offline recolhido). "Novidades" mostra
+  as últimas mensagens não lidas por canal, com nome do canal e atalho para abrir.
+
+Menus de contexto (botão direito), respeitando permissões do 2.4:
+- Em qualquer usuário (lista de membros, chat, call, amigos): Ver perfil, Mensagem,
+  Ligar, Adicionar/remover amigo, Definir apelido (próprio ou de outros com
+  MANAGE_NICKNAMES), Cargos (com MANAGE_ROLES), Silenciar localmente, Volume (se em call),
+  Mutar/ensurdecer no servidor (MUTE_MEMBERS/DEAFEN_MEMBERS), Mover de sala
+  (MOVE_MEMBERS), Expulsar/Banir (KICK/BAN), Copiar ID, Bloquear.
+- Em canais e servidores: marcar como lido, silenciar, configurações (com permissão),
+  copiar link de convite.
+- Itens sem permissão não aparecem.
+
 ## 2.5 Perfil turbinado
-Campos novos: pronouns, custom_status (texto + expiração), profile_color (cor do cartão),
+Campos novos:custom_status (texto + expiração), profile_color (cor do cartão),
 avatar_frame (moldura: none | accent | escolha de presets), favorite_song (título,
 artista, link opcional), links (lista de {label, url}, máx 5, só https), activity
 (jogando X: manual por enquanto; detecção automática de jogo fica pra depois).
@@ -160,6 +200,12 @@ moldura e status, insígnias, nome, @user · pronomes, status personalizado, Sob
 "Membro desde", bloco AGORA (jogando / música do perfil), cargos do servidor atual,
 links, botões Mensagem / Ligar / mais opções.
 Tela Configurações > Perfil com prévia ao vivo do cartão.
+- Balão de status: o status personalizado aparece como um balãozinho junto do avatar
+  (lista de membros, cartão de perfil, call), com emoji opcional e expiração.
+- "Jogando X" automático: o app desktop detecta jogos abertos (lista de processos do
+  Windows comparada com uma lista local de jogos conhecidos + jogos adicionados pelo
+  usuário), mostra no perfil e na lista de membros, com opção de desligar e de esconder
+  jogos específicos. Nada é enviado além do nome do jogo.
 
 ## 2.6 Sons
 Eventos: entrar na call, sair, alguém entrou, alguém saiu, mutar, desmutar,
@@ -207,3 +253,10 @@ Depois (não agora): mapa Minecraft (BlueMap), status do servidor de Mine, dados
 - Call com 2 telas ao vivo + câmeras, com foco por clique.
 - Overlay mostra quem fala por cima de um jogo em janela sem borda.
 - Kanban e Assistir junto funcionando em canais de addon.
+
+## Polimentos (fazer depois do 2.4)
+- Barra de título customizada: titleBarStyle 'hidden' + titleBarOverlay (cores dos tokens);
+  abas do Aureum ocupam o topo; área arrastável nas partes vazias da barra.
+- Aba "Visão geral" fixa (sem botão fechar).
+- Banner padrão do servidor: padrão geométrico com a cor accent (sem degradê);
+  com banner enviado, mostrar a imagem.
