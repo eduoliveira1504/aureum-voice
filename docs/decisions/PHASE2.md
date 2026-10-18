@@ -223,6 +223,27 @@ Depois (não agora): mapa Minecraft (BlueMap), status do servidor de Mine, dados
   em grupo DM também: Renomear grupo, Alterar ícone, Sair do grupo.
 - Teste: clicar com o botão direito em cada um desses lugares abre o menu, com os itens
   corretos para a permissão do usuário.
+  - Chat: as mensagens do próprio usuário também mostram o avatar dele (do lado direito,
+  espelhando as dos outros), com o mesmo UserContextMenu.
+- Anexos no chat (canais, DMs e grupos), com permissão ATTACH_FILES nos servidores:
+  - Botão "+" no campo de mensagem, arrastar e soltar arquivos na conversa e colar
+    imagem com Ctrl+V; vários arquivos por mensagem; barra de progresso de envio.
+  - Limite de 25 MB por arquivo (configurável no .env); armazenados no MinIO e servidos
+    pela API em /api/media com checagem de permissão (quem não vê o canal não baixa).
+  - Imagens e GIFs: miniatura no chat, clique abre em tela cheia (visualizador com
+    zoom e "baixar"). Vídeos curtos: player embutido. Outros arquivos: card com ícone,
+    nome, tamanho e botão baixar.
+  - Base para a mensagem de voz do 2.9 (que usa o mesmo sistema de anexos).
+- Segundo plano (como todo app de comunicação):
+  - Fechar no X esconde a janela em vez de sair; o app continua conectado (call, mensagens,
+    chamadas e notificações seguem funcionando).
+  - Ícone na bandeja do Windows: clique abre o app; menu com Abrir Aureum, Silenciar
+    microfone, Ensurdecer, status (Online / Ausente / Não perturbe / Invisível) e
+    Sair do Aureum (fecha de verdade, saindo da call).
+  - Uma única instância do app (abrir de novo só traz a janela existente para frente).
+  - Configurações > Windows: "Ao fechar: minimizar para a bandeja / sair",
+    "Iniciar com o Windows" (padrão: ligado, iniciando minimizado na bandeja).
+  - Na primeira vez que fechar no X, aviso: "O Aureum continua rodando na bandeja".
 
 ## 2.9 Pré-beta (fazer por último, antes de chamar os testers)
 Essenciais:
