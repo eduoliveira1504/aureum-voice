@@ -7,7 +7,7 @@
  * the call's state and video tracks); this module owns everything about the window itself:
  * its flags, when it shows, edit mode, the global shortcuts and the saved preferences.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
@@ -75,7 +75,8 @@ let notify: (state: OverlayState) => void = () => {}
 
 const MODIFIERS = new Set(['Control', 'Alt', 'Shift'])
 const PRINTABLE_KEY = /^[A-Z0-9]$/
-const SPECIAL_KEY = /^(F([1-9]|1[0-9]|2[0-4])|Insert|Delete|Home|End|PageUp|PageDown)$/
+const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/
+const NAVIGATION_KEY = /^(Insert|Delete|Home|End|PageUp|PageDown)$/
 
 /** Accepts "Mod+Mod+Key" combos that can't get in the way of typing or of a game's own keys. */
 export function isSafeShortcut(accelerator: string): boolean {
@@ -84,8 +85,11 @@ export function isSafeShortcut(accelerator: string): boolean {
   if (parts.some((m) => !MODIFIERS.has(m)) || new Set(parts).size !== parts.length) return false
   // Shift+letter is just a capital letter: letters and digits need Ctrl or Alt.
   if (PRINTABLE_KEY.test(key)) return parts.includes('Control') || parts.includes('Alt')
-  if (!SPECIAL_KEY.test(key)) return false
-  // A bare F5 or Delete is a game key; F13-F24 don't exist on most keyboards (macro keys).
+  // Ctrl+Insert / Shift+Insert / Shift+Delete are copy, paste and cut everywhere, and Ctrl+Home
+  // etc. move the cursor: navigation keys need two modifiers.
+  if (NAVIGATION_KEY.test(key)) return parts.length >= 2
+  if (!FUNCTION_KEY.test(key)) return false
+  // A bare F5 is a game key; F13-F24 don't exist on most keyboards (macro keys).
   return parts.length > 0 || /^F(1[3-9]|2[0-4])$/.test(key)
 }
 
@@ -151,7 +155,7 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
   if (!patch || typeof patch !== 'object') throw new Error('Invalid preferences')
   for (const key of ['toggleShortcut', 'editShortcut'] as const) {
     if (patch[key] !== undefined && (typeof patch[key] !== 'string' || !isSafeShortcut(patch[key]))) {
-      throw new Error('Esse atalho atrapalharia a digitação ou os jogos. Use Ctrl, Alt ou Shift com uma tecla F, ou Ctrl/Alt com uma letra.')
+      throw new Error('Esse atalho atrapalharia a digitação ou os jogos. Use Ctrl, Alt ou Shift com uma tecla F (ex.: Ctrl + Shift + F9), ou Ctrl/Alt com uma letra. Insert, Delete, Home, End e Page Up/Down precisam de dois modificadores (Ctrl + Insert é copiar).')
     }
   }
   const next = cleanPrefs(patch, prefs)
@@ -184,9 +188,27 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
 // Global shortcuts
 // ---------------------------------------------------------------------------
 
+const logPath = (): string => join(app.getPath('userData'), 'overlay.log')
+const MAX_LOG_BYTES = 200_000
+
+/** Shortcut diagnostics on this PC (registered? did the press arrive while a game had focus?). */
+function log(line: string): void {
+  const entry = `${new Date().toISOString()} ${line} | enabled=${prefs.enabled} editing=${editing} active=${active} appFocused=${mainFocused} window=${
+    win && !win.isDestroyed() ? (win.isVisible() ? 'visible' : 'hidden') : 'none'
+  }
+`
+  void stat(logPath())
+    .then((s) => (s.size > MAX_LOG_BYTES ? writeFile(logPath(), entry) : appendFile(logPath(), entry)))
+    .catch(() => appendFile(logPath(), entry))
+    .catch(() => {})
+}
+
 function tryRegister(accelerator: string, callback: () => void): boolean {
   try {
-    return globalShortcut.register(accelerator, callback)
+    return globalShortcut.register(accelerator, () => {
+      log(`pressed ${accelerator}`)
+      callback()
+    })
   } catch {
     return false
   }
@@ -203,6 +225,7 @@ function registerShortcuts(): void {
   for (const [accelerator, callback] of bindings) {
     if (!tryRegister(accelerator, callback)) failedShortcuts.push(accelerator)
   }
+  log(`registered ${bindings.map(([a]) => a).join(', ')}${failedShortcuts.length ? ` — FAILED: ${failedShortcuts.join(', ')}` : ''}`)
 }
 
 const NOTICE_MS = 2200
