@@ -1,6 +1,7 @@
 # 0013 — Addon framework
 
-- **Status:** accepted
+- **Status:** accepted. The example notes addon was removed in part 2, which also added system
+  lines for addons ([ADR 0014](0014-kanban-addon.md)).
 - **Date:** 2026-10-18
 
 ## Context
