@@ -14,8 +14,9 @@ import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstruct
 
 import type { OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
 
-/** window.open() name the app uses for the overlay; any other popup stays denied. */
-export const OVERLAY_FRAME_NAME = 'aureum-overlay'
+/** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
+ *  closing is never reused; any other popup stays denied. */
+export const isOverlayFrame = (frameName: string): boolean => /^aureum-overlay-\d+$/.test(frameName)
 
 export const OVERLAY_WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   show: false,
@@ -288,7 +289,7 @@ export async function snap(corner: OverlayCorner): Promise<void> {
   changed()
 }
 
-/** Takes over the window the app just opened with window.open(OVERLAY_FRAME_NAME). */
+/** Takes over the window the app just opened with window.open() (see isOverlayFrame). */
 export function attachWindow(created: BrowserWindow): void {
   if (win && !win.isDestroyed()) win.close()
   win = created

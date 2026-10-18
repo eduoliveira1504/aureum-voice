@@ -10,7 +10,7 @@ import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
 import { Avatar } from './ui'
 
-/** Matches OVERLAY_FRAME_NAME in the main process, which only lets this popup through. */
+/** Prefix of the popup's name; the main process lets only `aureum-overlay-<n>` through (isOverlayFrame). */
 const FRAME_NAME = 'aureum-overlay'
 const SCALE: Record<OverlaySize, number> = { small: 0.8, medium: 1, large: 1.3 }
 /** "Only who's speaking" keeps a person up this long after they stop, so pauses don't flicker. */

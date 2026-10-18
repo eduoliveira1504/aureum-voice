@@ -202,7 +202,7 @@ function createWindow(): void {
   mainWindow.on('focus', () => overlay.setMainFocused(true))
   mainWindow.on('blur', () => overlay.setMainFocused(false))
   mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
-    if (frameName === overlay.OVERLAY_FRAME_NAME) overlay.attachWindow(created)
+    if (overlay.isOverlayFrame(frameName)) overlay.attachWindow(created)
   })
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -225,7 +225,7 @@ app.on('web-contents-created', (_, contents) => {
   })
   contents.setWindowOpenHandler(({ url, frameName }) => {
     // The app's window opens the overlay as a blank page and renders into it itself.
-    if (contents === mainWindow?.webContents && frameName === overlay.OVERLAY_FRAME_NAME && url === 'about:blank') {
+    if (contents === mainWindow?.webContents && overlay.isOverlayFrame(frameName) && url === 'about:blank') {
       return { action: 'allow', overrideBrowserWindowOptions: overlay.OVERLAY_WINDOW_OPTIONS }
     }
     if (url.startsWith('https://')) shell.openExternal(url)
