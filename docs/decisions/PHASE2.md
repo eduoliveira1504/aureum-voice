@@ -216,7 +216,7 @@ tela compartilhada iniciada.
   docs/sounds/LICENSES.md. Nada de sons do Discord ou de outros apps.
 - Configurações > Sons: volume geral e liga/desliga por evento. Não perturbe silencia.
 
-## 2.7 Overlay em jogo
+## 2.7 Overlay em jogo ✅ concluído
 - BrowserWindow separada: transparente, sem moldura, alwaysOnTop nível 'screen-saver',
   skipTaskbar, setIgnoreMouseEvents(true, { forward: true }) (clique passa pro jogo).
 - Mostra: participantes da call atual (avatar, nome, anel de quem fala, ícone de mudo)
