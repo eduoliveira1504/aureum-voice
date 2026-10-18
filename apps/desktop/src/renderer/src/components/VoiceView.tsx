@@ -486,7 +486,7 @@ export function CallControls(): ReactNode {
       >
         {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
       </ControlButton>
-      <ControlButton label="Sair da chamada" danger onClick={leave}>
+      <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
         <PhoneOff size={22} />
       </ControlButton>
       {picking && <ScreenShareModal onClose={() => setPicking(false)} />}

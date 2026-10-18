@@ -3,7 +3,7 @@ import { useEffect, useMemo, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
 import { ContextMenuHost } from '../components/ContextMenu'
-import { IncomingCall, useNoAnswerHangup } from '../components/CallRinging'
+import { IncomingCall, MissedCallNotice, useOutgoingCall } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
 import { Panels } from '../components/Panels'
@@ -34,7 +34,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
   const membersOpen = useAppearance((s) => s.settings.members_open)
   const narrow = useNav((s) => s.narrow)
   const { setUser } = useAuth()
-  useNoAnswerHangup(user.id)
+  useOutgoingCall(user.id)
 
   // One real-time connection for the whole signed-in session.
   useEffect(() => {
@@ -67,7 +67,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     useSocial.getState().load().catch(() => {})
     loadAppearance().catch(() => {}) // keep the cached settings if this fails
     return () => {
-      void useVoice.getState().leave()
+      void useVoice.getState().leave(true)
       stopIdleWatch()
       stopActivity()
       useActivity.setState({ byUser: {} })
@@ -111,6 +111,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <CallPip meId={user.id} />
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />
+      <MissedCallNotice meId={user.id} />
       <ContextMenuHost />
     </div>
   )

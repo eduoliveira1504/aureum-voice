@@ -2,6 +2,8 @@ import { create } from 'zustand'
 
 import { api, type Call, type Dm, type Friend, type Presence, type User } from '../lib/api'
 import type { ServerEvent } from '../lib/realtime'
+import { playSound } from '../lib/sounds'
+import { useAppearance } from './appearance'
 import { useChat } from './chat'
 import { useNav } from './nav'
 import { useVoice } from './voice'
@@ -32,6 +34,8 @@ interface SocialState {
   /** Calls not answered that are still unseen (their conversation is unread). */
   missed: Call[]
   ringing: Ringing | null
+  /** A call that came in during Do not disturb: shown as a quiet "missed call" note, no popup. */
+  missedNotice: Call | null
 
   reset(meId: string | null): void
   load(): Promise<void>
@@ -57,6 +61,7 @@ interface SocialState {
   decline(): void
   /** Stops ringing locally (timed out). */
   dismissRing(): void
+  dismissMissedNotice(): void
   applyEvent(event: ServerEvent): void
 }
 
@@ -67,7 +72,8 @@ const initial = {
   dms: {},
   presence: {},
   missed: [],
-  ringing: null
+  ringing: null,
+  missedNotice: null
 }
 
 /** Rung for `call` and not answered nor declined yet (the call still going). */
@@ -81,6 +87,8 @@ export function ringsFor(call: Call, userId: string): boolean {
   const rungAt = call.participants.find((p) => p.user_id === userId)?.rung_at
   return unanswered(call, userId) && !!rungAt && Date.now() - new Date(rungAt).getTime() < RING_MS
 }
+
+const doNotDisturb = (): boolean => useAppearance.getState().settings.status === 'dnd'
 
 /** A conversation's name: the group's, else its other members' names. */
 export function dmTitle(dm: Dm, meId: string | null): string {
@@ -127,6 +135,7 @@ export const useSocial = create<SocialState>()((set, get) => {
     const { ringing, meId } = get()
     if (ringing?.call.id === call.id) {
       set({ ringing: meId && unanswered(call, meId) ? { ...ringing, call } : null })
+      if (call.ended_at) playSound('call-ended') // hung up before we answered
     }
     if (call.ended_at) get().loadMissed()
   }
@@ -158,7 +167,7 @@ export const useSocial = create<SocialState>()((set, get) => {
       // Reconnected mid-ring: keep ringing for what's left of the 30 s.
       const call = dms.map((d) => d.call).find((c) => c && meId && ringsFor(c, meId) && !inCall(c.channel_id))
       const rungAt = call?.participants.find((p) => p.user_id === meId)?.rung_at
-      if (call && rungAt) set({ ringing: { call, since: new Date(rungAt).getTime() } })
+      if (call && rungAt && !doNotDisturb()) set({ ringing: { call, since: new Date(rungAt).getTime() } })
       get().loadMissed()
     },
 
@@ -257,6 +266,8 @@ export const useSocial = create<SocialState>()((set, get) => {
       get().loadMissed()
     },
 
+    dismissMissedNotice: () => set({ missedNotice: null }),
+
     applyEvent: ({ type, data }) => {
       const { meId } = get()
       switch (type) {
@@ -297,7 +308,14 @@ export const useSocial = create<SocialState>()((set, get) => {
 
         case 'call.ringing':
           setCall(data)
-          if (meId && ringsFor(data, meId) && !inCall(data.channel_id)) set({ ringing: { call: data, since: Date.now() } })
+          if (!meId || !ringsFor(data, meId) || inCall(data.channel_id)) break
+          if (doNotDisturb()) {
+            set({ missedNotice: data })
+            // It joins the missed calls (and the notifications) once the ring times out.
+            setTimeout(() => get().loadMissed(), RING_MS + 1000)
+          } else {
+            set({ ringing: { call: data, since: Date.now() } })
+          }
           break
         case 'call.updated':
           setCall(data)

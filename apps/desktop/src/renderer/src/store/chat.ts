@@ -2,10 +2,14 @@ import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type ReadState, type Server, type ServerDetail } from '../lib/api'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
+import { playSound } from '../lib/sounds'
+import { useAppearance } from './appearance'
 import { useNav } from './nav'
 import { useVoice } from './voice'
 
 const PAGE_SIZE = 50
+/** Message sounds play this much quieter while we're in a call. */
+const IN_CALL_MESSAGE_VOLUME = 0.4
 
 interface ChannelMessages {
   items: Message[]
@@ -19,6 +23,20 @@ const EMPTY_CHANNEL: ChannelMessages = { items: [], hasMore: false, loaded: fals
 // Text channels on screen right now (open in a visible panel): new messages there are read
 // as they arrive instead of bumping the unread badge.
 const viewing = new Map<string, number>()
+
+/**
+ * The message sound, for DMs and groups (unless silenced) and mentions anywhere. Not for the
+ * conversation on screen while the app has focus, nor for the chat of the call we're in; quieter
+ * during any other call.
+ */
+function messageSound(channelId: string, serverId: string | null, mentioned: boolean): void {
+  if (!mentioned && (serverId !== null || useAppearance.getState().settings.muted_places.includes(channelId))) return
+  if (viewing.has(channelId) && document.hasFocus()) return
+  const voice = useVoice.getState()
+  const inCall = voice.phase !== 'idle'
+  if (inCall && voice.channelId === channelId) return
+  playSound('message', { fromOthers: true, volume: inCall ? IN_CALL_MESSAGE_VOLUME : 1 })
+}
 
 /** Registers a channel as on screen; returns the cleanup. */
 export function viewChannel(channelId: string): () => void {
@@ -235,6 +253,8 @@ export const useChat = create<ChatState>()((set, get) => {
           const { mentions, server_id: _, ...message } = data
           patchMessages(data.channel_id, (items) => mergeMessages(items, [message]))
           if (message.author?.id === meId) break
+          // A call's line in the conversation has the ringtone instead.
+          if (!message.call) messageSound(data.channel_id, data.server_id, !!meId && !!mentions?.includes(meId))
           if (viewing.has(data.channel_id)) {
             get().markRead(data.channel_id, true)
             break

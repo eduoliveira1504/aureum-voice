@@ -18,6 +18,7 @@ import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { useAppearance } from './appearance'
 import { NOISE_FILTER, NoiseFilter } from '../lib/noiseFilter'
 import { sendRealtime } from '../lib/realtime'
+import { playSound } from '../lib/sounds'
 import { startThumbnails } from '../lib/thumbnail'
 
 type Phase = 'idle' | 'connecting' | 'connected' | 'reconnecting'
@@ -97,7 +98,8 @@ interface VoiceStore {
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
-  leave(): Promise<void>
+  /** Leaves the room; `quiet` skips the leave sound (switching rooms, or a sound of its own follows). */
+  leave(quiet?: boolean): Promise<void>
   toggleMute(): Promise<void>
   toggleDeafen(): void
   toggleCamera(): Promise<void>
@@ -215,8 +217,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       .on(RoomEvent.ActiveSpeakersChanged, (speakers) => set({ speaking: speakers.map((p) => p.identity) }))
       .on(RoomEvent.Reconnecting, () => isCurrent() && set({ phase: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => isCurrent() && set({ phase: 'connected' }))
+      .on(RoomEvent.ParticipantConnected, () => isCurrent() && playSound('user-join', { fromOthers: true }))
+      .on(RoomEvent.ParticipantDisconnected, () => isCurrent() && playSound('user-leave', { fromOthers: true }))
+      .on(RoomEvent.TrackPublished, (pub) => {
+        if (isCurrent() && pub.source === Track.Source.ScreenShare) playSound('screen-share', { fromOthers: true })
+      })
       .on(RoomEvent.Disconnected, () => {
         if (!isCurrent()) return // we left on purpose
+        playSound('call-leave')
         reset('Você foi desconectado da voz.')
         announce()
       })
@@ -266,7 +274,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
-      if (room) await get().leave()
+      if (room) await get().leave(true)
 
       set({ phase: 'connecting', serverId, channelId, error: null, camera: false })
       const prefs = loadMediaPrefs()
@@ -314,6 +322,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       if (room !== r) return // left while connecting
 
       set({ phase: 'connected' })
+      playSound('call-join')
       announce()
       // With webAudioMix the output device is set on the room's AudioContext.
       if (prefs.audioOutput) await r.switchActiveDevice('audiooutput', prefs.audioOutput).catch(() => {})
@@ -326,9 +335,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       }
     },
 
-    leave: async () => {
+    leave: async (quiet = false) => {
       const r = room
       if (!r) return
+      if (!quiet && get().phase !== 'connecting') playSound('call-leave')
       reset()
       announce()
       await r.disconnect()
@@ -340,12 +350,15 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       // Unmuting while deafened also undeafens, like Discord.
       const nextMuted = deafened ? false : !muted
       set({ muted: nextMuted, deafened: false })
+      playSound(deafened ? 'undeafen' : nextMuted ? 'mute' : 'unmute')
       applyVolumes()
       await applyMic()
     },
 
     toggleDeafen: () => {
-      set({ deafened: !get().deafened })
+      const deafened = !get().deafened
+      set({ deafened })
+      playSound(deafened ? 'deafen' : 'undeafen')
       applyVolumes()
       void applyMic()
     },
@@ -432,6 +445,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         return
       }
       set({ screen: true })
+      playSound('screen-share')
       announce()
       // After announce(): the server only takes thumbnails from someone marked as sharing.
       stopThumbnails = startThumbnails(video, (image) => sendRealtime('screen.thumbnail', { image }))
