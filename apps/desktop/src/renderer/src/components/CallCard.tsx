@@ -18,10 +18,9 @@ import { useChat } from '../store/chat'
 import { useCallOnScreen, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
-import { contextMenu } from './ContextMenu'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
-import { UserMenu } from './UserMenu'
+import { userContextMenu } from './UserMenu'
 
 const PHASE_LABEL = { connecting: 'Conectando…', reconnecting: 'Reconectando…', connected: 'Na chamada' }
 
@@ -210,7 +209,7 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
               <span
                 key={v.user_id}
                 title={user?.display_name}
-                onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} serverId={useVoice.getState().serverId} />) : undefined}
+                onContextMenu={user ? userContextMenu(user, meId, useVoice.getState().serverId) : undefined}
                 className={`rounded-full ring-offset-1 ring-offset-panel ${speaking.includes(v.user_id) ? 'ring-2 ring-accent' : ''} ${v.muted ? 'opacity-60' : ''}`}
               >
                 <Avatar name={user?.display_name ?? '?'} url={user?.avatar_url} size={24} />

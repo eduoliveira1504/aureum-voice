@@ -3,6 +3,7 @@ import {
   Fragment,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -18,13 +19,13 @@ import { seedAttachment } from '../lib/attachments'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
+import { useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
-import { contextMenu } from './ContextMenu'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
-import { UserMenu } from './UserMenu'
+import { userContextMenu } from './UserMenu'
 
 const MAX_LENGTH = 4000
 const MAX_FILES = 10
@@ -48,7 +49,28 @@ function formatTimestamp(iso: string): string {
 }
 
 /** Renders text with http(s) links made clickable (they open in the system browser). */
-function Linkified({ text, own = false }: { text: string; own?: boolean }): ReactNode {
+// Same rule as the API (app/reads.py): what counts as an @mention.
+const MENTION = /(?<![\w.])@([A-Za-z0-9_.]{3,32})/g
+
+/** Turns @username into the person's mention, when they're someone in this conversation. */
+function withMentions(text: string, mention: ((username: string) => ReactNode) | undefined): ReactNode[] {
+  if (!mention) return [text]
+  const out: ReactNode[] = []
+  let last = 0
+  for (const match of text.matchAll(MENTION)) {
+    const username = match[1].replace(/\.+$/, '') // a sentence's final dot isn't part of it
+    const node = mention(username)
+    if (!node) continue
+    out.push(text.slice(last, match.index), <Fragment key={match.index}>{node}</Fragment>)
+    last = match.index + 1 + username.length
+  }
+  out.push(text.slice(last))
+  return out
+}
+
+/** Renders text with http(s) links made clickable (they open in the system browser) and
+ * @mentions of people in the conversation. */
+function Linkified({ text, own = false, mention }: { text: string; own?: boolean; mention?: (username: string) => ReactNode }): ReactNode {
   const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g)
   return parts.map((part, i) =>
     i % 2 === 1 ? (
@@ -57,8 +79,22 @@ function Linkified({ text, own = false }: { text: string; own?: boolean }): Reac
         {part}
       </a>
     ) : (
-      <Fragment key={i}>{part}</Fragment>
+      <Fragment key={i}>{withMentions(part, mention)}</Fragment>
     )
+  )
+}
+
+/** An @mention: opens the person's profile, and their menu on right click. */
+function Mention({ user, own, onOpen, onMenu }: { user: User; own: boolean; onOpen(target: Element): void; onMenu(e: MouseEvent): void }): ReactNode {
+  return (
+    <button
+      type="button"
+      onClick={(e) => onOpen(e.currentTarget)}
+      onContextMenu={onMenu}
+      className={`rounded-sm px-0.5 font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text hover:underline'}`}
+    >
+      @{user.username}
+    </button>
   )
 }
 
@@ -99,6 +135,26 @@ export function ChatView({
   const [dropping, setDropping] = useState(false)
   const addFiles = useRef<(files: File[]) => void>(() => {})
   const profile = useProfilePopover()
+  const serverMembers = useChat((s) => (channel.server_id ? s.servers[channel.server_id]?.members : undefined))
+  const dmMembers = useSocial((s) => (channel.server_id ? undefined : s.dms[channel.id]?.members))
+  const byUsername = useMemo(
+    () => new Map([...(serverMembers ?? []), ...(dmMembers ?? [])].map(({ user }) => [user.username.toLowerCase(), user])),
+    [serverMembers, dmMembers]
+  )
+  const mentionFor =
+    (own: boolean) =>
+    (username: string): ReactNode => {
+      const user = byUsername.get(username.toLowerCase())
+      if (!user) return null
+      return (
+        <Mention
+          user={user}
+          own={own}
+          onOpen={(target) => profile.open(user, target)}
+          onMenu={userContextMenu(user, me.id, channel.server_id)}
+        />
+      )
+    }
   const acceptsFiles = canSend && canAttach
   const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
 
@@ -238,11 +294,8 @@ export function ChatView({
                   onStopEditing={() => setEditingId(null)}
                   onDelete={() => setDeleting(message)}
                   onOpenProfile={profile.open}
-                  onAuthorMenu={
-                    message.author
-                      ? contextMenu(() => <UserMenu user={message.author!} meId={me.id} serverId={channel.server_id} />)
-                      : undefined
-                  }
+                  onAuthorMenu={message.author ? userContextMenu(message.author, me.id, channel.server_id) : undefined}
+                  mention={mentionFor(message.author?.id === me.id)}
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                   authorName={message.author ? nameOf?.(message.author.id) : null}
                 />
@@ -398,11 +451,12 @@ function MessageRow({
   onDelete,
   onOpenProfile,
   onAuthorMenu,
+  mention,
   nameColor: roleNameColor,
   authorName
 }: {
   message: Message
-  /** Written by the signed-in user: shown on the right, without avatar or name. */
+  /** Written by the signed-in user: shown on the right, mirrored, with their avatar but no name. */
   own: boolean
   grouped: boolean
   editing: boolean
@@ -414,6 +468,8 @@ function MessageRow({
   onOpenProfile(user: User, target: Element): void
   /** Right click on the author: their menu. */
   onAuthorMenu?: (e: MouseEvent) => void
+  /** Renders an @mention (null when it isn't someone here). */
+  mention?: (username: string) => ReactNode
   nameColor?: string | null
   authorName?: string | null
 }): ReactNode {
@@ -426,15 +482,14 @@ function MessageRow({
 
   return (
     <div className={`group relative flex gap-2.5 px-4 ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}>
-      {!own && (
-        <div className="w-9 shrink-0">
-          {!grouped && (
-            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
-              <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
-            </button>
-          )}
-        </div>
-      )}
+      {/* Own messages too: the row is mirrored, so the avatar ends up on the right. */}
+      <div className="w-9 shrink-0">
+        {!grouped && (
+          <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
+            <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
+          </button>
+        )}
+      </div>
       <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
         {!grouped && (
           <div className={`mb-1 flex items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
@@ -462,7 +517,7 @@ function MessageRow({
               className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
             >
               <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
-                <Linkified text={message.content} own={own} />
+                <Linkified text={message.content} own={own} mention={mention} />
                 {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
               </p>
             </div>

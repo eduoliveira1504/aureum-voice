@@ -14,8 +14,10 @@ import { useVoice } from '../store/voice'
 import { groupMembers, MemberRow } from './MemberList'
 import { CreateAddonModal, InviteModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
+import { ServerBannerLayer } from './ServerBanner'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { Avatar, CountBadge, ServerIcon } from './ui'
+import { userContextMenu } from './UserMenu'
 
 const FEED_SIZE = 30
 const PER_CHANNEL = 3
@@ -73,13 +75,9 @@ function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   ]
 
   return (
-    // Without an uploaded banner, an accent gradient.
-    <div
-      style={banner ? { backgroundImage: `url("${banner}")` } : undefined}
-      className={`relative flex items-end gap-4 overflow-hidden rounded-panel bg-cover bg-center p-5 pt-20 ${
-        banner ? '' : 'bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)]'
-      }`}
-    >
+    // Without an uploaded banner, the server's accent mosaic.
+    <div className="relative flex items-end gap-4 overflow-hidden rounded-panel p-5 pt-20">
+      <ServerBannerLayer server={server} />
       {/* Keeps the name readable over any image. */}
       {banner && <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-scrim/30 to-transparent" />}
       <span className="relative rounded-control border-4 border-main">
@@ -142,6 +140,7 @@ function RoomCard({
   thumbnails: Record<string, Thumbnail>
 }): ReactNode {
   const mine = useVoice((s) => s.phase !== 'idle' && s.channelId === room.id)
+  const meId = useChat((s) => s.meId)
   // Who's speaking is only known inside our own call.
   const speaking = useVoice((s) => (mine ? s.speaking : null))
   const join = useVoice((s) => s.join)
@@ -198,6 +197,7 @@ function RoomCard({
               <span
                 key={v.user_id}
                 title={nameOf(v.user_id)}
+                onContextMenu={user && meId ? userContextMenu(user, meId, server.id) : undefined}
                 className={`rounded-full ring-offset-2 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-[3px] ring-accent' : ''}`}
               >
                 <Avatar name={nameOf(v.user_id)} url={user?.avatar_url} size={52} />
@@ -305,6 +305,7 @@ function News({ server }: { server: ServerDetail }): ReactNode {
   // Changes whenever a message arrives or a channel is read: the cue to refetch.
   const unread = server.channels.reduce((n, c) => n + (reads[c.id]?.unread_count ?? 0), 0)
   const [items, setItems] = useState<Message[] | null>(null)
+  const meId = useChat((s) => s.meId)
 
   useEffect(() => {
     let cancelled = false
@@ -365,7 +366,9 @@ function News({ server }: { server: ServerDetail }): ReactNode {
                   const name = m.author ? nameIn(server, m.author.id, m.author.display_name) : 'Usuário removido'
                   return (
                     <button key={m.id} type="button" onClick={open} className="flex w-full gap-2.5 p-2 text-left hover:bg-elevated/60">
-                      <Avatar name={name} url={m.author?.avatar_url} size={24} shape="rounded" />
+                      <span onContextMenu={m.author && meId ? userContextMenu(m.author, meId, server.id) : undefined}>
+                        <Avatar name={name} url={m.author?.avatar_url} size={24} shape="rounded" />
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline gap-1.5 text-xs">
                           <span className="truncate font-semibold text-fg">{name}</span>

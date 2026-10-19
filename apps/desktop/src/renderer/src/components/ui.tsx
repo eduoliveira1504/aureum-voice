@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { Users, type LucideIcon } from 'lucide-react'
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type RefObject } from 'react'
 
 import { mediaUrl, type Presence } from '../lib/api'
@@ -121,6 +121,16 @@ export function Avatar({
     >
       {name.slice(0, 1).toUpperCase()}
     </div>
+  )
+}
+
+/** A group conversation's picture, or a people icon when it has none. */
+export function GroupAvatar({ url, size = 28 }: { url: string | null; size?: number }): ReactNode {
+  if (url) return <img src={mediaUrl(url)} alt="" style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover" />
+  return (
+    <span style={{ width: size, height: size }} className="flex shrink-0 items-center justify-center rounded-full bg-elevated text-fg-muted">
+      <Users size={Math.round(size * 0.52)} />
+    </span>
   )
 }
 

@@ -19,7 +19,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   tab_order: [],
   closed_tabs: [],
   sidebar_collapsed: false,
-  members_open: false,
   panel_layouts: {},
   user_audio: {},
   column_sizes: {},
@@ -93,6 +92,21 @@ function applyToDocument(settings: UserSettings, resolved: Resolved): void {
   root.style.setProperty('--accent', accent)
   root.style.setProperty('--on-accent', inkOn(accent))
   root.style.setProperty('--accent-text', readableOn(accent, surfaces))
+  // The window buttons Windows draws over the top bar follow the theme too.
+  const tokens = getComputedStyle(root)
+  const titleBar = toHex(tokens.getPropertyValue('--bg-rail'))
+  const symbols = toHex(tokens.getPropertyValue('--text'))
+  if (titleBar && symbols) void window.aureum?.window.setTitleBarColors(titleBar, symbols).catch(() => {})
+}
+
+/** "#rrggbb" for a CSS color the browser can paint (the tokens may be any CSS color syntax). */
+function toHex(color: string): string | null {
+  const ctx = document.createElement('canvas').getContext('2d')
+  if (!ctx || !color.trim()) return null
+  ctx.fillStyle = '#000000'
+  ctx.fillStyle = color.trim()
+  const value = ctx.fillStyle
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : null
 }
 
 let pending: Pending | null = null

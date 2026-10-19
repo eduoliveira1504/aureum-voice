@@ -1,0 +1,58 @@
+/** Test setup: a do-nothing preload bridge, and a clean DOM after each test. */
+
+import { cleanup } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
+
+import type { AureumBridge } from '../../../shared/types'
+
+const unsubscribe = (): (() => void) => () => {}
+const bridge = {
+  session: { getRefreshToken: async () => null, setRefreshToken: async () => {}, isPersistent: async () => true },
+  settings: {
+    get: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, trayHintShown: true }),
+    set: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, trayHintShown: true })
+  },
+  attachments: { get: async () => null, put: async () => {}, clear: async () => {} },
+  window: { setTitleBarColors: async () => {} },
+  tray: { setState: async () => {}, onCommand: unsubscribe },
+  system: { idleSeconds: async () => 0 },
+  games: {
+    getPrefs: async () => ({ enabled: false, custom: [], hidden: [], manual: null }),
+    setPrefs: async () => ({ enabled: false, custom: [], hidden: [], manual: null }),
+    known: async () => [],
+    running: async () => [],
+    current: async () => null,
+    onChange: unsubscribe
+  },
+  screen: { getSources: async () => [], select: async () => {} },
+  overlay: {
+    getState: vi.fn(),
+    setPrefs: vi.fn(),
+    setEditing: async () => {},
+    setActive: async () => {},
+    setBounds: async () => {},
+    snap: async () => {},
+    pauseShortcuts: async () => {},
+    onState: unsubscribe
+  }
+} satisfies AureumBridge
+
+Object.defineProperty(window, 'aureum', { value: bridge, writable: true })
+
+// jsdom lacks these; the app only needs them not to throw.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false
+})) as typeof window.matchMedia
+Element.prototype.scrollIntoView ??= () => {}
+// Noise suppression loads WebAssembly and audio worklets, which only exist in a real browser;
+// tests never start a call.
+vi.mock('../lib/noiseFilter', () => ({ NOISE_FILTER: 'aureum-rnnoise', NoiseFilter: class {} }))
+
+afterEach(() => cleanup())

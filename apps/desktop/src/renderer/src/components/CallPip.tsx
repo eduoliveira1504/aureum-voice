@@ -5,6 +5,7 @@ import { useCallOnScreen, useNav, type Corner } from '../store/nav'
 import { cameraTrackOf, roomIdentities, screenTrackOf, useVoice } from '../store/voice'
 import { CallButtons, useCallContext } from './CallCard'
 import { Avatar } from './ui'
+import { userContextMenu } from './UserMenu'
 import { VideoTrackView } from './VoiceView'
 
 const CORNER_CLASS: Record<Corner, string> = {
@@ -90,7 +91,10 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
           <VideoTrackView track={track} mirror={subject?.identity === meId && subject.kind === 'person'} fit={subject?.kind === 'screen' ? 'contain' : 'cover'} />
         ) : (
           subject && (
-            <span className={`rounded-full ${speaking.includes(subject.identity) ? 'ring-[3px] ring-accent' : ''}`}>
+            <span
+              onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}
+              className={`rounded-full ${speaking.includes(subject.identity) ? 'ring-[3px] ring-accent' : ''}`}
+            >
               <Avatar name={person?.display_name ?? name} url={person?.avatar_url} size={64} />
             </span>
           )

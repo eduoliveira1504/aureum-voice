@@ -11,7 +11,7 @@ import { useSocial } from '../store/social'
 import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
 import { activityLabel, BadgeList, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
-import { UserMenu } from './UserMenu'
+import { UserContextMenu, userContextMenu } from './UserMenu'
 
 const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -117,7 +117,7 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
         type="button"
         title="Mais opções"
         aria-label="Mais opções"
-        onClick={(e) => openMenuAt(e.currentTarget, () => <UserMenu user={user} meId={meId} serverId={place === 'home' ? null : place} />)}
+        onClick={(e) => openMenuAt(e.currentTarget, () => <UserContextMenu user={user} meId={meId} serverId={place === 'home' ? null : place} />)}
         className="ml-auto rounded-control bg-elevated px-3 py-2 text-fg-muted hover:bg-main hover:text-fg"
       >
         <MoreHorizontal size={18} strokeWidth={1.8} />
@@ -138,9 +138,14 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
   const nameColor = useReadableColor(user.accent_color)
   const status = usePresence(user.id, meId)
   const roles = useServerRoles(user.id)
+  const place = useNav((s) => s.place)
 
   return (
-    <div className="w-[340px] overflow-hidden rounded-panel border border-line bg-panel shadow-2xl">
+    <div
+      // The popover's card (not the settings preview) has the person's menu.
+      onContextMenu={onClose && meId ? userContextMenu(user, meId, place === 'home' ? null : place) : undefined}
+      className="w-[340px] overflow-hidden rounded-panel border border-line bg-panel shadow-2xl"
+    >
       {/* Without a profile color the banner falls back to the app accent. */}
       <div className="h-[120px] bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
         {banner && <img src={banner} alt="" className="h-full w-full object-cover" />}

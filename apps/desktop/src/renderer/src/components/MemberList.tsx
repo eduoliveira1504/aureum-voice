@@ -5,12 +5,11 @@ import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '
 import { memberName } from '../lib/members'
 import { roleColor } from '../lib/permissions'
 import { useReadableColor } from '../store/appearance'
-import { contextMenu } from './ContextMenu'
 import { useProfilePopover } from './ProfileCard'
 import { ActivityLine, StatusBubble } from './profileBits'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { PresenceAvatar } from './ui'
-import { UserMenu } from './UserMenu'
+import { userContextMenu } from './UserMenu'
 
 export interface MemberGroup {
   key: string
@@ -101,7 +100,7 @@ export function MemberRow({
     <button
       type="button"
       onClick={(e) => onOpen(m.user, e.currentTarget)}
-      onContextMenu={contextMenu(() => <UserMenu user={m.user} meId={meId} serverId={server.id} />)}
+      onContextMenu={userContextMenu(m.user, meId, server.id)}
       className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60 ${m.online ? '' : 'opacity-40'}`}
     >
       <PresenceAvatar name={name} url={m.user.avatar_url} status={m.online ? m.status : undefined} />

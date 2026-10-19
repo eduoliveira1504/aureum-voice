@@ -22,7 +22,7 @@ export function Modal({
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 p-6" onMouseDown={onClose}>
+    <div className="app-no-drag fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 p-6" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"

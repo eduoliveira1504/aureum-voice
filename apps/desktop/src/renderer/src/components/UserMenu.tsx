@@ -16,7 +16,7 @@ import {
   VolumeX,
   X
 } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { api, type Member, type ServerDetail, type User } from '../lib/api'
 import { memberName } from '../lib/members'
@@ -25,7 +25,7 @@ import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useSocial } from '../store/social'
 import { getRoom, setUserAudio, useVoice } from '../store/voice'
-import { CheckItem, copy, Item, Label, menuPoint, Separator, showDialog, SliderItem, Submenu, toast } from './ContextMenu'
+import { CheckItem, contextMenu, copy, Item, Label, menuPoint, Separator, showDialog, SliderItem, Submenu, toast } from './ContextMenu'
 import { FormError, Modal } from './Modal'
 import { ConfirmModal, errorText } from './modals'
 import { ProfilePopover } from './ProfileCard'
@@ -39,11 +39,27 @@ function run(action: Promise<unknown>, done?: string): void {
   )
 }
 
+/** Right-click handler that opens a person's menu: use it wherever someone appears. */
+export function userContextMenu(user: User, meId: string, serverId?: string | null): (e: MouseEvent) => void {
+  return contextMenu(() => <UserContextMenu user={user} meId={meId} serverId={serverId} />)
+}
+
 /**
  * Right-click menu of a person: what the signed-in user can do with them. With `serverId`, also
- * what they can do to them in that server; items they lack permission for don't show.
+ * what they can do to them in that server; items they lack permission for don't show. `before`
+ * adds items of the place it was opened from (e.g. a conversation's) right under the name.
  */
-export function UserMenu({ user, meId, serverId }: { user: User; meId: string; serverId?: string | null }): ReactNode {
+export function UserContextMenu({
+  user,
+  meId,
+  serverId,
+  before
+}: {
+  user: User
+  meId: string
+  serverId?: string | null
+  before?: ReactNode
+}): ReactNode {
   const server = useChat((s) => (serverId ? s.servers[serverId] : undefined))
   const friend = useSocial((s) => s.friends[user.id])
   const audio = useAppearance((s) => s.settings.user_audio[user.id])
@@ -62,6 +78,12 @@ export function UserMenu({ user, meId, serverId }: { user: User; meId: string; s
   return (
     <>
       <Label>{member ? memberName(member) : user.display_name}</Label>
+      {before && (
+        <>
+          {before}
+          <Separator />
+        </>
+      )}
       <Item icon={UserRound} label="Ver perfil" onClick={openProfile} />
       {!isMe && isFriend && (
         <>

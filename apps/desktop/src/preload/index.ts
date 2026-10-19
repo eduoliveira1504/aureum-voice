@@ -17,6 +17,9 @@ const bridge: AureumBridge = {
     put: (id, data) => ipcRenderer.invoke('attachments:put', id, data),
     clear: () => ipcRenderer.invoke('attachments:clear')
   },
+  window: {
+    setTitleBarColors: (color, symbolColor) => ipcRenderer.invoke('window:title-bar', color, symbolColor)
+  },
   tray: {
     setState: (state) => ipcRenderer.invoke('tray:set-state', state),
     onCommand: (listener) => {

@@ -163,8 +163,8 @@ function ImageViewer({ images, start, onClose }: { images: Attachment[]; start: 
 
   const tool = 'rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-40'
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-scrim/90" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex shrink-0 items-center gap-1 border-b border-line bg-panel px-3 py-2">
+    <div className="app-no-drag fixed inset-0 z-50 flex flex-col bg-scrim/90" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pr-window-controls flex h-12 shrink-0 items-center gap-1 border-b border-line bg-panel pl-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{attachment.filename}</p>
           <p className="text-xs text-fg-subtle">

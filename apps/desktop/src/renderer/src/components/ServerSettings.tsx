@@ -1,13 +1,14 @@
 import { Crown, GripVertical, Pipette, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 
-import { api, ApiError, mediaUrl, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
+import { api, ApiError, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
 import { basePermissions, has, outranks, Perm, PERMISSION_GROUPS, rankOf } from '../lib/permissions'
 import { ACCENT_PRESETS, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { ConfirmModal } from './modals'
 import { FormError, Modal } from './Modal'
 import { imageForm, ImageRow, uploadError } from './ProfileSettings'
+import { ServerBannerLayer } from './ServerBanner'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
 
 function errorText(err: unknown, fallback: string): string {
@@ -88,7 +89,6 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
 function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
   const [name, setName] = useState(server.name)
   const { busy, error, setError, run } = useAction(server.id)
-  const banner = mediaUrl(server.banner_url)
 
   const pick = (kind: 'icon' | 'banner') => (e: ChangeEvent<HTMLInputElement>) => {
     const body = imageForm(e, setError)
@@ -99,11 +99,9 @@ function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
   return (
     <div className="max-w-[520px] space-y-5">
       <FormError message={error} />
-      <div
-        style={banner ? { backgroundImage: `url("${banner}")` } : undefined}
-        className="flex h-28 items-end gap-3 rounded-panel bg-elevated bg-cover bg-center p-3"
-      >
-        <span className="rounded-control border-4 border-panel">
+      <div className="relative flex h-28 items-end gap-3 overflow-hidden rounded-panel p-3">
+        <ServerBannerLayer server={server} />
+        <span className="relative rounded-control border-4 border-panel">
           <ServerIcon name={server.name} url={server.icon_url} size={48} />
         </span>
       </div>

@@ -165,7 +165,7 @@ function PanelView({
   grow: number
 }): ReactNode {
   const { activateTab, closeTab, closePanel, focusPanel, moveTab, openTab, toggleMembers } = useNav.getState()
-  const membersOpen = useAppearance((s) => s.settings.members_open)
+  const membersOpen = useAppearance((s) => !!panel.active && !!s.settings.panel_layouts[server.id]?.members?.includes(panel.active))
   const callRoom = useVoice((s) =>
     s.phase !== 'idle' && s.serverId === server.id ? (server.channels.find((c) => c.id === s.channelId)?.name ?? null) : null
   )
@@ -246,17 +246,20 @@ function PanelView({
           })}
         </div>
         <div className="flex shrink-0 items-center gap-0.5 self-center">
-          <button
-            type="button"
-            title="Membros"
-            aria-label="Membros"
-            aria-pressed={membersOpen}
-            onClick={toggleMembers}
-            className={`flex items-center gap-1.5 rounded-item px-2 py-1.5 text-sm hover:bg-elevated ${membersOpen ? 'text-fg' : 'text-fg-muted'}`}
-          >
-            <Users size={16} />
-            <span className="hidden xl:inline">Membros</span>
-          </button>
+          {/* The overview already has a members block. */}
+          {panel.active && panel.active !== 'overview' && (
+            <button
+              type="button"
+              title="Membros"
+              aria-label="Membros"
+              aria-pressed={membersOpen}
+              onClick={() => toggleMembers(server.id, index)}
+              className={`flex items-center gap-1.5 rounded-item px-2 py-1.5 text-sm hover:bg-elevated ${membersOpen ? 'text-fg' : 'text-fg-muted'}`}
+            >
+              <Users size={16} />
+              <span className="hidden xl:inline">Membros</span>
+            </button>
+          )}
           {canClose && (
             <button
               type="button"

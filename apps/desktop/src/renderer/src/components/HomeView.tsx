@@ -7,12 +7,11 @@ import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
-import { contextMenu } from './ContextMenu'
 import { DmView } from './DmView'
 import { ConfirmModal } from './modals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
 import { ActivityLine, activityLabel, StatusBubble, useElapsed } from './profileBits'
-import { UserMenu } from './UserMenu'
+import { userContextMenu } from './UserMenu'
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 
@@ -262,7 +261,7 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
         role={kind === 'friend' ? 'button' : undefined}
         tabIndex={kind === 'friend' ? 0 : undefined}
         onClick={() => kind === 'friend' && void openDm(user.id).catch(fail)}
-        onContextMenu={contextMenu(() => <UserMenu user={user} meId={meId} />)}
+        onContextMenu={userContextMenu(user, meId)}
         onKeyDown={(e) => kind === 'friend' && e.key === 'Enter' && void openDm(user.id).catch(fail)}
         className={`group flex items-center gap-3 rounded-control border-t border-line px-2 py-2.5 first-of-type:border-t-0 ${
           kind === 'friend' ? 'cursor-pointer hover:bg-elevated/60' : ''
@@ -425,7 +424,7 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {a.people.slice(0, 4).map((u) => (
-                  <span key={u.id} className="rounded-full ring-2 ring-panel">
+                  <span key={u.id} onContextMenu={userContextMenu(u, me.id)} className="rounded-full ring-2 ring-panel">
                     <Avatar name={u.display_name} url={u.avatar_url} size={26} />
                   </span>
                 ))}
@@ -449,7 +448,7 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
           </div>
         ))}
         {gamers.map((f) => (
-          <PlayingCard key={f.user.id} user={f.user} />
+          <PlayingCard key={f.user.id} user={f.user} meId={me.id} />
         ))}
       </div>
     </aside>
@@ -457,12 +456,12 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
 }
 
 /** A friend playing a game, in Active now. */
-function PlayingCard({ user }: { user: User }): ReactNode {
+function PlayingCard({ user, meId }: { user: User; meId: string }): ReactNode {
   const activity = useUserActivity(user.id)
   const elapsed = useElapsed(activity?.started_at)
   if (!activity) return null
   return (
-    <div className="flex items-center gap-3 rounded-control border border-line bg-panel p-3">
+    <div onContextMenu={userContextMenu(user, meId)} className="flex items-center gap-3 rounded-control border border-line bg-panel p-3">
       <Avatar name={user.display_name} url={user.avatar_url} size={32} />
       <div className="min-w-0 leading-tight">
         <div className="truncate text-sm font-semibold">{user.display_name}</div>

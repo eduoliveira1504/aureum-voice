@@ -23,11 +23,10 @@ import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
-import { contextMenu } from './ContextMenu'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
-import { LocallyMuted, UserMenu } from './UserMenu'
+import { LocallyMuted, userContextMenu } from './UserMenu'
 
 type Layout = 'grid' | 'focus'
 
@@ -308,7 +307,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
       label={name}
       onClick={onClick}
       // Right click: volume, local mute and the rest of the person's menu.
-      onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} serverId={useVoice.getState().serverId} />) : undefined}
+      onContextMenu={user ? userContextMenu(user, meId, useVoice.getState().serverId) : undefined}
       ring={speaking}
     >
       {camera ? (

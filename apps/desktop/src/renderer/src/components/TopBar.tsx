@@ -2,7 +2,7 @@ import { Bell, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plu
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
-import { mediaUrl, type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
+import { type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { serverTabs, useNav } from '../store/nav'
@@ -11,11 +11,13 @@ import { contextMenu } from './ContextMenu'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { ServerMenu } from './PlaceMenus'
+import { ServerBannerLayer } from './ServerBanner'
 import { CustomStatusModal } from './CustomStatus'
 import { ProfilePopover } from './ProfileCard'
 import { StatusBubble } from './profileBits'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
+import { userContextMenu } from './UserMenu'
 
 const TAB_DRAG_TYPE = 'application/x-aureum-server-tab'
 
@@ -42,7 +44,8 @@ export function TopBar({ me }: { me: Me }): ReactNode {
   }, [])
 
   return (
-    <header className="flex h-12 shrink-0 items-end gap-1 bg-rail px-2 pt-1.5">
+    // Empty parts of the bar move the window; Windows' buttons sit over its right end.
+    <header className="app-drag pr-window-controls flex h-12 shrink-0 items-end gap-1 bg-rail pl-2 pt-1.5">
       <Brand />
       <nav aria-label="Abas" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
         <HomeTab active={place === 'home'} />
@@ -100,7 +103,8 @@ const tabState = (active: boolean): string =>
 function useHomePending(): number {
   const requests = useSocial((s) => Object.values(s.friends).filter((f) => f.kind === 'incoming').length)
   const dms = useSocial((s) => s.dms)
-  const unread = useChat((s) => Object.keys(dms).reduce((n, id) => n + (s.reads[id]?.unread_count ?? 0), 0))
+  const muted = useAppearance((s) => s.settings.muted_places)
+  const unread = useChat((s) => Object.keys(dms).reduce((n, id) => n + (muted.includes(id) ? 0 : (s.reads[id]?.unread_count ?? 0)), 0))
   return requests + unread
 }
 
@@ -207,7 +211,6 @@ function useHoverPreview(): { anchor: DOMRect | null; show(e: MouseEvent): void;
 
 /** Hover card of a server tab: banner, icon, name, and who's around. */
 function ServerPreview({ server, anchor }: { server: ServerDetail; anchor: DOMRect }): ReactNode {
-  const banner = mediaUrl(server.banner_url)
   const online = server.members.filter((m) => m.online).length
   const inCall = server.voice_states.length
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - 264 - 8))
@@ -217,12 +220,9 @@ function ServerPreview({ server, anchor }: { server: ServerDetail; anchor: DOMRe
       style={{ left, top: anchor.bottom + 6 }}
       className="pointer-events-none fixed z-50 w-64 overflow-hidden rounded-panel border border-line bg-panel text-left shadow-2xl"
     >
-      <div
-        style={banner ? { backgroundImage: `url("${banner}")` } : undefined}
-        className={`h-20 bg-cover bg-center ${
-          banner ? '' : 'bg-[linear-gradient(135deg,color-mix(in_oklab,var(--accent)_38%,var(--bg-elevated)),var(--bg-elevated)_70%)]'
-        }`}
-      />
+      <div className="relative h-20 overflow-hidden">
+        <ServerBannerLayer server={server} />
+      </div>
       <div className="flex items-end gap-2.5 px-3 pb-3">
         <span className="-mt-6 rounded-item border-4 border-panel">
           <ServerIcon name={server.name} url={server.icon_url} size={40} />
@@ -247,7 +247,7 @@ function EndDropZone({ tabs }: { tabs: string[] }): ReactNode {
   const moveServerTab = useNav((s) => s.moveServerTab)
   return (
     <div
-      className="h-[38px] w-3 shrink-0"
+      className="app-no-drag h-[38px] w-3 shrink-0"
       onDragOver={(e) => e.dataTransfer.types.includes(TAB_DRAG_TYPE) && e.preventDefault()}
       onDrop={(e) => {
         const id = e.dataTransfer.getData(TAB_DRAG_TYPE)
@@ -356,7 +356,7 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
             <div className="max-h-96 overflow-y-auto">
               {requests.length > 0 && <p className="px-2 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Pedidos de amizade</p>}
               {requests.map((f) => (
-                <div key={f.user.id} className="flex items-center gap-2.5 rounded-item px-2 py-1.5">
+                <div key={f.user.id} onContextMenu={userContextMenu(f.user, me.id)} className="flex items-center gap-2.5 rounded-item px-2 py-1.5">
                   <Avatar name={f.user.display_name} url={f.user.avatar_url} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{f.user.display_name}</div>

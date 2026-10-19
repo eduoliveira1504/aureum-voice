@@ -116,6 +116,10 @@ export interface AureumBridge {
     put(id: string, data: Uint8Array): Promise<void>
     clear(): Promise<void>
   }
+  window: {
+    /** Colors of the window buttons area over the top bar (hex: background, symbols). */
+    setTitleBarColors(color: string, symbolColor: string): Promise<void>
+  }
   tray: {
     setState(state: TrayState): Promise<void>
     onCommand(listener: (command: TrayCommand) => void): () => void

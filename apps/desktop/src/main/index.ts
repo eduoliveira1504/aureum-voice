@@ -210,6 +210,16 @@ function installDisplayMediaHandler(isAppWindow: (contents: Electron.WebContents
 // Window
 // ---------------------------------------------------------------------------
 
+const TITLE_BAR_HEIGHT = 48 // the top bar's height (h-12)
+const HEX = /^#[0-9a-f]{6}$/i
+
+handle('window:title-bar', (color: unknown, symbolColor: unknown) => {
+  if (typeof color !== 'string' || !HEX.test(color) || typeof symbolColor !== 'string' || !HEX.test(symbolColor)) {
+    throw new Error('Invalid colors')
+  }
+  mainWindow?.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT })
+})
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -219,6 +229,10 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0a0908', // dark --bg-rail: shown before the renderer paints
+    // No system title bar: the app's tab bar sits at the top, with Windows' buttons drawn over
+    // its right end in the theme's colors (the renderer updates them, see window:title-bar).
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#0a0908', symbolColor: '#f4efe4', height: TITLE_BAR_HEIGHT },
     title: 'Aureum Voice',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

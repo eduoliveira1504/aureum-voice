@@ -33,14 +33,15 @@ import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { contextMenu } from './ContextMenu'
-import { ChannelMenu, deleteChannelMessage, ServerMenu } from './PlaceMenus'
+import { ConversationMenu } from './ConversationMenu'
+import { ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
 import { ConfirmModal, CreateAddonModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { PickFriendsModal } from './socialModals'
-import { Avatar, CountBadge, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
-import { LocallyMuted, UserMenu } from './UserMenu'
+import { Avatar, CountBadge, GroupAvatar, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
+import { LocallyMuted, userContextMenu } from './UserMenu'
 
 type Dialog =
   | { kind: 'invite' }
@@ -633,7 +634,9 @@ function DmItem({
   onOpen(): void
   onClose(): void
 }): ReactNode {
-  const unread = useChat((s) => s.reads[dm.id]?.unread_count ?? 0)
+  const muted = useMuted(dm.id)
+  // A silenced conversation shows no count.
+  const unread = useChat((s) => (muted ? 0 : (s.reads[dm.id]?.unread_count ?? 0)))
   const peer = dmPeer(dm, meId)
   const status = useSocial((s) => (peer ? (s.presence[peer.id] ?? 'offline') : undefined))
   const title = dmTitle(dm, meId)
@@ -642,9 +645,10 @@ function DmItem({
 
   return (
     <div
+      onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={meId} />)}
       className={`group relative flex items-center rounded-item ${
         active ? 'bg-elevated text-fg' : unread ? 'text-fg hover:bg-elevated/60' : 'text-fg-muted hover:bg-elevated/60 hover:text-fg'
-      }`}
+      } ${muted && !active ? 'opacity-60' : ''}`}
     >
       <button
         type="button"
@@ -657,9 +661,7 @@ function DmItem({
           {peer ? (
             <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border={active ? 'border-elevated' : 'border-panel'} />
           ) : (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-elevated text-fg-muted">
-              <Users size={15} />
-            </span>
+            <GroupAvatar url={dm.icon_url} size={28} />
           )}
           {collapsed && unread > 0 && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-panel bg-danger" />}
         </span>
@@ -715,7 +717,7 @@ function RoomPeople({
         return (
           <li
             key={v.user_id}
-            onContextMenu={user ? contextMenu(() => <UserMenu user={user} meId={meId} serverId={serverId} />) : undefined}
+            onContextMenu={user ? userContextMenu(user, meId, serverId) : undefined}
             className="flex items-center gap-2 rounded-item px-1.5 py-0.5 text-fg-muted hover:bg-elevated/60 hover:text-fg"
           >
             <span className={`shrink-0 rounded-full ring-offset-1 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-2 ring-accent' : ''}`}>

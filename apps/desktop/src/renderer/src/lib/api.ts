@@ -74,6 +74,8 @@ export interface Panel {
 export interface PanelLayout {
   panels: Panel[]
   split: number
+  /** Tabs that show the member list next to them (remembered per tab). */
+  members?: PanelTab[]
 }
 
 /** Per-user preferences synced through the server (GET/PATCH /users/me/settings). */
@@ -87,8 +89,6 @@ export interface UserSettings {
   /** Servers taken off the top bar (still joined). */
   closed_tabs: string[]
   sidebar_collapsed: boolean
-  /** The member list next to a server's panels. */
-  members_open: boolean
   /** Open panels per server id. */
   panel_layouts: Record<string, PanelLayout>
   /** How loud each person sounds in calls (volume %, 0-200) and local mutes, by user id. */
@@ -212,6 +212,8 @@ export interface Dm {
   id: string
   type: 'dm' | 'group_dm'
   name: string | null
+  /** Groups only: the group's picture. */
+  icon_url: string | null
   members: { user: User; status: Presence }[]
   last_message_id: number
   read: ReadState

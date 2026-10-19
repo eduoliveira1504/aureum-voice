@@ -50,6 +50,8 @@ interface SocialState {
   openDm(userId: string): Promise<string>
   createGroup(userIds: string[], name?: string): Promise<Dm>
   renameGroup(id: string, name: string | null): Promise<void>
+  /** Sets (or with null removes) a group's picture. */
+  setGroupIcon(id: string, file: File | null): Promise<void>
   addMembers(id: string, userIds: string[]): Promise<void>
   /** Closes a DM (it comes back with the next message) or leaves a group. */
   closeDm(id: string): Promise<void>
@@ -225,6 +227,15 @@ export const useSocial = create<SocialState>()((set, get) => {
 
     renameGroup: async (id, name) => {
       upsertDm(await api<Dm>(`/dms/${id}`, { method: 'PATCH', body: { name } }))
+    },
+
+    setGroupIcon: async (id, file) => {
+      let body: FormData | undefined
+      if (file) {
+        body = new FormData()
+        body.append('file', file)
+      }
+      upsertDm(await api<Dm>(`/dms/${id}/icon`, { method: file ? 'POST' : 'DELETE', body }))
     },
 
     addMembers: async (id, userIds) => {

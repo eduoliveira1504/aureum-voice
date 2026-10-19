@@ -1,15 +1,19 @@
 import { LogOut, MessageSquare, Pencil, Phone, UserPlus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { ApiError, type Channel, type Dm, type Me } from '../lib/api'
+import { ApiError, type Channel, type Dm, type Me, type User } from '../lib/api'
 import { useNav } from '../store/nav'
 import { dmPeer, dmTitle, RING_MS, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
+import { contextMenu } from './ContextMenu'
+import { ConversationMenu } from './ConversationMenu'
 import { ConfirmModal } from './modals'
 import { COLUMNS, useColumnWidth } from './Resizer'
+import { useProfilePopover } from './ProfileCard'
 import { PickFriendsModal, RenameGroupModal } from './socialModals'
-import { Avatar, PRESENCE_LABEL, PresenceAvatar } from './ui'
+import { Avatar, GroupAvatar, PRESENCE_LABEL, PresenceAvatar } from './ui'
+import { userContextMenu } from './UserMenu'
 import { CallView } from './VoiceView'
 
 type Dialog = 'add' | 'rename' | 'leave'
@@ -25,6 +29,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(true)
+  const [membersOpen, setMembersOpen] = useState(true)
+  const profile = useProfilePopover()
   const chatWidth = useColumnWidth(COLUMNS.callChat, 'left')
   const title = dmTitle(dm, me.id)
   const group = dm.type === 'group_dm'
@@ -71,18 +77,29 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-2">
         {peer ? (
-          <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border="border-main" />
+          // The person: click for their profile, right click for their menu.
+          <button
+            type="button"
+            aria-label={`Perfil de ${peer.display_name}`}
+            onClick={(e) => profile.open(peer, e.currentTarget)}
+            onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={me.id} />)}
+            className="flex min-w-0 items-center gap-2.5 rounded-item py-1 pr-2 text-left hover:bg-elevated/60"
+          >
+            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border="border-main" />
+            <span className="min-w-0">
+              <span className="block truncate font-semibold leading-tight">{title}</span>
+              <span className="block truncate text-xs text-fg-subtle">{`@${peer.username} · ${PRESENCE_LABEL[status ?? 'offline']}`}</span>
+            </span>
+          </button>
         ) : (
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-elevated text-fg-muted">
-            <Users size={15} />
-          </span>
+          <div onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={me.id} />)} className="flex min-w-0 items-center gap-2.5">
+            <GroupAvatar url={dm.icon_url} size={28} />
+            <div className="min-w-0">
+              <h2 className="truncate font-semibold leading-tight">{title}</h2>
+              <p className="truncate text-xs text-fg-subtle">{dm.members.length} pessoas</p>
+            </div>
+          </div>
         )}
-        <div className="min-w-0">
-          <h2 className="truncate font-semibold leading-tight">{title}</h2>
-          <p className="truncate text-xs text-fg-subtle">
-            {peer ? `@${peer.username} · ${PRESENCE_LABEL[status ?? 'offline']}` : `${dm.members.length} pessoas`}
-          </p>
-        </div>
         <span className="flex-1" />
         {call && !inCall && (
           <button
@@ -129,6 +146,16 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         </button>
         {group && (
           <>
+            <button
+              type="button"
+              title={membersOpen ? 'Esconder membros' : 'Mostrar membros'}
+              aria-label="Membros"
+              aria-pressed={membersOpen}
+              onClick={() => setMembersOpen(!membersOpen)}
+              className={`${headerButton} ${membersOpen ? 'text-fg' : ''}`}
+            >
+              <Users size={20} />
+            </button>
             <button type="button" title="Renomear grupo" aria-label="Renomear grupo" onClick={() => setDialog('rename')} className={headerButton}>
               <Pencil size={18} />
             </button>
@@ -145,30 +172,34 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         </div>
       )}
 
-      {inCall && call ? (
-        // In a call, the people in it always keep the main area; the chat moves to a side panel
-        // with its own scroll, so it never pushes the call off screen.
-        <div className="flex min-h-0 flex-1">
-          <CallView
-            title={title}
-            channelId={dm.id}
-            people={people}
-            present={dm.voice_states}
-            joinLabel="Entrar na chamada"
-            onJoin={() => void join(null, dm.id)}
-            meId={me.id}
-            footer={<RingingLine dm={dm} meId={me.id} />}
-          />
-          {chatOpen && (
-            <aside style={{ width: chatWidth.width }} className="relative flex min-h-0 max-w-[60%] shrink-0 border-l border-line">
-              {chatWidth.handle}
-              {chat}
-            </aside>
-          )}
-        </div>
-      ) : (
-        chat
-      )}
+      <div className="flex min-h-0 flex-1">
+        {inCall && call ? (
+          // In a call, the people in it always keep the main area; the chat moves to a side panel
+          // with its own scroll, so it never pushes the call off screen.
+          <div className="flex min-h-0 min-w-0 flex-1">
+            <CallView
+              title={title}
+              channelId={dm.id}
+              people={people}
+              present={dm.voice_states}
+              joinLabel="Entrar na chamada"
+              onJoin={() => void join(null, dm.id)}
+              meId={me.id}
+              footer={<RingingLine dm={dm} meId={me.id} />}
+            />
+            {chatOpen && (
+              <aside style={{ width: chatWidth.width }} className="relative flex min-h-0 max-w-[60%] shrink-0 border-l border-line">
+                {chatWidth.handle}
+                {chat}
+              </aside>
+            )}
+          </div>
+        ) : (
+          chat
+        )}
+        {group && membersOpen && <GroupMembers dm={dm} meId={me.id} onOpen={profile.open} />}
+      </div>
+      {profile.popover}
 
       {dialog === 'add' && (
         <PickFriendsModal
@@ -198,18 +229,51 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   )
 }
 
+/** The people in a group, beside its conversation. */
+function GroupMembers({ dm, meId, onOpen }: { dm: Dm; meId: string; onOpen(user: User, target: Element): void }): ReactNode {
+  const presence = useSocial((s) => s.presence)
+  return (
+    <aside aria-label="Membros do grupo" className="w-60 shrink-0 overflow-y-auto border-l border-line p-3">
+      <h3 className="mb-2 px-2 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">Membros · {dm.members.length}</h3>
+      {dm.members.map(({ user, status }) => (
+        <button
+          key={user.id}
+          type="button"
+          onClick={(e) => onOpen(user, e.currentTarget)}
+          onContextMenu={userContextMenu(user, meId)}
+          className="flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60"
+        >
+          <PresenceAvatar name={user.display_name} url={user.avatar_url} status={presence[user.id] ?? status} size={32} border="border-main" />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">{user.display_name}</span>
+            <span className="block truncate text-xs text-fg-subtle">@{user.username}</span>
+          </span>
+        </button>
+      ))}
+    </aside>
+  )
+}
+
 function DmIntro({ dm, meId, isFriend }: { dm: Dm; meId: string; isFriend: boolean }): ReactNode {
   const peer = dmPeer(dm, meId)
   const title = dmTitle(dm, meId)
+  const profile = useProfilePopover()
   return (
     <>
       {peer ? (
-        <Avatar name={peer.display_name} url={peer.avatar_url} size={72} />
+        <button
+          type="button"
+          aria-label={`Perfil de ${peer.display_name}`}
+          onClick={(e) => profile.open(peer, e.currentTarget)}
+          onContextMenu={userContextMenu(peer, meId)}
+          className="rounded-full"
+        >
+          <Avatar name={peer.display_name} url={peer.avatar_url} size={72} />
+        </button>
       ) : (
-        <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-elevated text-fg-muted">
-          <Users size={36} />
-        </div>
+        <GroupAvatar url={dm.icon_url} size={72} />
       )}
+      {profile.popover}
       <h3 className="mt-3 text-3xl font-bold">{title}</h3>
       <p className="mt-1 text-fg-muted">
         {peer ? `Este é o começo da sua conversa com @${peer.username}.` : `Este é o começo do grupo ${title}.`}

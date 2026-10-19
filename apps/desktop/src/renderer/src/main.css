@@ -121,6 +121,26 @@
   }
 }
 
+/*
+ * The window has no system title bar: the app's top bar is where it's dragged from. Anything
+ * clickable inside a drag area must opt out, and so must layers drawn over one (modals, the
+ * image viewer): Electron keeps drag regions active under overlapping elements otherwise.
+ */
+@utility app-drag {
+  -webkit-app-region: drag;
+}
+@utility app-no-drag {
+  -webkit-app-region: no-drag;
+}
+.app-drag :is(button, a, input, select, textarea, [draggable='true'], [role='button']) {
+  -webkit-app-region: no-drag;
+}
+
+/* Room on the right for the window buttons Windows draws over the top bar. */
+@utility pr-window-controls {
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
 /* Soft accent glow behind full-screen cards (sign-in). */
 @utility bg-glow {
   background: radial-gradient(
