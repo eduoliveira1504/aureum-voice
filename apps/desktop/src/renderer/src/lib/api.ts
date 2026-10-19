@@ -36,9 +36,30 @@ export interface User {
   avatar_frame: AvatarFrame
   favorite_song: FavoriteSong | null
   links: ProfileLink[]
-  /** Granted by the system: 'founder', 'beta'. */
-  badges: string[]
+  /** Granted by the system or the app owner; what each looks like comes from GET /badges. */
+  badges: HeldBadge[]
   created_at: string
+}
+
+export interface HeldBadge {
+  key: string
+  /** Numbered badges: the holder's place, e.g. Pioneiro #7. */
+  number: number | null
+  granted_at: string
+}
+
+export type BadgeRarity = 'comum' | 'rara' | 'lendaria' | 'mitica'
+
+/** A badge of the catalog (GET /badges). */
+export interface Badge {
+  key: string
+  name: string
+  description: string
+  rarity: BadgeRarity
+  numbered: boolean
+  /** Full art (tooltips, big sizes) and the simplified one for 32 px and below. */
+  icon_svg: string
+  icon_svg_small: string
 }
 
 /** What someone is doing right now ("Jogando X"); comes over the WebSocket only. */

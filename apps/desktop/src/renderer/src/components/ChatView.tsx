@@ -22,6 +22,7 @@ import { channelTab, useNav } from '../store/nav'
 import { useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
+import { TopBadge } from './Badge'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
@@ -505,6 +506,7 @@ function MessageRow({
                 {name}
               </button>
             )}
+            {!own && author && <TopBadge badges={author.badges} size={14} />}
             <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}

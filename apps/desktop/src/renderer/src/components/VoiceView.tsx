@@ -23,6 +23,7 @@ import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { TopBadge } from './Badge'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
@@ -324,6 +325,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
         {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
         {!isLocal && <LocallyMuted userId={identity} />}
         <span className="truncate">{name}</span>
+        {user && <TopBadge badges={user.badges} />}
       </div>
     </TileFrame>
   )

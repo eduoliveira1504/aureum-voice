@@ -8,9 +8,10 @@ import { useAppearance, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useSocial } from '../store/social'
+import { BadgeList } from './Badge'
 import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
-import { activityLabel, BadgeList, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
+import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
 import { UserContextMenu, userContextMenu } from './UserMenu'
 
 const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })

@@ -5,6 +5,7 @@ import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '
 import { memberName } from '../lib/members'
 import { roleColor } from '../lib/permissions'
 import { useReadableColor } from '../store/appearance'
+import { TopBadge } from './Badge'
 import { useProfilePopover } from './ProfileCard'
 import { ActivityLine, StatusBubble } from './profileBits'
 import { COLUMNS, useColumnWidth } from './Resizer'
@@ -105,8 +106,11 @@ export function MemberRow({
     >
       <PresenceAvatar name={name} url={m.user.avatar_url} status={m.online ? m.status : undefined} />
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
-          {name}
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
+            {name}
+          </span>
+          <TopBadge badges={m.user.badges} />
         </span>
         {m.online && <StatusBubble user={m.user} size="xs" className="my-0.5" />}
         {room ? (

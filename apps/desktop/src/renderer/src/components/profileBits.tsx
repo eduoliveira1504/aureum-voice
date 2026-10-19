@@ -1,4 +1,4 @@
-import { FlaskConical, Gamepad2, Gem, type LucideIcon } from 'lucide-react'
+import { Gamepad2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { Activity, AvatarFrame, CustomStatus, Presence, User } from '../lib/api'
@@ -129,25 +129,3 @@ export function ActivityLine({ userId, className = '' }: { userId: string; class
   )
 }
 
-/** System badges; unknown keys (from a newer server) are skipped. */
-export const BADGES: Record<string, { label: string; icon: LucideIcon }> = {
-  founder: { label: 'Fundador', icon: Gem },
-  beta: { label: 'Beta', icon: FlaskConical }
-}
-
-export function BadgeList({ badges }: { badges: string[] }): ReactNode {
-  const known = badges.filter((b) => BADGES[b])
-  if (!known.length) return null
-  return (
-    <div className="flex items-center gap-1 rounded-item bg-main/80 px-1.5 py-1">
-      {known.map((key) => {
-        const { label, icon: Icon } = BADGES[key]
-        return (
-          <span key={key} title={label} aria-label={label} className="text-accent-text">
-            <Icon size={16} strokeWidth={1.8} />
-          </span>
-        )
-      })}
-    </div>
-  )
-}

@@ -70,6 +70,9 @@
   --on-danger: #ffffff;
   --scrim: #0a0908;
   --on-scrim: #f4efe4;
+  /* Badges: the metal of mythic ones glows, and a light band crosses them (see Badge.tsx). */
+  --badge-glow: #e8b531;
+  --badge-shine: rgb(255 255 255 / 0.55);
 }
 
 @theme inline {
@@ -194,4 +197,45 @@ textarea {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* --- Badges -------------------------------------------------------------------
+ * Mythic badges: a soft glow and a diagonal light band that crosses them every ~4s, clipped
+ * to the badge's own shape (masked by its art). The animation lives here, never in the SVGs.
+ * .badge-shine-hover (lists): only while hovered. No animation with reduced motion.
+ */
+.badge-mythic > img {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--badge-glow) 65%, transparent));
+}
+.badge-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mask-image: var(--badge-mask);
+  mask-size: 100% 100%;
+  background: linear-gradient(115deg, transparent 42%, var(--badge-shine) 50%, transparent 58%);
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  animation: badge-shine 4s ease-in-out infinite;
+}
+.badge-shine-hover .badge-shine {
+  animation: none;
+}
+.badge-shine-hover:hover .badge-shine {
+  animation: badge-shine 4s ease-in-out infinite;
+}
+@keyframes badge-shine {
+  0% {
+    background-position: 100% 0;
+  }
+  30%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-shine {
+    display: none;
+  }
 }

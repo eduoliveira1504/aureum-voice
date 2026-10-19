@@ -20,6 +20,7 @@ import { Realtime, setActiveRealtime } from '../lib/realtime'
 import { startTrayBridge } from '../lib/tray'
 import { useActivity } from '../store/activity'
 import { loadAppearance, useAppearance } from '../store/appearance'
+import { useBadges } from '../store/badges'
 import { useChat } from '../store/chat'
 import { layoutOf, membersOpenFor, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
@@ -45,6 +46,9 @@ export function AppShell({ user }: { user: Me }): ReactNode {
 
   // Ctrl+Shift+R (caught by the main process, so it works over any screen).
   useEffect(() => window.aureum.app.onReportProblem(() => void openReportProblem()), [])
+
+  // What each badge looks like (profiles only carry keys and numbers).
+  useEffect(() => void useBadges.getState().load(), [user.id])
 
   // One real-time connection for the whole signed-in session.
   useEffect(() => {
