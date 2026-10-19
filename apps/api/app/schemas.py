@@ -604,10 +604,13 @@ class MessageEdit(BaseModel):
 class AttachmentOut(BaseModel):
     id: uuid.UUID
     filename: str
-    kind: Literal["image", "video", "file"]
+    kind: Literal["image", "video", "file", "voice"]
     content_type: str
     size: int
     url: str
+    # Voice messages only.
+    duration_ms: int | None = None
+    waveform: list[int] | None = None
 
 
 class MarkRead(BaseModel):

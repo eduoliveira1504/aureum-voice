@@ -461,6 +461,8 @@ class AttachmentKind(str, enum.Enum):
     image = "image"
     video = "video"
     file = "file"
+    # A voice message recorded in the app (Opus/WebM), played with its waveform.
+    voice = "voice"
 
 
 class Attachment(Base):
@@ -487,6 +489,8 @@ class Attachment(Base):
     kind: Mapped[AttachmentKind] = mapped_column(_str_enum(AttachmentKind, "attachment_kind"), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Voice messages: {"duration_ms", "waveform"} as measured by the app while recording.
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _created_at()
 
 

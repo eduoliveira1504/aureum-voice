@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -189,15 +189,20 @@ async def upload_attachment(
     file: Annotated[UploadFile, File(description="Any file, up to MAX_ATTACHMENT_MB")],
     user: CurrentUser,
     session: SessionDep,
+    voice: Annotated[bool, Form()] = False,
+    duration_ms: Annotated[int | None, Form()] = None,
+    waveform: Annotated[str | None, Form(max_length=1000)] = None,
 ) -> dict:
-    """Uploads a file for a message about to be sent here (attachment_ids of the message)."""
+    """Uploads a file for a message about to be sent here (attachment_ids of the message).
+    `voice` marks a voice message recorded in the app, with its duration and waveform."""
     channel, access = await _text_channel(session, channel_id, user.id)
     if access is not None:
         needed = Perm.SEND_MESSAGES | Perm.ATTACH_FILES
         if access.channel(channel) & needed != needed:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't send files here")
     await _require_dm_friends(session, channel, user.id)
-    return attachments.out(await attachments.upload(session, channel, user.id, file))
+    meta = attachments.voice_meta(duration_ms, waveform) if voice else None
+    return attachments.out(await attachments.upload(session, channel, user.id, file, voice=meta))
 
 
 @router.get("/channels/{channel_id}/messages", response_model=list[MessageOut])

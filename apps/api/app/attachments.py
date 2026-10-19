@@ -25,6 +25,11 @@ MAX_PER_MESSAGE = 10
 # Uploads not sent within this time are dropped (the next upload by the same person cleans them).
 PENDING_TTL = timedelta(hours=24)
 MAX_PENDING = 50
+# Voice messages: up to 5 minutes (a little slack for the recorder's last chunk), drawn with up
+# to 128 bars of 0-100.
+MAX_VOICE_MS = 5 * 60 * 1000
+VOICE_SLACK_MS = 2000
+MAX_WAVEFORM = 128
 URL_PREFIX = storage.MEDIA_PREFIX + "attachments/"
 
 _UNSAFE = re.compile(r'[\x00-\x1f\x7f<>:"/\\|?*]')
@@ -61,9 +66,23 @@ def sniff(data: bytes) -> tuple[AttachmentKind, str]:
     return AttachmentKind.file, "application/octet-stream"
 
 
+def voice_meta(duration_ms: int | None, waveform: str | None) -> dict[str, Any]:
+    """Checks what the app measured while recording a voice message. The waveform comes as
+    comma-separated bar heights (0-100)."""
+    if duration_ms is None or not 0 < duration_ms <= MAX_VOICE_MS + VOICE_SLACK_MS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Voice messages last up to 5 minutes")
+    try:
+        bars = [int(v) for v in (waveform or "").split(",") if v.strip()]
+    except ValueError:
+        bars = []
+    if not 0 < len(bars) <= MAX_WAVEFORM or any(not 0 <= b <= 100 for b in bars):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid waveform")
+    return {"duration_ms": min(duration_ms, MAX_VOICE_MS), "waveform": bars}
+
+
 def out(attachment: Attachment) -> dict[str, Any]:
     """The public fields, as messages carry them."""
-    return {
+    fields: dict[str, Any] = {
         "id": str(attachment.id),
         "filename": attachment.filename,
         "kind": attachment.kind.value,
@@ -71,6 +90,10 @@ def out(attachment: Attachment) -> dict[str, Any]:
         "size": attachment.size,
         "url": f"{URL_PREFIX}{attachment.id}",
     }
+    if attachment.kind == AttachmentKind.voice and attachment.meta:
+        fields["duration_ms"] = attachment.meta["duration_ms"]
+        fields["waveform"] = attachment.meta["waveform"]
+    return fields
 
 
 async def _drop_stale(session: AsyncSession, user_id: uuid.UUID) -> None:
@@ -86,8 +109,11 @@ async def _drop_stale(session: AsyncSession, user_id: uuid.UUID) -> None:
     await delete_keys(stale)
 
 
-async def upload(session: AsyncSession, channel: Channel, user_id: uuid.UUID, file: UploadFile) -> Attachment:
-    """Stores a file for a message the user is about to send in the channel. Commits."""
+async def upload(
+    session: AsyncSession, channel: Channel, user_id: uuid.UUID, file: UploadFile, voice: dict[str, Any] | None = None
+) -> Attachment:
+    """Stores a file for a message the user is about to send in the channel. Commits. With
+    `voice` (see voice_meta) it's a voice message, which must be a WebM recording."""
     await _drop_stale(session, user_id)
     pending = await session.scalar(
         select(func.count()).where(Attachment.uploader_id == user_id, Attachment.message_id.is_(None))
@@ -103,14 +129,20 @@ async def upload(session: AsyncSession, channel: Channel, user_id: uuid.UUID, fi
     if not data:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The file is empty")
     kind, content_type = sniff(data)
+    filename = clean_filename(file.filename)
+    if voice is not None:
+        if content_type != "video/webm":  # any WebM: what the app's recorder makes
+            raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Voice messages must be Opus/WebM")
+        kind, content_type, filename = AttachmentKind.voice, "audio/webm", "mensagem-de-voz.webm"
     attachment = Attachment(
         id=uuid.uuid4(),
         channel_id=channel.id,
         uploader_id=user_id,
-        filename=clean_filename(file.filename),
+        filename=filename,
         kind=kind,
         content_type=content_type,
         size=len(data),
+        meta=voice,
     )
     attachment.key = f"attachments/{channel.id}/{attachment.id}"
     await storage.put(attachment.key, data, content_type)
