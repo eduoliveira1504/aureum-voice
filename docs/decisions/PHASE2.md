@@ -250,37 +250,71 @@ Ver docs/decisions/0015 (anexos e segundo plano), 0016 (interface e testes) e 00
 Essenciais:
 - Atualização automática: electron-updater com releases no GitHub (privado ou público);
   checa ao abrir e a cada 6h, baixa em segundo plano, aviso "Reiniciar para atualizar".
-  Instalador e updates com o mesmo appId; canal "beta".
+  Instalador e updates com o mesmo appId; canal "beta". Token do GitHub (se necessário)
+  só no .env, nunca no código.
 - Botão "Reportar problema" (menu do perfil e atalho Ctrl+Shift+R): descrição, print
   opcional da janela, versão, SO e últimos logs anexados automaticamente; vai para a
   API (tabela bug_reports) e aparece numa tela simples só para o dono.
+
 Insígnias (sistema "família"):
-- Tabelas badges (id, key, nome, descrição, ícone SVG, raridade: comum|rara|lendaria,
-  numbered: bool) e user_badges (user_id, badge_id, number nullable, granted_at,
-  granted_by). Concedidas pelo sistema ou pelo dono do app, nunca pelo próprio usuário.
-- Visual padrão: moldura hexagonal; a cor do metal indica a raridade
-  (comum = bronze #C08A5A, rara = prata #C9D1DA, lendária = ouro #E8B531 com moldura dupla).
+- Tabelas badges (id, key, nome, descrição, ícone SVG full + small,
+  raridade: comum|rara|lendaria|mitica, numbered: bool, exclusive_beta: bool) e
+  user_badges (user_id, badge_id, number nullable, granted_at, granted_by).
+  Concedidas pelo sistema ou pelo dono do app, nunca pelo próprio usuário.
+- Ordem de raridade: comum < rara < lendária < mítica.
+- Visual: moldura hexagonal; o metal indica a raridade:
+  - comum = bronze #C08A5A
+  - rara = prata #C9D1DA
+  - lendária = ouro #E8B531 com moldura dupla, sem animação
+  - mítica = ouro #E8B531 com moldura dupla + glow suave ao redor + efeito "brilho
+    passando" (faixa de luz diagonal semitransparente que atravessa a insígnia a cada ~4s,
+    recortada no formato da insígnia)
   Ícone interno em SVG próprio, nunca emoji.
-- Exibição: ao lado do avatar no cartão de perfil (até 5 visíveis + "+N"), com tooltip:
-  nome, raridade, descrição, número (se numerada) e data de recebimento.
-- Insígnias do beta:
-  - "Fundador" (lendária): só para a conta do dono do app.
-  - Insígnia do beta (lendária, NUMERADA por ordem de cadastro, ex: "#7"): nome e ícone
-    ainda em votação; usar o placeholder "Pioneiro" com a bússola até decidir.
-    Concedida automaticamente a quem criar conta durante o beta.
+- Animação feita no componente (CSS), não dentro dos arquivos SVG. No cartão de perfil
+  e no tooltip o brilho roda sozinho; em listas (membros, chat, call) só roda ao passar
+  o mouse. Respeitar prefers-reduced-motion (sem animação).
+- SVG "full" no tooltip e em telas grandes; SVG "small" ao lado do nome em tamanhos até 32px.
+- Exibição: ao lado do avatar no cartão de perfil (até 5 visíveis + "+N"), ordenadas da
+  mais rara para a mais comum, com tooltip: nome, raridade, descrição, número (se
+  numerada) e data de recebimento.
+- Insígnias míticas são exclusivas dos primeiros: nunca mais concedidas depois do beta.
+- Insígnias do beta (ambas MÍTICAS):
+  - "Fundador": concedida automaticamente à conta cujo username está em
+    AUREUM_OWNER_USERNAME no .env. Se a conta ainda não existir, conceder assim que for criada.
+  - Insígnia do beta (NUMERADA por ordem de cadastro, ex: "Pioneiro #7"): concedida a quem
+    criar conta enquanto AUREUM_BETA=true no .env. Nome e ícone em votação; usar o
+    placeholder "Pioneiro" com a bússola. Trocar nome/SVG depois sem mexer nos números
+    já concedidos.
 - Deixar fácil adicionar novas insígnias depois (seed/migração), já prevendo:
   Caçador de bugs (rara, ao marcar um bug_report como resolvido), Veterano (rara, por ano
   de conta), Construtor (comum, servidor com 5+ membros), Aureum+ (lendária, futuro).
+
 Comunicação:
 - Mensagem de voz: segurar o botão de microfone no campo de mensagem para gravar
-  (ou clicar para começar/parar), máx 5 min, Opus/WebM, enviada como anexo de áudio;
-  player com forma de onda, duração e velocidade 1x/1.5x/2x. Arrastar para cancelar.
+  (ou clicar para começar/parar), máx 5 min, Opus/WebM, enviada como anexo de áudio
+  (sistema de anexos dos Polimentos); player com forma de onda, duração e velocidade
+  1x/1.5x/2x. Arrastar para cancelar.
 - Push-to-talk: modo de entrada "Detecção de voz" ou "Pressionar para falar" em
-  Configurações > Voz; atalho global configurável (funciona com o app em segundo plano),
-  som curto ao apertar/soltar (opcional).
+  Configurações > Voz; atalho global configurável (funciona com o app em segundo plano
+  e em jogos), reaproveitando a leitura de teclas do 2.7 com as mesmas regras de
+  privacidade (só a tecla configurada, só enquanto o PTT estiver ativo); som curto ao
+  apertar/soltar (opcional).
+
 Personalização:
 - Tema por servidor: o dono define a cor de destaque do servidor; dentro daquele
   servidor o accent muda para todos. Opção do usuário "Usar sempre minha cor".
+
+Contas e lançamento do beta:
+- Usernames reservados (ninguém registra; comparação sem maiúsc./minúsc.): aureum, admin,
+  administrador, suporte, support, staff, equipe, sistema, system, oficial, official,
+  moderador, mod. Mensagem amigável no cadastro ("Esse nome é reservado").
+- Comando de admin (script rodado no terminal, não pela interface) para criar contas com
+  nomes reservados. Contas criadas por ele não recebem a insígnia do beta.
+- Conta oficial @aureum (futura: avisos, mensagens do sistema, suporte), separada da conta
+  pessoal do dono (@edu, com a insígnia Fundador).
+- Antes do beta: zerar todos os dados (banco + MinIO), SÓ com confirmação explícita do
+  Eduardo. Ordem: zerar → criar @edu primeiro (Fundador + Pioneiro #1) → criar @aureum
+  pelo comando de admin → gerar o instalador do beta.
 
 ## Pronto quando (Fase 2 completa)
 - Tema claro/escuro e accent personalizável em todas as telas.
