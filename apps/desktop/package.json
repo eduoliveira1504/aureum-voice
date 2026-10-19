@@ -14,6 +14,7 @@
     "build": "npm run typecheck && electron-vite build",
     "build:win": "npm run build && electron-builder --win",
     "sounds": "node ../../scripts/generate-sounds.mjs",
+    "email-images": "electron ../../scripts/generate-email-images.mjs",
     "release": "node ../../scripts/release-desktop.mjs"
   },
   "devDependencies": {
