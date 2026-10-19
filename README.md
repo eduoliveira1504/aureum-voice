@@ -79,6 +79,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
   "only who's speaking" are in Settings > Overlay ([ADR 0012](docs/decisions/0012-in-game-overlay.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))
+- Streaming quality decided by the server: the voice token carries the user's media tier (free: camera
+  and screen up to 720p, 30 fps), and the screen picker offers **Texto nítido** (15 fps, keeps
+  resolution) or **Movimento** (30 fps, keeps frame rate). Simulcast still sends smaller layers to small
+  tiles. Groundwork for a paid plan later ([ADR 0017](docs/decisions/0017-media-tiers.md))
 - Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio, profile color,
   pronouns, an avatar frame, a profile song, up to 5 links and system badges (granted with
   `python -m app.cli badges`). The profile card also shows "Now", roles in the current server and
