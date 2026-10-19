@@ -62,6 +62,16 @@ class Settings(BaseSettings):
     livekit_api_secret: str
     voice_token_minutes: int = 60
 
+    # Username of the app owner's personal account: sees bug reports, gets the Founder badge.
+    aureum_owner_username: str | None = None
+    # While true, new accounts get the numbered beta badge.
+    aureum_beta: bool = False
+
+    @property
+    def owner_username(self) -> str | None:
+        name = (self.aureum_owner_username or "").strip().lower()
+        return name or None
+
     @property
     def database_url(self) -> str:
         return (

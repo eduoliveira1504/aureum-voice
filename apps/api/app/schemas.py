@@ -15,6 +15,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.config import get_settings
 from app.models import DEFAULT_ACCENT, ChannelType, OverrideTarget, Theme, UserStatus
 from app.media import MediaTier
 from app.voice import VoiceState
@@ -125,6 +126,12 @@ class UserPublic(BaseModel):
 
 class UserMe(UserPublic):
     email: str
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_app_owner(self) -> bool:
+        """The app owner's account (AUREUM_OWNER_USERNAME): reads bug reports in the app."""
+        return self.username == get_settings().owner_username
 
 
 # What others see (see app.presence): invisible users show as offline.
@@ -601,3 +608,21 @@ class MessageOut(BaseModel):
     call: CallOut | None = None
     # A system line posted by an addon: {"addon_key", "source_channel_id", "lines": [...]}.
     system: dict[str, Any] | None = None
+
+
+# --- Bug reports --------------------------------------------------------------
+
+
+class BugReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    author: UserPublic | None
+    description: str
+    app_version: str
+    os: str
+    logs: str
+    # /api/media/bug-reports/{id}, for the owner only.
+    screenshot_url: str | None
+    resolved_at: datetime | None
+    created_at: datetime

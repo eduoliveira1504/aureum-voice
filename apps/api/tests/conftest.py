@@ -9,6 +9,9 @@ os.environ["POSTGRES_DB"] = "aureum_test"
 os.environ["DB_NULL_POOL"] = "true"
 os.environ["REDIS_PREFIX"] = "aureum-test"
 os.environ["MINIO_BUCKET"] = "aureum-test"
+# The real .env names the owner and may have the beta on; tests opt in where they need it.
+os.environ["AUREUM_OWNER_USERNAME"] = ""
+os.environ["AUREUM_BETA"] = "false"
 
 import asyncpg  # noqa: E402
 import pytest  # noqa: E402

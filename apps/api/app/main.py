@@ -9,7 +9,7 @@ from app import storage
 from app.addons.registry import ADDONS
 from app.config import get_settings
 from app.realtime import broker
-from app.routers import addons, auth, calls, channels, dms, friends, moderation, roles, servers, users, ws
+from app.routers import addons, auth, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, ws
 
 settings = get_settings()
 
@@ -42,6 +42,8 @@ app.add_middleware(
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)
 api.include_router(users.router)
+# Before media_router, whose /media/{key:path} would match its screenshot route.
+api.include_router(bug_reports.router)
 api.include_router(users.media_router)
 api.include_router(servers.router)
 api.include_router(channels.router)
