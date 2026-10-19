@@ -37,4 +37,22 @@ describe('sortBadges', () => {
     expect(badgeTitle(shown[1])).toBe('pioneer #7')
     expect(badgeTitle(shown[0])).toBe('founder')
   })
+
+  it('breaks ties within a rarity by the fixed priority before the age', () => {
+    const catalog = {
+      founder: { ...badge('founder', 'mitica'), priority: 0 },
+      pioneer: { ...badge('pioneer', 'mitica', true), priority: 1 },
+      hunter: { ...badge('hunter', 'rara'), priority: 2 }
+    }
+    const shown = sortBadges(
+      [
+        { key: 'hunter', number: null, granted_at: '2026-01-01T00:00:00Z' },
+        { key: 'pioneer', number: 1, granted_at: '2026-01-01T00:00:00Z' },
+        // Newer than the Pioneiro, still first: same rarity, higher priority.
+        { key: 'founder', number: null, granted_at: '2026-06-01T00:00:00Z' }
+      ],
+      catalog
+    )
+    expect(shown.map((s) => s.key)).toEqual(['founder', 'pioneer', 'hunter'])
+  })
 })

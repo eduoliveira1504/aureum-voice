@@ -23,7 +23,7 @@ import { channelTab, useNav } from '../store/nav'
 import { useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
-import { TopBadge } from './Badge'
+import { NameMarks } from './Badge'
 import { ConfirmModal } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -94,9 +94,10 @@ function Mention({ user, own, onOpen, onMenu }: { user: User; own: boolean; onOp
       type="button"
       onClick={(e) => onOpen(e.currentTarget)}
       onContextMenu={onMenu}
-      className={`rounded-sm px-0.5 font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text hover:underline'}`}
+      className={`inline-flex max-w-full items-center gap-1 rounded-sm px-0.5 align-bottom font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text hover:underline'}`}
     >
-      @{user.username}
+      <span className="truncate">@{user.username}</span>
+      <NameMarks user={user} size={14} />
     </button>
   )
 }
@@ -495,22 +496,23 @@ function MessageRow({
       </div>
       <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
         {!grouped && (
-          <div className={`mb-1 flex items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
-            {/* Own messages too (mirrored): name and badge stay in reading order. */}
-            <span className="flex items-center gap-1">
+          <div className={`mb-1 flex min-w-0 max-w-full items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
+            {/* Own messages too (mirrored): name and marks stay in reading order. */}
+            <span className="flex min-w-0 items-center gap-1 self-center">
               <button
                 type="button"
                 disabled={!author}
                 onClick={openProfile}
                 onContextMenu={onAuthorMenu}
-                className="text-sm font-semibold hover:underline disabled:no-underline"
+                title={name}
+                className="min-w-0 truncate text-sm font-semibold hover:underline disabled:no-underline"
                 style={nameColor ? { color: nameColor } : undefined}
               >
                 {name}
               </button>
-              {author && <TopBadge badges={author.badges} size={14} />}
+              {author && <NameMarks user={author} size={14} />}
             </span>
-            <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
+            <span className="shrink-0 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}
         {editing ? (

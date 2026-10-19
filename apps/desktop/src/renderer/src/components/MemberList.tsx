@@ -5,7 +5,7 @@ import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '
 import { memberName } from '../lib/members'
 import { roleColor } from '../lib/permissions'
 import { useReadableColor } from '../store/appearance'
-import { TopBadge } from './Badge'
+import { NameMarks } from './Badge'
 import { useProfilePopover } from './ProfileCard'
 import { ActivityLine, StatusBubble } from './profileBits'
 import { COLUMNS, useColumnWidth } from './Resizer'
@@ -110,7 +110,7 @@ export function MemberRow({
           <span className="truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>
             {name}
           </span>
-          <TopBadge badges={m.user.badges} />
+          <NameMarks user={m.user} />
         </span>
         {m.online && <StatusBubble user={m.user} size="xs" className="my-0.5" />}
         {room ? (

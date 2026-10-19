@@ -38,8 +38,12 @@ export interface User {
   links: ProfileLink[]
   /** Granted by the system or the app owner; what each looks like comes from GET /badges. */
   badges: HeldBadge[]
-  /** The company's own accounts (@aureum): shown with an "Oficial" seal. */
+  /** The company's own accounts (@aureum): no beta badge, no invites. */
   is_official?: boolean
+  /** A gold check next to the name ("Conta verificada"). */
+  is_verified?: boolean
+  /** A "BOT" tag next to the name ("Conta automatizada do Aureum"). */
+  is_bot?: boolean
   created_at: string
 }
 
@@ -61,6 +65,8 @@ export interface Badge {
   numbered: boolean
   /** Only granted while the beta runs. */
   exclusive_beta: boolean
+  /** Same rarity: the lower one goes first next to a name (Fundador before Pioneiro). */
+  priority?: number
   /** Full art (tooltips, big sizes) and the simplified one for 32 px and below. */
   icon_svg: string
   icon_svg_small: string

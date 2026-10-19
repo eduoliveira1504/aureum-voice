@@ -17,9 +17,13 @@ export interface ShownBadge extends HeldBadge {
   badge: Badge
 }
 
+/** Badges without a priority (an older API) go after those with one. */
+const NO_PRIORITY = 100
+
 /**
- * Held badges the catalog knows, rarest first; within a rarity, the oldest first. Unknown keys
- * (a badge newer than the catalog loaded) are skipped until the catalog reloads.
+ * Held badges the catalog knows, rarest first; within a rarity, the badge's fixed priority
+ * (Fundador before Pioneiro), then the oldest first. Unknown keys (a badge newer than the
+ * catalog loaded) are skipped until the catalog reloads.
  */
 export function sortBadges(held: HeldBadge[], catalog: Record<string, Badge>): ShownBadge[] {
   return held
@@ -27,7 +31,9 @@ export function sortBadges(held: HeldBadge[], catalog: Record<string, Badge>): S
     .map((h) => ({ ...h, badge: catalog[h.key] }))
     .sort(
       (a, b) =>
-        RARITY_RANK[a.badge.rarity] - RARITY_RANK[b.badge.rarity] || a.granted_at.localeCompare(b.granted_at)
+        RARITY_RANK[a.badge.rarity] - RARITY_RANK[b.badge.rarity] ||
+        (a.badge.priority ?? NO_PRIORITY) - (b.badge.priority ?? NO_PRIORITY) ||
+        a.granted_at.localeCompare(b.granted_at)
     )
 }
 

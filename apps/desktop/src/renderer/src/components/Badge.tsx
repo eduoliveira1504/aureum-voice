@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import type { BadgeRarity, HeldBadge } from '../lib/api'
+import type { BadgeRarity, HeldBadge, User } from '../lib/api'
 import { badgeTitle, RARITY_LABEL, sortBadges, useBadges, type ShownBadge } from '../store/badges'
 
 const SMALL_MAX = 32
@@ -76,7 +76,7 @@ function BadgeWithTooltip({
       onMouseLeave={() => setAnchor(null)}
       onFocus={() => setAnchor(ref.current?.getBoundingClientRect() ?? null)}
       onBlur={() => setAnchor(null)}
-      className="inline-flex rounded-item outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="inline-flex shrink-0 rounded-item outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       <BadgeIcon shown={shown} size={size} shine={shine} />
       {anchor && <BadgeTooltip shown={shown} anchor={anchor} />}
@@ -154,9 +154,100 @@ export function BadgeSummary({ badges, onOpen }: { badges: HeldBadge[]; onOpen()
   )
 }
 
-/** Next to a name in lists (members, chat, call): the rarest badge, shining on hover. */
-export function TopBadge({ badges, size = 16 }: { badges: HeldBadge[]; size?: number }): ReactNode {
+/** How many badges go next to a name (the profile card shows them all). */
+export const NEXT_TO_NAME = 2
+
+/** Next to a name in lists (members, chat, call, mentions): the two rarest badges, shining on hover. */
+export function TopBadges({ badges, size = 16 }: { badges: HeldBadge[]; size?: number }): ReactNode {
   const shown = useShownBadges(badges)
   if (!shown.length) return null
-  return <BadgeWithTooltip shown={shown[0]} size={size} shine="hover" />
+  return (
+    <>
+      {shown.slice(0, NEXT_TO_NAME).map((s) => (
+        <BadgeWithTooltip key={s.key} shown={s} size={size} shine="hover" />
+      ))}
+    </>
+  )
+}
+
+/** A short hint on hover or focus, like the badges' tooltip but just a line of text. */
+function WithHint({ hint, children }: { hint: string; children: ReactNode }): ReactNode {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const show = (): void => setAnchor(ref.current?.getBoundingClientRect() ?? null)
+  return (
+    <span
+      ref={ref}
+      aria-label={hint}
+      onMouseEnter={show}
+      onMouseLeave={() => setAnchor(null)}
+      className="inline-flex shrink-0 items-center"
+    >
+      {children}
+      {anchor &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ left: anchor.left + anchor.width / 2, top: anchor.top < 48 ? anchor.bottom + 8 : anchor.top - 8 }}
+            className={`pointer-events-none fixed z-[60] -translate-x-1/2 ${anchor.top < 48 ? '' : '-translate-y-full'} whitespace-nowrap rounded-item border border-line bg-main px-2 py-1 text-xs font-medium text-fg shadow-xl`}
+          >
+            {hint}
+          </div>,
+          document.body
+        )}
+    </span>
+  )
+}
+
+/** The gold check of verified accounts: a hexagon like the badges' frame, with a tick. */
+export function VerifiedMark({ size = 16 }: { size?: number }): ReactNode {
+  return (
+    <WithHint hint="Conta verificada">
+      <svg viewBox="0 0 96 96" width={size} height={size} aria-hidden className="block shrink-0 text-badge-gold">
+        <polygon
+          points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29"
+          className="fill-badge-gold/20"
+          stroke="currentColor"
+          strokeWidth="8"
+          strokeLinejoin="round"
+        />
+        <path d="M31 49 L43 61 L66 36" fill="none" stroke="currentColor" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </WithHint>
+  )
+}
+
+/** The small "BOT" tag of the Aureum's automated accounts. */
+export function BotTag(): ReactNode {
+  return (
+    <WithHint hint="Conta automatizada do Aureum">
+      <span className="rounded-[4px] border border-line bg-elevated px-1 text-[10px] font-bold leading-[14px] tracking-wide text-fg-muted">
+        BOT
+      </span>
+    </WithHint>
+  )
+}
+
+/**
+ * Everything that follows a name: verified check, "BOT" tag, then the two rarest badges
+ * (`badges={false}` where the badges show elsewhere, like the profile card). It never shrinks:
+ * the name before it is what gets cut with an ellipsis.
+ */
+export function NameMarks({
+  user,
+  size = 16,
+  badges = true
+}: {
+  user: Pick<User, 'badges' | 'is_verified' | 'is_bot'>
+  size?: number
+  badges?: boolean
+}): ReactNode {
+  if (!user.is_verified && !user.is_bot && (!badges || !user.badges.length)) return null
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      {user.is_verified && <VerifiedMark size={size} />}
+      {user.is_bot && <BotTag />}
+      {badges && <TopBadges badges={user.badges} size={size} />}
+    </span>
+  )
 }

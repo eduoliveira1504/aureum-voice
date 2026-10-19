@@ -1,4 +1,4 @@
-import { BadgeCheck, ExternalLink, Gamepad2, Link2, MessageCircle, MoreHorizontal, Music, Phone, UserPlus } from 'lucide-react'
+import { ExternalLink, Gamepad2, Link2, MessageCircle, MoreHorizontal, Music, Phone, UserPlus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -8,7 +8,7 @@ import { useAppearance, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useSocial } from '../store/social'
-import { BadgeList } from './Badge'
+import { BadgeList, NameMarks } from './Badge'
 import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
 import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
@@ -166,11 +166,16 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
 
         <div className="mt-3 space-y-3 rounded-control bg-main p-3">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="font-display text-xl font-semibold leading-tight" style={nameColor ? { color: nameColor } : undefined}>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div
+                title={user.display_name}
+                className="min-w-0 truncate font-display text-xl font-semibold leading-tight"
+                style={nameColor ? { color: nameColor } : undefined}
+              >
                 {user.display_name}
               </div>
-              {user.is_official && <OfficialSeal />}
+              {/* The badges are all in the card's corner; here only the check and the BOT tag. */}
+              <NameMarks user={user} size={18} badges={false} />
             </div>
             <div className="truncate text-sm text-fg-muted">
               @{user.username}
@@ -294,14 +299,4 @@ export function useProfilePopover(): {
     open: (user, target) => setState({ user, anchor: target.getBoundingClientRect() }),
     popover: state ? <ProfilePopover user={state.user} anchor={state.anchor} onClose={() => setState(null)} /> : null
   }
-}
-
-/** The company's own accounts (@aureum). */
-export function OfficialSeal(): ReactNode {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">
-      <BadgeCheck size={13} aria-hidden />
-      Oficial
-    </span>
-  )
 }

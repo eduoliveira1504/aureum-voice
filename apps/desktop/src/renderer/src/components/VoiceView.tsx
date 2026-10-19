@@ -25,7 +25,7 @@ import { serverPeople } from '../lib/members'
 import { pttKeyLabel } from '../lib/pushToTalk'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
-import { TopBadge } from './Badge'
+import { NameMarks } from './Badge'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
@@ -327,7 +327,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
         {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
         {!isLocal && <LocallyMuted userId={identity} />}
         <span className="truncate">{name}</span>
-        {user && <TopBadge badges={user.badges} />}
+        {user && <NameMarks user={user} />}
       </div>
     </TileFrame>
   )
