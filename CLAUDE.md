@@ -38,6 +38,10 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
 - LiveKit local (perfil opcional "local-livekit"): modo --dev, range de portas UDP pequeno
   (ex: 50000-50100) para o Docker no Windows não pesar; node_ip configurável via .env.
 - Testes usam banco separado do banco de desenvolvimento.
+- Testes da API (em todo bloco): `node scripts/test-api.mjs [args do pytest]`, que roda o pytest num
+  contêiner temporário na rede do compose (banco aureum_test), sem mexer nos contêineres que estão
+  rodando; funciona com o stack em dev ou no plano B.
+- Desktop: `npm run typecheck` e `npm test` (Vitest) em apps/desktop.
 - Antes de cada tarefa, explique em poucas linhas o que vai fazer e por quê.
 
 ## Stack

@@ -23,7 +23,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   ([ADR 0009](docs/decisions/0009-call-audio-moderation-and-menus.md))
 - Right-click menus on people, channels and servers. Each shows only what the user is allowed to do:
   profile, message, call, friendship, volume, nickname, roles, moderation, kick and ban, mark as read,
-  silence, settings, invite, copy ID
+  silence, settings, invite, copy ID. A person has the same menu wherever they appear: chat authors and
+  @mentions, member lists, call tiles, people under rooms, DMs, group members, "Active now" and the
+  profile card. Conversations in the DM list add mark as read, silence and close, and groups also add
+  rename, change picture and leave
+- Group DMs with a picture and a member list beside the conversation
 - A collapsible member list grouped by the roles shown separately, with offline members at the end
 - Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
 - Files in channels, DMs and groups: the "+" button, drag and drop, or paste an image. Several files per
@@ -43,7 +47,8 @@ for real-time media. The whole stack is open source and designed to run at zero 
   ([ADR 0006](docs/decisions/0006-friends-dms-and-private-calls.md))
 - Presence: online, idle (automatic after 10 minutes without input on the PC), do not disturb
   (silences the ringtone) and invisible
-- An app shell of its own:
+- An app shell of its own, with no system title bar: the tab bar is the top of the window (its empty
+  parts move it) and Windows' buttons are drawn over it in the theme's colors:
   - a tab bar with Home and one tab per open server (drag to reorder, close and reopen);
   - a sidebar that follows the tab, with rooms, conversations and add-ons, collapsible to icons;
   - up to two panels side by side, each with its own tabs.
@@ -180,8 +185,17 @@ Requirements: Docker Desktop, Node.js 22+, and Python 3.12 (only to run the API 
 
 ### Tests
 
-The API suite runs against real Postgres, Redis and MinIO (in a separate `aureum_test` database and
-bucket), so start the stack in dev mode first:
+The API suite runs against real Postgres, Redis and MinIO, using a separate `aureum_test` database,
+`aureum-test` bucket and Redis prefix. The simplest way runs it in a throwaway container on the
+stack's network, so it works in dev or plan B mode without publishing ports or restarting anything
+(the stack must be up). Extra arguments go to pytest:
+
+```sh
+node scripts/test-api.mjs
+node scripts/test-api.mjs tests/test_attachments.py -x
+```
+
+With the stack in dev mode (ports published on 127.0.0.1) it can also run from a local venv:
 
 ```sh
 cd apps/api
@@ -190,7 +204,8 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-For the desktop app, `npm run typecheck` checks both the main and renderer processes.
+For the desktop app, `npm run typecheck` checks the main and renderer processes, and `npm test` runs
+the component tests (Vitest + Testing Library in jsdom, no server needed).
 
 ### Sounds
 
