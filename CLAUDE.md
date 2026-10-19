@@ -28,8 +28,11 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
   explicando o custo e a alternativa grátis.
 - Nunca colocar segredos no código ou no git; apenas no .env (que está no .gitignore).
 - EXCEÇÕES AUTORIZADAS pelo Eduardo (plano B, enquanto não há VM Oracle): LiveKit Cloud
-  no plano GRÁTIS, Tailscale Funnel no plano GRÁTIS . Nunca fazer
-  upgrade de plano em nenhum deles; se algo exigir plano pago, PARE e pergunte.
+  no plano GRÁTIS e Tailscale Funnel no plano GRÁTIS. Nunca fazer upgrade de plano em
+  nenhum deles; se algo exigir plano pago, PARE e pergunte.
+- EXCEÇÃO AUTORIZADA permanente: envio de e-mail por SMTP de uma conta Gmail dedicada do
+  Aureum (grátis, limite ~500/dia). Credenciais só no .env.
+  
 
 ## Ambiente
 - Dev no Windows com Docker Desktop (WSL2).

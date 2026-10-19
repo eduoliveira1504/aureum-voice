@@ -316,6 +316,27 @@ Contas e lançamento do beta:
   Eduardo. Ordem: zerar → criar @edu primeiro (Fundador + Pioneiro #1) → criar @aureum
   pelo comando de admin → gerar o instalador do beta.
 
+## 2.10 E-mails da conta (depois do 2.9, antes de chamar os testers)
+Envio:
+- Módulo de e-mail com provedor trocável por .env: SMTP genérico agora (Gmail dedicado do
+  Aureum com senha de app), Resend/Brevo depois. Credenciais só no .env.
+- Fila simples (tarefa em background) com retry; nunca travar a requisição da API.
+- Templates HTML em pt-BR com a identidade do Aureum (fundo escuro, accent dourado, logo),
+  sempre com versão em texto puro. Remetente: "Aureum <EMAIL_FROM do .env>".
+- Rate limit por e-mail e por IP em todos os envios.
+Fluxos:
+- Confirmação de e-mail no cadastro: código de 6 dígitos (validade 15 min, máx 5 tentativas),
+  digitado no próprio app; botão "reenviar código" (com espera de 60s). Conta não confirmada
+  pode logar, mas vê um aviso e não cria servidores até confirmar.
+- Boas-vindas: enviado após confirmar o e-mail.
+- Esqueci minha senha: na tela de login; código de 6 dígitos por e-mail → nova senha.
+  Resposta sempre igual exista ou não a conta (não revelar quais e-mails estão cadastrados).
+  Ao trocar a senha, encerrar as outras sessões.
+- Avisos de segurança: e-mail quando a senha ou o e-mail da conta forem alterados
+  (o aviso de troca de e-mail vai para o e-mail ANTIGO).
+- Trocar e-mail em Configurações > Conta, com confirmação por código no e-mail novo.
+- Contas já existentes antes do 2.10: marcadas como não confirmadas, com o aviso no app.  
+
 ## Pronto quando (Fase 2 completa)
 - Tema claro/escuro e accent personalizável em todas as telas.
 - Duas pessoas que são amigas se ligam sem servidor; dá pra adicionar uma terceira.
