@@ -6,7 +6,7 @@ import { basePermissions, has, outranks, Perm, PERMISSION_GROUPS, rankOf } from 
 import { ACCENT_PRESETS, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { ConfirmModal } from './modals'
-import { FormError, Modal } from './Modal'
+import { FormError, Modal, ModalBody, ModalTabs } from './Modal'
 import { imageForm, ImageRow, uploadError } from './ProfileSettings'
 import { ServerBannerLayer } from './ServerBanner'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
@@ -61,25 +61,14 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
   const [tab, setTab] = useState<Tab>(tabs[0]?.[0] ?? 'general')
 
   return (
-    <Modal title={`Configurações de ${server.name}`} wide onClose={onClose}>
-      <div className="mb-5 flex gap-1 border-b border-line">
-        {tabs.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="max-h-[60vh] overflow-y-auto pr-1">
+    <Modal title={`Configurações de ${server.name}`} wide tall onClose={onClose}>
+      <ModalTabs<Tab> tabs={tabs} isCurrent={(key) => tab === key} onSelect={setTab} />
+      <ModalBody>
         {tab === 'general' && <GeneralTab server={server} />}
         {tab === 'roles' && <RolesTab server={server} meId={meId} />}
         {tab === 'members' && <MembersTab server={server} meId={meId} />}
         {tab === 'bans' && <BansTab server={server} />}
-      </div>
+      </ModalBody>
     </Modal>
   )
 }

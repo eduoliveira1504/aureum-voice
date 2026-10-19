@@ -6,7 +6,7 @@ import type { AddonModule } from '../addons/types'
 import { api, ApiError, type Channel, type Override, type ServerDetail } from '../lib/api'
 import { channelPermissions, has, outranks, Perm, PERM_INFO, rankOf, type PermName } from '../lib/permissions'
 import { useChat } from '../store/chat'
-import { FormError, Modal, SecondaryButton } from './Modal'
+import { FormError, Modal, ModalBody, ModalTabs, SecondaryButton } from './Modal'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, useDismiss } from './ui'
 
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
@@ -55,23 +55,12 @@ export function ChannelSettingsModal({
 
   return (
     <Modal title={`${prefix}${channel.name}`} wide onClose={onClose}>
-      <div className="mb-5 flex gap-1 border-b border-line">
-        {tabs.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="max-h-[60vh] overflow-y-auto pr-1">
+      <ModalTabs<Tab> tabs={tabs} isCurrent={(key) => tab === key} onSelect={setTab} />
+      <ModalBody>
         {tab === 'general' && <GeneralTab channel={channel} />}
         {tab === 'addon' && addon && <AddonTab server={server} channel={channel} addon={addon} />}
         {tab === 'permissions' && <PermissionsTab server={server} channel={channel} meId={meId} />}
-      </div>
+      </ModalBody>
     </Modal>
   )
 }

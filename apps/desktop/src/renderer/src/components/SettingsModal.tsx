@@ -9,7 +9,7 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
 import { InputModeSettings } from './InputModeSettings'
-import { Modal } from './Modal'
+import { Modal, ModalBody, ModalTabs } from './Modal'
 import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SoundSettings } from './SoundSettings'
@@ -47,9 +47,9 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
   const isOwner = state.status === 'signedIn' && state.user.is_app_owner
 
   return (
-    <Modal title="Configurações" wide onClose={onClose}>
-      <div className="mb-5 flex gap-1 border-b border-line">
-        {(
+    <Modal title="Configurações" tall onClose={onClose}>
+      <ModalTabs<Tab>
+        tabs={
           [
             ['profile', 'Meu perfil'],
             ['account', 'Conta'],
@@ -62,19 +62,12 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['windows', 'Windows'],
             ...(isOwner ? ([['reports', 'Problemas']] as const) : [])
           ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key || (key === 'profile' && tab === 'badges') ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        }
+        isCurrent={(key) => tab === key || (key === 'profile' && tab === 'badges')}
+        onSelect={setTab}
+      />
 
-      <div className="max-h-[60vh] overflow-y-auto pr-1">
+      <ModalBody>
         {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} onOpenBadges={() => setTab('badges')} />}
         {tab === 'badges' && state.status === 'signedIn' && <BadgesPage badges={state.user.badges} onBack={() => setTab('profile')} />}
         {tab === 'account' && state.status === 'signedIn' && <AccountSettings user={state.user} />}
@@ -86,9 +79,9 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
         {tab === 'reports' && isOwner && <BugReports />}
-      </div>
+      </ModalBody>
 
-      <div className="mt-5 border-t border-line pt-4">
+      <div className="mt-5 shrink-0 border-t border-line pt-4">
         <button type="button" onClick={logout} className="rounded-control px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
           Sair da conta
         </button>
