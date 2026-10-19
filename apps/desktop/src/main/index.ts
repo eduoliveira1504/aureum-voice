@@ -14,13 +14,23 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 
-import type { AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource } from '../shared/types'
+import type { AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
+import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import * as overlay from './overlay'
+import { createTray, destroyTray, notify, setTrayState } from './tray'
 
 // Set at build time (apps/desktop/.env.production.local), so the installer friends get
 // already points at the public server; users can still change it on the login screen.
-const DEFAULT_SETTINGS: AppSettings = { apiUrl: import.meta.env.MAIN_VITE_API_URL || 'http://localhost:8000' }
+const DEFAULT_SETTINGS: AppSettings = {
+  apiUrl: import.meta.env.MAIN_VITE_API_URL || 'http://localhost:8000',
+  closeToTray: true,
+  openAtLogin: true,
+  trayHintShown: false
+}
+
+// Started by Windows at login: stay in the tray until opened.
+const startHidden = process.argv.includes('--hidden')
 
 // AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
 // accounts can be used side by side on one machine — handy for testing calls locally.
@@ -36,6 +46,10 @@ const settingsPath = (): string => join(app.getPath('userData'), 'settings.json'
 const sessionPath = (): string => join(app.getPath('userData'), 'session.bin')
 
 let mainWindow: BrowserWindow | null = null
+// Last settings read or written, for decisions that can't wait for the disk (closing the window).
+let cachedSettings: AppSettings = { ...DEFAULT_SETTINGS }
+// Set when the app really quits (tray menu, Windows shutdown): closing then doesn't just hide.
+let quitting = false
 // Used only when OS encryption is unavailable: the token is never written in plaintext.
 let memoryRefreshToken: string | null = null
 
@@ -45,10 +59,11 @@ let memoryRefreshToken: string | null = null
 
 async function readSettings(): Promise<AppSettings> {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(await readFile(settingsPath(), 'utf8')) }
+    cachedSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(await readFile(settingsPath(), 'utf8')) }
   } catch {
-    return { ...DEFAULT_SETTINGS }
+    cachedSettings = { ...DEFAULT_SETTINGS }
   }
+  return cachedSettings
 }
 
 async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
@@ -60,9 +75,20 @@ async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> 
     }
     next.apiUrl = url.origin
   }
+  for (const key of ['closeToTray', 'openAtLogin', 'trayHintShown'] as const) {
+    if (patch[key] !== undefined) next[key] = patch[key] === true
+  }
   await mkdir(app.getPath('userData'), { recursive: true })
   await writeFile(settingsPath(), JSON.stringify(next, null, 2))
+  cachedSettings = next
+  if (patch.openAtLogin !== undefined) applyLoginItem(next.openAtLogin)
   return next
+}
+
+/** Registers (or not) the app to start with Windows, hidden in the tray. Only the installed
+ * app: in development it would register the bare Electron binary. */
+function applyLoginItem(open: boolean): void {
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: open, args: ['--hidden'] })
 }
 
 async function getRefreshToken(): Promise<string | null> {
@@ -108,6 +134,10 @@ handle('session:set-refresh-token', setRefreshToken)
 handle('session:is-persistent', () => safeStorage.isEncryptionAvailable())
 handle('settings:get', readSettings)
 handle('settings:set', writeSettings)
+handle('attachments:get', attachmentCache.get)
+handle('attachments:put', attachmentCache.put)
+handle('attachments:clear', attachmentCache.clear)
+handle('tray:set-state', setTrayState)
 // Seconds without keyboard/mouse input on the whole PC (not just this app), for auto-idle.
 handle('system:idle-seconds', () => powerMonitor.getSystemIdleTime())
 
@@ -194,11 +224,25 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Hidden in the tray, the app must keep its timers (WebSocket pings, calls) at full speed.
+      backgroundThrottling: false
     }
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  mainWindow.once('ready-to-show', () => {
+    if (!startHidden) mainWindow?.show()
+  })
+  // The X hides the window: calls, messages and notifications keep going in the background.
+  mainWindow.on('close', (event) => {
+    if (quitting || !cachedSettings.closeToTray) return
+    event.preventDefault()
+    mainWindow?.hide()
+    if (!cachedSettings.trayHintShown) {
+      notify('O Aureum continua rodando na bandeja', 'Para fechar de vez, use Sair do Aureum no ícone da bandeja.')
+      void writeSettings({ trayHintShown: true })
+    }
+  })
   mainWindow.on('focus', () => overlay.setMainFocused(true))
   mainWindow.on('blur', () => overlay.setMainFocused(false))
   mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
@@ -215,6 +259,13 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function showWindow(): void {
+  if (!mainWindow) return createWindow()
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
 }
 
 // Never let web content navigate away or open new windows inside the app.
@@ -236,10 +287,10 @@ app.on('web-contents-created', (_, contents) => {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+  // Opening the app again brings the running one to the front (also out of the tray).
+  app.on('second-instance', showWindow)
+  app.on('before-quit', () => {
+    quitting = true
   })
 
   app.whenReady().then(() => {
@@ -253,7 +304,16 @@ if (!app.requestSingleInstanceLock()) {
       (contents, permission) => isAppWindow(contents) && ALLOWED_PERMISSIONS.has(permission)
     )
     installDisplayMediaHandler(isAppWindow)
+    void readSettings().then((s) => applyLoginItem(s.openAtLogin))
     createWindow()
+    createTray({
+      open: showWindow,
+      quit: () => {
+        quitting = true
+        app.quit()
+      },
+      command: (command: TrayCommand) => mainWindow?.webContents.send('tray:command', command)
+    })
     void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
     void startGameDetection((game) => mainWindow?.webContents.send('games:changed', game))
     app.on('activate', () => {
@@ -264,4 +324,5 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
   })
+  app.on('will-quit', destroyTray)
 }

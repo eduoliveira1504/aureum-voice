@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AureumBridge, OverlayState } from '../shared/types'
+import type { AureumBridge, OverlayState, TrayCommand } from '../shared/types'
 
 const bridge: AureumBridge = {
   session: {
@@ -11,6 +11,19 @@ const bridge: AureumBridge = {
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (patch) => ipcRenderer.invoke('settings:set', patch)
+  },
+  attachments: {
+    get: (id) => ipcRenderer.invoke('attachments:get', id),
+    put: (id, data) => ipcRenderer.invoke('attachments:put', id, data),
+    clear: () => ipcRenderer.invoke('attachments:clear')
+  },
+  tray: {
+    setState: (state) => ipcRenderer.invoke('tray:set-state', state),
+    onCommand: (listener) => {
+      const wrapped = (_: unknown, command: TrayCommand): void => listener(command)
+      ipcRenderer.on('tray:command', wrapped)
+      return () => ipcRenderer.removeListener('tray:command', wrapped)
+    }
   },
   system: {
     idleSeconds: () => ipcRenderer.invoke('system:idle-seconds')

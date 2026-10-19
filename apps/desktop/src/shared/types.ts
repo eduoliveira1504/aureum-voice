@@ -3,7 +3,26 @@
 export interface AppSettings {
   /** Base URL of the Aureum API, e.g. http://localhost:8000 */
   apiUrl: string
+  /** Closing the window hides it in the tray (the app stays connected) instead of quitting. */
+  closeToTray: boolean
+  /** Starts with Windows, hidden in the tray (installed app only). */
+  openAtLogin: boolean
+  /** The "still running in the tray" hint was shown once already. */
+  trayHintShown: boolean
 }
+
+export type TrayStatus = 'online' | 'idle' | 'dnd' | 'invisible'
+
+/** What the tray menu shows, reported by the app's window. */
+export interface TrayState {
+  signedIn: boolean
+  muted: boolean
+  deafened: boolean
+  status: TrayStatus
+}
+
+/** What the tray menu asks the app's window to do. */
+export type TrayCommand = { type: 'mute' } | { type: 'deafen' } | { type: 'status'; status: TrayStatus }
 
 /** A screen or window that can be shared. */
 export interface ShareSource {
@@ -90,6 +109,16 @@ export interface AureumBridge {
   settings: {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
+  }
+  /** Attachments already downloaded, kept on disk by id (cleared on logout). */
+  attachments: {
+    get(id: string): Promise<Uint8Array | null>
+    put(id: string, data: Uint8Array): Promise<void>
+    clear(): Promise<void>
+  }
+  tray: {
+    setState(state: TrayState): Promise<void>
+    onCommand(listener: (command: TrayCommand) => void): () => void
   }
   system: {
     /** Seconds since the last keyboard or mouse input anywhere on the PC. */

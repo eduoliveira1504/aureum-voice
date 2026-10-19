@@ -10,6 +10,7 @@ import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SoundSettings } from './SoundSettings'
 import { inputClass, labelClass, ToggleRow } from './ui'
+import { WindowsSettings } from './WindowsSettings'
 
 interface Devices {
   audioinput: MediaDeviceInfo[]
@@ -33,7 +34,7 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay'
+type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -49,7 +50,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['appearance', 'Aparência'],
             ['voice', 'Voz e vídeo'],
             ['sounds', 'Sons'],
-            ['overlay', 'Overlay']
+            ['overlay', 'Overlay'],
+            ['windows', 'Windows']
           ] as const
         ).map(([key, label]) => (
           <button
@@ -70,6 +72,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'voice' && <VoiceSettings />}
         {tab === 'sounds' && <SoundSettings />}
         {tab === 'overlay' && <OverlaySettings />}
+        {tab === 'windows' && <WindowsSettings />}
       </div>
 
       <div className="mt-5 border-t border-line pt-4">

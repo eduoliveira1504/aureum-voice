@@ -16,6 +16,7 @@ import type { Me } from '../lib/api'
 import { reportActivityAgain, startActivityReporting } from '../lib/gameActivity'
 import { reportIdleAgain, startIdleWatch } from '../lib/idle'
 import { Realtime, setActiveRealtime } from '../lib/realtime'
+import { startTrayBridge } from '../lib/tray'
 import { useActivity } from '../store/activity'
 import { loadAppearance, useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
@@ -66,6 +67,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     realtime.start()
     const stopIdleWatch = startIdleWatch()
     const stopActivity = startActivityReporting()
+    const stopTray = startTrayBridge()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
     useSocial.getState().load().catch(() => {})
     loadAppearance().catch(() => {}) // keep the cached settings if this fails
@@ -73,6 +75,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       void useVoice.getState().leave(true)
       stopIdleWatch()
       stopActivity()
+      stopTray()
       useActivity.setState({ byUser: {} })
       setActiveRealtime(null)
       realtime.stop()
