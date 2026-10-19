@@ -391,6 +391,11 @@ um passo separado.
 6. Gerar o convite de grupo pro WhatsApp.
 7. Gerar o instalador e publicar o release.
 
+Status em 19/10/2026: passos 1–5 e 7 feitos (dados zerados com backup; @edu Pioneiro nº 1,
+@anaju nº 2, @daniboy nº 3, @aureum oficial; servidor "Aureum · Beta Test" oficial; release
+0.2.0-beta.2 publicado e testado). Pendente: passo 6, o convite de grupo
+(`invites create --usos 15 --dias 7`), só depois da landing page (docs/design/landing/).
+
 Pendência (corrigir antes do 0.2.0-beta.3): no 0.2.0-beta.2 o `npm run release` criou DOIS
 rascunhos para a mesma tag. O electron-builder sobe os arquivos em paralelo e cada upload criou
 o seu (um com .exe + latest.yml, outro só com o .blockmap); foi corrigido à mão, anexando o
