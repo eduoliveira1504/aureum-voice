@@ -38,7 +38,7 @@ function person(id: string, username: string): User {
   }
 }
 
-const ME: Me = { ...person('u-me', 'eduardo'), email: 'eduardo@example.com', is_app_owner: false }
+const ME: Me = { ...person('u-me', 'eduardo'), email: 'eduardo@example.com', is_app_owner: false, email_verified: true, must_change_password: false }
 const ANA = person('u-ana', 'ana')
 const BIA = person('u-bia', 'bia')
 const OWNER = person('u-owner', 'dona')

@@ -14,6 +14,9 @@ export function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     if (err.status === 404) return 'Convite não encontrado.'
     if (err.status === 410) return 'Esse convite expirou ou atingiu o limite de usos.'
+    if (err.status === 403 && err.detail === 'Confirm your e-mail to create servers') {
+      return 'Confirme seu e-mail para criar servidores (o aviso fica no rodapé do app).'
+    }
     if (err.status === 403) return 'Você não tem permissão para isso.'
   }
   return err instanceof TypeError ? 'Não foi possível conectar ao servidor.' : fallback

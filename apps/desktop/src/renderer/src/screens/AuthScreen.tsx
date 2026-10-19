@@ -1,9 +1,12 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
+import { CodeInput } from '../components/AccountScreens'
+import { FormError, SecondaryButton } from '../components/Modal'
 import { Field, PrimaryButton } from '../components/ui'
-import { ApiError, checkServer, getApiBaseUrl, setApiBaseUrl } from '../lib/api'
+import { accountMessage } from '../lib/accountErrors'
+import { ApiError, authConfig, checkServer, forgotPassword, getApiBaseUrl, resetPassword, setApiBaseUrl } from '../lib/api'
 
 type Mode = 'login' | 'register'
 type Errors = Partial<Record<'username' | 'email' | 'password' | 'confirm' | 'invite' | 'form', string>>
@@ -30,9 +33,7 @@ function describeError(err: unknown, mode: Mode): Errors {
     if (err.status === 401 && mode === 'login') return { form: 'E-mail ou senha incorretos.' }
     if (err.status === 429) return { form: 'Muitas tentativas. Espere alguns minutos e tente de novo.' }
     if (err.status === 403 && mode === 'register') {
-      return String(err.detail ?? '').includes('required')
-        ? { invite: 'obrigatório' }
-        : { invite: 'inválido, expirado ou já usado' }
+      return String(err.detail ?? '').includes('required') ? { invite: 'obrigatório' } : { invite: accountMessage(err) }
     }
     if (err.status === 409) {
       const detail = String(err.detail ?? '')
@@ -48,8 +49,12 @@ function describeError(err: unknown, mode: Mode): Errors {
 }
 
 export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean }): ReactNode {
-  const { login, register } = useAuth()
+  const { login, register, reload } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
+  const [forgot, setForgot] = useState(false)
+  // Sign-up asks for an account invite while the server is invite-only (the default).
+  const [inviteOnly, setInviteOnly] = useState(true)
+  const [server, setServer] = useState(getApiBaseUrl())
   const [form, setForm] = useState({ username: '', display_name: '', email: '', password: '', confirm: '', invite: '' })
   const [errors, setErrors] = useState<Errors>(
     serverUnreachable ? { form: `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.` } : {}
@@ -59,6 +64,13 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  useEffect(() => {
+    authConfig().then(
+      (c) => setInviteOnly(c.invite_only),
+      () => setInviteOnly(true)
+    )
+  }, [server])
 
   const switchMode = (next: Mode): void => {
     setMode(next)
@@ -81,13 +93,17 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
           email: form.email.trim(),
           password: form.password,
           display_name: form.display_name.trim() || undefined,
-          invite_code: form.invite.trim() || undefined
+          invite_code: (inviteOnly && form.invite.trim()) || undefined
         })
       }
     } catch (err) {
       setErrors(describeError(err, mode))
       setBusy(false)
     }
+  }
+
+  if (forgot) {
+    return <ForgotPassword initialEmail={form.email} onBack={() => setForgot(false)} onDone={reload} />
   }
 
   return (
@@ -111,14 +127,16 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
           {mode === 'register' && (
             <>
-              <Field
-                label="Código de convite"
-                value={form.invite}
-                onChange={set('invite')}
-                error={errors.invite}
-                hint="Peça para quem administra o servidor. Você já entra nele ao criar a conta."
-                maxLength={64}
-              />
+              {inviteOnly && (
+                <Field
+                  label="Convite"
+                  value={form.invite}
+                  onChange={set('invite')}
+                  error={errors.invite}
+                  hint="Cole o link ou o código que você recebeu. O beta é fechado: só entra quem tem convite."
+                  maxLength={200}
+                />
+              )}
               <Field label="Nome de exibição" value={form.display_name} onChange={set('display_name')} hint="Como os outros te veem. Opcional." maxLength={64} />
               <Field label="Nome de usuário" autoComplete="username" value={form.username} onChange={set('username')} error={errors.username} hint="Letras, números, _ e ." maxLength={32} />
             </>
@@ -135,6 +153,12 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
 
           {mode === 'register' && (
             <Field label="Confirmar senha" type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} error={errors.confirm} />
+          )}
+
+          {mode === 'login' && (
+            <button type="button" className="-mt-2 text-sm font-medium text-accent-text hover:underline" onClick={() => setForgot(true)}>
+              Esqueci minha senha
+            </button>
           )}
 
           <PrimaryButton type="submit" disabled={busy}>
@@ -157,8 +181,117 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
           >
             {showServer ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Servidor: {getApiBaseUrl()}
           </button>
-          {showServer && <ServerSettings onSaved={() => setErrors({})} />}
+          {showServer && (
+            <ServerSettings
+              onSaved={() => {
+                setErrors({})
+                setServer(getApiBaseUrl())
+              }}
+            />
+          )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** "Esqueci minha senha": a code by e-mail, then the new password (which signs in and ends the
+ * other sessions). The first step says the same whether or not the address has an account. */
+export function ForgotPassword({
+  initialEmail,
+  onBack,
+  onDone
+}: {
+  initialEmail: string
+  onBack(): void
+  onDone(): Promise<void>
+}): ReactNode {
+  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [email, setEmail] = useState(initialEmail)
+  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function send(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!EMAIL_RE.test(email.trim())) return setError('Digite um e-mail válido.')
+    setBusy(true)
+    setError(null)
+    try {
+      await forgotPassword(email.trim())
+      setStep('code')
+    } catch (err) {
+      setError(accountMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function reset(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (code.length !== 6) return setError('Digite os 6 números do código.')
+    if (password.length < 8) return setError('A senha nova precisa de pelo menos 8 caracteres.')
+    if (password !== confirm) return setError('As senhas não coincidem.')
+    setBusy(true)
+    setError(null)
+    try {
+      await resetPassword(email.trim(), code, password)
+      await onDone()
+    } catch (err) {
+      setError(accountMessage(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex h-full items-center justify-center bg-glow p-6">
+      <div className="w-full max-w-[480px] rounded-panel border border-line bg-panel p-8 shadow-2xl">
+        <h1 className="text-center text-2xl font-semibold">Esqueci minha senha</h1>
+        <p className="mt-2 text-center text-fg-muted">
+          {step === 'email'
+            ? 'Mandamos um código pro e-mail da sua conta.'
+            : `Se existe uma conta com ${email.trim()}, o código chegou lá. Vale por 15 minutos.`}
+        </p>
+        {step === 'email' ? (
+          <form className="mt-6 space-y-4" onSubmit={send} noValidate>
+            <FormError message={error} />
+            <Field label="E-mail" type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
+            <PrimaryButton type="submit" disabled={busy}>
+              {busy ? 'Aguarde…' : 'Mandar código'}
+            </PrimaryButton>
+            <SecondaryButton type="button" onClick={onBack}>
+              Voltar
+            </SecondaryButton>
+          </form>
+        ) : (
+          <form className="mt-6 space-y-4" onSubmit={reset} noValidate>
+            <FormError message={error} />
+            <CodeInput value={code} onChange={setCode} autoFocus />
+            <Field
+              label="Senha nova"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              hint="Ao trocar, as outras sessões da conta são encerradas."
+            />
+            <Field label="Repita a senha" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <PrimaryButton type="submit" disabled={busy}>
+              {busy ? 'Salvando…' : 'Trocar senha e entrar'}
+            </PrimaryButton>
+            <SecondaryButton
+              type="button"
+              onClick={() => {
+                setStep('email')
+                setError(null)
+              }}
+            >
+              Usar outro e-mail
+            </SecondaryButton>
+          </form>
+        )}
       </div>
     </div>
   )

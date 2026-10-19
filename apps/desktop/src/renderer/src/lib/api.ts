@@ -38,6 +38,8 @@ export interface User {
   links: ProfileLink[]
   /** Granted by the system or the app owner; what each looks like comes from GET /badges. */
   badges: HeldBadge[]
+  /** The company's own accounts (@aureum): shown with an "Oficial" seal. */
+  is_official?: boolean
   created_at: string
 }
 
@@ -75,7 +77,32 @@ export interface Me extends User {
   email: string
   /** The app owner's account (reads bug reports). */
   is_app_owner: boolean
+  /** Until the e-mailed code is typed: signs in, but creates no servers and has no invites. */
+  email_verified: boolean
+  /** A temporary password from the admin: nothing works until it's replaced. */
+  must_change_password: boolean
 }
+
+/** What confirming the e-mail brought (POST /auth/verify-email). */
+export interface Confirmation {
+  user: Me
+  pioneer_number: number | null
+  invites: number
+  joined_official: boolean
+}
+
+/** One of the user's single-use account invites (Configurações › Convites). */
+export interface MyInvite {
+  code: string
+  /** The invite page ({PUBLIC_BASE_URL}/convite/{code}), what gets shared. */
+  url: string
+  /** pending: someone signed up with it and hasn't confirmed their e-mail yet. */
+  status: 'free' | 'pending' | 'used'
+  used_by: { username: string; display_name: string; avatar_url: string | null } | null
+}
+
+/** The API's detail when an account must replace its temporary password first. */
+export const PASSWORD_CHANGE_REQUIRED = 'Password change required'
 
 /** A problem reported from the app; only the app owner lists them. */
 export interface BugReport {
@@ -551,6 +578,63 @@ export async function register(input: {
   invite_code?: string
 }): Promise<void> {
   await storeTokens(await api<TokenPair>('/auth/register', { method: 'POST', body: input, auth: false }))
+}
+
+/** Whether sign-up asks for an account invite (AUREUM_INVITE_ONLY). */
+export async function authConfig(): Promise<{ invite_only: boolean }> {
+  return api('/auth/config', { auth: false })
+}
+
+export function verifyEmail(code: string): Promise<Confirmation> {
+  return api<Confirmation>('/auth/verify-email', { method: 'POST', body: { code } })
+}
+
+export function resendCode(): Promise<void> {
+  return api<void>('/auth/resend-code', { method: 'POST' })
+}
+
+/** Fixes the address before confirming it; a new code goes there. */
+export function changePendingEmail(email: string): Promise<Me> {
+  return api<Me>('/auth/pending-email', { method: 'PATCH', body: { email } })
+}
+
+/** Ends the other sessions; this one keeps going with the new tokens. Without current: replacing
+ * a temporary password. */
+export async function changePassword(newPassword: string, currentPassword?: string): Promise<void> {
+  await storeTokens(
+    await api<TokenPair>('/auth/change-password', {
+      method: 'POST',
+      body: { new_password: newPassword, current_password: currentPassword ?? null }
+    })
+  )
+}
+
+/** Same answer whether or not the address has an account. */
+export async function forgotPassword(email: string): Promise<void> {
+  await api('/auth/forgot-password', { method: 'POST', body: { email }, auth: false })
+}
+
+/** Sets the new password with the e-mailed code and signs in. */
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  await storeTokens(
+    await api<TokenPair>('/auth/reset-password', {
+      method: 'POST',
+      body: { email, code, new_password: newPassword },
+      auth: false
+    })
+  )
+}
+
+export function requestEmailChange(email: string, password: string): Promise<void> {
+  return api<void>('/users/me/email', { method: 'POST', body: { email, password } })
+}
+
+export function confirmEmailChange(code: string): Promise<Me> {
+  return api<Me>('/users/me/email/confirm', { method: 'POST', body: { code } })
+}
+
+export function myInvites(): Promise<MyInvite[]> {
+  return api<MyInvite[]>('/users/me/invites')
 }
 
 export async function checkServer(url: string): Promise<boolean> {

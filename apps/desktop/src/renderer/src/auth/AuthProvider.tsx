@@ -15,6 +15,8 @@ interface AuthContextValue {
   register(input: { username: string; email: string; password: string; display_name?: string; invite_code?: string }): Promise<void>
   logout(): Promise<void>
   setUser(user: Me): void
+  /** Reads the account again (after a password change, a confirmed e-mail...). */
+  reload(): Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -63,7 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
         await clearAttachmentCache()
         setState({ status: 'signedOut' })
       },
-      setUser: (user) => setState({ status: 'signedIn', user })
+      setUser: (user) => setState({ status: 'signedIn', user }),
+      reload: loadMe
     }),
     [state, loadMe]
   )

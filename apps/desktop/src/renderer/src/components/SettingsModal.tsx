@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
+import { AccountSettings, InvitesSettings } from './AccountSettings'
 import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { useVoice } from '../store/voice'
 import { ActivitySettings } from './ActivitySettings'
@@ -38,7 +39,7 @@ async function listDevices(): Promise<Devices> {
 }
 
 // 'badges' has no tab of its own: it opens from Meu perfil.
-type Tab = 'profile' | 'badges' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
+type Tab = 'profile' | 'badges' | 'account' | 'invites' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -51,6 +52,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {(
           [
             ['profile', 'Meu perfil'],
+            ['account', 'Conta'],
+            ['invites', 'Convites'],
             ['activity', 'Atividade'],
             ['appearance', 'Aparência'],
             ['voice', 'Voz e vídeo'],
@@ -74,6 +77,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} onOpenBadges={() => setTab('badges')} />}
         {tab === 'badges' && state.status === 'signedIn' && <BadgesPage badges={state.user.badges} onBack={() => setTab('profile')} />}
+        {tab === 'account' && state.status === 'signedIn' && <AccountSettings user={state.user} />}
+        {tab === 'invites' && state.status === 'signedIn' && <InvitesSettings user={state.user} />}
         {tab === 'activity' && <ActivitySettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}
