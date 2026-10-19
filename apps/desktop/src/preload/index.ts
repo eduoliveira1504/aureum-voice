@@ -30,6 +30,14 @@ const bridge: AureumBridge = {
       return () => ipcRenderer.removeListener('app:report-problem', wrapped)
     }
   },
+  ptt: {
+    watch: (key) => ipcRenderer.invoke('ptt:watch', key),
+    onHeld: (listener) => {
+      const wrapped = (_: unknown, held: boolean): void => listener(held)
+      ipcRenderer.on('ptt:held', wrapped)
+      return () => ipcRenderer.removeListener('ptt:held', wrapped)
+    }
+  },
   updates: {
     getState: () => ipcRenderer.invoke('updates:get-state'),
     install: () => ipcRenderer.invoke('updates:install'),

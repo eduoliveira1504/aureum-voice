@@ -6,6 +6,7 @@ import { useVoice } from '../store/voice'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
 import { BugReports } from './BugReports'
+import { InputModeSettings } from './InputModeSettings'
 import { Modal } from './Modal'
 import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
@@ -101,7 +102,8 @@ function VoiceSettings(): ReactNode {
   }, [])
 
   function update(patch: Partial<MediaPrefs>): void {
-    const next = { ...prefs, ...patch }
+    // Re-read: the input mode section saves the same prefs.
+    const next = { ...loadMediaPrefs(), ...patch }
     setPrefs(next)
     saveMediaPrefs(next)
     void applyDevicePrefs()
@@ -136,6 +138,7 @@ function VoiceSettings(): ReactNode {
           checked={prefs.noiseSuppression}
           onChange={(noiseSuppression) => update({ noiseSuppression })}
         />
+        <InputModeSettings />
     </div>
   )
 }

@@ -4,10 +4,21 @@ export interface MediaPrefs {
   audioOutput: string
   videoInput: string
   noiseSuppression: boolean
+  /** How the mic opens in calls: always (voice activity) or while a key is held. */
+  inputMode: 'voice' | 'ptt'
+  /** The push-to-talk key (see lib/pushToTalk.ts); '' until one is picked. */
+  pttKey: string
 }
 
 const KEY = 'aureum.mediaPrefs'
-const DEFAULTS: MediaPrefs = { audioInput: '', audioOutput: '', videoInput: '', noiseSuppression: true }
+const DEFAULTS: MediaPrefs = {
+  audioInput: '',
+  audioOutput: '',
+  videoInput: '',
+  noiseSuppression: true,
+  inputMode: 'voice',
+  pttKey: ''
+}
 
 export function loadMediaPrefs(): MediaPrefs {
   try {

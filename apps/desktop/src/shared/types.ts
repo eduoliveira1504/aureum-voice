@@ -142,6 +142,12 @@ export interface AureumBridge {
     /** Ctrl+Shift+R anywhere in the window ("Reportar problema"). */
     onReportProblem(listener: () => void): () => void
   }
+  /** Push-to-talk key, read while a call needs it (even with a game focused). */
+  ptt: {
+    /** Starts watching the key (null stops); false when the key can't be read. */
+    watch(key: string | null): Promise<boolean>
+    onHeld(listener: (held: boolean) => void): () => void
+  }
   updates: {
     getState(): Promise<UpdateState>
     /** Restarts into the downloaded update. */

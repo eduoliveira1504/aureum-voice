@@ -23,6 +23,8 @@ README.
 | `unmute.ogg` | you unmute | E5, dry and bright | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
 | `deafen.ogg` | you deafen | E5 → B4, muffled | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
 | `undeafen.ogg` | you undeafen | B4 → E5 | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
+| `ptt-on.ogg` | push-to-talk pressed | B5, a short tick | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
+| `ptt-off.ogg` | push-to-talk released | G#5, softer tick | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
 | `message.ogg` | new DM or mention | E6 over a soft E5 | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
 | `call-ringing.ogg` | incoming call (2.2 s loop) | E5 → B5 → E6 | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |
 | `call-outgoing.ogg` | you are calling someone (3 s loop) | E5, E5, soft | synthesized, generate-sounds.mjs | © Aureum, all rights reserved |

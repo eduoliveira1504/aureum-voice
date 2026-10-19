@@ -20,6 +20,7 @@ import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as overlay from './overlay'
+import { watchPushToTalk } from './pushToTalk'
 import { createTray, destroyTray, notify, setTrayState } from './tray'
 import { getUpdateState, installUpdate, startUpdater } from './updater'
 
@@ -174,6 +175,11 @@ handle('overlay:snap', (corner: unknown) => {
   if (typeof corner !== 'string' || !CORNERS.has(corner)) throw new Error('Invalid corner')
   return overlay.snap(corner as OverlayCorner)
 })
+// Push-to-talk (see pushToTalk.ts): only while the window asks for it.
+handle('ptt:watch', (key: unknown) => {
+  if (key !== null && typeof key !== 'string') throw new Error('Invalid key')
+  return watchPushToTalk(key, (held) => mainWindow?.webContents.send('ptt:held', held))
+})
 handle('overlay:pause-shortcuts', (paused: unknown) => overlay.pauseShortcuts(paused === true))
 
 // ---------------------------------------------------------------------------
@@ -289,6 +295,7 @@ function createWindow(): void {
   })
   mainWindow.on('closed', () => {
     mainWindow = null
+    watchPushToTalk(null, () => {})
     // Not a child window (it would minimize along with the app), so close it by hand.
     overlay.closeWindow()
   })

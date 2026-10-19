@@ -9,14 +9,26 @@
  * Privacy rule (docs/decisions/0012-in-game-overlay.md): only the keys that make up the watched
  * combos are ever read — never any other key — and nothing about the keyboard is logged or kept;
  * the only output is "this combo was pressed". Polling runs only while someone asks for it (the
- * overlay: in a call with the overlay on; later, push-to-talk: while it's active) and stops after.
+ * overlay: in a call with the overlay on; push-to-talk: in a call with it on) and stops after.
  */
 import type koffiModule from 'koffi'
 
 const POLL_MS = 25
 
 const MODIFIER_VK: Record<string, number> = { Control: 0x11, Alt: 0x12, Shift: 0x10 }
-const NAMED_VK: Record<string, number> = { Insert: 0x2d, Delete: 0x2e, Home: 0x24, End: 0x23, PageUp: 0x21, PageDown: 0x22 }
+const NAMED_VK: Record<string, number> = {
+  Insert: 0x2d,
+  Delete: 0x2e,
+  Home: 0x24,
+  End: 0x23,
+  PageUp: 0x21,
+  PageDown: 0x22,
+  // Usual push-to-talk keys (not valid in accelerators, only read here).
+  Backquote: 0xc0,
+  CapsLock: 0x14,
+  Mouse4: 0x05, // VK_XBUTTON1, the mouse's back side button
+  Mouse5: 0x06 // VK_XBUTTON2
+}
 
 /** Virtual-key codes of an Electron accelerator such as "Control+Shift+F9", or null if unsupported. */
 export function virtualKeys(accelerator: string): number[] | null {
@@ -52,17 +64,21 @@ function loadIsDown(): IsDown | null {
 export interface WatchedCombo {
   accelerator: string
   onPress(): void
+  /** When the combo stops being held (push-to-talk). */
+  onRelease?(): void
 }
 
 /**
- * Calls each combo's onPress once when all its keys are down (not again until it's released).
- * Returns a function that stops the watch. Unsupported accelerators are ignored.
+ * Calls each combo's onPress once when all its keys are down (not again until it's released),
+ * and onRelease when they stop being held. Returns a function that stops the watch (a combo
+ * still held then gets its onRelease). Unsupported accelerators are ignored.
  */
 export function watchCombos(combos: WatchedCombo[]): () => void {
   const read = loadIsDown()
   const watched = combos
-    .map((c) => ({ ...c, keys: virtualKeys(c.accelerator), held: true }))
-    .filter((c): c is WatchedCombo & { keys: number[]; held: boolean } => c.keys !== null)
+    // `pressed`: onPress fired and onRelease is still due.
+    .map((c) => ({ ...c, keys: virtualKeys(c.accelerator), held: true, pressed: false }))
+    .filter((c): c is WatchedCombo & { keys: number[]; held: boolean; pressed: boolean } => c.keys !== null)
   if (!read || watched.length === 0) return () => {}
 
   // Each key is read at most once per tick, and only keys that belong to a watched combo.
@@ -72,9 +88,18 @@ export function watchCombos(combos: WatchedCombo[]): () => void {
     for (const combo of watched) {
       const all = combo.keys.every((k) => down.has(k))
       // `held` starts true, so a combo already held when the watch starts doesn't fire.
-      if (all && !combo.held) combo.onPress()
+      if (all && !combo.held) {
+        combo.pressed = true
+        combo.onPress()
+      } else if (!all && combo.pressed) {
+        combo.pressed = false
+        combo.onRelease?.()
+      }
       combo.held = all
     }
   }, POLL_MS)
-  return () => clearInterval(timer)
+  return () => {
+    clearInterval(timer)
+    for (const combo of watched) if (combo.pressed) combo.onRelease?.()
+  }
 }

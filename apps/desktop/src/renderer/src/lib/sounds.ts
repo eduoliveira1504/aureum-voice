@@ -19,6 +19,8 @@ export type SoundName =
   | 'unmute'
   | 'deafen'
   | 'undeafen'
+  | 'ptt-on'
+  | 'ptt-off'
   | 'message'
   | 'call-ringing'
   | 'call-outgoing'
@@ -26,7 +28,18 @@ export type SoundName =
   | 'screen-share'
 
 /** The user's own actions: they confirm what was done, so Do not disturb keeps them. */
-export const OWN_SOUNDS: SoundName[] = ['call-join', 'call-leave', 'call-outgoing', 'mute', 'unmute', 'deafen', 'undeafen', 'call-ended']
+export const OWN_SOUNDS: SoundName[] = [
+  'call-join',
+  'call-leave',
+  'call-outgoing',
+  'mute',
+  'unmute',
+  'deafen',
+  'undeafen',
+  'ptt-on',
+  'ptt-off',
+  'call-ended'
+]
 /** Caused by other people: silenced by Do not disturb. */
 export const OTHERS_SOUNDS: SoundName[] = ['message', 'call-ringing', 'user-join', 'user-leave', 'screen-share']
 

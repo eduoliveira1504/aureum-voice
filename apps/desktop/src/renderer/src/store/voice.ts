@@ -51,6 +51,18 @@ const ANYTHING: Publishable = { mic: true, camera: true, screen: true }
 
 let noiseFilterSync: Promise<void> = Promise.resolve()
 
+// Push-to-talk: in that mode the mic only opens while the key is held (read by the main process,
+// see lib/pushToTalk.ts). The release waits a moment so the end of a word isn't cut off.
+const PTT_RELEASE_MS = 200
+let pttHeld = false
+let pttRelease: ReturnType<typeof setTimeout> | null = null
+
+/** "Pressionar para falar" with a key picked; without a key the mic works as usual. */
+function pushToTalkOn(): boolean {
+  const prefs = loadMediaPrefs()
+  return prefs.inputMode === 'ptt' && !!prefs.pttKey
+}
+
 /** Puts the RNNoise filter on the mic track, or takes it off, to match the setting. Calls are
  * queued so a quick toggle can't set up two filters at once. */
 function syncNoiseFilter(r: Room): Promise<void> {
@@ -106,6 +118,8 @@ interface VoiceStore {
   serverDeafened: boolean
   /** Quality limits for what we publish, from the last voice token (the user's plan). */
   media: MediaTier
+  /** The push-to-talk key is held (only in that input mode). */
+  pttHeld: boolean
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -120,6 +134,10 @@ interface VoiceStore {
   /** A moderator changed our server mute / deafen (from our own voice state). */
   setModeration(muted: boolean, deafened: boolean): void
   applyDevicePrefs(): Promise<void>
+  /** The push-to-talk key went down or up (from the main process). */
+  setPushToTalk(held: boolean): void
+  /** The input mode or the push-to-talk key changed in Settings. */
+  applyInputMode(): Promise<void>
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
   clearError(): void
@@ -189,6 +207,23 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     )
   }
 
+  /** Starts reading the push-to-talk key while in a call in that mode; stops it otherwise. */
+  const syncPushToTalk = (): void => {
+    const inCall = !!room && get().phase !== 'idle'
+    void window.aureum.ptt.watch(inCall && pushToTalkOn() ? loadMediaPrefs().pttKey : null)
+    if (!inCall || !pushToTalkOn()) {
+      if (pttRelease) clearTimeout(pttRelease)
+      pttHeld = false
+      if (get().pttHeld) set({ pttHeld: false })
+    }
+  }
+
+  /** Whether our mic should be sending right now. */
+  const micOpen = (): boolean => {
+    const { muted, deafened, allowed } = get()
+    return !muted && !deafened && allowed.mic && (!pushToTalkOn() || pttHeld)
+  }
+
   const reset = (error: string | null = null): void => {
     room = null
     audioSink.replaceChildren()
@@ -209,6 +244,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       screenVolume: {},
       error
     })
+    syncPushToTalk()
     bump()
   }
 
@@ -253,17 +289,17 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     }
   }
 
-  /** Publishes or mutes the mic to match the muted/deafened flags. */
-  async function applyMic(): Promise<void> {
+  /** Publishes or mutes the mic to match the muted/deafened flags (and the push-to-talk key).
+   * Push-to-talk presses skip the announce: others see our mute state, not every press. */
+  async function applyMic(announceIt = true): Promise<void> {
     const r = room
-    const { muted, deafened, allowed } = get()
     if (r && r.state === ConnectionState.Connected) {
-      await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic).catch(() => {
+      await r.localParticipant.setMicrophoneEnabled(micOpen()).catch(() => {
         set({ muted: true, error: 'Não foi possível acessar o microfone.' })
       })
       await syncNoiseFilter(r)
     }
-    announce()
+    if (announceIt) announce()
     bump()
   }
 
@@ -283,6 +319,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     serverMuted: false,
     serverDeafened: false,
     media: FREE_TIER,
+    pttHeld: false,
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -339,8 +376,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       announce()
       // With webAudioMix the output device is set on the room's AudioContext.
       if (prefs.audioOutput) await r.switchActiveDevice('audiooutput', prefs.audioOutput).catch(() => {})
+      syncPushToTalk()
       try {
-        await r.localParticipant.setMicrophoneEnabled(!get().muted && !get().deafened && get().allowed.mic)
+        const { muted, deafened, allowed } = get()
+        // In push-to-talk the mic is published muted, so the first press opens it right away.
+        await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic)
+        if (!micOpen()) await r.localParticipant.setMicrophoneEnabled(false)
         await syncNoiseFilter(r)
       } catch {
         set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
@@ -525,11 +566,42 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       bump()
     },
 
+    setPushToTalk: (held) => {
+      if (!room || !pushToTalkOn()) return
+      const { muted, deafened, allowed } = get()
+      const canTalk = !muted && !deafened && allowed.mic
+      if (held) {
+        if (pttRelease) clearTimeout(pttRelease)
+        pttRelease = null
+        if (pttHeld) return
+        pttHeld = true
+        set({ pttHeld: true })
+        if (canTalk) playSound('ptt-on')
+        void applyMic(false)
+      } else if (pttHeld && !pttRelease) {
+        pttRelease = setTimeout(() => {
+          pttRelease = null
+          pttHeld = false
+          set({ pttHeld: false })
+          if (canTalk) playSound('ptt-off')
+          void applyMic(false)
+        }, PTT_RELEASE_MS)
+      }
+    },
+
+    applyInputMode: async () => {
+      syncPushToTalk()
+      await applyMic(false)
+    },
+
     announce,
     clearError: () => set({ error: null })
   }
 
 })
+
+// The main process reports the push-to-talk key (only while we asked it to watch it).
+window.aureum.ptt.onHeld((held) => useVoice.getState().setPushToTalk(held))
 
 /** Remote/local camera track of a participant, if it's on. */
 export function cameraTrackOf(identity: string): Track | undefined {

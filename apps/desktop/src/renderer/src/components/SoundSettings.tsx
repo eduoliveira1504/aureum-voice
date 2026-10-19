@@ -14,6 +14,8 @@ const LABELS: Record<SoundName, string> = {
   unmute: 'Desmutar o microfone',
   deafen: 'Ensurdecer',
   undeafen: 'Sair do ensurdecer',
+  'ptt-on': 'Apertar a tecla de falar',
+  'ptt-off': 'Soltar a tecla de falar',
   message: 'Mensagem direta ou menção',
   'call-ringing': 'Chamada recebida',
   'user-join': 'Alguém entrou na chamada',

@@ -20,7 +20,9 @@ import {
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
+import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
+import { pttKeyLabel } from '../lib/pushToTalk'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { TopBadge } from './Badge'
@@ -453,44 +455,61 @@ function ControlButton({
   )
 }
 
+/** Push-to-talk mode: which key opens the mic, lit while it's held. */
+function PushToTalkHint(): ReactNode {
+  const held = useVoice((s) => s.pttHeld)
+  const muted = useVoice((s) => s.muted || s.deafened)
+  useVoice((s) => s.version) // re-read the prefs when Settings changes the mode
+  const { inputMode, pttKey } = loadMediaPrefs()
+  if (inputMode !== 'ptt' || !pttKey) return null
+  return (
+    <p className={`pb-2 text-center text-xs font-medium ${held && !muted ? 'text-accent-text' : 'text-fg-subtle'}`}>
+      {muted ? 'Microfone silenciado' : held ? 'Falando…' : `Segure ${pttKeyLabel(pttKey)} para falar`}
+    </p>
+  )
+}
+
 export function CallControls(): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
     useVoice()
   const [picking, setPicking] = useState(false)
   const connecting = phase === 'connecting'
   return (
-    <div className="flex shrink-0 justify-center gap-3 pb-6">
-      <ControlButton
-        label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
-        active={!muted && allowed.mic}
-        disabled={!allowed.mic}
-        onClick={toggleMute}
-      >
-        {muted || !allowed.mic ? <MicOff size={22} /> : <Mic size={22} />}
-      </ControlButton>
-      <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
-        {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
-      </ControlButton>
-      <ControlButton
-        label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
-        active={!camera}
-        disabled={connecting || (!camera && !allowed.camera)}
-        onClick={toggleCamera}
-      >
-        {camera ? <Video size={22} /> : <VideoOff size={22} />}
-      </ControlButton>
-      <ControlButton
-        label={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
-        active={!screen}
-        disabled={phase !== 'connected' || (!screen && !allowed.screen)}
-        onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
-      >
-        {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
-      </ControlButton>
-      <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
-        <PhoneOff size={22} />
-      </ControlButton>
-      {picking && <ScreenShareModal onClose={() => setPicking(false)} />}
+    <div className="shrink-0">
+      <PushToTalkHint />
+      <div className="flex justify-center gap-3 pb-6">
+        <ControlButton
+          label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
+          active={!muted && allowed.mic}
+          disabled={!allowed.mic}
+          onClick={toggleMute}
+        >
+          {muted || !allowed.mic ? <MicOff size={22} /> : <Mic size={22} />}
+        </ControlButton>
+        <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
+          {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
+        </ControlButton>
+        <ControlButton
+          label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
+          active={!camera}
+          disabled={connecting || (!camera && !allowed.camera)}
+          onClick={toggleCamera}
+        >
+          {camera ? <Video size={22} /> : <VideoOff size={22} />}
+        </ControlButton>
+        <ControlButton
+          label={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
+          active={!screen}
+          disabled={phase !== 'connected' || (!screen && !allowed.screen)}
+          onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
+        >
+          {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
+        </ControlButton>
+        <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
+          <PhoneOff size={22} />
+        </ControlButton>
+        {picking && <ScreenShareModal onClose={() => setPicking(false)} />}
+      </div>
     </div>
   )
 }

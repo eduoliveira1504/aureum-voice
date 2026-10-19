@@ -62,6 +62,9 @@ const SOUNDS = {
   unmute: { level: 0.7, strikes: [['E5', 0, { decay: 0.16, bright: 0.7 }]] },
   deafen: { level: 0.7, strikes: [['E5', 0, { decay: 0.2, bright: 0.2 }], ['B4', 0.08, { decay: 0.25, bright: 0.12 }]] },
   undeafen: { level: 0.7, strikes: [['B4', 0, { decay: 0.2, bright: 0.4 }], ['E5', 0.08, { decay: 0.25, bright: 0.7 }]] },
+  // Push-to-talk: a tiny tick on press and a softer one on release (they repeat a lot).
+  'ptt-on': { level: 0.4, strikes: [['B5', 0, { decay: 0.07, bright: 0.55 }]] },
+  'ptt-off': { level: 0.35, strikes: [['G#5', 0, { decay: 0.07, bright: 0.25 }]] },
   message: { level: 0.75, strikes: [['E6', 0, { decay: 0.5, bright: 0.9 }], ['E5', 0, { decay: 0.35, bright: 0.3, gain: 0.35 }]] },
   'call-ringing': {
     level: 0.9,
