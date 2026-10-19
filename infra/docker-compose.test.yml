@@ -1,0 +1,26 @@
+# The API test suite in a throwaway container on the stack's network, so it runs the same way in
+# any mode (dev or plan B) without publishing ports or touching the running containers. It uses
+# the same Postgres, Redis and MinIO with test-only names (aureum_test database, aureum-test
+# bucket and Redis prefix, set by tests/conftest.py). Run it through scripts/test-api.mjs.
+services:
+  api-test:
+    profiles: ["test"]
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile.test
+    env_file: ../.env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MINIO_ENDPOINT: minio:9000
+    volumes:
+      - ../apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy

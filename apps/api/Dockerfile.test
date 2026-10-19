@@ -1,0 +1,16 @@
+# Image for running the test suite inside the compose network (see scripts/test-api.mjs).
+# The code isn't copied: the repository's apps/api is mounted at /app, so tests always run the
+# current working tree.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install -r requirements-dev.txt
+
+CMD ["python", "-m", "pytest", "-p", "no:cacheprovider"]
