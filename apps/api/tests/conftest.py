@@ -18,9 +18,9 @@ import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app import livekit_admin, storage  # noqa: E402
+from app import badges, livekit_admin, storage  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.db import engine  # noqa: E402
+from app.db import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Base  # noqa: E402
 from app.realtime import broker  # noqa: E402
@@ -59,6 +59,9 @@ async def _database() -> AsyncIterator[None]:
 
 @pytest.fixture(autouse=True)
 async def _clean_tables() -> AsyncIterator[None]:
+    # The badge catalog is seeded at startup (app.badges), and tables are emptied after each test.
+    async with SessionLocal() as session:
+        await badges.sync_badges(session)
     yield
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     async with engine.begin() as conn:

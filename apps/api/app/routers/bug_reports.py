@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, 
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app import ratelimit, storage
+from app import badges, ratelimit, storage
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.images import MAX_IMAGE_BYTES
@@ -107,8 +107,13 @@ async def update_bug_report(
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     if body.resolved != (report.resolved_at is not None):
         report.resolved_at = datetime.now(UTC) if body.resolved else None
+        # A resolved report earns its author the bug hunter badge (kept if it's reopened later).
+        hunter = report.author if body.resolved else None
+        granted = hunter is not None and await badges.grant(session, hunter, badges.BUG_HUNTER, granted_by=user.id)
         await session.commit()
         await session.refresh(report)
+        if granted and hunter is not None:
+            await badges.announce(session, hunter)
     return _out(report)
 
 

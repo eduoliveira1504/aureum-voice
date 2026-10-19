@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app import ratelimit
+from app import badges, ratelimit
 from app.deps import SessionDep
 from app.models import ServerMember, User
 from app.routers.servers import announce_member_joined, claim_invite
@@ -58,11 +58,13 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
         email=body.email,
         display_name=body.display_name or body.username,
         password_hash=hash_password(body.password),
+        badge_grants=[],
     )
     session.add(user)
     member = None
     try:
         await session.flush()
+        await badges.grant_at_sign_up(session, user)
         if server_id is not None:
             member = ServerMember(server_id=server_id, user_id=user.id)
             session.add(member)

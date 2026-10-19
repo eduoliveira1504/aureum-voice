@@ -122,16 +122,73 @@ class User(Base):
     avatar_frame: Mapped[str] = mapped_column(String(16), default="none", server_default="none", nullable=False)
     favorite_song: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # {"title", "artist", "url"}
     links: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
-    # Granted by the system (python -m app.cli badges), never by the user (see schemas.BADGES).
-    badges: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     # Decides the media tier (streaming quality limits) the voice token hands out.
     plan: Mapped[UserPlan] = mapped_column(
         _str_enum(UserPlan, "user_plan"), default=UserPlan.free, server_default=UserPlan.free.value, nullable=False
     )
     created_at: Mapped[datetime] = _created_at()
 
+    # Badges the user holds (see app/badges.py), loaded with the user: every profile shows them.
+    badge_grants: Mapped[list["UserBadge"]] = relationship(
+        lazy="selectin", foreign_keys="UserBadge.user_id", order_by="UserBadge.granted_at",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def badges(self) -> list["UserBadge"]:
+        return self.badge_grants
+
 
 DEFAULT_ACCENT = "#E8B531"  # Aureum gold
+
+
+class BadgeRarity(str, enum.Enum):
+    """Rarest last. The metal of the frame shows it: bronze, silver, gold, gold with a shine."""
+
+    comum = "comum"
+    rara = "rara"
+    lendaria = "lendaria"
+    mitica = "mitica"
+
+
+class Badge(Base):
+    """A badge anyone may hold. Rows are kept in sync with app/badges.py (the code is the
+    source); the id never changes, so renaming a badge or swapping its art keeps every grant."""
+
+    __tablename__ = "badges"
+
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    key: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    # Full art (tooltips, big sizes) and the simplified one for 32 px and below.
+    icon_svg: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    icon_svg_small: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    rarity: Mapped[BadgeRarity] = mapped_column(_str_enum(BadgeRarity, "badge_rarity"), nullable=False)
+    # Numbered badges show the holder's place, e.g. "Pioneiro #7".
+    numbered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Only granted while the beta runs (AUREUM_BETA), never again after it.
+    exclusive_beta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+
+
+class UserBadge(Base):
+    """A badge held by a user. Granted by the system or the app owner, never by the user."""
+
+    __tablename__ = "user_badges"
+    __table_args__ = (UniqueConstraint("badge_id", "number"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    badge_id: Mapped[int] = mapped_column(ForeignKey("badges.id", ondelete="CASCADE"), primary_key=True, index=True)
+    number: Mapped[int | None] = mapped_column(Integer)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # NULL: granted by the system (sign-up, a resolved bug report...).
+    granted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    badge: Mapped[Badge] = relationship(lazy="joined")
+
+    @property
+    def key(self) -> str:
+        return self.badge.key
 
 
 class UserSettings(Base):

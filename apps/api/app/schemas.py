@@ -16,7 +16,7 @@ from pydantic import (
 )
 
 from app.config import get_settings
-from app.models import DEFAULT_ACCENT, ChannelType, OverrideTarget, Theme, UserStatus
+from app.models import DEFAULT_ACCENT, BadgeRarity, ChannelType, OverrideTarget, Theme, UserStatus
 from app.media import MediaTier
 from app.voice import VoiceState
 
@@ -66,8 +66,6 @@ ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1
 
 # Avatar frames: none, the profile color, or a fixed preset (colors live in the app).
 AvatarFrame = Literal["none", "accent", "gold", "amethyst", "emerald", "ember", "sapphire"]
-# Badges are granted by the system (python -m app.cli badges), never chosen by the user.
-BADGES = ("founder", "beta")
 MAX_LINKS = 5
 
 
@@ -99,6 +97,28 @@ class ProfileLink(BaseModel):
     url: HttpsUrl
 
 
+class UserBadgeOut(BaseModel):
+    """A badge someone holds; what it looks like comes from the catalog (GET /badges)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    number: int | None
+    granted_at: datetime
+
+
+class BadgeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    name: str
+    description: str
+    rarity: BadgeRarity
+    numbered: bool
+    icon_svg: str
+    icon_svg_small: str
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -114,7 +134,8 @@ class UserPublic(BaseModel):
     avatar_frame: str = "none"
     favorite_song: FavoriteSong | None = None
     links: list[ProfileLink] = []
-    badges: list[str] = []
+    # Granted by the system or the app owner, never chosen by the user (see app/badges.py).
+    badges: list[UserBadgeOut] = []
     created_at: datetime
 
     @field_validator("custom_status", mode="after")

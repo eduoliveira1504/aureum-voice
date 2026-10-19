@@ -4,7 +4,7 @@
     python -m app.cli badges grant <username> <badge>
     python -m app.cli badges revoke <username> <badge>
 
-Badges are granted by whoever runs the server, never by users through the API.
+Badges are granted by the system or whoever runs the server, never by users through the API.
 """
 
 import argparse
@@ -13,30 +13,45 @@ import sys
 
 from sqlalchemy import select
 
-from app.access import audience_ids
+from app import badges as badge_rules
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import User
 from app.realtime import broker
-from app.schemas import BADGES, UserPublic
+
+
+def _describe(user: User) -> str:
+    held = [f"{g.badge.key}{f' #{g.number}' if g.number else ''}" for g in user.badge_grants]
+    return f"{user.username}: {', '.join(held) or '(no badges)'}"
 
 
 async def badges(action: str, username: str, badge: str | None) -> int:
-    if action != "list" and badge not in BADGES:
-        print(f"Unknown badge {badge!r}; known badges: {', '.join(BADGES)}", file=sys.stderr)
+    if action != "list" and badge not in badge_rules.BADGES:
+        known = ", ".join(badge_rules.BADGES)
+        print(f"Unknown badge {badge!r}; known badges: {known}", file=sys.stderr)
         return 2
     async with SessionLocal() as session:
+        await badge_rules.sync_badges(session)
         user = await session.scalar(select(User).where(User.username == username.lower()))
         if user is None:
             print(f"No user named {username!r}", file=sys.stderr)
             return 1
-        if action != "list":
-            current = [b for b in user.badges if b != badge]
-            # Keep the order of BADGES, so every profile lists them the same way.
-            user.badges = [b for b in BADGES if b in current or (action == "grant" and b == badge)]
+        assert badge is not None or action == "list"
+        changed = False
+        if action == "grant":
+            owner_name = get_settings().owner_username
+            owner = await session.scalar(select(User).where(User.username == owner_name)) if owner_name else None
+            try:
+                changed = await badge_rules.grant(session, user, badge, granted_by=owner.id if owner else None) is not None
+            except badge_rules.BadgeClosed:
+                print(f"{badge!r} is beta-only and the beta is over (AUREUM_BETA)", file=sys.stderr)
+                return 1
+        elif action == "revoke":
+            changed = await badge_rules.revoke(session, user, badge)
+        if changed:
             await session.commit()
-            data = UserPublic.model_validate(user).model_dump(mode="json")
-            await broker.publish("user.updated", data, await audience_ids(session, user.id))
-        print(f"{user.username}: {', '.join(user.badges) or '(no badges)'}")
+            await badge_rules.announce(session, user)
+        print(_describe(user))
     await broker.close()
     return 0
 

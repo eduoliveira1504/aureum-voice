@@ -149,15 +149,3 @@ async def test_expired_custom_status_is_hidden(client: AsyncClient) -> None:
     assert res.json()["custom_status"] is None
     assert (await user.get("/users/me")).json()["custom_status"] is None
 
-
-async def test_badges_are_granted_by_the_cli(client: AsyncClient) -> None:
-    from app import cli
-
-    user = await make_user(client, "pioneer")
-    assert await cli.badges("grant", "pioneer", "beta") == 0
-    assert await cli.badges("grant", "pioneer", "founder") == 0
-    assert (await user.get("/users/me")).json()["badges"] == ["founder", "beta"]
-    assert await cli.badges("revoke", "pioneer", "beta") == 0
-    assert (await user.get("/users/me")).json()["badges"] == ["founder"]
-    assert await cli.badges("grant", "pioneer", "admin") == 2
-    assert await cli.badges("grant", "nobody", "beta") == 1

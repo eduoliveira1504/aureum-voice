@@ -5,11 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import storage
+from app import badges, storage
 from app.addons.registry import ADDONS
 from app.config import get_settings
+from app.db import SessionLocal
 from app.realtime import broker
-from app.routers import addons, auth, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, ws
+from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, ws
 
 settings = get_settings()
 
@@ -21,6 +22,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except Exception:  # storage down: the API still works, only uploads fail
         logging.getLogger(__name__).exception("Could not prepare the storage bucket")
     await broker.ensure_listening()
+    async with SessionLocal() as session:
+        await badges.sync_badges(session)
+        await badges.grant_founder_if_due(session)
     yield
     await broker.close()
 
@@ -44,6 +48,7 @@ api.include_router(auth.router)
 api.include_router(users.router)
 # Before media_router, whose /media/{key:path} would match its screenshot route.
 api.include_router(bug_reports.router)
+api.include_router(badges_router.router)
 api.include_router(users.media_router)
 api.include_router(servers.router)
 api.include_router(channels.router)
