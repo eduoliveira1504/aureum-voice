@@ -37,6 +37,8 @@ async def test_catalog(client: AsyncClient) -> None:
     assert catalog["pioneer"]["numbered"] is True
     assert (catalog["pioneer"]["exclusive_beta"], catalog["bug_hunter"]["exclusive_beta"]) == (True, False)
     assert catalog["bug_hunter"]["rarity"] == "rara"
+    # Ties within a rarity next to a name: Fundador before Pioneiro.
+    assert catalog["founder"]["priority"] < catalog["pioneer"]["priority"] < catalog["bug_hunter"]["priority"]
     assert all(b["icon_svg"].startswith("<svg") and b["icon_svg_small"].startswith("<svg") for b in catalog.values())
     assert (await client.get("/api/badges")).status_code == 401
 

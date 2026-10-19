@@ -200,6 +200,8 @@ class BadgeOut(BaseModel):
     numbered: bool
     # Only granted while the beta runs.
     exclusive_beta: bool
+    # Same rarity: the lower one goes first next to a name.
+    priority: int
     icon_svg: str
     icon_svg_small: str
 
@@ -221,8 +223,11 @@ class UserPublic(BaseModel):
     links: list[ProfileLink] = []
     # Granted by the system or the app owner, never chosen by the user (see app/badges.py).
     badges: list[UserBadgeOut] = []
-    # The company's own accounts (@aureum): shown with an "Oficial" seal.
+    # The company's own accounts (@aureum): no beta badge, no invites.
     is_official: bool = False
+    # Next to the name: a gold check and a "BOT" tag.
+    is_verified: bool = False
+    is_bot: bool = False
     created_at: datetime
 
     @field_validator("custom_status", mode="after")

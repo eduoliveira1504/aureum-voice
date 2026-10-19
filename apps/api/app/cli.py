@@ -3,7 +3,8 @@
     docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli <command>
 
     python -m app.cli users create --username X --email Y [--display-name N] [--password]
-                                   [--pioneiro N] [--confirmado] [--oficial]
+                                   [--pioneiro N] [--confirmado] [--oficial] [--verificado] [--bot]
+    python -m app.cli users update --username X [--oficial] [--verificado] [--bot]
     python -m app.cli invites create --count N            (single-use account invites)
     python -m app.cli invites create --usos 15 --dias 7   (one group invite)
     python -m app.cli invites create --pioneiro N         (single-use, reserves Pioneiro nº N)
@@ -16,8 +17,10 @@
 Without --password it makes a strong temporary password, prints it once (never logged) and the
 app asks for a new one at the first sign-in; --password asks for one instead. --confirmado
 confirms the e-mail right away (Pioneiro, invites, official servers, welcome e-mail), otherwise
-the account gets the usual confirmation code. --oficial marks a company account: an "Oficial"
-seal, never the beta badge nor invites. Without --oficial, CLI accounts follow the normal rules.
+the account gets the usual confirmation code. --oficial marks a company account (never the beta
+badge nor invites) and also sets --verificado (gold check next to the name) and --bot ("BOT" tag).
+Without --oficial, CLI accounts follow the normal rules. `users update` turns those flags on for
+an account that already exists (--oficial only if it holds no Pioneiro and no invites).
 Badges are granted by the system or whoever runs the server, never by users through the API.
 """
 
@@ -35,7 +38,7 @@ from sqlalchemy import or_, select
 from app import account_invites, badges as badge_rules, onboarding
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Server, User
+from app.models import AccountInvite, Server, User
 from app.realtime import broker
 from app.schemas import DisplayName, LowerEmail, Username
 from app.security import hash_password
@@ -91,6 +94,7 @@ def temporary_password() -> str:
 async def create_user(
     username: str, email: str, *, display_name: str | None = None, password: str | None = None,
     pioneer: int | None = None, confirmed: bool = False, official: bool = False,
+    verified: bool = False, bot: bool = False,
 ) -> int:
     """Creates an account directly, reserved names included. No password: a temporary one,
     printed once, that must be replaced at the first sign-in."""
@@ -118,7 +122,8 @@ async def create_user(
             return 1
         user = User(
             username=username, email=email, display_name=display_name, password_hash=hash_password(secret),
-            is_official=official, must_change_password=temporary, badge_grants=[],
+            is_official=official, is_verified=verified or official, is_bot=bot or official,
+            must_change_password=temporary, badge_grants=[],
         )
         session.add(user)
         await session.flush()
@@ -144,11 +149,46 @@ async def create_user(
             await onboarding.announce(session, user, result)
         await session.refresh(user)
         kind = "official account" if official else "account"
-        print(f"Created {kind} @{user.username} ({user.id}). {_describe(user)}")
-        print("E-mail confirmed; welcome e-mail queued." if confirmed else "Confirmation code e-mailed.")
+        print(f"Created {kind} @{user.username} ({user.id}). {_describe(user)}{_marks(user)}")
+        if not confirmed:
+            print("Confirmation code e-mailed.")
+        else:
+            print("E-mail confirmed." if official else "E-mail confirmed; welcome e-mail queued.")
         if temporary:
             # Shown once, here only: it never goes to a log or the database in clear.
             print(f"Temporary password (shown only now; asked to change at first sign-in): {secret}")
+    await broker.close()
+    return 0
+
+
+def _marks(user: User) -> str:
+    marks = [name for name, on in (("official", user.is_official), ("verified", user.is_verified), ("bot", user.is_bot)) if on]
+    return f" [{', '.join(marks)}]" if marks else ""
+
+
+async def update_user(username: str, *, official: bool = False, verified: bool = False, bot: bool = False) -> int:
+    """Turns the account's marks on. --oficial also means verified and bot, and only goes to an
+    account without the beta badge or invites (official accounts never have them)."""
+    if not (official or verified or bot):
+        print("Nothing to change: pass --oficial, --verificado and/or --bot", file=sys.stderr)
+        return 2
+    async with SessionLocal() as session:
+        user = await session.scalar(select(User).where(User.username == username.lstrip("@").lower()))
+        if user is None:
+            print(f"No user named {username!r}", file=sys.stderr)
+            return 1
+        if official and not user.is_official:
+            pioneer = any(g.badge.key == badge_rules.PIONEER for g in user.badge_grants)
+            invites = await session.scalar(select(AccountInvite.code).where(AccountInvite.owner_id == user.id).limit(1))
+            if pioneer or invites:
+                print("Official accounts never hold the Pioneiro badge or invites; this one does", file=sys.stderr)
+                return 1
+        user.is_official = user.is_official or official
+        user.is_verified = user.is_verified or verified or official
+        user.is_bot = user.is_bot or bot or official
+        await session.commit()
+        await badge_rules.announce(session, user)
+        print(f"Updated @{user.username} ({user.id}).{_marks(user)}")
     await broker.close()
     return 0
 
@@ -213,14 +253,16 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
 
     users_cmd = commands.add_parser("users", help="create accounts, reserved names included")
-    users_cmd.add_argument("action", choices=("create",))
+    users_cmd.add_argument("action", choices=("create", "update"))
     users_cmd.add_argument("--username", required=True)
-    users_cmd.add_argument("--email", required=True)
+    users_cmd.add_argument("--email", help="required to create")
     users_cmd.add_argument("--display-name")
     users_cmd.add_argument("--password", action="store_true", help="type a password instead of a temporary one")
     users_cmd.add_argument("--pioneiro", type=int, metavar="N", help="reserve this Pioneiro number")
     users_cmd.add_argument("--confirmado", action="store_true", help="e-mail already confirmed")
-    users_cmd.add_argument("--oficial", action="store_true", help="company account: no Pioneiro, no invites")
+    users_cmd.add_argument("--oficial", action="store_true", help="company account: no Pioneiro, no invites; verified and bot")
+    users_cmd.add_argument("--verificado", action="store_true", help="gold check next to the name")
+    users_cmd.add_argument("--bot", action="store_true", help='"BOT" tag next to the name')
 
     invites_cmd = commands.add_parser("invites", help="create account invites")
     invites_cmd.add_argument("action", choices=("create",))
@@ -240,11 +282,18 @@ def main() -> int:
     badge_cmd.add_argument("badge", nargs="?")
 
     args = parser.parse_args()
+    if args.command == "users" and args.action == "update":
+        if args.email or args.display_name or args.password or args.pioneiro is not None or args.confirmado:
+            parser.error("users update only takes --oficial, --verificado and --bot")
+        return asyncio.run(update_user(args.username, official=args.oficial, verified=args.verificado, bot=args.bot))
     if args.command == "users":
+        if not args.email:
+            parser.error("users create needs --email")
         return asyncio.run(create_user(
             args.username, args.email, display_name=args.display_name,
             password=_ask_password() if args.password else None,
             pioneer=args.pioneiro, confirmed=args.confirmado, official=args.oficial,
+            verified=args.verificado, bot=args.bot,
         ))
     if args.command == "invites":
         if args.usos is not None and args.usos < 2:

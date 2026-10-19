@@ -9,6 +9,7 @@ Who gets what:
   unique, never reused, and some can be reserved ahead (CLI --pioneiro N).
 - bug_hunter: the author of a bug report the owner marks as resolved.
 Mythic badges are beta-only (exclusive_beta): once AUREUM_BETA is off they're never granted again.
+Next to a name the app shows the two rarest; `priority` breaks ties (Fundador before Pioneiro).
 
 Planned (structure ready, added here once their art exists): Veterano (rara, per year of
 account), Construtor (comum, a server with 5+ members), Aureum+ (lendaria, future plan).
@@ -37,6 +38,8 @@ class BadgeDefinition:
     icon_svg_small: str
     numbered: bool = False
     exclusive_beta: bool = False
+    # Ties within a rarity next to a name: lower first (then the oldest grant).
+    priority: int = 100
 
 
 FOUNDER = "founder"
@@ -52,6 +55,7 @@ BADGES: dict[str, BadgeDefinition] = {
             description="Criou o Aureum.",
             rarity=BadgeRarity.mitica,
             exclusive_beta=True,
+            priority=0,
             icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,4 86,26 86,70 48,92 10,70 10,26" fill="none" stroke="#E8B531" stroke-width="2"/><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M28 62 L24 36 L37 46 L48 30 L59 46 L72 36 L68 62 Z" fill="#E8B531" stroke="#E8B531" stroke-width="2" stroke-linejoin="round"/><path d="M30 68 H66" stroke="#F4CF6A" stroke-width="3.5" stroke-linecap="round"/></svg>',
             icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M28 64 L24 36 L37 46 L48 30 L59 46 L72 36 L68 64 Z" fill="#E8B531"/></svg>',
         ),
@@ -63,6 +67,7 @@ BADGES: dict[str, BadgeDefinition] = {
             rarity=BadgeRarity.mitica,
             numbered=True,
             exclusive_beta=True,
+            priority=1,
             icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,4 86,26 86,70 48,92 10,70 10,26" fill="none" stroke="#E8B531" stroke-width="2"/><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M48 34 L51.5 44.5 L62 48 L51.5 51.5 L48 62 L44.5 51.5 L34 48 L44.5 44.5 Z" fill="#F4CF6A" opacity="0.55" transform="rotate(45 48 48)"/><path d="M48 22 L53.5 42.5 L74 48 L53.5 53.5 L48 74 L42.5 53.5 L22 48 L42.5 42.5 Z" fill="#E8B531"/><circle cx="48" cy="48" r="4" fill="#2A1F08"/></svg>',
             icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M48 20 L54 42 L76 48 L54 54 L48 76 L42 54 L20 48 L42 42 Z" fill="#E8B531"/></svg>',
         ),
@@ -71,6 +76,7 @@ BADGES: dict[str, BadgeDefinition] = {
             name="Caçador de bugs",
             description="Reportou um problema que foi resolvido.",
             rarity=BadgeRarity.rara,
+            priority=2,
             icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#1C2228" stroke="#C9D1DA" stroke-width="3" stroke-linejoin="round"/><ellipse cx="48" cy="52" rx="12" ry="15" fill="#C9D1DA"/><circle cx="48" cy="35" r="7" fill="#C9D1DA"/><path d="M48 40 V67" stroke="#1C2228" stroke-width="2"/><g stroke="#C9D1DA" stroke-width="2.6" stroke-linecap="round"><path d="M36 46 L27 42"/><path d="M36 54 L26 54"/><path d="M37 62 L28 67"/><path d="M60 46 L69 42"/><path d="M60 54 L70 54"/><path d="M59 62 L68 67"/><path d="M44 29 L40 23"/><path d="M52 29 L56 23"/></g></svg>',
             icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#1C2228" stroke="#C9D1DA" stroke-width="6" stroke-linejoin="round"/><ellipse cx="48" cy="52" rx="13" ry="16" fill="#C9D1DA"/><circle cx="48" cy="33" r="8" fill="#C9D1DA"/></svg>',
         ),
@@ -137,7 +143,7 @@ async def sync_badges(session: AsyncSession) -> None:
     rows = {b.key: b for b in await session.scalars(select(Badge))}
     for definition in BADGES.values():
         row = rows.get(definition.key) or Badge(key=definition.key)
-        for field in ("name", "description", "rarity", "icon_svg", "icon_svg_small", "numbered", "exclusive_beta"):
+        for field in ("name", "description", "rarity", "icon_svg", "icon_svg_small", "numbered", "exclusive_beta", "priority"):
             setattr(row, field, getattr(definition, field))
         session.add(row)
     await session.commit()

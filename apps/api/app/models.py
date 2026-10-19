@@ -129,9 +129,13 @@ class User(Base):
     # Set when the user types the code sent to their e-mail. Until then they can sign in but
     # not create servers, and get none of what confirming brings (see app/onboarding.py).
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # The company's own accounts (@aureum, made with the CLI's --oficial): an "Oficial" seal,
-    # never the beta badge nor account invites.
+    # The company's own accounts (@aureum, made with the CLI's --oficial): never the beta badge
+    # nor account invites. --oficial also sets is_verified and is_bot.
     is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Shown next to the name everywhere: a gold check ("Conta verificada") and a "BOT" tag
+    # ("Conta automatizada do Aureum"). Only the CLI sets them (--verificado, --bot).
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    is_bot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Accounts the CLI made with a temporary password: nothing works until it's replaced.
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Copied into every token; bumping it ends all sessions (password changed or reset).
@@ -179,6 +183,8 @@ class Badge(Base):
     numbered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Only granted while the beta runs (AUREUM_BETA), never again after it.
     exclusive_beta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Breaks ties between badges of the same rarity next to a name (lower first).
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default="100")
 
 
 class UserBadge(Base):
