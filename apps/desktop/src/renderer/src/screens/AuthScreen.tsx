@@ -36,6 +36,7 @@ function describeError(err: unknown, mode: Mode): Errors {
     }
     if (err.status === 409) {
       const detail = String(err.detail ?? '')
+      if (detail.includes('reserved')) return { username: 'esse nome é reservado' }
       if (detail.includes('username')) return { username: 'já está em uso' }
       if (detail.includes('email')) return { email: 'já está em uso' }
       return { form: 'Usuário ou e-mail já está em uso.' }

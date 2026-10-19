@@ -3,6 +3,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app import badges, ratelimit
+from app.accounts import is_reserved
 from app.deps import SessionDep
 from app.models import ServerMember, User
 from app.routers.servers import announce_member_joined, claim_invite
@@ -46,6 +47,8 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
         if server_id is None:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Invalid, expired or used-up invite code")
 
+    if is_reserved(body.username):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This username is reserved")
     existing = await session.scalar(
         select(User).where(or_(User.username == body.username, User.email == body.email))
     )
