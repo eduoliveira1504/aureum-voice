@@ -143,3 +143,14 @@ o plano B é temporário e não deve criar dependências que impeçam a migraç�
 Seguir os blocos do docs/decisions/PHASE2.md. Depois da Fase 2: migração para a VM Oracle
 (tarefa 9), login com Google/Discord, importação de servidores do Discord (estrutura
 primeiro), eventos, wiki do servidor, plano Aureum+.
+
+## Beta fechado
+- Enquanto AUREUM_INVITE_ONLY=true, cadastro só com código de convite. AUREUM_BETA controla a
+  insígnia Pioneiro; AUREUM_INVITE_ONLY controla o cadastro. São chaves independentes.
+- A única página web pública é a de convite (/convite/{codigo}), servida pela API via Funnel:
+  só cadastro + confirmação de e-mail + link de download. Nada de login web, chat web ou
+  outras funções no navegador sem eu pedir.
+- Toda rota pública de cadastro/verificação tem rate limit por IP.
+- Contas oficiais (flag --oficial) nunca recebem Pioneiro nem convites. Essa exceção é SÓ
+  pela flag, nunca pela forma de criação da conta.
+- Senhas temporárias geradas pela CLI aparecem uma única vez no terminal e nunca vão pra log.
