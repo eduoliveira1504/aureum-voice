@@ -16,6 +16,7 @@ import {
 import { addonIcon } from '../addons/registry'
 import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
+import type { Recording } from '../lib/voiceRecorder'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
@@ -24,6 +25,7 @@ import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
 import { TopBadge } from './Badge'
 import { ConfirmModal } from './modals'
+import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
 import { userContextMenu } from './UserMenu'
@@ -702,6 +704,28 @@ function Composer({
     }
   }
 
+  // Voice messages go on their own, as a message with just the recording.
+  async function sendVoice(recording: Recording): Promise<void> {
+    setError(null)
+    try {
+      const upload = uploadFile<Attachment>(`/channels/${channel.id}/attachments`, recording.blob, 'mensagem-de-voz.webm', () => {}, {
+        voice: 'true',
+        duration_ms: String(recording.durationMs),
+        waveform: recording.waveform.join(',')
+      })
+      const attachment = await upload.done
+      await sendMessage(channel.id, '', [attachment.id])
+      seedAttachment(attachment, recording.blob)
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 403
+          ? 'Você não tem permissão para enviar mensagens de voz aqui.'
+          : 'Não foi possível enviar a mensagem de voz.'
+      )
+    }
+  }
+  const voice = useVoiceMessage(sendVoice, setError)
+
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -744,7 +768,7 @@ function Composer({
             />
           </>
         )}
-        <div className="min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <AutoTextarea
             key={channel.id}
             autoFocus
@@ -754,7 +778,9 @@ function Composer({
             onPaste={onPaste}
             placeholder={placeholder}
           />
+          {voice.bar}
         </div>
+        {canAttach && voice.button}
       </div>
       {value.length > MAX_LENGTH - 200 && (
         <p className={`mt-1 text-right text-xs ${value.length > MAX_LENGTH ? 'text-danger' : 'text-fg-subtle'}`}>

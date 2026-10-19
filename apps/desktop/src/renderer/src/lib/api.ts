@@ -309,11 +309,14 @@ export interface Invite {
 export interface Attachment {
   id: string
   filename: string
-  /** Decided by the server from the bytes: images and videos show inline. */
-  kind: 'image' | 'video' | 'file'
+  /** Decided by the server from the bytes: images and videos show inline. 'voice': a voice message. */
+  kind: 'image' | 'video' | 'file' | 'voice'
   content_type: string
   size: number
   url: string
+  /** Voice messages: length and bar heights (0-100), measured while recording. */
+  duration_ms?: number | null
+  waveform?: number[] | null
 }
 
 export interface Message {
@@ -483,8 +486,15 @@ export interface Upload<T> {
   abort(): void
 }
 
-/** POSTs a file as multipart ("file") with upload progress (0-1), which fetch() can't report. */
-export function uploadFile<T>(path: string, file: Blob, filename: string, onProgress: (fraction: number) => void): Upload<T> {
+/** POSTs a file as multipart ("file", plus any `fields`) with upload progress (0-1), which
+ * fetch() can't report. */
+export function uploadFile<T>(
+  path: string,
+  file: Blob,
+  filename: string,
+  onProgress: (fraction: number) => void,
+  fields: Record<string, string> = {}
+): Upload<T> {
   let xhr: XMLHttpRequest | null = null
   let aborted = false
   const attempt = (token: string | null): Promise<{ status: number; body: unknown }> =>
@@ -505,6 +515,7 @@ export function uploadFile<T>(path: string, file: Blob, filename: string, onProg
       xhr.onerror = () => reject(new TypeError('Network error'))
       xhr.onabort = () => reject(new DOMException('Aborted', 'AbortError'))
       const form = new FormData()
+      for (const [name, value] of Object.entries(fields)) form.append(name, value)
       form.append('file', file, filename)
       xhr.send(form)
     })

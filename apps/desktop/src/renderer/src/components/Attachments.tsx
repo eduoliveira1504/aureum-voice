@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 
 import type { Attachment } from '../lib/api'
 import { downloadAttachment, formatSize, useAttachmentUrl } from '../lib/attachments'
+import { VoicePlayer } from './VoicePlayer'
 
 /** A message's files: images and videos inline, anything else as a card with a download button. */
 export function MessageAttachments({ attachments, own }: { attachments: Attachment[]; own: boolean }): ReactNode {
@@ -21,7 +22,15 @@ export function MessageAttachments({ attachments, own }: { attachments: Attachme
           ))}
         </div>
       )}
-      {others.map((a) => (a.kind === 'video' ? <VideoPlayer key={a.id} attachment={a} /> : <FileCard key={a.id} attachment={a} />))}
+      {others.map((a) =>
+        a.kind === 'voice' ? (
+          <VoicePlayer key={a.id} attachment={a} own={own} />
+        ) : a.kind === 'video' ? (
+          <VideoPlayer key={a.id} attachment={a} />
+        ) : (
+          <FileCard key={a.id} attachment={a} />
+        )
+      )}
       {viewing !== null && <ImageViewer images={images} start={viewing} onClose={() => setViewing(null)} />}
     </div>
   )
