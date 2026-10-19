@@ -391,6 +391,28 @@ um passo separado.
 6. Gerar o convite de grupo pro WhatsApp.
 7. Gerar o instalador e publicar o release.
 
+## 2.11 — Ajustes antes do lançamento ✅ concluído
+- Configurações (do usuário, do servidor e do canal) funcionam em qualquer tamanho de janela:
+  o modal nunca passa da altura da janela, o corpo rola, as abas nunca quebram linha (rolam de
+  lado quando não cabem) e as Configurações do usuário têm altura estável entre abas.
+- Sai o selo "Oficial". Entram dois sinais ao lado do nome, em todo lugar onde ele aparece
+  (chat, lista de membros, call, perfil e menções):
+  - Verificado (users.is_verified): check dourado num hexágono, no estilo das insígnias.
+    Tooltip "Conta verificada".
+  - BOT (users.is_bot): etiqueta pequena "BOT". Tooltip "Conta automatizada do Aureum".
+  - CLI: --oficial marca is_official + is_verified + is_bot; --verificado e --bot separados;
+    `users update` liga essas marcas numa conta que já existe (--oficial só se ela não tiver
+    Pioneiro nem convites).
+  - Só visual neste bloco: nada de token de bot, API de bot ou automação.
+- Ao lado do nome, as 2 insígnias mais raras (no cartão de perfil continuam todas). Ordem:
+  raridade (mítica > lendária > rara > comum), depois a prioridade fixa da insígnia
+  (badges.priority: Fundador antes de Pioneiro), depois a mais antiga. Ordem visual: nome →
+  verificado → BOT → insígnias; sem espaço, o nome é cortado com reticências e os ícones
+  nunca encolhem nem se sobrepõem.
+
+### Futuro
+- Bot do Aureum: automação com regras fixas, sem IA, autenticação por token.
+
 ## Pronto quando (Fase 2 completa)
 - Tema claro/escuro e accent personalizável em todas as telas.
 - Duas pessoas que são amigas se ligam sem servidor; dá pra adicionar uma terceira.

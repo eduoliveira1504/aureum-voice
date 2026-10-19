@@ -249,6 +249,7 @@ Run inside the API container, from the repository root:
 # prefix each with: docker compose --env-file .env -f infra/docker-compose.yml exec api
 python -m app.cli users create --username edu --email <e-mail> --confirmado
 python -m app.cli users create --username aureum --email <e-mail> --oficial --password
+python -m app.cli users update --username aureum --oficial   # marks an existing account
 python -m app.cli invites create --count 5                # single-use account invites
 python -m app.cli invites create --usos 15 --dias 7       # one group invite
 python -m app.cli invites create --pioneiro 2             # single-use, reserves Pioneiro #2
@@ -259,7 +260,8 @@ python -m app.cli badges grant <username> bug_hunter
 `users create` also makes accounts sign-up refuses (reserved names such as `aureum`, `admin` or
 `suporte`). Without `--password` it prints a temporary password once, which the app makes the user
 replace at the first sign-in. `--confirmado` confirms the e-mail right away; `--oficial` marks a company
-account (an "Oficial" seal, no beta badge, no invites). `AUREUM_OWNER_USERNAME` in `.env` names the
+account (no beta badge, no invites) and shows a gold verified check and a "BOT" tag next to its name;
+`--verificado` and `--bot` set those two on their own. `AUREUM_OWNER_USERNAME` in `.env` names the
 owner's account, which reads the problems reported from the app (Settings > Problemas) and gets the
 Founder badge. `AUREUM_BETA=true` gives accounts that confirm their e-mail the numbered beta badge.
 
