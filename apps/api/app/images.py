@@ -10,7 +10,7 @@ from app import storage
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 # Key prefixes served by /api/media.
-PUBLIC_PREFIXES = ("avatars/", "banners/", "servers/", "roles/")
+PUBLIC_PREFIXES = ("avatars/", "banners/", "servers/", "roles/", "groups/")
 
 
 async def store_upload(upload: UploadFile, prefix: str) -> str:

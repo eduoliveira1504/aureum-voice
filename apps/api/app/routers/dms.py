@@ -10,9 +10,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, dms, reads, social, voice
+from app import attachments, dms, images, reads, social, storage, voice
 from app.access import channel_member_ids
 from app.deps import CurrentUser, SessionDep
+from app.routers.users import ImageUpload
 from app.models import Channel, ChannelMember, ChannelType
 from app.realtime import broker
 from app.schemas import MAX_GROUP_MEMBERS, DmCreate, DmOut, GroupCreate, GroupMembersAdd, GroupUpdate
@@ -102,6 +103,28 @@ async def rename_group(channel_id: uuid.UUID, body: GroupUpdate, user: CurrentUs
     return await dms.load(session, channel, user.id)
 
 
+async def _set_icon(channel_id: uuid.UUID, upload: ImageUpload | None, user_id: uuid.UUID, session: SessionDep) -> DmOut:
+    channel, _ = await _my_dm(session, channel_id, user_id)
+    _require_group(channel)
+    new_url = await images.store_upload(upload, f"groups/{channel.id}") if upload else None
+    old_url = channel.icon_url
+    channel.icon_url = new_url
+    await images.replace(old_url, new_url, session.commit)
+    await dms.announce(session, channel, await channel_member_ids(session, channel.id))
+    return await dms.load(session, channel, user_id)
+
+
+@router.post("/{channel_id}/icon", response_model=DmOut)
+async def upload_group_icon(channel_id: uuid.UUID, file: ImageUpload, user: CurrentUser, session: SessionDep) -> DmOut:
+    """Any member can change the group's picture (like its name)."""
+    return await _set_icon(channel_id, file, user.id, session)
+
+
+@router.delete("/{channel_id}/icon", response_model=DmOut)
+async def remove_group_icon(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> DmOut:
+    return await _set_icon(channel_id, None, user.id, session)
+
+
 @router.post("/{channel_id}/members", response_model=DmOut)
 async def add_group_members(channel_id: uuid.UUID, body: GroupMembersAdd, user: CurrentUser, session: SessionDep) -> DmOut:
     channel, _ = await _my_dm(session, channel_id, user.id)
@@ -140,6 +163,8 @@ async def close_or_leave(channel_id: uuid.UUID, user: CurrentUser, session: Sess
         remaining = await session.scalar(select(func.count()).where(ChannelMember.channel_id == channel.id))
         files = await attachments.keys_of_channels(session, [channel.id]) if not remaining else []
         if not remaining:
+            if icon := storage.key_from_url(channel.icon_url):
+                files.append(icon)
             await session.delete(channel)
         await session.commit()
         await attachments.delete_keys(files)

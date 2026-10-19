@@ -315,6 +315,8 @@ class Channel(Base):
     announce_channel_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("channels.id", ondelete="SET NULL")
     )
+    # Group DMs only: the group's picture.
+    icon_url: Mapped[str | None] = mapped_column(String(512))
 
     __table_args__ = (
         CheckConstraint("(type = 'addon') = (addon_key IS NOT NULL)", name="addon_key"),

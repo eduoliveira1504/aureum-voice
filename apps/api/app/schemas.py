@@ -184,6 +184,8 @@ class PanelLayout(BaseModel):
 
     panels: Annotated[list[Panel], Field(min_length=1, max_length=2)]
     split: Annotated[float, Field(ge=0.2, le=0.8)] = 0.5
+    # Tabs that show the member list next to them (it's remembered per tab).
+    members: Annotated[list[PanelTab], Field(max_length=24)] = []
 
 
 TabList = Annotated[list[uuid.UUID], Field(max_length=200)]
@@ -484,6 +486,8 @@ class DmOut(BaseModel):
     id: uuid.UUID
     type: ChannelType
     name: str | None
+    # Groups only.
+    icon_url: str | None = None
     members: list[DmMemberOut]
     # 0 when empty; lets clients sort conversations by latest activity.
     last_message_id: int

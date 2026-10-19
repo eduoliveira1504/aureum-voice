@@ -46,6 +46,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
                 id=channel.id,
                 type=channel.type,
                 name=channel.name,
+                icon_url=channel.icon_url,
                 members=[
                     DmMemberOut(user=UserPublic.model_validate(m.user), status=statuses[m.user_id])
                     for m in sorted(members, key=lambda m: m.joined_at)

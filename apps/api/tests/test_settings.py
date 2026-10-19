@@ -62,6 +62,7 @@ async def test_validation(client: AsyncClient) -> None:
         {"panel_layouts": {SERVER_A: {"panels": [{}, {}, {}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{"tabs": ["javascript:alert(1)"]}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "split": 0.95}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "members": ["javascript:alert(1)"]}}},
         {"user_audio": {SERVER_A: {"volume": 201}}},
         {"user_audio": {"not-a-uuid": {"volume": 50}}},
         {"column_sizes": {"Sidebar": 240}},
@@ -104,8 +105,10 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
             {"tabs": ["addon:board"], "active": "addon:board"},
         ],
         "split": 0.6,
+        # The member list is remembered per tab.
+        "members": [f"channel:{CHANNEL}"],
     }
-    single = {"panels": [{"tabs": ["call"], "active": "call"}], "split": 0.5}
+    single = {"panels": [{"tabs": ["call"], "active": "call"}], "split": 0.5, "members": []}
     await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: split}})
     # Another PC arranges a different server: the first layout survives.
     await user.patch("/users/me/settings", {"panel_layouts": {SERVER_B: single}})

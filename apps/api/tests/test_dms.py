@@ -3,6 +3,7 @@ from httpx_ws import aconnect_ws
 
 from tests.helpers import ApiUser, make_user, ws_client
 from tests.test_friends import befriend
+from tests.test_profile import PNG
 from tests.test_ws import next_event, no_event, ws_url
 
 
@@ -174,3 +175,39 @@ async def test_profile_updates_reach_friends_without_a_shared_server(client: Asy
         await next_event(bws, "ready")
         await ana.patch("/users/me", {"display_name": "Ana B."})
         assert (await next_event(bws, "user.updated"))["display_name"] == "Ana B."
+
+
+async def test_group_icon(client: AsyncClient) -> None:
+    ana, bia, eve = [await make_user(client, n) for n in ("ana", "bia", "eve")]
+    await befriend(ana, bia)
+    group = (await ana.post("/dms/groups", {"user_ids": [bia.id]})).json()
+    gid = group["id"]
+    assert group["icon_url"] is None
+
+    upload = lambda user, data: user.client.post(  # noqa: E731
+        f"/api/dms/{gid}/icon", headers=user.headers, files={"file": ("g.png", data, "image/png")}
+    )
+    # Any member sets it, and everyone in the group hears about it.
+    async with ws_client() as wsc, aconnect_ws(ws_url(ana), wsc) as ws:
+        await next_event(ws, "ready")
+        res = await upload(bia, PNG)
+        assert res.status_code == 200, res.text
+        icon = res.json()["icon_url"]
+        assert icon.startswith("/api/media/groups/")
+        assert (await next_event(ws, "dm.updated"))["icon_url"] == icon
+    assert (await client.get(icon)).content == PNG
+    # Not for outsiders, not for 1:1 DMs, and only images.
+    assert (await upload(eve, PNG)).status_code == 404
+    dm = await open_dm(ana, bia)
+    res = await ana.client.post(f"/api/dms/{dm['id']}/icon", headers=ana.headers, files={"file": ("g.png", PNG, "image/png")})
+    assert res.status_code == 400
+    assert (await upload(ana, b"not an image")).status_code == 415
+
+    # Removing it deletes the file; so does the group going away.
+    res = await ana.delete(f"/dms/{gid}/icon")
+    assert res.status_code == 200 and res.json()["icon_url"] is None
+    assert (await client.get(icon)).status_code == 404
+    icon = (await upload(ana, PNG)).json()["icon_url"]
+    assert (await ana.delete(f"/dms/{gid}")).status_code == 204
+    assert (await bia.delete(f"/dms/{gid}")).status_code == 204
+    assert (await client.get(icon)).status_code == 404
