@@ -158,13 +158,16 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
         await websocket.close(code=CLOSE_FORBIDDEN_ORIGIN)
         return
     await websocket.accept()
-    user_id = decode_token(token, "access")
+    claims = decode_token(token, "access")
+    user_id = claims.user_id if claims else None
     chosen = UserStatus.online
-    if user_id is not None:
+    if claims is not None:
         async with SessionLocal() as session:
-            if await session.get(User, user_id) is None:
+            user = await session.get(User, claims.user_id)
+            # Ended sessions and accounts that must first replace their password get nothing.
+            if user is None or user.session_epoch != claims.epoch or user.must_change_password:
                 user_id = None
-            elif settings := await session.get(UserSettings, user_id):
+            elif settings := await session.get(UserSettings, user.id):
                 chosen = settings.status
     if user_id is None:
         await websocket.close(code=CLOSE_UNAUTHORIZED)
@@ -172,7 +175,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
 
     await broker.ensure_listening()
     connection_id = uuid.uuid4().hex
-    broker.register(user_id, websocket)
+    broker.register(user_id, websocket, claims.epoch if claims else 0)
     try:
         await presence.set_chosen(user_id, chosen)
         await broker.heartbeat(user_id, connection_id)

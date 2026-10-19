@@ -4,7 +4,9 @@ renaming a badge or swapping its art never touches who holds it or their numbers
 
 Who gets what:
 - founder: the account named in AUREUM_OWNER_USERNAME (at sign-up, or at startup if it exists).
-- pioneer (numbered by sign-up order): accounts created through sign-up while AUREUM_BETA=true.
+- pioneer (numbered): accounts that confirm their e-mail while AUREUM_BETA=true, except official
+  ones (app/onboarding.py). Numbers come from a Postgres sequence and a ledger (PioneerNumber):
+  unique, never reused, and some can be reserved ahead (CLI --pioneiro N).
 - bug_hunter: the author of a bug report the owner marks as resolved.
 Mythic badges are beta-only (exclusive_beta): once AUREUM_BETA is off they're never granted again.
 
@@ -21,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access import audience_ids
 from app.config import get_settings
-from app.models import Badge, BadgeRarity, User, UserBadge
+from app.models import AccountInviteUse, Badge, BadgeRarity, PioneerNumber, User, UserBadge
 from app.realtime import broker
 
 
@@ -75,12 +77,58 @@ BADGES: dict[str, BadgeDefinition] = {
     )
 }
 
-# Serializes the numbering of numbered badges (two sign-ups at once never get the same number).
+# Serializes the numbering of other numbered badges (the Pioneiro one uses its sequence).
 _NUMBER_LOCK = 0x41_55_52_42  # "AURB"
 
 
 class BadgeClosed(Exception):
     """A beta-only badge asked for after the beta."""
+
+
+class NumberTaken(Exception):
+    """A Pioneiro number that is already reserved or was handed out (maybe to a deleted account)."""
+
+
+async def reserve_pioneer_number(
+    session: AsyncSession, number: int, *, user_id: uuid.UUID | None = None, invite_code: str | None = None
+) -> None:
+    """Keeps `number` for that user or for whoever signs up with that invite (not committed)."""
+    inserted = await session.scalar(
+        text(
+            "INSERT INTO pioneer_numbers (number, user_id, invite_code) VALUES (:n, :u, :c) "
+            "ON CONFLICT DO NOTHING RETURNING number"
+        ),
+        {"n": number, "u": user_id, "c": invite_code},
+    )
+    if inserted is None:
+        raise NumberTaken(number)
+
+
+async def _pioneer_number(session: AsyncSession, user: User) -> int:
+    """The number reserved for the user (directly or through their invite), else the next free
+    one from the sequence. nextval never hands out a value twice, even across transactions that
+    roll back, and the ledger insert skips numbers someone reserved ahead."""
+    mine = await session.scalar(select(PioneerNumber.number).where(PioneerNumber.user_id == user.id))
+    if mine is not None:
+        return mine
+    use = await session.get(AccountInviteUse, user.id)
+    if use is not None:
+        claimed = await session.scalar(
+            text(
+                "UPDATE pioneer_numbers SET user_id = :u WHERE invite_code = :c AND user_id IS NULL RETURNING number"
+            ),
+            {"u": user.id, "c": use.code},
+        )
+        if claimed is not None:
+            return claimed
+    while True:
+        number = await session.scalar(text("SELECT nextval('pioneer_number_seq')"))
+        taken = await session.scalar(
+            text("INSERT INTO pioneer_numbers (number, user_id) VALUES (:n, :u) ON CONFLICT DO NOTHING RETURNING number"),
+            {"n": number, "u": user.id},
+        )
+        if taken is not None:
+            return number
 
 
 async def sync_badges(session: AsyncSession) -> None:
@@ -106,7 +154,10 @@ async def grant(session: AsyncSession, user: User, key: str, granted_by: uuid.UU
     if badge.exclusive_beta and not get_settings().aureum_beta:
         raise BadgeClosed(key)
     number = None
-    if badge.numbered:
+    if key == PIONEER:
+        await session.flush()  # the user row must exist for the ledger
+        number = await _pioneer_number(session, user)
+    elif badge.numbered:
         await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": _NUMBER_LOCK})
         last = await session.scalar(select(func.max(UserBadge.number)).where(UserBadge.badge_id == badge.id))
         number = (last or 0) + 1
@@ -124,13 +175,11 @@ async def revoke(session: AsyncSession, user: User, key: str) -> bool:
 
 
 async def grant_at_sign_up(session: AsyncSession, user: User) -> None:
-    """Founder for the owner's account; the numbered beta badge while the beta runs."""
+    """Founder for the owner's account while the beta runs. (The beta badge comes later, when the
+    e-mail is confirmed: see app/onboarding.py.)"""
     settings = get_settings()
-    if not settings.aureum_beta:
-        return  # both are beta-only
-    if user.username == settings.owner_username:
+    if settings.aureum_beta and user.username == settings.owner_username:
         await grant(session, user, FOUNDER)
-    await grant(session, user, PIONEER)
 
 
 async def grant_founder_if_due(session: AsyncSession) -> None:

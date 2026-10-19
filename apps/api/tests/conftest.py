@@ -12,13 +12,18 @@ os.environ["MINIO_BUCKET"] = "aureum-test"
 # The real .env names the owner and may have the beta on; tests opt in where they need it.
 os.environ["AUREUM_OWNER_USERNAME"] = ""
 os.environ["AUREUM_BETA"] = "false"
+os.environ["AUREUM_INVITE_ONLY"] = "true"
+# E-mails stay in memory (tests read them through tests.helpers.inbox); nothing is sent.
+os.environ["EMAIL_PROVIDER"] = "memory"
+os.environ["PUBLIC_BASE_URL"] = "https://aureum.test"
 
 import asyncpg  # noqa: E402
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app import badges, livekit_admin, storage  # noqa: E402
+from app import badges, livekit_admin, releases, storage  # noqa: E402
+from app.mail.providers import get_provider  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
@@ -66,6 +71,10 @@ async def _clean_tables() -> AsyncIterator[None]:
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        await conn.execute(text("ALTER SEQUENCE pioneer_number_seq RESTART"))
+    provider = get_provider()
+    provider.sent.clear()  # type: ignore[attr-defined]
+    provider.fail_next = 0  # type: ignore[attr-defined]
     # Rate-limit counters would otherwise leak from one test into the next.
     async for key in broker.redis.scan_iter(match=f"{get_settings().redis_prefix}:rl:*"):
         await broker.redis.delete(key)
@@ -76,6 +85,16 @@ async def client() -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
+
+
+@pytest.fixture(autouse=True)
+def no_github(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The welcome e-mail and the invite page ask GitHub for the newest installer; not in tests."""
+
+    async def fake_latest() -> releases.Release:
+        return releases.Release(url="https://github.com/x/y/releases/download/v1/Aureum-Setup.exe", version="1.0.0", size_bytes=90_000_000)
+
+    monkeypatch.setattr(releases, "latest", fake_latest)
 
 
 @pytest.fixture(autouse=True)

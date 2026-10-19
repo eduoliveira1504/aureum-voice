@@ -2,8 +2,9 @@ import uuid
 
 from httpx import AsyncClient
 
+from app.config import get_settings
 from app.security import create_token
-from tests.helpers import PASSWORD, make_server, make_user
+from tests.helpers import PASSWORD, make_account_invite, make_server, make_user
 
 USER = {"username": "Edu", "email": "Edu@Example.com", "password": "correct-horse-1"}
 
@@ -16,8 +17,13 @@ async def register(client: AsyncClient, **fields: str):  # noqa: ANN201
     return await client.post("/api/auth/register", json={**USER, **fields})
 
 
+async def invited(client: AsyncClient, **fields: str):  # noqa: ANN201
+    """Signs up with a fresh account invite (as the CLI makes them)."""
+    return await register(client, invite_code=await make_account_invite(), **fields)
+
+
 async def invite_code(client: AsyncClient, **options: int) -> tuple[str, dict]:
-    """An owner with a server hands out an invite (the owner is created directly in the DB)."""
+    """A server invite: an owner with a server hands one out (the owner is created in the DB)."""
     owner = await make_user(client, f"owner{uuid.uuid4().hex[:6]}")
     server = await make_server(owner)
     res = await owner.post(f"/servers/{server['id']}/invites", options)
@@ -27,44 +33,61 @@ async def invite_code(client: AsyncClient, **options: int) -> tuple[str, dict]:
 # --- Sign-up ------------------------------------------------------------------
 
 
-async def test_first_account_needs_no_invite_and_normalizes_fields(client: AsyncClient) -> None:
-    res = await register(client)
-    assert res.status_code == 201
+async def test_sign_up_with_an_account_invite_normalizes_fields(client: AsyncClient) -> None:
+    res = await invited(client)
+    assert res.status_code == 201, res.text
     me = (await client.get("/api/users/me", headers=bearer(res.json()["access_token"]))).json()
     assert (me["username"], me["email"], me["display_name"]) == ("edu", "edu@example.com", "edu")
+    assert (me["email_verified"], me["must_change_password"], me["is_official"]) == (False, False, False)
     assert "password_hash" not in me
 
 
-async def test_sign_up_requires_a_valid_invite_once_someone_exists(client: AsyncClient) -> None:
-    code, server = await invite_code(client, max_uses=1)
+async def test_sign_up_needs_an_account_invite_even_for_the_first_account(client: AsyncClient) -> None:
+    res = await register(client)
+    assert (res.status_code, res.json()["detail"]) == (403, "An invite code is required to sign up")
+    assert (await register(client, invite_code="NOPE1234")).json()["detail"] == "Invalid invite code"
 
-    assert (await register(client)).status_code == 403
-    assert (await register(client, invite_code="nope")).status_code == 403
 
-    res = await register(client, invite_code=code)
+async def test_server_invites_do_not_create_accounts(client: AsyncClient) -> None:
+    code, _ = await invite_code(client)
+    assert (await register(client, invite_code=code)).status_code == 403
+
+
+async def test_invite_link_works_as_the_code(client: AsyncClient) -> None:
+    code = await make_account_invite()
+    res = await register(client, invite_code=f"https://aureum.test/convite/{code.lower()}/")
     assert res.status_code == 201
-    token = res.json()["access_token"]
-    mine = (await client.get("/api/servers", headers=bearer(token))).json()
-    assert [s["id"] for s in mine] == [server["id"]]  # joined the inviting server
-
-    used_up = await register(client, username="other", email="other@example.com", invite_code=code)
-    assert used_up.status_code == 403
 
 
-async def test_duplicate_sign_up_does_not_spend_the_invite(client: AsyncClient) -> None:
-    code, _ = await invite_code(client, max_uses=1)
+async def test_without_invite_only_anyone_signs_up(client: AsyncClient, monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(get_settings(), "aureum_invite_only", False)
+    assert (await client.get("/api/auth/config")).json() == {"invite_only": False}
+    assert (await register(client)).status_code == 201
+
+
+async def test_duplicate_sign_up_is_refused(client: AsyncClient) -> None:
+    code = await make_account_invite()
     taken = await make_user(client, "taken")
-
-    dup = await register(client, username="taken", email="new@example.com", invite_code=code)
-    assert dup.status_code == 409
-    dup_email = await register(client, username="newname", email=taken.email, invite_code=code)
-    assert dup_email.status_code == 409
-    assert (await register(client, invite_code=code)).status_code == 201  # use still available
+    assert (await register(client, username="taken", email="new@example.com", invite_code=code)).status_code == 409
+    assert (await register(client, username="newname", email=taken.email, invite_code=code)).status_code == 409
+    assert (await register(client, invite_code=code)).status_code == 201
 
 
 async def test_sign_up_validates_input(client: AsyncClient) -> None:
-    assert (await register(client, password="short")).status_code == 422
-    assert (await register(client, username="a b")).status_code == 422
+    assert (await invited(client, password="short")).status_code == 422
+    assert (await invited(client, username="a b")).status_code == 422
+
+
+async def test_username_check(client: AsyncClient) -> None:
+    await make_user(client, "taken")
+
+    async def check(name: str) -> dict:
+        return (await client.get("/api/auth/username-available", params={"username": name})).json()
+
+    assert await check("@Mari") == {"available": True, "reason": None}
+    assert await check("TAKEN") == {"available": False, "reason": "taken"}
+    assert await check("admin") == {"available": False, "reason": "reserved"}
+    assert await check("a b") == {"available": False, "reason": "invalid"}
 
 
 # --- Login and tokens ---------------------------------------------------------
@@ -122,8 +145,8 @@ async def test_login_attempts_are_limited_per_ip(client: AsyncClient) -> None:
 
 
 async def test_sign_ups_are_limited_per_ip(client: AsyncClient) -> None:
-    codes = [(await register(client, username=f"user{i}", email=f"user{i}@example.com")).status_code for i in range(6)]
-    assert codes[5] == 429
+    codes = [(await invited(client, username=f"user{i}", email=f"user{i}@example.com")).status_code for i in range(6)]
+    assert codes[:5] == [201] * 5 and codes[5] == 429
 
 
 async def test_forwarded_ip_is_ignored_unless_trusted(client: AsyncClient) -> None:

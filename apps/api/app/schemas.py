@@ -39,6 +39,89 @@ class RegisterRequest(BaseModel):
     invite_code: Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)] | None = None
 
 
+Code = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)]
+
+
+class AuthConfig(BaseModel):
+    # While true the sign-up form asks for an account invite.
+    invite_only: bool
+
+
+class UsernameCheck(BaseModel):
+    available: bool
+    reason: Literal["invalid", "reserved", "taken"] | None = None
+
+
+class CodeRequest(BaseModel):
+    code: Code
+
+
+class EmailRequest(BaseModel):
+    email: LowerEmail
+
+
+class ForgotPassword(BaseModel):
+    email: LowerEmail
+
+
+class ResetPassword(BaseModel):
+    email: LowerEmail
+    code: Code
+    new_password: Password
+
+
+class ChangePassword(BaseModel):
+    # Not asked when replacing a temporary password (must_change_password).
+    current_password: str | None = None
+    new_password: Password
+
+
+class ChangeEmail(BaseModel):
+    email: LowerEmail
+    password: str
+
+
+class InviterOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    username: str
+    display_name: str
+    avatar_url: str | None
+
+
+class AccountInvitePreview(BaseModel):
+    """What the invite page shows before signing up."""
+
+    code: str
+    kind: Literal["single", "group"]
+    status: Literal["valid", "used", "exhausted", "expired"]
+    inviter: InviterOut | None  # null for the CLI's invites
+    remaining: int | None  # group invites: spots left
+    expires_at: datetime | None
+
+
+class MyInvite(BaseModel):
+    code: str
+    url: str
+    # free: nobody used it; pending: someone signed up and hasn't confirmed yet; used: done.
+    status: Literal["free", "pending", "used"]
+    used_by: InviterOut | None
+
+
+class Confirmation(BaseModel):
+    user: "UserMe"
+    pioneer_number: int | None
+    invites: int
+    # Joined at least one official server (the beta's).
+    joined_official: bool
+
+
+class LatestRelease(BaseModel):
+    url: str
+    version: str | None
+    size_bytes: int | None
+
+
 class LoginRequest(BaseModel):
     email: LowerEmail
     password: str
@@ -138,6 +221,8 @@ class UserPublic(BaseModel):
     links: list[ProfileLink] = []
     # Granted by the system or the app owner, never chosen by the user (see app/badges.py).
     badges: list[UserBadgeOut] = []
+    # The company's own accounts (@aureum): shown with an "Oficial" seal.
+    is_official: bool = False
     created_at: datetime
 
     @field_validator("custom_status", mode="after")
@@ -149,6 +234,14 @@ class UserPublic(BaseModel):
 
 class UserMe(UserPublic):
     email: str
+    email_verified_at: datetime | None = None
+    # A temporary password from the CLI: the app asks for a new one before anything else.
+    must_change_password: bool = False
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -652,3 +745,5 @@ class BugReportOut(BaseModel):
     screenshot_url: str | None
     resolved_at: datetime | None
     created_at: datetime
+
+Confirmation.model_rebuild()

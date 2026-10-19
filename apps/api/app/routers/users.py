@@ -2,14 +2,29 @@ import uuid
 from urllib.parse import quote
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from app import images, presence, storage
+from app import account_invites, codes, images, mail, presence, ratelimit, storage
 from app.access import audience_ids, get_channel_access
-from app.deps import CurrentUser, SessionDep
-from app.models import Attachment, AttachmentKind, User, UserSettings
+from app.deps import CurrentUser, SessionDep, SignedInUser
+from app.mail.render import mask
+from app.models import AccountInvite, AccountInviteUse, Attachment, AttachmentKind, EmailCodePurpose, User, UserSettings
 from app.realtime import broker
-from app.schemas import SettingsOut, SettingsUpdate, UserMe, UserPublic, UserUpdate
+from app.routers.auth import CODE_SENDS_PER_IP, CODE_TRIES_PER_IP, rejected, too_soon
+from app.schemas import (
+    ChangeEmail,
+    CodeRequest,
+    InviterOut,
+    MyInvite,
+    SettingsOut,
+    SettingsUpdate,
+    UserMe,
+    UserPublic,
+    UserUpdate,
+)
+from app.security import verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -31,7 +46,8 @@ async def _broadcast_profile(session: SessionDep, user: User) -> None:
 
 
 @router.get("/me", response_model=UserMe)
-async def get_me(user: CurrentUser) -> User:
+async def get_me(user: SignedInUser) -> User:
+    # Also with a temporary password: the app reads must_change_password from here.
     return user
 
 
@@ -110,6 +126,76 @@ async def remove_avatar(user: CurrentUser, session: SessionDep) -> User:
 @router.delete("/me/banner", response_model=UserMe)
 async def remove_banner(user: CurrentUser, session: SessionDep) -> User:
     return await _set_image("banner", None, user, session)
+
+
+# --- E-mail and invites (Configurações › Conta / Convites) ----------------------------
+
+
+@router.post("/me/email", status_code=status.HTTP_202_ACCEPTED)
+async def request_email_change(body: ChangeEmail, request: Request, user: CurrentUser, session: SessionDep) -> dict[str, bool]:
+    """Sends a code to the new address; the account switches once it's typed (confirm below)."""
+    await ratelimit.hit(f"code-send:{ratelimit.client_ip(request)}", *CODE_SENDS_PER_IP)
+    if not verify_password(user.password_hash, body.password):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Wrong password")
+    if body.email == user.email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="That is already your e-mail")
+    if await session.scalar(select(User.id).where(User.email == body.email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This email is already taken")
+    try:
+        code = await codes.issue(session, user.id, EmailCodePurpose.change_email, new_email=body.email)
+    except codes.TooSoon as exc:
+        raise too_soon(exc) from None
+    mail.enqueue(session, body.email, "code_change_email", codigo=code, nome=user.display_name)
+    await session.commit()
+    return {"ok": True}
+
+
+@router.post("/me/email/confirm", response_model=UserMe)
+async def confirm_email_change(body: CodeRequest, request: Request, user: CurrentUser, session: SessionDep) -> User:
+    """Switches to the new address; the old one gets a security notice."""
+    await ratelimit.hit(f"code-try:{ratelimit.client_ip(request)}", *CODE_TRIES_PER_IP)
+    try:
+        row = await codes.consume(session, user.id, EmailCodePurpose.change_email, body.code)
+    except codes.CodeRejected as exc:
+        raise rejected(exc) from None
+    assert row.new_email is not None
+    old = user.email
+    user.email = row.new_email
+    # Typing the code proves the new address is theirs.
+    user.email_verified_at = user.email_verified_at or row.sent_at
+    mail.enqueue(
+        session, old, "notice_email",
+        nome=user.display_name, username=user.username, novo=mask(row.new_email), quando=mail.when(),
+    )
+    try:
+        await session.commit()
+    except IntegrityError:  # someone else took the address meanwhile
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This email is already taken")
+    return user
+
+
+@router.get("/me/invites", response_model=list[MyInvite])
+async def my_invites(user: CurrentUser, session: SessionDep) -> list[MyInvite]:
+    """The user's single-use account invites, with who used each."""
+    invites = (
+        await session.scalars(
+            select(AccountInvite).where(AccountInvite.owner_id == user.id).order_by(AccountInvite.created_at, AccountInvite.code)
+        )
+    ).all()
+    uses = {
+        u.code: u
+        for u in await session.scalars(select(AccountInviteUse).where(AccountInviteUse.code.in_([i.code for i in invites])))
+    }
+    out = []
+    for invite in invites:
+        use = uses.get(invite.code)
+        state = "used" if invite.uses >= invite.max_uses else "pending" if use else "free"
+        out.append(MyInvite(
+            code=invite.code, url=account_invites.url(invite.code), status=state,
+            used_by=InviterOut.model_validate(use.user) if use else None,
+        ))
+    return out
 
 
 @router.get("/{user_id}", response_model=UserPublic)

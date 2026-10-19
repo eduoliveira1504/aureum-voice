@@ -152,9 +152,14 @@ async def _publish_server(session: AsyncSession, server: Server) -> ServerOut:
 
 # --- Servers --------------------------------------------------------------------
 
+# Accounts sign in before confirming their e-mail, but only confirmed ones create servers.
+EMAIL_NOT_CONFIRMED = "Confirm your e-mail to create servers"
+
 
 @router.post("/servers", response_model=ServerDetail, status_code=status.HTTP_201_CREATED)
 async def create_server(body: ServerCreate, user: CurrentUser, session: SessionDep) -> ServerDetail:
+    if user.email_verified_at is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=EMAIL_NOT_CONFIRMED)
     server = Server(name=body.name, owner_id=user.id)
     session.add(server)
     await session.flush()
@@ -470,7 +475,7 @@ async def _private_overrides(
 
 @router.post("/servers/{server_id}/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED)
 async def create_invite(server_id: uuid.UUID, body: InviteCreate, user: CurrentUser, session: SessionDep) -> Invite:
-    # Invites are also how new accounts get created, so @everyone doesn't have this by default.
+    # Kept off @everyone by default, so owners choose who brings people in.
     (await server_access(session, server_id, user.id)).require(Perm.CREATE_INVITE)
     invite = Invite(
         code=secrets.token_urlsafe(6),

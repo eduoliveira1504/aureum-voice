@@ -39,6 +39,8 @@ class Broker:
         self._subscribed = asyncio.Event()
         self._sockets: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
         self._owners: dict[WebSocket, uuid.UUID] = {}
+        # The session epoch of each connection's token (see end_sessions).
+        self._epochs: dict[WebSocket, int] = {}
         # Connections showing a server's overview, by server id.
         self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
 
@@ -73,6 +75,11 @@ class Broker:
             await self.redis.publish(self._channel, payload)
         except Exception:
             log.exception("Failed to publish %s event", type_)
+
+    async def end_sessions(self, user_id: uuid.UUID, epoch: int) -> None:
+        """Closes the user's connections opened with tokens older than `epoch`, in every API
+        process. The device that changed the password reconnects with its new tokens."""
+        await self.publish("session.ended", {"epoch": epoch}, [user_id])
 
     async def ensure_listening(self) -> None:
         if self._listener is None or self._listener.done():
@@ -111,6 +118,13 @@ class Broker:
                 except Exception:
                     watchers.discard(ws)
             return
+        if payload["type"] == "session.ended":
+            for user_id in payload["user_ids"]:
+                for ws in list(self._sockets.get(uuid.UUID(user_id), ())):
+                    if self._epochs.get(ws, 0) < payload["data"]["epoch"]:
+                        with contextlib.suppress(Exception):
+                            await ws.close(code=4401)  # the client refreshes its token, which fails
+            return
         for user_id in payload["user_ids"]:
             for ws in list(self._sockets.get(uuid.UUID(user_id), ())):
                 try:
@@ -120,13 +134,15 @@ class Broker:
 
     # -- connections & presence --------------------------------------------
 
-    def register(self, user_id: uuid.UUID, ws: WebSocket) -> None:
+    def register(self, user_id: uuid.UUID, ws: WebSocket, epoch: int = 0) -> None:
         self._sockets[user_id].add(ws)
         self._owners[ws] = user_id
+        self._epochs[ws] = epoch
 
     def unregister(self, user_id: uuid.UUID, ws: WebSocket) -> None:
         self.watch(None, ws)
         self._owners.pop(ws, None)
+        self._epochs.pop(ws, None)
         sockets = self._sockets.get(user_id)
         if sockets is not None:
             sockets.discard(ws)

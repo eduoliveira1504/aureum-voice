@@ -126,6 +126,16 @@ class User(Base):
     plan: Mapped[UserPlan] = mapped_column(
         _str_enum(UserPlan, "user_plan"), default=UserPlan.free, server_default=UserPlan.free.value, nullable=False
     )
+    # Set when the user types the code sent to their e-mail. Until then they can sign in but
+    # not create servers, and get none of what confirming brings (see app/onboarding.py).
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The company's own accounts (@aureum, made with the CLI's --oficial): an "Oficial" seal,
+    # never the beta badge nor account invites.
+    is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Accounts the CLI made with a temporary password: nothing works until it's replaced.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Copied into every token; bumping it ends all sessions (password changed or reset).
+    session_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = _created_at()
 
     # Badges the user holds (see app/badges.py), loaded with the user: every profile shows them.
@@ -262,6 +272,8 @@ class Server(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
     )
+    # Official servers (set with the CLI) take in everyone who confirms their e-mail.
+    is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -605,3 +617,104 @@ class CallParticipant(Base):
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- Accounts: e-mail codes, account invites, the beta badge's numbers, outgoing e-mail -----
+
+
+class EmailCodePurpose(str, enum.Enum):
+    verify = "verify"  # confirm the sign-up e-mail
+    reset = "reset"  # forgot the password
+    change_email = "change_email"  # confirm a new address (Configurações › Conta)
+
+
+class EmailCode(Base):
+    """A 6-digit code sent by e-mail; one live code per user and purpose. Only an HMAC of the
+    code is kept (app/codes.py)."""
+
+    __tablename__ = "email_codes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    purpose: Mapped[EmailCodePurpose] = mapped_column(_str_enum(EmailCodePurpose, "email_code_purpose"), primary_key=True)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # change_email: the address the code went to, which becomes the account's on success.
+    new_email: Mapped[str | None] = mapped_column(String(320))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # When it was (re)sent: a new one can be asked for 60 seconds later.
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AccountInviteKind(str, enum.Enum):
+    single = "single"  # one sign-up; each confirmed user gets 3 of these
+    group = "group"  # several sign-ups until it runs out or expires (made with the CLI)
+
+
+class AccountInvite(Base):
+    """An invite to create an account while sign-up is invite-only (AUREUM_INVITE_ONLY), shared
+    as {PUBLIC_BASE_URL}/convite/{code}. Not to be confused with server invites (Invite), which
+    only bring existing accounts into a server."""
+
+    __tablename__ = "account_invites"
+
+    code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    kind: Mapped[AccountInviteKind] = mapped_column(_str_enum(AccountInviteKind, "account_invite_kind"), nullable=False)
+    # Whose invite it is; NULL for the ones made with the CLI.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Counted when the invited person confirms their e-mail, not at sign-up.
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+
+    owner: Mapped[User | None] = relationship(lazy="joined")
+
+
+class AccountInviteUse(Base):
+    """Who signed up with which invite (so, who invited whom). The invite's use is counted when
+    the account confirms its e-mail (confirmed_at)."""
+
+    __tablename__ = "account_invite_uses"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    code: Mapped[str] = mapped_column(ForeignKey("account_invites.code", ondelete="CASCADE"), index=True, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship(lazy="joined")
+
+
+class PioneerNumber(Base):
+    """Every number of the beta badge ever reserved or handed out. Rows are never deleted (the
+    links go NULL with the account or invite), so no number is ever given twice. New numbers
+    come from the pioneer_number_seq sequence, skipping the ones already here (app/badges.py)."""
+
+    __tablename__ = "pioneer_numbers"
+
+    number: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    # Who holds it, or is meant to get it on confirming their e-mail (CLI --pioneiro N).
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), unique=True)
+    # Reserved for whoever signs up with this invite (CLI invites create --pioneiro N).
+    invite_code: Mapped[str | None] = mapped_column(ForeignKey("account_invites.code", ondelete="SET NULL"), unique=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class OutboxEmail(Base):
+    """An e-mail waiting to go out (app/mail). Sent rows are deleted; after the last failed try
+    the row stays for the record without its params (codes) and with the address masked."""
+
+    __tablename__ = "email_outbox"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    to_address: Mapped[str] = mapped_column(String(320), nullable=False)
+    template: Mapped[str] = mapped_column(String(32), nullable=False)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (
+        Index("ix_email_outbox_due", "next_attempt_at", postgresql_where=text("failed_at IS NULL")),
+    )

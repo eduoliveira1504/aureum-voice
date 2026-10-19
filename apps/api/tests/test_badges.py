@@ -4,8 +4,8 @@ from httpx import AsyncClient
 from app import badges, cli
 from app.config import get_settings
 from app.db import SessionLocal
-from tests.helpers import make_server, make_user, text_channel
-from tests.test_auth import invite_code, register
+from tests.helpers import last_code, make_server, make_user, text_channel
+from tests.test_auth import invited
 from tests.test_bug_reports import report
 
 
@@ -41,31 +41,44 @@ async def test_catalog(client: AsyncClient) -> None:
     assert (await client.get("/api/badges")).status_code == 401
 
 
-async def test_beta_sign_ups_are_numbered_and_the_owner_is_founder(client: AsyncClient, beta) -> None:  # noqa: ANN001
-    beta(owner="Edu")
-    res = await register(client)  # "Edu", the first account
+async def signed_up(client: AsyncClient, username: str, confirm: bool = True) -> dict:
+    """Signs up with an account invite and (by default) types the e-mailed code; the tokens."""
+    email = f"{username.lower()}@example.com"
+    res = await invited(client, username=username, email=email)
     assert res.status_code == 201, res.text
-    edu = await me(client, res.json())
-    assert held(edu) == [("founder", None), ("pioneer", 1)]
+    tokens = res.json()
+    if confirm:
+        ok = await client.post(
+            "/api/auth/verify-email", json={"code": await last_code(email)},
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert ok.status_code == 200, ok.text
+    return tokens
 
-    code, server = await invite_code(client)  # its owner is created directly, without a number
-    res = await register(client, username="ana", email="ana@example.com", invite_code=code)
-    ana = await me(client, res.json())
-    assert held(ana) == [("pioneer", 2)]
+
+async def test_beta_badge_comes_numbered_with_the_confirmed_e_mail(client: AsyncClient, beta) -> None:  # noqa: ANN001
+    beta(owner="Edu")
+    edu_tokens = await signed_up(client, "Edu", confirm=False)
+    assert held(await me(client, edu_tokens)) == [("founder", None)]  # Founder at sign-up, no number yet
+    ana_tokens = await signed_up(client, "ana")
+    ana = await me(client, ana_tokens)
+    assert held(ana) == [("pioneer", 1)]
     assert ana["badges"][0]["granted_at"]
 
-    # Others see them too, e.g. in the server's member list.
-    owner_detail = await client.get(
-        f"/api/servers/{server['id']}", headers={"Authorization": f"Bearer {res.json()['access_token']}"}
-    )
-    members = {m["user"]["username"]: m["user"] for m in owner_detail.json()["members"]}
-    assert held(members["ana"]) == [("pioneer", 2)]
+    # Others see it too, e.g. in a server's member list.
+    owner = await make_user(client, "owner")
+    server = await make_server(owner)
+    code = (await owner.post(f"/servers/{server['id']}/invites", {})).json()["code"]
+    auth = {"Authorization": f"Bearer {ana_tokens['access_token']}"}
+    assert (await client.post(f"/api/invites/{code}/join", headers=auth)).status_code == 200
+    members = {m["user"]["username"]: m["user"] for m in (await owner.get(f"/servers/{server['id']}")).json()["members"]}
+    assert held(members["ana"]) == [("pioneer", 1)]
 
 
 async def test_no_beta_badges_after_the_beta(client: AsyncClient, beta) -> None:  # noqa: ANN001
     beta(on=False)
-    res = await register(client)
-    assert held(await me(client, res.json())) == []
+    tokens = await signed_up(client, "edu")
+    assert held(await me(client, tokens)) == []
     # Not even by hand: mythic badges are beta-only.
     assert await cli.badges("grant", "edu", "founder") == 1
     assert await cli.badges("grant", "edu", "bug_hunter") == 0

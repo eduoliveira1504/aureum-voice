@@ -1,16 +1,19 @@
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app import badges, storage
+from app import badges, mail, storage
 from app.addons.registry import ADDONS
 from app.config import get_settings
 from app.db import SessionLocal
 from app.realtime import broker
-from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, ws
+from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, web, ws
 
 settings = get_settings()
 
@@ -25,7 +28,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     async with SessionLocal() as session:
         await badges.sync_badges(session)
         await badges.grant_founder_if_due(session)
+    sender = asyncio.create_task(mail.run_worker())
     yield
+    sender.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await sender
     await broker.close()
 
 
@@ -58,6 +65,7 @@ api.include_router(friends.router)
 api.include_router(dms.router)
 api.include_router(calls.router)
 api.include_router(addons.router)
+api.include_router(web.api_router)
 for addon in ADDONS.values():
     if addon.router is not None:
         api.include_router(addon.router, prefix=f"/addons/{addon.key}", tags=[f"addon:{addon.key}"])
@@ -70,3 +78,6 @@ async def health() -> dict[str, str]:
 
 app.include_router(api)
 app.include_router(ws.router)
+# Public through the Funnel: the invite page and the images in e-mails (Gmail shows no SVG).
+app.include_router(web.page_router)
+app.mount("/static", StaticFiles(directory=web.STATIC), name="static")

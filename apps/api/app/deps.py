@@ -11,12 +11,15 @@ from app.security import decode_token
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 _bearer = HTTPBearer(auto_error=False)
+PASSWORD_CHANGE_REQUIRED = "Password change required"
 
 
-async def get_current_user(
+async def get_signed_in_user(
     session: SessionDep,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> User:
+    """The token's user, even one who still has to replace a temporary password. Only the
+    routes that screen needs use this directly (see SignedInUser)."""
     unauthorized = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
@@ -24,12 +27,22 @@ async def get_current_user(
     )
     if credentials is None:
         raise unauthorized
-    user_id = decode_token(credentials.credentials, "access")
-    if user_id is None:
+    claims = decode_token(credentials.credentials, "access")
+    if claims is None:
         raise unauthorized
-    user = await session.get(User, user_id)
-    if user is None:
+    user = await session.get(User, claims.user_id)
+    if user is None or user.session_epoch != claims.epoch:  # sessions ended by a password change
         raise unauthorized
+    return user
+
+
+SignedInUser = Annotated[User, Depends(get_signed_in_user)]
+
+
+async def get_current_user(user: SignedInUser) -> User:
+    if user.must_change_password:
+        # The app shows the "choose a new password" screen on this exact detail.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=PASSWORD_CHANGE_REQUIRED)
     return user
 
 

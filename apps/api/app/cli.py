@@ -2,28 +2,40 @@
 
     docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli <command>
 
-    python -m app.cli users create <username> --email <e-mail> [--display-name <name>]
+    python -m app.cli users create --username X --email Y [--display-name N] [--password]
+                                   [--pioneiro N] [--confirmado] [--oficial]
+    python -m app.cli invites create --count N            (single-use account invites)
+    python -m app.cli invites create --usos 15 --dias 7   (one group invite)
+    python -m app.cli invites create --pioneiro N         (single-use, reserves Pioneiro nº N)
+    python -m app.cli servers set-official --server-id X [--off]
     python -m app.cli badges list <username>
     python -m app.cli badges grant <username> <badge>
     python -m app.cli badges revoke <username> <badge>
 
-`users create` makes accounts sign-up refuses, like the reserved names (app/accounts.py), e.g.
-the official @aureum account. It asks for the password; these accounts get no beta badge.
+`users create` also makes accounts sign-up refuses, like the reserved names (app/accounts.py).
+Without --password it makes a strong temporary password, prints it once (never logged) and the
+app asks for a new one at the first sign-in; --password asks for one instead. --confirmado
+confirms the e-mail right away (Pioneiro, invites, official servers, welcome e-mail), otherwise
+the account gets the usual confirmation code. --oficial marks a company account: an "Oficial"
+seal, never the beta badge nor invites. Without --oficial, CLI accounts follow the normal rules.
 Badges are granted by the system or whoever runs the server, never by users through the API.
 """
 
 import argparse
 import asyncio
 import getpass
+import secrets
 import sys
+import uuid
+from datetime import UTC, datetime, timedelta
 
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 
-from app import badges as badge_rules
+from app import account_invites, badges as badge_rules, onboarding
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import User
+from app.models import Server, User
 from app.realtime import broker
 from app.schemas import DisplayName, LowerEmail, Username
 from app.security import hash_password
@@ -72,14 +84,31 @@ def _valid(kind: object, value: str, what: str) -> str:
         raise SystemExit(f"Invalid {what}: {value!r}") from None
 
 
-async def create_user(username: str, email: str, display_name: str | None, password: str) -> int:
-    """Creates an account directly, reserved names included (no invite, no beta badge)."""
-    username = _valid(Username, username, "username (3-32 letters, digits, _ or .)")
+def temporary_password() -> str:
+    return secrets.token_urlsafe(15)  # 20 characters, ~120 bits
+
+
+async def create_user(
+    username: str, email: str, *, display_name: str | None = None, password: str | None = None,
+    pioneer: int | None = None, confirmed: bool = False, official: bool = False,
+) -> int:
+    """Creates an account directly, reserved names included. No password: a temporary one,
+    printed once, that must be replaced at the first sign-in."""
+    username = _valid(Username, username.lstrip("@"), "username (3-32 letters, digits, _ or .)")
     email = _valid(LowerEmail, email, "e-mail")
     display_name = _valid(DisplayName, display_name or username, "display name")
-    if len(password) < 8 or len(password) > 128:
+    if password is not None and not 8 <= len(password) <= 128:
         print("The password needs 8 to 128 characters", file=sys.stderr)
         return 2
+    if official and pioneer is not None:
+        print("Official accounts never get the Pioneiro badge", file=sys.stderr)
+        return 2
+    if pioneer is not None and pioneer < 1:
+        print("Pioneiro numbers start at 1", file=sys.stderr)
+        return 2
+    temporary = password is None
+    secret = temporary_password() if temporary else password
+    assert secret is not None
     async with SessionLocal() as session:
         await badge_rules.sync_badges(session)
         taken = await session.scalar(select(User).where(or_(User.username == username, User.email == email)))
@@ -88,20 +117,87 @@ async def create_user(username: str, email: str, display_name: str | None, passw
             print(f"That {field} is already taken", file=sys.stderr)
             return 1
         user = User(
-            username=username, email=email, display_name=display_name,
-            password_hash=hash_password(password), badge_grants=[],
+            username=username, email=email, display_name=display_name, password_hash=hash_password(secret),
+            is_official=official, must_change_password=temporary, badge_grants=[],
         )
         session.add(user)
         await session.flush()
-        # The owner's account still gets Founder (while the beta runs); never the beta badge.
+        if pioneer is not None:
+            try:
+                await badge_rules.reserve_pioneer_number(session, pioneer, user_id=user.id)
+            except badge_rules.NumberTaken:
+                print(f"Pioneiro nº {pioneer} is already reserved or taken", file=sys.stderr)
+                return 1
+        # The owner's account gets Founder while the beta runs.
         if username == get_settings().owner_username:
             try:
                 await badge_rules.grant(session, user, badge_rules.FOUNDER)
             except badge_rules.BadgeClosed:
                 pass
+        result = None
+        if confirmed:
+            result = await onboarding.confirm(session, user)
+        else:
+            await onboarding.send_verification(session, user, wait=False)
         await session.commit()
-        print(f"Created @{user.username} ({user.id}). {_describe(user)}")
+        if result is not None:
+            await onboarding.announce(session, user, result)
+        await session.refresh(user)
+        kind = "official account" if official else "account"
+        print(f"Created {kind} @{user.username} ({user.id}). {_describe(user)}")
+        print("E-mail confirmed; welcome e-mail queued." if confirmed else "Confirmation code e-mailed.")
+        if temporary:
+            # Shown once, here only: it never goes to a log or the database in clear.
+            print(f"Temporary password (shown only now; asked to change at first sign-in): {secret}")
     await broker.close()
+    return 0
+
+
+async def create_invites(count: int | None, uses: int | None, days: int | None, pioneer: int | None) -> int:
+    if pioneer is not None and (uses is not None or (count or 1) != 1):
+        print("--pioneiro makes one single-use invite", file=sys.stderr)
+        return 2
+    if pioneer is not None and pioneer < 1:
+        print("Pioneiro numbers start at 1", file=sys.stderr)
+        return 2
+    async with SessionLocal() as session:
+        expires = datetime.now(UTC) + timedelta(days=days) if days else None
+        if uses is not None:
+            made = [account_invites.create(session, max_uses=uses, expires_at=expires)]
+        else:
+            made = [account_invites.create(session, expires_at=expires) for _ in range(count or 1)]
+        if pioneer is not None:
+            await session.flush()
+            try:
+                await badge_rules.reserve_pioneer_number(session, pioneer, invite_code=made[0].code)
+            except badge_rules.NumberTaken:
+                print(f"Pioneiro nº {pioneer} is already reserved or taken", file=sys.stderr)
+                return 1
+        await session.commit()
+        for invite in made:
+            details = [f"{invite.max_uses} uses" if invite.max_uses > 1 else "single use"]
+            if invite.expires_at:
+                details.append(f"expires {invite.expires_at:%Y-%m-%d %H:%M} UTC")
+            if pioneer is not None:
+                details.append(f"reserves Pioneiro nº {pioneer}")
+            print(f"{account_invites.url(invite.code)}  ({', '.join(details)})")
+    return 0
+
+
+async def set_official(server_id: str, on: bool) -> int:
+    try:
+        sid = uuid.UUID(server_id)
+    except ValueError:
+        raise SystemExit(f"Invalid server id: {server_id!r}") from None
+    async with SessionLocal() as session:
+        server = await session.get(Server, sid)
+        if server is None:
+            print(f"No server {server_id}", file=sys.stderr)
+            return 1
+        server.is_official = on
+        await session.commit()
+        state = "now official: everyone who confirms their e-mail joins it" if on else "no longer official"
+        print(f"{server.name} ({server.id}) is {state}.")
     return 0
 
 
@@ -115,18 +211,49 @@ def _ask_password() -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
+
     users_cmd = commands.add_parser("users", help="create accounts, reserved names included")
     users_cmd.add_argument("action", choices=("create",))
-    users_cmd.add_argument("username")
+    users_cmd.add_argument("--username", required=True)
     users_cmd.add_argument("--email", required=True)
     users_cmd.add_argument("--display-name")
+    users_cmd.add_argument("--password", action="store_true", help="type a password instead of a temporary one")
+    users_cmd.add_argument("--pioneiro", type=int, metavar="N", help="reserve this Pioneiro number")
+    users_cmd.add_argument("--confirmado", action="store_true", help="e-mail already confirmed")
+    users_cmd.add_argument("--oficial", action="store_true", help="company account: no Pioneiro, no invites")
+
+    invites_cmd = commands.add_parser("invites", help="create account invites")
+    invites_cmd.add_argument("action", choices=("create",))
+    invites_cmd.add_argument("--count", type=int, help="how many single-use invites")
+    invites_cmd.add_argument("--usos", type=int, help="one group invite with this many spots")
+    invites_cmd.add_argument("--dias", type=int, help="days until it expires")
+    invites_cmd.add_argument("--pioneiro", type=int, metavar="N", help="reserve this Pioneiro number")
+
+    servers_cmd = commands.add_parser("servers", help="mark a server as official")
+    servers_cmd.add_argument("action", choices=("set-official",))
+    servers_cmd.add_argument("--server-id", required=True)
+    servers_cmd.add_argument("--off", action="store_true", help="stop being official")
+
     badge_cmd = commands.add_parser("badges", help="list, grant or revoke a user's badges")
     badge_cmd.add_argument("action", choices=("list", "grant", "revoke"))
     badge_cmd.add_argument("username")
     badge_cmd.add_argument("badge", nargs="?")
+
     args = parser.parse_args()
     if args.command == "users":
-        return asyncio.run(create_user(args.username, args.email, args.display_name, _ask_password()))
+        return asyncio.run(create_user(
+            args.username, args.email, display_name=args.display_name,
+            password=_ask_password() if args.password else None,
+            pioneer=args.pioneiro, confirmed=args.confirmado, official=args.oficial,
+        ))
+    if args.command == "invites":
+        if args.usos is not None and args.usos < 2:
+            parser.error("--usos needs 2 or more (a single-use invite is --count 1)")
+        if args.count is not None and not 1 <= args.count <= 100:
+            parser.error("--count goes from 1 to 100")
+        return asyncio.run(create_invites(args.count, args.usos, args.dias, args.pioneiro))
+    if args.command == "servers":
+        return asyncio.run(set_official(args.server_id, not args.off))
     return asyncio.run(badges(args.action, args.username, args.badge))
 
 

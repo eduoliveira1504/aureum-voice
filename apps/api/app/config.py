@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -64,14 +65,33 @@ class Settings(BaseSettings):
 
     # Username of the app owner's personal account: sees bug reports, gets the Founder badge.
     aureum_owner_username: str | None = None
-    # While true, new accounts get the numbered beta badge.
+    # While true, accounts that confirm their e-mail get the numbered beta badge.
     aureum_beta: bool = False
+    # While true, signing up needs an account invite (a separate switch from AUREUM_BETA).
+    aureum_invite_only: bool = True
+
+    # Public address of the API (the Funnel URL): invite links, e-mail images and links.
+    public_base_url: str = "http://localhost:8000"
+    # Where installers come from: the newest GitHub release of this repository.
+    releases_repo: str = "eduoliveira1504/aureum-voice"
+
+    # E-mail: "smtp" sends for real; "memory" keeps messages in the process (tests).
+    email_provider: Literal["smtp", "memory"] = "smtp"
+    email_from: str = ""  # the address; the sender's name is always "Aureum"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587  # 587 = STARTTLS, 465 = TLS from the start
+    smtp_user: str = ""
+    smtp_password: str = ""
 
     @property
     def owner_username(self) -> str | None:
         # "@edu" works too: that's how people write usernames.
         name = (self.aureum_owner_username or "").strip().lstrip("@").lower()
         return name or None
+
+    @property
+    def public_url(self) -> str:
+        return self.public_base_url.rstrip("/")
 
     @property
     def database_url(self) -> str:

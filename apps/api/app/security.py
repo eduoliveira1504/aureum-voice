@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
@@ -30,7 +31,14 @@ def needs_rehash(password_hash: str) -> bool:
     return _hasher.check_needs_rehash(password_hash)
 
 
-def create_token(user_id: uuid.UUID, token_type: TokenType) -> str:
+@dataclass(frozen=True)
+class TokenClaims:
+    user_id: uuid.UUID
+    # The user's session_epoch when the token was made; a token from an older epoch is dead.
+    epoch: int
+
+
+def create_token(user_id: uuid.UUID, token_type: TokenType, epoch: int = 0) -> str:
     settings = get_settings()
     now = datetime.now(UTC)
     lifetime = (
@@ -44,12 +52,14 @@ def create_token(user_id: uuid.UUID, token_type: TokenType) -> str:
         "iat": now,
         "exp": now + lifetime,
         "jti": uuid.uuid4().hex,
+        "ep": epoch,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def decode_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
-    """Returns the user id if the token is valid and of the expected type."""
+def decode_token(token: str, expected_type: TokenType) -> TokenClaims | None:
+    """The token's user and epoch, if it is valid and of the expected type. Callers still
+    compare the epoch with the user's (see is_current)."""
     settings = get_settings()
     try:
         payload = jwt.decode(
@@ -60,6 +70,6 @@ def decode_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
         )
         if payload["type"] != expected_type:
             return None
-        return uuid.UUID(payload["sub"])
-    except (jwt.PyJWTError, ValueError):
+        return TokenClaims(uuid.UUID(payload["sub"]), int(payload.get("ep", 0)))
+    except (jwt.PyJWTError, ValueError, TypeError):
         return None
