@@ -10,7 +10,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
 
 - Email + password accounts (Argon2, short-lived JWT access tokens + refresh tokens kept in the OS
   keychain via Electron `safeStorage`)
-- Invite-only sign-up: a new account needs an invite code, which also puts the user in that server
+- Closed beta: sign-up needs an account invite (single-use ones for every confirmed user, group ones
+  with spots and an expiry from the admin CLI), shared as a link to a small mobile-first web page
+  where people sign up, confirm their e-mail and download the app
+- Account e-mails over plain SMTP from a background queue with retries: 6-digit confirmation codes,
+  password reset by code, e-mail change, security notices and a welcome e-mail, in HTML and plain text
 - Servers with an icon and an animated banner, text and voice channels, invites with expiry and use limits
 - Roles with a color, an icon and 24 permissions, ranked by drag and drop: nobody manages a role or a
   member at or above their own, and per-channel overrides (allow / inherit / deny) for roles and members.
@@ -194,8 +198,9 @@ Requirements: Docker Desktop, Node.js 22+, and Python 3.12 (only to run the API 
    npm run dev
    ```
 
-   The first account can be created without an invite; after that, sign-up requires an invite code
-   (create a server, then use **Convidar pessoas** in the server menu).
+   With `AUREUM_INVITE_ONLY=true` (the default) sign-up needs an account invite: create the first
+   account and invites with the admin commands below. Set `EMAIL_PROVIDER` and `SMTP_*` in `.env` for
+   the confirmation codes to go out.
 
 ### Tests
 
@@ -241,15 +246,22 @@ are © Aureum, all rights reserved (see `docs/sounds/LICENSES.md`).
 Run inside the API container, from the repository root:
 
 ```sh
-docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli users create aureum --email <e-mail> --display-name Aureum
-docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli badges list <username>
-docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli badges grant <username> bug_hunter
+# prefix each with: docker compose --env-file .env -f infra/docker-compose.yml exec api
+python -m app.cli users create --username edu --email <e-mail> --confirmado
+python -m app.cli users create --username aureum --email <e-mail> --oficial --password
+python -m app.cli invites create --count 5                # single-use account invites
+python -m app.cli invites create --usos 15 --dias 7       # one group invite
+python -m app.cli invites create --pioneiro 2             # single-use, reserves Pioneiro #2
+python -m app.cli servers set-official --server-id <id>   # everyone who confirms joins it
+python -m app.cli badges grant <username> bug_hunter
 ```
 
-`users create` makes accounts sign-up refuses (reserved names such as `aureum`, `admin` or `suporte`)
-and asks for the password. `AUREUM_OWNER_USERNAME` in `.env` names the owner's account, which reads the
-problems reported from the app (Settings > Problemas) and gets the Founder badge. `AUREUM_BETA=true`
-gives new sign-ups the numbered beta badge.
+`users create` also makes accounts sign-up refuses (reserved names such as `aureum`, `admin` or
+`suporte`). Without `--password` it prints a temporary password once, which the app makes the user
+replace at the first sign-in. `--confirmado` confirms the e-mail right away; `--oficial` marks a company
+account (an "Oficial" seal, no beta badge, no invites). `AUREUM_OWNER_USERNAME` in `.env` names the
+owner's account, which reads the problems reported from the app (Settings > Problemas) and gets the
+Founder badge. `AUREUM_BETA=true` gives accounts that confirm their e-mail the numbered beta badge.
 
 ### Building the Windows installer
 
@@ -292,8 +304,10 @@ While the permanent server is not available, the app runs from a home PC at no c
 
 Hardening that is in place before exposing anything:
 
-- sign-up requires an invite code, and only server owners and admins can create invites
-- login and sign-up are rate limited per client IP (the proxy's `X-Forwarded-For` is trusted only because
+- sign-up requires an account invite; the only public page is the invite page (sign-up, e-mail code,
+  download), which runs no inline scripts under a strict Content-Security-Policy
+- password changes and resets end every other session (tokens carry a session epoch)
+- login, sign-up, codes and every e-mail send are rate limited per client IP (the proxy's `X-Forwarded-For` is trusted only because
   the API port is bound to localhost) and per account for failed logins
 - CORS and WebSocket `Origin` checks only accept the desktop app
 - all secrets live in `.env`, which is git-ignored

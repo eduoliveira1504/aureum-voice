@@ -246,7 +246,7 @@ Ver docs/decisions/0015 (anexos e segundo plano), 0016 (interface e testes) e 00
     "Iniciar com o Windows" (padrão: ligado, iniciando minimizado na bandeja).
   - Na primeira vez que fechar no X, aviso: "O Aureum continua rodando na bandeja".
 
-## 2.9 Pré-beta ✅ concluído
+## 2.9 Pré-beta (fazer por último, antes de chamar os testers) ✅ concluído
 Ver docs/decisions/0018-pre-beta.md. Pendente só o lançamento (zerar os dados e criar as
 contas), que fica para depois do 2.10.
 Essenciais:
@@ -314,26 +314,82 @@ Contas e lançamento do beta:
   Eduardo. Ordem: zerar → criar @edu primeiro (Fundador + Pioneiro #1) → criar @aureum
   pelo comando de admin → gerar o instalador do beta.
 
-## 2.10 E-mails da conta (depois do 2.9, antes de chamar os testers)
-Envio:
-- Módulo de e-mail com provedor trocável por .env: SMTP genérico agora (Gmail dedicado do
-  Aureum com senha de app), Resend/Brevo depois. Credenciais só no .env.
-- Fila simples (tarefa em background) com retry; nunca travar a requisição da API.
-- Templates HTML em pt-BR com a identidade do Aureum (fundo escuro, accent dourado, logo),
-  sempre com versão em texto puro. Remetente: "Aureum <EMAIL_FROM do .env>".
-- Rate limit por e-mail e por IP em todos os envios.
-Fluxos:
-- Confirmação de e-mail no cadastro: código de 6 dígitos (validade 15 min, máx 5 tentativas),
-  digitado no próprio app; botão "reenviar código" (com espera de 60s). Conta não confirmada
-  pode logar, mas vê um aviso e não cria servidores até confirmar.
-- Boas-vindas: enviado após confirmar o e-mail.
-- Esqueci minha senha: na tela de login; código de 6 dígitos por e-mail → nova senha.
-  Resposta sempre igual exista ou não a conta (não revelar quais e-mails estão cadastrados).
-  Ao trocar a senha, encerrar as outras sessões.
-- Avisos de segurança: e-mail quando a senha ou o e-mail da conta forem alterados
-  (o aviso de troca de e-mail vai para o e-mail ANTIGO).
-- Trocar e-mail em Configurações > Conta, com confirmação por código no e-mail novo.
-- Contas já existentes antes do 2.10: marcadas como não confirmadas, com o aviso no app.  
+## 2.10 — E-mails da conta, convites e página web de convite ✅ concluído
+Ver docs/decisions/0019-account-emails-and-invites.md. Pendente só o lançamento (abaixo), que é
+um passo separado.
+
+### E-mail
+- Provedor trocável via .env (EMAIL_PROVIDER=smtp agora, com Gmail do Aureum; Resend/Brevo depois).
+- Fila em background com retry. Templates pt-BR em HTML + texto puro. Remetente: "Aureum".
+- Base visual: docs/design/emails/boas-vindas.html e codigo.html (placeholders {{nome}},
+  {{numero}}, {{convites}}, {{codigo}}, {{email}}, {{app_url}}, {{badge_url}}, {{logo_url}}).
+  E-mails de esqueci a senha e aviso de segurança no mesmo estilo.
+- Gmail não mostra SVG: gerar PNGs (2x) da insígnia Pioneiro com brilho e do logo, servidos
+  pela API em /static/email/..., com URL base no .env (PUBLIC_BASE_URL = URL do Funnel).
+- Código de confirmação: 6 dígitos, 15 min, 5 tentativas, reenvio após 60s. Conta não
+  confirmada pode logar mas não cria servidor.
+- Boas-vindas: enviado após a confirmação, com o número do Pioneiro e a quantidade de convites.
+- Esqueci a senha por código: mesma resposta com ou sem conta; ao trocar, encerra as outras sessões.
+- Aviso de segurança na troca de senha e de e-mail (o de e-mail vai pro e-mail ANTIGO).
+- Troca de e-mail em Configurações › Conta (confirma o novo por código).
+
+### Pioneiro numerado
+- Concedido na confirmação do e-mail, enquanto AUREUM_BETA=true.
+- Número vem de uma sequence do Postgres: único, nunca reaproveitado (nem se a conta for apagada),
+  seguro contra confirmações simultâneas.
+- Números podem ser reservados (--pioneiro N); a sequence pula reservados.
+- Contas --oficial nunca recebem.
+
+### Convites (cadastro só com convite enquanto AUREUM_INVITE_ONLY=true)
+- Individuais: uso único. Cada usuário confirmado ganha 3, em Configurações › Convites
+  (copiar link, status livre/usado). Contas oficiais não ganham.
+- De grupo: várias vagas e validade (ex.: 15 usos, 7 dias). Mensagem clara quando esgota ou vence.
+- Registro de quem convidou quem, para os dois tipos.
+- O link copiado é a URL da página web: {PUBLIC_BASE_URL}/convite/{codigo}.
+- Com AUREUM_INVITE_ONLY=false o campo de convite some do cadastro.
+
+### Página web de convite (/convite/{codigo})
+- Referência visual: docs/design/emails/Invite.dc.html. Mobile-first, HTML/CSS próprios,
+  sem framework, mesmo visual dos e-mails.
+- Passo 1: cadastro, com "@fulano te chamou" no topo (ou "Convite do grupo · X vagas
+  restantes"), código já preenchido, @ checado na hora.
+- Passo 2: código do e-mail (reenvio, dica de spam, trocar e-mail).
+- Passo 3: Pioneiro nº X + botão de download do último release no GitHub. Se o acesso for
+  de celular, avisa e envia o link de download por e-mail.
+- Rate limit por IP no cadastro e na verificação. Só cadastro: sem login web.
+
+### Servidor oficial
+- CLI marca um servidor como oficial. Todo usuário entra automaticamente ao confirmar o
+  e-mail e pode sair quando quiser.
+
+### CLI
+- python -m app.cli invites create --count N            (uso único)
+- python -m app.cli invites create --usos 15 --dias 7   (grupo)
+- python -m app.cli invites create --pioneiro N         (convite que reserva o número N)
+- python -m app.cli users create --username X --email Y [--pioneiro N] [--confirmado] [--oficial]
+  - Sem --password: gera senha temporária forte, mostra uma vez no terminal (nunca em log),
+    obriga troca no primeiro login (tela obrigatória no app).
+  - --confirmado: e-mail já confirmado, Pioneiro concedido e boas-vindas enviado na hora.
+  - --oficial: conta da empresa, sem Pioneiro e sem convites, com selo "Oficial" no perfil.
+  - Contas da CLI SEM --oficial seguem as regras normais.
+- python -m app.cli servers set-official --server-id X
+
+### Testes
+- API: código (expiração, tentativas, reenvio), esqueci a senha, troca de e-mail, convite
+  inválido/usado/esgotado/vencido, numeração concorrente do Pioneiro, número reservado,
+  conta CLI --confirmado RECEBE Pioneiro, conta --oficial NÃO recebe, auto-join no servidor
+  oficial, troca obrigatória de senha temporária, rate limit.
+- Componentes: telas novas do app (confirmação, convites, troca de e-mail, troca obrigatória
+  de senha).
+
+### Lançamento (passo SEPARADO, só com OK do Eduardo e comando mostrado antes)
+1. Zerar os dados.
+2. @edu: Fundador + Pioneiro nº 1 (e-mail real, --confirmado).
+3. Conta da namorada: --pioneiro 2 --confirmado.
+4. @aureum: --oficial.
+5. Criar o servidor do beta e marcar como oficial.
+6. Gerar o convite de grupo pro WhatsApp.
+7. Gerar o instalador e publicar o release.
 
 ## Pronto quando (Fase 2 completa)
 - Tema claro/escuro e accent personalizável em todas as telas.
