@@ -21,7 +21,7 @@ const VOICE: Attachment = {
 describe('VoicePlayer', () => {
   it('shows the waveform, the duration and cycles the speed', () => {
     const { container } = render(<VoicePlayer attachment={VOICE} own={false} />)
-    expect(container.querySelectorAll('[role="slider"] > span')).toHaveLength(4)
+    expect(container.querySelectorAll('[role="slider"] > span')).toHaveLength(4) // fewer samples than bars: one each
     expect(screen.getByText('1:05')).toBeTruthy()
     const speed = screen.getByLabelText('Velocidade 1x')
     fireEvent.click(speed)
@@ -29,6 +29,11 @@ describe('VoicePlayer', () => {
     fireEvent.click(speed)
     fireEvent.click(speed)
     expect(screen.getByLabelText('Velocidade 1x')).toBeTruthy()
+  })
+
+  it('squeezes a full waveform so it fits the bubble', () => {
+    const { container } = render(<VoicePlayer attachment={{ ...VOICE, waveform: new Array(64).fill(50) }} own />)
+    expect(container.querySelectorAll('[role="slider"] > span')).toHaveLength(40)
   })
 })
 

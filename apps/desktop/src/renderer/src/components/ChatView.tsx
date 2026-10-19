@@ -496,7 +496,8 @@ function MessageRow({
       <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
         {!grouped && (
           <div className={`mb-1 flex items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
-            {!own && (
+            {/* Own messages too (mirrored): name and badge stay in reading order. */}
+            <span className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={!author}
@@ -507,8 +508,8 @@ function MessageRow({
               >
                 {name}
               </button>
-            )}
-            {!own && author && <TopBadge badges={author.badges} size={14} />}
+              {author && <TopBadge badges={author.badges} size={14} />}
+            </span>
             <span className="text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}

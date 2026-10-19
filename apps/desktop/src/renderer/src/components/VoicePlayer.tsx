@@ -1,12 +1,14 @@
 import { Pause, Play } from 'lucide-react'
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import type { Attachment } from '../lib/api'
 import { useAttachmentUrl } from '../lib/attachments'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
-import { formatDuration } from '../lib/voiceRecorder'
+import { formatDuration, toWaveform } from '../lib/voiceRecorder'
 
 const SPEEDS = [1, 1.5, 2] as const
+// Bars drawn: the stored waveform (up to 64) is squeezed so it fits the bubble.
+const SHOWN_BARS = 40
 
 // One voice message plays at a time: starting another pauses this one.
 let playing: HTMLAudioElement | null = null
@@ -19,7 +21,10 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
   const [position, setPosition] = useState(0) // ms
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1)
   const duration = attachment.duration_ms ?? 0
-  const bars = attachment.waveform?.length ? attachment.waveform : [4]
+  const bars = useMemo(
+    () => toWaveform((attachment.waveform?.length ? attachment.waveform : [4]).map((v) => v / 100), SHOWN_BARS),
+    [attachment.waveform]
+  )
   const progress = duration ? Math.min(1, position / duration) : 0
 
   useEffect(() => {
@@ -78,7 +83,7 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
 
   return (
     <div
-      className={`flex w-[300px] max-w-full items-center gap-2.5 rounded-control px-2.5 py-2 ${own ? 'bg-bubble-own' : 'bg-elevated'}`}
+      className={`flex w-[300px] max-w-full items-center gap-2.5 overflow-hidden rounded-control px-2.5 py-2 ${own ? 'bg-bubble-own' : 'bg-elevated'}`}
     >
       <button
         type="button"
@@ -97,12 +102,12 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
         aria-valuenow={Math.round(position / 1000)}
         tabIndex={-1}
         onClick={seek}
-        className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-[2px]"
+        className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-[2px] overflow-hidden"
       >
         {bars.map((h, i) => (
           <span
             key={i}
-            className={`min-w-[2px] flex-1 rounded-full ${(i + 0.5) / bars.length <= progress ? 'bg-accent' : 'bg-fg-subtle/50'}`}
+            className={`min-w-0 flex-1 rounded-full ${(i + 0.5) / bars.length <= progress ? 'bg-accent' : 'bg-fg-subtle/50'}`}
             style={{ height: `${Math.max(8, h)}%` }}
           />
         ))}
