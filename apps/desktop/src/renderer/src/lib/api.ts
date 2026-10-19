@@ -266,12 +266,23 @@ export interface Invite {
   uses: number
 }
 
+/** A file sent in a conversation. `url` needs the access token (see fetchMedia). */
+export interface Attachment {
+  id: string
+  filename: string
+  /** Decided by the server from the bytes: images and videos show inline. */
+  kind: 'image' | 'video' | 'file'
+  content_type: string
+  size: number
+  url: string
+}
+
 export interface Message {
   id: number
   channel_id: string
   author: User | null
   content: string
-  attachments: unknown[]
+  attachments: Attachment[]
   created_at: string
   edited_at: string | null
   /** Set on the line a private call leaves in its conversation. */
@@ -416,6 +427,64 @@ export async function api<T>(path: string, { method = 'GET', body, auth = true }
     }
   }
   return parse<T>(res)
+}
+
+/** Downloads a protected media file (an attachment) with the access token. */
+export async function fetchMedia(url: string, signal?: AbortSignal): Promise<Blob> {
+  const doFetch = (): Promise<Response> =>
+    fetch(mediaUrl(url)!, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, signal })
+  let res = await doFetch()
+  if (res.status === 401 && (await refreshSession())) res = await doFetch()
+  if (!res.ok) throw new ApiError(res.status, null)
+  return res.blob()
+}
+
+export interface Upload<T> {
+  done: Promise<T>
+  abort(): void
+}
+
+/** POSTs a file as multipart ("file") with upload progress (0-1), which fetch() can't report. */
+export function uploadFile<T>(path: string, file: Blob, filename: string, onProgress: (fraction: number) => void): Upload<T> {
+  let xhr: XMLHttpRequest | null = null
+  let aborted = false
+  const attempt = (token: string | null): Promise<{ status: number; body: unknown }> =>
+    new Promise((resolve, reject) => {
+      xhr = new XMLHttpRequest()
+      xhr.open('POST', `${baseUrl}/api${path}`)
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+      xhr.onload = () => {
+        let body: unknown = null
+        try {
+          body = JSON.parse(xhr!.responseText)
+        } catch {
+          // not JSON (e.g. a proxy error page)
+        }
+        resolve({ status: xhr!.status, body })
+      }
+      xhr.onerror = () => reject(new TypeError('Network error'))
+      xhr.onabort = () => reject(new DOMException('Aborted', 'AbortError'))
+      const form = new FormData()
+      form.append('file', file, filename)
+      xhr.send(form)
+    })
+  const done = (async () => {
+    let res = await attempt(await getFreshAccessToken())
+    if (res.status === 401 && !aborted) res = await attempt(await getFreshAccessToken(true))
+    if (res.status < 200 || res.status >= 300) {
+      const detail = (res.body as { detail?: unknown } | null)?.detail ?? null
+      throw new ApiError(res.status, detail as string | null)
+    }
+    return res.body as T
+  })()
+  return {
+    done,
+    abort: () => {
+      aborted = true
+      xhr?.abort()
+    }
+  }
 }
 
 export async function login(email: string, password: string): Promise<void> {

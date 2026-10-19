@@ -1,12 +1,25 @@
-import { Hash, Pencil, Phone, PhoneMissed, Trash2 } from 'lucide-react'
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { Hash, Paperclip, Pencil, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode
+} from 'react'
 
 import { addonIcon } from '../addons/registry'
-import { ApiError, type Channel, type Me, type Message, type User } from '../lib/api'
+import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type User } from '../lib/api'
+import { seedAttachment } from '../lib/attachments'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
+import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
 import { contextMenu } from './ContextMenu'
 import { ConfirmModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
@@ -14,6 +27,7 @@ import { Avatar } from './ui'
 import { UserMenu } from './UserMenu'
 
 const MAX_LENGTH = 4000
+const MAX_FILES = 10
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -53,6 +67,7 @@ export function ChatView({
   me,
   canModerate,
   canSend = true,
+  canAttach = true,
   nameColorOf,
   nameOf,
   intro,
@@ -63,6 +78,8 @@ export function ChatView({
   /** Can delete other people's messages. */
   canModerate: boolean
   canSend?: boolean
+  /** Can send files (ATTACH_FILES in servers). */
+  canAttach?: boolean
   /** Color for an author's name (their strongest colored role); their profile color otherwise. */
   nameColorOf?: (userId: string) => string | null
   /** Name to show for an author (their server nickname); their display name otherwise. */
@@ -79,7 +96,11 @@ export function ChatView({
   const [editingId, setEditingId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<Message | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [dropping, setDropping] = useState(false)
+  const addFiles = useRef<(files: File[]) => void>(() => {})
   const profile = useProfilePopover()
+  const acceptsFiles = canSend && canAttach
+  const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
 
   const listRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
@@ -127,7 +148,31 @@ export function ChatView({
   return (
     // min-h-0 on both: in a column, a flex item otherwise grows to fit its messages instead of
     // scrolling them, and pushes whatever sits next to it (a call) out of view.
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-main">
+    <div
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-main"
+      onDragOver={(e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+        setDropping(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false)
+      }}
+      onDrop={(e) => {
+        if (!isFileDrag(e)) return
+        e.preventDefault()
+        setDropping(false)
+        addFiles.current([...e.dataTransfer.files])
+      }}
+    >
+      {dropping && (
+        <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-accent bg-main/90 text-center">
+          <Paperclip size={28} className="text-accent-text" />
+          <p className="font-semibold">Solte para anexar</p>
+          <p className="text-sm text-fg-muted">Até {MAX_FILES} arquivos por mensagem</p>
+        </div>
+      )}
       <div ref={listRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
@@ -187,7 +232,7 @@ export function ChatView({
                   own={message.author?.id === me.id}
                   grouped={grouped}
                   editing={editingId === message.id}
-                  canEdit={message.author?.id === me.id}
+                  canEdit={message.author?.id === me.id && !!message.content}
                   canDelete={message.author?.id === me.id || canModerate}
                   onEdit={() => setEditingId(message.id)}
                   onStopEditing={() => setEditingId(null)}
@@ -208,7 +253,12 @@ export function ChatView({
       </div>
 
       {canSend ? (
-        <Composer channel={channel} placeholder={placeholder ?? `Conversar em #${channel.name}`} />
+        <Composer
+          channel={channel}
+          canAttach={canAttach}
+          addFilesRef={addFiles}
+          placeholder={placeholder ?? `Conversar em #${channel.name}`}
+        />
       ) : (
         <p className="mx-4 mb-6 shrink-0 rounded-control border border-line bg-elevated px-4 py-2.5 text-sm text-fg-subtle">
           Você não tem permissão para enviar mensagens neste canal.
@@ -406,16 +456,19 @@ function MessageRow({
         {editing ? (
           <EditBox message={message} onDone={onStopEditing} />
         ) : (
-          <div
-            title={grouped ? formatTimestamp(message.created_at) : undefined}
-            className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
-          >
-            <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
-              <Linkified text={message.content} own={own} />
-              {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
-            </p>
-          </div>
+          message.content && (
+            <div
+              title={grouped ? formatTimestamp(message.created_at) : undefined}
+              className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
+            >
+              <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+                <Linkified text={message.content} own={own} />
+                {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+              </p>
+            </div>
+          )
         )}
+        {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
         {!editing && (canEdit || canDelete) && (
           <div
             className={`absolute bottom-0 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-hover:flex ${
@@ -475,23 +528,113 @@ function EditBox({ message, onDone }: { message: Message; onDone(): void }): Rea
   )
 }
 
-function Composer({ channel, placeholder }: { channel: Channel; placeholder: string }): ReactNode {
+let pendingKeys = 0
+
+function uploadError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 413) return 'Grande demais'
+    if (err.status === 403) return 'Sem permissão'
+    if (err.status === 429) return 'Arquivos demais esperando'
+  }
+  return 'Falhou o envio'
+}
+
+/** Pasted screenshots come named "image.png": give them a readable, distinct name. */
+function pastedName(file: File): string {
+  if (file.name && file.name !== 'image.png') return file.name
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+  return `imagem-${stamp}.${file.type.split('/')[1] || 'png'}`
+}
+
+function Composer({
+  channel,
+  canAttach,
+  addFilesRef,
+  placeholder
+}: {
+  channel: Channel
+  canAttach: boolean
+  /** Set here so the whole conversation can take dropped files. */
+  addFilesRef: { current: (files: File[]) => void }
+  placeholder: string
+}): ReactNode {
   const sendMessage = useChat((s) => s.sendMessage)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [files, setFiles] = useState<PendingFile[]>([])
   const [error, setError] = useState<string | null>(null)
+  const picker = useRef<HTMLInputElement>(null)
   const value = drafts[channel.id] ?? ''
   const setValue = (v: string): void => setDrafts((d) => ({ ...d, [channel.id]: v }))
+  const filesRef = useRef(files)
+  filesRef.current = files
+
+  const patchFile = (key: string, change: Partial<PendingFile>): void =>
+    setFiles((list) => list.map((f) => (f.key === key ? { ...f, ...change } : f)))
+
+  function addFiles(list: File[], named: (f: File) => string = (f) => f.name): void {
+    if (!canAttach || !list.length) return
+    const room = MAX_FILES - filesRef.current.length
+    if (room <= 0) return setError(`Até ${MAX_FILES} arquivos por mensagem.`)
+    setError(list.length > room ? `Até ${MAX_FILES} arquivos por mensagem.` : null)
+    const added = list.slice(0, room).map((file): PendingFile => {
+      const key = `f${++pendingKeys}`
+      const name = named(file)
+      const upload = uploadFile<Attachment>(`/channels/${channel.id}/attachments`, file, name, (progress) => patchFile(key, { progress }))
+      upload.done.then(
+        (attachment) => patchFile(key, { status: 'done', progress: 1, attachment }),
+        (err) => {
+          if (!(err instanceof DOMException && err.name === 'AbortError')) patchFile(key, { status: 'error', error: uploadError(err) })
+        }
+      )
+      const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+      return { key, file, name, progress: 0, status: 'uploading', preview, abort: upload.abort }
+    })
+    setFiles((cur) => [...cur, ...added])
+  }
+  addFilesRef.current = addFiles
+
+  function removeFile(key: string): void {
+    const file = filesRef.current.find((f) => f.key === key)
+    if (!file) return
+    file.abort()
+    if (file.preview) URL.revokeObjectURL(file.preview)
+    setFiles((list) => list.filter((f) => f.key !== key))
+  }
+
+  // Leaving the conversation drops what wasn't sent (the server forgets it within a day).
+  useEffect(
+    () => () => {
+      for (const f of filesRef.current) {
+        f.abort()
+        if (f.preview) URL.revokeObjectURL(f.preview)
+      }
+    },
+    []
+  )
 
   async function send(): Promise<void> {
     const content = value.trim()
-    if (!content) return
+    const pending = filesRef.current
+    if (!content && !pending.length) return
     if (content.length > MAX_LENGTH) return setError(`Máximo de ${MAX_LENGTH} caracteres.`)
+    if (pending.some((f) => f.status === 'uploading')) return setError('Espere os arquivos terminarem de subir.')
+    if (pending.some((f) => f.status === 'error')) return setError('Remova os arquivos que falharam para enviar.')
     setValue('')
+    setFiles([])
     setError(null)
     try {
-      await sendMessage(channel.id, content)
+      await sendMessage(
+        channel.id,
+        content,
+        pending.map((f) => f.attachment!.id)
+      )
+      for (const f of pending) {
+        seedAttachment(f.attachment!, f.file)
+        if (f.preview) URL.revokeObjectURL(f.preview)
+      }
     } catch (err) {
-      setValue(content) // give the text back so nothing is lost
+      setValue(content) // give everything back so nothing is lost
+      setFiles(pending)
       setError(
         err instanceof ApiError && err.status === 403
           ? channel.server_id
@@ -509,17 +652,53 @@ function Composer({ channel, placeholder }: { channel: Channel; placeholder: str
     }
   }
 
+  function onPaste(e: ClipboardEvent<HTMLTextAreaElement>): void {
+    const pasted = [...e.clipboardData.files]
+    if (!pasted.length || !canAttach) return
+    e.preventDefault()
+    addFiles(pasted, pastedName)
+  }
+
   return (
     <div className="shrink-0 px-4 pb-6">
       {error && <p className="mb-1 text-xs text-danger">{error}</p>}
-      <AutoTextarea
-        key={channel.id}
-        autoFocus
-        value={value}
-        onChange={setValue}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-      />
+      <PendingFiles files={files} onRemove={removeFile} />
+      <div className="flex items-end gap-2">
+        {canAttach && (
+          <>
+            <button
+              type="button"
+              title="Anexar arquivos"
+              aria-label="Anexar arquivos"
+              onClick={() => picker.current?.click()}
+              className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-fg-muted hover:bg-accent hover:text-on-accent"
+            >
+              <Plus size={20} />
+            </button>
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                addFiles([...(e.target.files ?? [])])
+                e.target.value = '' // picking the same file again still fires
+              }}
+            />
+          </>
+        )}
+        <div className="min-w-0 flex-1">
+          <AutoTextarea
+            key={channel.id}
+            autoFocus
+            value={value}
+            onChange={setValue}
+            onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            placeholder={placeholder}
+          />
+        </div>
+      </div>
       {value.length > MAX_LENGTH - 200 && (
         <p className={`mt-1 text-right text-xs ${value.length > MAX_LENGTH ? 'text-danger' : 'text-fg-subtle'}`}>
           {value.length}/{MAX_LENGTH}
@@ -533,12 +712,14 @@ function AutoTextarea({
   value,
   onChange,
   onKeyDown,
+  onPaste,
   placeholder,
   autoFocus
 }: {
   value: string
   onChange(v: string): void
   onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void
+  onPaste?: (e: ClipboardEvent<HTMLTextAreaElement>) => void
   placeholder?: string
   autoFocus?: boolean
 }): ReactNode {
@@ -561,6 +742,7 @@ function AutoTextarea({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
+      onPaste={onPaste}
       className="block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60"
     />
   )

@@ -63,7 +63,8 @@ interface ChatState {
   setStatus(status: ConnectionStatus): void
   loadServers(): Promise<void>
   loadMessages(channelId: string, older?: boolean): Promise<void>
-  sendMessage(channelId: string, content: string): Promise<void>
+  /** Text and/or files uploaded beforehand (POST /channels/{id}/attachments); returns the message. */
+  sendMessage(channelId: string, content: string, attachmentIds?: string[]): Promise<Message>
   editMessage(id: number, content: string): Promise<void>
   deleteMessage(id: number): Promise<void>
   /**
@@ -185,9 +186,13 @@ export const useChat = create<ChatState>()((set, get) => {
       }
     },
 
-    sendMessage: async (channelId, content) => {
-      const message = await api<Message>(`/channels/${channelId}/messages`, { method: 'POST', body: { content } })
+    sendMessage: async (channelId, content, attachmentIds = []) => {
+      const message = await api<Message>(`/channels/${channelId}/messages`, {
+        method: 'POST',
+        body: { content, attachment_ids: attachmentIds }
+      })
       patchMessages(channelId, (items) => mergeMessages(items, [message]))
+      return message
     },
 
     editMessage: async (id, content) => {

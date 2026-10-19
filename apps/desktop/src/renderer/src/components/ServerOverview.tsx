@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { messagePreview } from '../lib/attachments'
 import { memberName } from '../lib/members'
 import { basePermissions, channelPermissions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
@@ -370,7 +371,7 @@ function News({ server }: { server: ServerDetail }): ReactNode {
                           <span className="truncate font-semibold text-fg">{name}</span>
                           <span className="ml-auto shrink-0 text-fg-subtle">{shortTime(m.created_at)}</span>
                         </span>
-                        <span className="line-clamp-2 break-words text-sm text-fg-muted">{m.content}</span>
+                        <span className="line-clamp-2 break-words text-sm text-fg-muted">{messagePreview(m)}</span>
                       </span>
                     </button>
                   )

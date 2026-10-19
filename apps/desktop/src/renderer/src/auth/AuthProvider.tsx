@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import * as client from '../lib/api'
 import type { Me } from '../lib/api'
+import { clearAttachmentCache } from '../lib/attachments'
 
 type AuthState =
   | { status: 'loading' }
@@ -58,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
       },
       logout: async () => {
         await client.clearTokens()
+        // Files from this account's conversations don't stay on the PC.
+        await clearAttachmentCache()
         setState({ status: 'signedOut' })
       },
       setUser: (user) => setState({ status: 'signedIn', user })

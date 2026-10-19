@@ -302,6 +302,7 @@ function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; 
             me={me}
             canModerate={has(perms, Perm.MANAGE_MESSAGES)}
             canSend={has(perms, Perm.SEND_MESSAGES)}
+            canAttach={has(perms, Perm.ATTACH_FILES)}
             nameColorOf={(userId) => roleColor(server, userId)}
             nameOf={(userId) => server.members.find((m) => m.user.id === userId)?.nickname ?? null}
           />
