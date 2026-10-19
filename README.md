@@ -26,6 +26,14 @@ for real-time media. The whole stack is open source and designed to run at zero 
   silence, settings, invite, copy ID
 - A collapsible member list grouped by the roles shown separately, with offline members at the end
 - Real-time chat (send, edit, delete) shown as bubbles, presence and voice state over a single WebSocket
+- Files in channels, DMs and groups: the "+" button, drag and drop, or paste an image. Several files per
+  message, with upload progress. Images open in a full-screen viewer with zoom, videos play inline, and
+  anything else is a card with a download button. Up to `MAX_ATTACHMENT_MB` (25 MB) each. Downloads
+  need a token and access to the conversation, and the app caches what it already fetched (memory +
+  disk, wiped on logout) ([ADR 0015](docs/decisions/0015-attachments-and-background.md))
+- Runs in the background: closing the window keeps it connected in the Windows tray (open, mute,
+  deafen, status, quit). It starts with Windows hidden in the tray, only one copy runs at a time, and
+  Settings > Windows changes both
 - Unread counters and `@username` mention badges per channel, synced across devices
 - Friends by `@username` (requests, accept / decline / cancel, unfriend, block), DMs and group DMs of up
   to 10 people, and an "Active now" list of friends in calls with a join button
