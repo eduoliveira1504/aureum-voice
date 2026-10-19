@@ -7,8 +7,8 @@ Executar UM bloco por vez, na ordem. Cada bloco: migrações Alembic, testes da 
 atualização do README e um docs/decisions quando houver escolha de arquitetura.
 Nada copiado do Discord (sons, ícones, textos, layout idêntico): o Aureum tem identidade própria.
 
-Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: Polimentos (2.8 concluído; Cinema adiado).
-Ordem restante: 2.8 → Polimentos → 2.9.
+Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 2.9 (Polimentos concluídos; Cinema adiado).
+Ordem restante: 2.9.
 
 ## 2.1 Design system e temas ✅ concluído
 Todo o app passa a usar tokens (CSS variables + Tailwind theme). Nenhuma cor hardcoded nos componentes.
@@ -180,7 +180,8 @@ Addon 2 — Cinema (salas de cinema com YouTube): ADIADO para depois do beta.
 Depois (não agora): mapa Minecraft (BlueMap), status do servidor de Mine, dados/fichas
   de RPG, ouvir junto no Spotify.
 
-## Polimentos (fazer depois do 2.8)
+## Polimentos ✅ concluído
+Ver docs/decisions/0015 (anexos e segundo plano), 0016 (interface e testes) e 0017 (media tiers).
 - Barra de título customizada: titleBarStyle 'hidden' + titleBarOverlay (cores dos tokens);
   abas do Aureum ocupam o topo; área arrastável nas partes vazias da barra.
 - Banner padrão do servidor: padrão geométrico com a cor accent (sem degradê);
