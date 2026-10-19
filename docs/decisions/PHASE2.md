@@ -246,7 +246,9 @@ Ver docs/decisions/0015 (anexos e segundo plano), 0016 (interface e testes) e 00
     "Iniciar com o Windows" (padrão: ligado, iniciando minimizado na bandeja).
   - Na primeira vez que fechar no X, aviso: "O Aureum continua rodando na bandeja".
 
-## 2.9 Pré-beta (fazer por último, antes de chamar os testers)
+## 2.9 Pré-beta ✅ concluído
+Ver docs/decisions/0018-pre-beta.md. Pendente só o lançamento (zerar os dados e criar as
+contas), que fica para depois do 2.10.
 Essenciais:
 - Atualização automática: electron-updater com releases no GitHub (privado ou público);
   checa ao abrir e a cada 6h, baixa em segundo plano, aviso "Reiniciar para atualizar".
@@ -299,10 +301,6 @@ Comunicação:
   e em jogos), reaproveitando a leitura de teclas do 2.7 com as mesmas regras de
   privacidade (só a tecla configurada, só enquanto o PTT estiver ativo); som curto ao
   apertar/soltar (opcional).
-
-Personalização:
-- Tema por servidor: o dono define a cor de destaque do servidor; dentro daquele
-  servidor o accent muda para todos. Opção do usuário "Usar sempre minha cor".
 
 Contas e lançamento do beta:
 - Usernames reservados (ninguém registra; comparação sem maiúsc./minúsc.): aureum, admin,

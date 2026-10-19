@@ -84,9 +84,19 @@ for real-time media. The whole stack is open source and designed to run at zero 
   resolution) or **Movimento** (30 fps, keeps frame rate). Simulcast still sends smaller layers to small
   tiles. Groundwork for a paid plan later ([ADR 0017](docs/decisions/0017-media-tiers.md))
 - Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio, profile color,
-  pronouns, an avatar frame, a profile song, up to 5 links and system badges (granted with
-  `python -m app.cli badges`). The profile card also shows "Now", roles in the current server and
-  Message / Call buttons, and Settings has a live preview
+  pronouns, an avatar frame, a profile song, up to 5 links and badges. The profile card also shows
+  "Now", roles in the current server and Message / Call buttons, and Settings has a live preview
+- Badges: hexagons whose metal shows the rarity (common, rare, legendary, mythic), with a tooltip and a
+  number on numbered ones. Mythic ones glow and shine. Beta badges (Fundador, Pioneiro #N) are given
+  only while the beta runs, Caçador de bugs when a reported problem is resolved
+  ([ADR 0018](docs/decisions/0018-pre-beta.md))
+- Voice messages: hold the mic button in the message field (or click it) to record up to 5 minutes of
+  Opus/WebM. The player shows the waveform, the time and 1x/1.5x/2x speed
+- Push-to-talk with a key or a side mouse button that works in the background and in games, reading
+  only that key and only during a call
+- Automatic updates from GitHub releases, and **Reportar problema** (profile menu or Ctrl+Shift+R): a
+  description, the version, the OS, recent logs with tokens removed and, only if ticked after a preview,
+  a screenshot of the window. The app owner reads them in Settings
 - A custom status with an emoji and an expiry, shown as a bubble next to the avatar in member lists, the
   profile card and call tiles
 - Automatic "Jogando X": the app spots open games from a bundled list plus games the user adds, and sends
@@ -226,6 +236,21 @@ npm run sounds -- message # only the named ones
 Output is byte-identical between runs, so git only shows the sounds that actually changed. The sounds
 are © Aureum, all rights reserved (see `docs/sounds/LICENSES.md`).
 
+### Admin commands
+
+Run inside the API container, from the repository root:
+
+```sh
+docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli users create aureum --email <e-mail> --display-name Aureum
+docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli badges list <username>
+docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli badges grant <username> bug_hunter
+```
+
+`users create` makes accounts sign-up refuses (reserved names such as `aureum`, `admin` or `suporte`)
+and asks for the password. `AUREUM_OWNER_USERNAME` in `.env` names the owner's account, which reads the
+problems reported from the app (Settings > Problemas) and gets the Founder badge. `AUREUM_BETA=true`
+gives new sign-ups the numbered beta badge.
+
 ### Building the Windows installer
 
 ```sh
@@ -237,6 +262,18 @@ npm run build:win
 The installer is written to `apps/desktop/release/`. `MAIN_VITE_API_URL` is the server the app points to
 by default; users can still change it on the sign-in screen. The installer is not code-signed, so Windows
 SmartScreen shows a warning on first run (**More info → Run anyway**).
+
+Installed apps update themselves from this repository's GitHub releases (checked at startup and every
+6 hours, on the channel of the version, e.g. `beta`). To ship an update, raise `version` in
+`apps/desktop/package.json` (e.g. `0.2.0-beta.2`), put a `GH_TOKEN` in the root `.env` (a fine-grained
+token for this repository with "Contents: read and write"), then:
+
+```sh
+cd apps/desktop
+npm run release
+```
+
+That uploads a **draft** release; it reaches people only after you publish it on GitHub.
 
 ## Hosting
 
