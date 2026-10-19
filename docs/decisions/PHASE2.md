@@ -391,6 +391,14 @@ um passo separado.
 6. Gerar o convite de grupo pro WhatsApp.
 7. Gerar o instalador e publicar o release.
 
+Pendência (corrigir antes do 0.2.0-beta.3): no 0.2.0-beta.2 o `npm run release` criou DOIS
+rascunhos para a mesma tag. O electron-builder sobe os arquivos em paralelo e cada upload criou
+o seu (um com .exe + latest.yml, outro só com o .blockmap); foi corrigido à mão, anexando o
+blockmap ao rascunho principal e apagando o órfão. Corrigir o processo para não repetir: por
+exemplo, o scripts/release-desktop.mjs cria (ou reaproveita) o rascunho da tag antes e o
+electron-builder só anexa os arquivos nele; no fim, o script confere que existe um rascunho
+só, com .exe, .blockmap e latest.yml.
+
 ## 2.11 — Ajustes antes do lançamento ✅ concluído
 - Configurações (do usuário, do servidor e do canal) funcionam em qualquer tamanho de janela:
   o modal nunca passa da altura da janela, o corpo rola, as abas nunca quebram linha (rolam de
