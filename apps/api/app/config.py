@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     # Read the client IP from X-Forwarded-For (last entry). Enable only behind a reverse
     # proxy that sets it; otherwise clients could spoof their IP to dodge rate limits.
     trust_forwarded_for: bool = False
+    # The landing page (GitHub Pages). Only GET /api/public/stats answers it; empty = no one.
+    public_site_origin: str = "https://eduoliveira1504.github.io"
 
     # S3-compatible storage (MinIO). It stays private: the API serves files at /api/media.
     minio_endpoint: str = "127.0.0.1:9000"

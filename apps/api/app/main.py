@@ -13,7 +13,7 @@ from app.addons.registry import ADDONS
 from app.config import get_settings
 from app.db import SessionLocal
 from app.realtime import broker
-from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, roles, servers, users, web, ws
+from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, public, roles, servers, users, web, ws
 
 settings = get_settings()
 
@@ -66,6 +66,7 @@ api.include_router(dms.router)
 api.include_router(calls.router)
 api.include_router(addons.router)
 api.include_router(web.api_router)
+api.include_router(public.router)
 for addon in ADDONS.values():
     if addon.router is not None:
         api.include_router(addon.router, prefix=f"/addons/{addon.key}", tags=[f"addon:{addon.key}"])

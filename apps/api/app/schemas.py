@@ -122,6 +122,10 @@ class LatestRelease(BaseModel):
     size_bytes: int | None
 
 
+class PublicStats(BaseModel):
+    pioneers: int
+
+
 class LoginRequest(BaseModel):
     email: LowerEmail
     password: str
