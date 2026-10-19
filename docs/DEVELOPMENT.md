@@ -1,6 +1,9 @@
-# Aureum Voice
+# Aureum Voice: development
 
-A small, self-hosted Discord-style app for a group of friends: text channels, voice channels with
+Technical notes for the project: features, architecture, running it locally, tests and hosting.
+For what Aureum is and how to join the beta, see the [README](../README.md).
+
+A small, self-hosted app for a group of friends: text channels, voice channels with
 camera, and **screen sharing with system audio** (the game's sound, without echoing the call back).
 
 Built as a desktop app (Electron + React) on top of a FastAPI backend and [LiveKit](https://livekit.io)
@@ -21,10 +24,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
   A channel, room or add-on can be created private, open only to picked roles and members, with a lock
   in the sidebar; whoever can't see it doesn't get it anywhere (lists, history, feed, events, voice). The API checks every route and WebSocket event, and LiveKit tokens only allow what the member
   may publish. Kick and ban from the server settings
-  ([ADR 0007](docs/decisions/0007-roles-and-permissions.md))
+  ([ADR 0007](decisions/0007-roles-and-permissions.md))
 - Per-server nicknames, and voice moderation: server mute, server deafen and moving people between
   rooms, enforced on the media server too through LiveKit's server API
-  ([ADR 0009](docs/decisions/0009-call-audio-moderation-and-menus.md))
+  ([ADR 0009](decisions/0009-call-audio-moderation-and-menus.md))
 - Right-click menus on people, channels and servers. Each shows only what the user is allowed to do:
   profile, message, call, friendship, volume, nickname, roles, moderation, kick and ban, mark as read,
   silence, settings, invite, copy ID. A person has the same menu wherever they appear: chat authors and
@@ -38,7 +41,7 @@ for real-time media. The whole stack is open source and designed to run at zero 
   message, with upload progress. Images open in a full-screen viewer with zoom, videos play inline, and
   anything else is a card with a download button. Up to `MAX_ATTACHMENT_MB` (25 MB) each. Downloads
   need a token and access to the conversation, and the app caches what it already fetched (memory +
-  disk, wiped on logout) ([ADR 0015](docs/decisions/0015-attachments-and-background.md))
+  disk, wiped on logout) ([ADR 0015](decisions/0015-attachments-and-background.md))
 - Runs in the background: closing the window keeps it connected in the Windows tray (open, mute,
   deafen, status, quit). It starts with Windows hidden in the tray, only one copy runs at a time, and
   Settings > Windows changes both
@@ -48,7 +51,7 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Private calls in DMs and groups: the other members get an incoming-call popup with a ringtone for
   30 s, a missed call stays in the chat and in notifications, and more people can be added mid-call
   (from a 1:1 DM the call moves to a new group, so the DM's history stays private)
-  ([ADR 0006](docs/decisions/0006-friends-dms-and-private-calls.md))
+  ([ADR 0006](decisions/0006-friends-dms-and-private-calls.md))
 - Presence: online, idle (automatic after 10 minutes without input on the PC), do not disturb
   (silences the ringtone) and invisible
 - An app shell of its own, with no system title bar: the tab bar is the top of the window (its empty
@@ -57,7 +60,7 @@ for real-time media. The whole stack is open source and designed to run at zero 
   - a sidebar that follows the tab, with rooms, conversations and add-ons, collapsible to icons;
   - up to two panels side by side, each with its own tabs.
   
-  The layout follows the user to any PC ([ADR 0005](docs/decisions/0005-app-shell-panels-and-read-state.md)).
+  The layout follows the user to any PC ([ADR 0005](decisions/0005-app-shell-panels-and-read-state.md)).
   Columns resize by dragging, with sizes saved per user too. The overview tab is pinned first, and
   hovering a server tab previews its banner and who's online and in calls.
 - A server overview showing who's in which room and live screen thumbnails (low-res JPEGs over the
@@ -69,10 +72,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection
 - Each person's volume from 0 to 200% and a local mute, saved per user
 - Local mic noise suppression with RNNoise (WebAssembly), free and on by default
-  ([ADR 0008](docs/decisions/0008-noise-suppression.md))
+  ([ADR 0008](decisions/0008-noise-suppression.md))
 - Grid and Focus call layouts (click any tile to focus it), several live screens at once with per-stream
   volume and fullscreen; simulcast + adaptive stream keep each viewer's download to what is on screen
-  ([ADR 0004](docs/decisions/0004-call-layout-and-bandwidth.md))
+  ([ADR 0004](decisions/0004-call-layout-and-bandwidth.md))
 - An in-game overlay with who's in the call, who's talking, who's muted and (optionally) cameras. It's a
   transparent, click-through window over games in **windowed or borderless mode** (exclusive fullscreen
   isn't supported, and nothing is injected into the game, so anti-cheats have nothing to flag). It hides
@@ -80,20 +83,20 @@ for real-time media. The whole stack is open source and designed to run at zero 
   it and Ctrl+Shift+F10 enters edit mode to drag and resize it; both can be changed. They also work in
   games that block Windows hotkeys (such as League of Legends). During a call with the overlay on, the
   app reads only those shortcuts' keys, never any other key, and records nothing. Size, opacity and
-  "only who's speaking" are in Settings > Overlay ([ADR 0012](docs/decisions/0012-in-game-overlay.md))
+  "only who's speaking" are in Settings > Overlay ([ADR 0012](decisions/0012-in-game-overlay.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
-  own audio is excluded from the capture ([ADR 0002](docs/decisions/0002-screen-share-system-audio.md))
+  own audio is excluded from the capture ([ADR 0002](decisions/0002-screen-share-system-audio.md))
 - Streaming quality decided by the server: the voice token carries the user's media tier (free: camera
   and screen up to 720p, 30 fps), and the screen picker offers **Texto nítido** (15 fps, keeps
   resolution) or **Movimento** (30 fps, keeps frame rate). Simulcast still sends smaller layers to small
-  tiles. Groundwork for a paid plan later ([ADR 0017](docs/decisions/0017-media-tiers.md))
+  tiles. Groundwork for a paid plan later ([ADR 0017](decisions/0017-media-tiers.md))
 - Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio, profile color,
   pronouns, an avatar frame, a profile song, up to 5 links and badges. The profile card also shows
   "Now", roles in the current server and Message / Call buttons, and Settings has a live preview
 - Badges: hexagons whose metal shows the rarity (common, rare, legendary, mythic), with a tooltip and a
   number on numbered ones. Mythic ones glow and shine. Beta badges (Fundador, Pioneiro #N) are given
   only while the beta runs, Caçador de bugs when a reported problem is resolved
-  ([ADR 0018](docs/decisions/0018-pre-beta.md))
+  ([ADR 0018](decisions/0018-pre-beta.md))
 - Voice messages: hold the mic button in the message field (or click it) to record up to 5 minutes of
   Opus/WebM. The player shows the waveform, the time and 1x/1.5x/2x speed
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
@@ -105,16 +108,16 @@ for real-time media. The whole stack is open source and designed to run at zero 
   profile card and call tiles
 - Automatic "Jogando X": the app spots open games from a bundled list plus games the user adds, and sends
   only the game's name. It can be turned off, games can be hidden, and a manual activity can be set
-  ([ADR 0010](docs/decisions/0010-rich-profiles-and-game-activity.md))
+  ([ADR 0010](decisions/0010-rich-profiles-and-game-activity.md))
 - Add-ons that run in their own channels. Adding one takes the Manage add-ons permission, and each
   add-on is an isolated module in the API (its own router, tables and Alembic branch) and in the app.
-  ([ADR 0013](docs/decisions/0013-addon-framework.md)). The first one is a Kanban board: columns,
+  ([ADR 0013](decisions/0013-addon-framework.md)). The first one is a Kanban board: columns,
   cards with assignee, labels and due dates, drag and drop, live updates, a change history and a
   progress card on the server overview. Card moves can be announced as system lines in a chosen
   text channel, with a warning when that channel is seen by people who can't see the board
-  ([ADR 0014](docs/decisions/0014-kanban-addon.md))
+  ([ADR 0014](decisions/0014-kanban-addon.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
-  on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](docs/decisions/0003-design-tokens-and-themes.md))
+  on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](decisions/0003-design-tokens-and-themes.md))
 
 ## Architecture
 
@@ -160,15 +163,16 @@ flowchart LR
   sandboxing are on; IPC is restricted to the app's own window. All colors come from theme tokens (CSS
   variables) and the stock Tailwind palette is disabled; Sora and Figtree are bundled with the app.
 
-Design decisions are recorded in [`docs/decisions`](docs/decisions).
+Design decisions are recorded in [`docs/decisions`](decisions).
 
 ## Repository layout
 
 ```
 apps/api/        FastAPI app, Alembic migrations, pytest suite
 apps/desktop/    Electron + React desktop app
-scripts/         generate-sounds.mjs, which synthesizes the UI sounds
+scripts/         generate-sounds.mjs (UI sounds), e-mail and share images, test and release helpers
 infra/           docker-compose files and LiveKit config
+site/            the landing page (GitHub Pages)
 docs/decisions/  architecture decision records
 .env.example     every setting the stack reads
 ```
@@ -288,6 +292,25 @@ npm run release
 ```
 
 That uploads a **draft** release; it reaches people only after you publish it on GitHub.
+
+## Landing page
+
+`site/` is the public landing page, plain HTML, CSS and JS with no build step and no dependencies,
+deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main` that touches it
+(`https://eduoliveira1504.github.io/aureum-voice/`). It reads two things at runtime and works without
+either:
+
+- the newest installer from GitHub's public API (`/releases/latest`, then the release list, since beta
+  builds are pre-releases), falling back to the releases page;
+- the live Pioneiro count from `GET /api/public/stats`, which returns only `{ "pioneers": N }`, cached
+  for 5 minutes and rate limited per IP. Only that route answers the page's origin
+  (`PUBLIC_SITE_ORIGIN`); the app-wide CORS list stays closed. If the API is down, the count is hidden.
+
+The share preview `site/img/og.png` is rendered by `npm run og-image` in `apps/desktop`
+(`scripts/generate-og-image.mjs`), from `site/img/salas.png`. The app screenshots in `site/img/` come from
+an isolated preview stack with fictional demo data, never from real accounts.
+
+To try it locally, serve the folder with any static server, e.g. `python -m http.server -d site 4173`.
 
 ## Hosting
 

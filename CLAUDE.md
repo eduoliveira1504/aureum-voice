@@ -7,7 +7,9 @@
 App de comunicação (voz, câmera, compartilhamento de tela, chat e addons) com identidade
 própria. Público do beta: grupos de amigos e pequenos times de trabalho.
 Prioridade: voz, câmera e compartilhamento de tela COM áudio do sistema.
-Projeto também é portfólio: README, commits e docs em inglês; commits pequenos e descritivos.
+Projeto também é portfólio: commits e docs em inglês; commits pequenos e descritivos.
+O README é em português (público do beta) com uma seção curta "In English" no fim; o conteúdo
+técnico fica em docs/DEVELOPMENT.md. A landing (site/) é toda em português.
 
 ## Princípios do produto
 - Sem recursos de IA dentro do app (resumos, chatbots, sugestões automáticas etc.).
@@ -64,7 +66,9 @@ aureum-voice/
   infra/docker-compose.yml
   infra/livekit.yaml
   scripts/             # utilitários (ex: generate-sounds.mjs)
+  site/                # landing page (GitHub Pages, HTML/CSS/JS sem build)
   docs/decisions/      # decisões de arquitetura + PHASE2.md
+  docs/DEVELOPMENT.md  # conteúdo técnico (arquitetura, rodar local, testes, hospedagem)
   docs/sounds/         # licenças dos sons
   .env.example
   README.md
