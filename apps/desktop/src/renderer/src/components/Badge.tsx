@@ -116,6 +116,35 @@ export function BadgeList({ badges }: { badges: HeldBadge[] }): ReactNode {
   )
 }
 
+/** Settings > Meu perfil: every badge the user holds, big, with what each one means. */
+export function BadgeShowcase({ badges }: { badges: HeldBadge[] }): ReactNode {
+  const shown = useShownBadges(badges)
+  if (!shown.length) {
+    return (
+      <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-sm text-fg-muted">
+        Você ainda não tem insígnias. Elas são dadas pelo Aureum, nunca escolhidas.
+      </p>
+    )
+  }
+  return (
+    <ul className="space-y-2">
+      {shown.map((s) => (
+        <li key={s.key} className="flex items-center gap-3 rounded-control border border-line bg-main p-3">
+          <BadgeIcon shown={s} size={48} shine="always" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className="font-display font-semibold">{badgeTitle(s)}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-accent-text">{RARITY_LABEL[s.badge.rarity]}</span>
+            </div>
+            {s.badge.description && <p className="text-sm text-fg-muted">{s.badge.description}</p>}
+            <p className="text-xs text-fg-subtle">Recebida em {dateFormat.format(new Date(s.granted_at))}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /** Next to a name in lists (members, chat, call): the rarest badge, shining on hover. */
 export function TopBadge({ badges, size = 16 }: { badges: HeldBadge[]; size?: number }): ReactNode {
   const shown = useShownBadges(badges)

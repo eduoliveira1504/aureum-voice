@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Badge } from '../lib/api'
 import { useBadges } from '../store/badges'
-import { BadgeList, TopBadge } from './Badge'
+import { BadgeList, BadgeShowcase, TopBadge } from './Badge'
 
 const badge = (key: string, name: string, rarity: Badge['rarity']): Badge => ({
   key,
@@ -56,5 +56,18 @@ describe('badges', () => {
     expect(screen.getByLabelText('Pioneiro #1')).toBeTruthy()
     expect(container.querySelector('img')!.getAttribute('src')).toContain(encodeURIComponent('small-pioneer'))
     expect(container.querySelector('.badge-shine-hover')).not.toBeNull()
+  })
+
+  it('the showcase lists every badge with its details, or says there are none', () => {
+    render(<BadgeShowcase badges={[held('bug_hunter'), held('pioneer', 1)]} />)
+    const items = screen.getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual([
+      expect.stringContaining('Pioneiro #1Mítica'),
+      expect.stringContaining('Caçador de bugsRara')
+    ])
+    expect(items[0].textContent).toContain('Recebida em 18 de outubro de 2026')
+    cleanup()
+    render(<BadgeShowcase badges={[]} />)
+    expect(screen.getByText(/ainda não tem insígnias/)).toBeTruthy()
   })
 })

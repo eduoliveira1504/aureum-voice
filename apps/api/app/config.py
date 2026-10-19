@@ -69,7 +69,8 @@ class Settings(BaseSettings):
 
     @property
     def owner_username(self) -> str | None:
-        name = (self.aureum_owner_username or "").strip().lower()
+        # "@edu" works too: that's how people write usernames.
+        name = (self.aureum_owner_username or "").strip().lstrip("@").lower()
         return name or None
 
     @property

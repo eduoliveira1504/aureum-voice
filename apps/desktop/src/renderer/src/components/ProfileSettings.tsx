@@ -4,6 +4,7 @@ import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { api, ApiError, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
 import { ACCENT_PRESETS } from '../store/appearance'
+import { BadgeShowcase } from './Badge'
 import { CustomStatusEditor, draftOf, statusFromDraft, type StatusDraft } from './CustomStatus'
 import { FormError } from './Modal'
 import { errorText } from './modals'
@@ -282,6 +283,10 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
         <span className={labelClass}>Prévia</span>
         <div className="sticky top-0">
           <ProfileView user={preview} />
+          <div className="mt-5 w-[340px]">
+            <span className={labelClass}>Suas insígnias</span>
+            <BadgeShowcase badges={user.badges} />
+          </div>
         </div>
       </div>
     </div>

@@ -109,3 +109,12 @@ async def test_cli_grants_and_revokes(client: AsyncClient, beta) -> None:  # noq
     # Message authors carry them as well.
     res = await user.post(f"/channels/{text_channel(server)}/messages", {"content": "oi"})
     assert held(res.json()["author"]) == [("bug_hunter", None)]
+
+
+async def test_owner_name_may_be_written_with_an_at(client: AsyncClient, beta) -> None:  # noqa: ANN001
+    beta(owner=" @Edu ")
+    edu = await make_user(client, "edu")
+    assert (await edu.get("/users/me")).json()["is_app_owner"] is True
+    async with SessionLocal() as session:
+        await badges.grant_founder_if_due(session)
+    assert held((await edu.get("/users/me")).json()) == [("founder", None)]
