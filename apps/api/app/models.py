@@ -97,6 +97,12 @@ class ChannelType(str, enum.Enum):
     addon = "addon"
 
 
+class UserPlan(str, enum.Enum):
+    """What the user pays for. Only the free plan exists for now (see app/media.py)."""
+
+    free = "free"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -118,6 +124,10 @@ class User(Base):
     links: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     # Granted by the system (python -m app.cli badges), never by the user (see schemas.BADGES).
     badges: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    # Decides the media tier (streaming quality limits) the voice token hands out.
+    plan: Mapped[UserPlan] = mapped_column(
+        _str_enum(UserPlan, "user_plan"), default=UserPlan.free, server_default=UserPlan.free.value, nullable=False
+    )
     created_at: Mapped[datetime] = _created_at()
 
 

@@ -60,7 +60,9 @@ async def test_start_ring_join_and_end(client: AsyncClient) -> None:
         again = await bia.post(f"/channels/{dm['id']}/call")
         assert again.status_code == 200 and again.json()["id"] == call["id"]
 
-        assert (await ana.post(f"/channels/{dm['id']}/voice/token")).status_code == 200
+        token = await ana.post(f"/channels/{dm['id']}/voice/token")
+        # Private calls get the same media tier as server rooms.
+        assert token.status_code == 200 and token.json()["media"]["max_screen"] == "720p"
         await join(aws, dm["id"])
         state = await next_event(bws, "voice.state")
         assert state["server_id"] is None and state["dm_id"] == dm["id"] and state["state"]["channel_id"] == dm["id"]

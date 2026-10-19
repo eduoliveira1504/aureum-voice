@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 from app.models import DEFAULT_ACCENT, ChannelType, OverrideTarget, Theme, UserStatus
+from app.media import MediaTier
 from app.voice import VoiceState
 
 Username = Annotated[
@@ -532,6 +533,8 @@ class ServerDetail(ServerOut):
 class VoiceTokenOut(BaseModel):
     token: str
     url: str
+    # The quality limits the app applies to what it publishes (camera, screen).
+    media: MediaTier
 
 
 class InviteCreate(BaseModel):

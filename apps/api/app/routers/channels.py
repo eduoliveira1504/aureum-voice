@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, reads, social, voice
+from app import attachments, calls, dms, media, reads, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -133,7 +133,7 @@ async def voice_token(channel_id: uuid.UUID, user: CurrentUser, session: Session
     token = voice.livekit_token(
         room=str(channel.id), identity=str(user.id), name=user.display_name, sources=sources, can_subscribe=can_subscribe
     )
-    return VoiceTokenOut(token=token, url=get_settings().livekit_url)
+    return VoiceTokenOut(token=token, url=get_settings().livekit_url, media=media.tier_for(user.plan))
 
 
 def voice_sources(perms: Perm) -> list[str]:

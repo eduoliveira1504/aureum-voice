@@ -2,7 +2,9 @@ import jwt
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 
+from app import media
 from app.config import get_settings
+from app.models import UserPlan
 from tests.helpers import make_server, make_user, ws_client
 from tests.test_ws import next_event, no_event
 
@@ -25,6 +27,8 @@ async def test_voice_token(client: AsyncClient) -> None:
     assert claims["sub"] == owner.id
     assert claims["video"]["room"] == vid and claims["video"]["roomJoin"] is True
     assert res.json()["url"] == settings.livekit_url
+    # The free plan's limits ride along; the app applies them to what it publishes.
+    assert res.json()["media"] == {"plan": "free", "max_screen": "720p", "max_camera": "720p", "max_fps": 30}
 
     assert (await owner.post(f"/channels/{text}/voice/token")).status_code == 400
     assert (await stranger.post(f"/channels/{vid}/voice/token")).status_code == 404
@@ -87,3 +91,8 @@ async def test_explicit_leave_and_channel_delete(client: AsyncClient) -> None:
         await next_event(ws, "voice.state")
         await owner.delete(f"/channels/{vid}")
         assert (await next_event(ws, "voice.state"))["state"] is None
+
+
+def test_unknown_plans_get_the_free_tier() -> None:
+    # A plan without a tier yet (e.g. added to the enum before its limits) never breaks calls.
+    assert media.tier_for("someday") == media.TIERS[UserPlan.free]  # type: ignore[arg-type]
