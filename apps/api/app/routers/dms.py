@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import dms, reads, social, voice
+from app import attachments, dms, reads, social, voice
 from app.access import channel_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import Channel, ChannelMember, ChannelType
@@ -138,9 +138,11 @@ async def close_or_leave(channel_id: uuid.UUID, user: CurrentUser, session: Sess
         await session.delete(membership)
         await session.flush()
         remaining = await session.scalar(select(func.count()).where(ChannelMember.channel_id == channel.id))
+        files = await attachments.keys_of_channels(session, [channel.id]) if not remaining else []
         if not remaining:
             await session.delete(channel)
         await session.commit()
+        await attachments.delete_keys(files)
         if remaining:
             await dms.announce(session, channel, await channel_member_ids(session, channel.id))
     await broker.publish("dm.deleted", {"id": str(channel_id)}, [user.id])

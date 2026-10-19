@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     minio_root_password: str
     minio_bucket: str = "aureum"
     minio_secure: bool = False
+    # Largest file that can be sent in a conversation (MAX_ATTACHMENT_MB in .env).
+    max_attachment_mb: int = 25
 
     # URL clients use to reach LiveKit (ws:// locally, wss:// in production).
     livekit_url: str = "ws://localhost:7880"

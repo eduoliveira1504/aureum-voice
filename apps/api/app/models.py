@@ -388,6 +388,39 @@ class Message(Base):
     )
 
 
+class AttachmentKind(str, enum.Enum):
+    image = "image"
+    video = "video"
+    file = "file"
+
+
+class Attachment(Base):
+    """A file sent in a conversation, stored on MinIO. Uploaded first (message_id NULL, only
+    the uploader sees it), then attached to the message that sends it. Messages keep a copy of
+    the public fields in messages.attachments; this table is what downloads are checked against
+    and what cleanup deletes from storage."""
+
+    __tablename__ = "attachments"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="CASCADE"), index=True
+    )
+    uploader_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    key: Mapped[str] = mapped_column(String(200), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Decided from the bytes: images and videos show inline, the rest downloads.
+    kind: Mapped[AttachmentKind] = mapped_column(_str_enum(AttachmentKind, "attachment_kind"), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class ChannelRead(Base):
     """How far a user has read a channel. Unread = messages with a higher id written by
     someone else. Rows are created when the user joins a server (at the latest message), so

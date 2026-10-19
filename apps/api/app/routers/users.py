@@ -1,12 +1,13 @@
 import uuid
+from urllib.parse import quote
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
 from app import images, presence, storage
-from app.access import audience_ids
+from app.access import audience_ids, get_channel_access
 from app.deps import CurrentUser, SessionDep
-from app.models import User, UserSettings
+from app.models import Attachment, AttachmentKind, User, UserSettings
 from app.realtime import broker
 from app.schemas import SettingsOut, SettingsUpdate, UserMe, UserPublic, UserUpdate
 
@@ -122,6 +123,31 @@ async def get_user(user_id: uuid.UUID, _: CurrentUser, session: SessionDep) -> U
 # --- Media --------------------------------------------------------------------
 
 media_router = APIRouter(tags=["media"])
+
+
+@media_router.get("/media/attachments/{attachment_id}")
+async def get_attachment(attachment_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
+    """A file sent in a conversation, for whoever can see that conversation (the app fetches it
+    with its token). Not sent yet: only for its uploader. 404 otherwise, so ids can't be probed."""
+    attachment = await session.get(Attachment, attachment_id)
+    if attachment is None or (attachment.message_id is None and attachment.uploader_id != user.id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    await get_channel_access(session, attachment.channel_id, user.id)  # 404 if hidden
+    stored = await storage.get(attachment.key)
+    if stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    disposition = "attachment" if attachment.kind == AttachmentKind.file else "inline"
+    return Response(
+        stored.data,
+        media_type=attachment.content_type,
+        headers={
+            "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(attachment.filename)}",
+            # Per user (it's behind a token), but the file itself never changes.
+            "Cache-Control": "private, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "sandbox",
+        },
+    )
 
 
 @media_router.get("/media/{key:path}")

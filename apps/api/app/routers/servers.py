@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import images, presence, reads, voice
+from app import attachments, images, presence, reads, voice
 from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
@@ -239,8 +239,12 @@ async def delete_server(server_id: uuid.UUID, user: CurrentUser, session: Sessio
         select(Channel.addon_key, Channel.id).where(Channel.server_id == server_id, Channel.type == ChannelType.addon)
     )
     await addons.cleanup(session, addon_channels.tuples())
+    files = await attachments.keys_of_channels(
+        session, await session.scalars(select(Channel.id).where(Channel.server_id == server_id))
+    )
     await session.delete(server)
     await session.commit()
+    await attachments.delete_keys(files)
     await voice.clear_server(server_id)
     await broker.publish("server.deleted", {"id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

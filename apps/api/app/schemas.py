@@ -551,7 +551,28 @@ Content = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, 
 
 
 class MessageCreate(BaseModel):
+    content: Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)] = ""
+    # Files uploaded to the channel beforehand (POST /channels/{id}/attachments), in order.
+    attachment_ids: Annotated[list[uuid.UUID], Field(max_length=10)] = []
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "MessageCreate":
+        if not self.content and not self.attachment_ids:
+            raise ValueError("A message needs text or a file")
+        return self
+
+
+class MessageEdit(BaseModel):
     content: Content
+
+
+class AttachmentOut(BaseModel):
+    id: uuid.UUID
+    filename: str
+    kind: Literal["image", "video", "file"]
+    content_type: str
+    size: int
+    url: str
 
 
 class MarkRead(BaseModel):

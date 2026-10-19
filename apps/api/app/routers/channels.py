@@ -1,12 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import calls, dms, reads, social, voice
+from app import attachments, calls, dms, reads, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -17,9 +17,11 @@ from app.realtime import broker
 from app.routers.servers import channel_out, normalize_channel_name, permissions_changed
 from app.schemas import (
     ChannelOut,
+    AttachmentOut,
     ChannelUpdate,
     MarkRead,
     MessageCreate,
+    MessageEdit,
     MessageOut,
     OverrideSet,
     ReadStateOut,
@@ -99,8 +101,10 @@ async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: Sess
     server_id = channel.server_id
     assert server_id is not None
     recipients = await channel_viewers(session, channel)
+    files = await attachments.keys_of_channels(session, [channel.id])
     await session.delete(channel)
     await session.commit()
+    await attachments.delete_keys(files)
     await voice.clear_channel(server_id, channel_id, recipients)
     await broker.publish("channel.deleted", {"id": str(channel_id), "server_id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -179,6 +183,23 @@ async def _require_dm_friends(session: AsyncSession, channel: Channel, user_id: 
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only message your friends")
 
 
+@router.post("/channels/{channel_id}/attachments", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
+async def upload_attachment(
+    channel_id: uuid.UUID,
+    file: Annotated[UploadFile, File(description="Any file, up to MAX_ATTACHMENT_MB")],
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Uploads a file for a message about to be sent here (attachment_ids of the message)."""
+    channel, access = await _text_channel(session, channel_id, user.id)
+    if access is not None:
+        needed = Perm.SEND_MESSAGES | Perm.ATTACH_FILES
+        if access.channel(channel) & needed != needed:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't send files here")
+    await _require_dm_friends(session, channel, user.id)
+    return attachments.out(await attachments.upload(session, channel, user.id, file))
+
+
 @router.get("/channels/{channel_id}/messages", response_model=list[MessageOut])
 async def list_messages(
     channel_id: uuid.UUID,
@@ -209,9 +230,12 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
         # Reopens the DM for whoever closed it, before the message exists: their read state
         # then doesn't count it yet, and message.created counts it once.
         await dms.reveal(session, channel)
+    if body.attachment_ids and access is not None:
+        access.require_in(channel, Perm.ATTACH_FILES)
     message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
     session.add(message)
     await session.flush()
+    await attachments.attach(session, message, body.attachment_ids, user.id)
     audience = await channel_audience(session, channel)
     # In DMs every message is for everyone in it; @mentions only matter in servers.
     mentioned = await reads.record_mentions(session, message, audience) if channel.server_id else []
@@ -246,7 +270,7 @@ async def _message_for_member(
 
 
 @router.patch("/messages/{message_id}", response_model=MessageOut)
-async def edit_message(message_id: int, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
+async def edit_message(message_id: int, body: MessageEdit, user: CurrentUser, session: SessionDep) -> MessageOut:
     message, channel, _ = await _message_for_member(session, message_id, user.id)
     if message.author_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only edit your own messages")
@@ -268,8 +292,10 @@ async def delete_message(message_id: int, user: CurrentUser, session: SessionDep
     if message.author_id != user.id and (access is None or not access.channel(channel) & Perm.MANAGE_MESSAGES):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't delete this message")
     channel_id = message.channel_id
+    files = await attachments.keys_of_messages(session, [message_id])
     await session.delete(message)
     await session.commit()
+    await attachments.delete_keys(files)
     await broker.publish(
         "message.deleted",
         {"id": message_id, "channel_id": str(channel_id)},
