@@ -2,7 +2,8 @@ import { AppWindow, Monitor } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { ShareSource } from '../../../shared/types'
-import { useVoice, type ScreenShareOptions } from '../store/voice'
+import { describeScreen, SCREEN_MODES, type ScreenMode } from '../lib/mediaTier'
+import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
 import { PrimaryButton, Segmented, ToggleRow } from './ui'
 
@@ -13,7 +14,9 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
   const [tab, setTab] = useState<ShareSource['kind']>('screen')
   const [selected, setSelected] = useState<string | null>(null)
   const [audio, setAudio] = useState(true)
-  const [hint, setHint] = useState<ScreenShareOptions['hint']>('motion')
+  const [hint, setHint] = useState<ScreenMode>('motion')
+  // The plan's limits, from the call's token.
+  const tier = useVoice((s) => s.media)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -70,29 +73,30 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div role="radiogroup" aria-label="Qualidade" className="mt-4 grid grid-cols-2 gap-3">
+        {(['detail', 'motion'] as const).map((mode) => (
+          <label
+            key={mode}
+            className={`flex cursor-pointer items-start gap-3 rounded-control border px-3 py-2.5 ${hint === mode ? 'border-accent bg-accent/10' : 'border-line bg-main hover:bg-elevated'}`}
+          >
+            <input type="radio" name="mode" checked={hint === mode} onChange={() => setHint(mode)} className="mt-1 accent-accent" />
+            <span className="min-w-0">
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="font-medium">{SCREEN_MODES[mode].label}</span>
+                <span className="shrink-0 text-xs tabular-nums text-fg-subtle">{describeScreen(tier, mode)}</span>
+              </span>
+              <span className="block text-xs text-fg-subtle">{SCREEN_MODES[mode].description}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-3">
         <ToggleRow
           title="Compartilhar áudio"
           description="Som do PC (jogos, vídeos), sem as vozes da chamada."
           checked={audio}
           onChange={setAudio}
         />
-        <div className="rounded-control border border-line bg-main px-3 py-2">
-          <span className="mb-1 block font-medium">Otimizar para</span>
-          <div className="flex gap-2 text-sm">
-            {(
-              [
-                ['motion', 'Movimento (jogos)'],
-                ['detail', 'Texto (nitidez)']
-              ] as const
-            ).map(([value, label]) => (
-              <label key={value} className="flex cursor-pointer items-center gap-1.5">
-                <input type="radio" name="hint" checked={hint === value} onChange={() => setHint(value)} className="accent-accent" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="mt-4">

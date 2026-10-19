@@ -3,7 +3,6 @@ import {
   ConnectionState,
   Room,
   RoomEvent,
-  ScreenSharePresets,
   Track,
   VideoPresets,
   type LocalAudioTrack,
@@ -15,6 +14,16 @@ import { create } from 'zustand'
 
 import { api } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
+import {
+  cameraPreset,
+  FREE_TIER,
+  screenFps,
+  screenPreset,
+  screenSize,
+  screenSmallLayer,
+  type MediaTier,
+  type ScreenMode
+} from '../lib/mediaTier'
 import { useAppearance } from './appearance'
 import { NOISE_FILTER, NoiseFilter } from '../lib/noiseFilter'
 import { sendRealtime } from '../lib/realtime'
@@ -28,7 +37,7 @@ export interface ScreenShareOptions {
   /** Include system audio (Windows loopback, without this app's own audio). */
   audio: boolean
   /** 'motion' favors frame rate (games, video); 'detail' favors sharpness (text, code). */
-  hint: 'motion' | 'detail'
+  hint: ScreenMode
 }
 
 /** What the room's permissions let us publish (read from the LiveKit token). */
@@ -95,6 +104,8 @@ interface VoiceStore {
   /** Muted / deafened by a moderator in the current server room. */
   serverMuted: boolean
   serverDeafened: boolean
+  /** Quality limits for what we publish, from the last voice token (the user's plan). */
+  media: MediaTier
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -271,6 +282,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     screenVolume: {},
     serverMuted: false,
     serverDeafened: false,
+    media: FREE_TIER,
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -306,11 +318,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       wire(r)
 
       try {
-        const { token, url } = await api<{ token: string; url: string }>(`/channels/${channelId}/voice/token`, {
-          method: 'POST'
-        })
+        const { token, url, media } = await api<{ token: string; url: string; media?: MediaTier }>(
+          `/channels/${channelId}/voice/token`,
+          { method: 'POST' }
+        )
         tokenAllowed = publishableIn(token)
-        set({ allowed: tokenAllowed })
+        set({ allowed: tokenAllowed, media: media ?? FREE_TIER })
         await r.connect(url, token)
       } catch {
         if (room === r) {
@@ -369,7 +382,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       const next = !get().camera
       if (next && !get().allowed.camera) return
       try {
-        await r.localParticipant.setCameraEnabled(next)
+        // Within the plan's limits: its resolution and frame rate, with smaller simulcast layers
+        // for whoever watches in a small tile.
+        const preset = cameraPreset(get().media)
+        await r.localParticipant.setCameraEnabled(
+          next,
+          next ? { deviceId: loadMediaPrefs().videoInput || undefined, resolution: preset.resolution } : undefined,
+          next ? { videoEncoding: preset.encoding, simulcast: true, videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] } : undefined
+        )
         set({ camera: next })
       } catch {
         set({ camera: false, error: 'Não foi possível ligar a câmera. Confira as Configurações.' })
@@ -385,10 +405,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
       // The main process hands this source to getDisplayMedia (see setDisplayMediaRequestHandler).
       await window.aureum.screen.select(sourceId, audio)
+      // Captured at most at the plan's resolution and the mode's frame rate.
+      const tier = get().media
+      const size = screenSize(tier)
+      const fps = screenFps(tier, hint)
       let stream: MediaStream
       try {
         stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: { ideal: hint === 'motion' ? 30 : 15 }, width: { max: 1920 }, height: { max: 1080 } },
+          video: { frameRate: { ideal: fps, max: fps }, width: { max: size.width }, height: { max: size.height } },
           audio: audio
             ? ({
                 // Drops audio played by this app (the call itself), so nobody hears an echo
@@ -421,13 +445,11 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       try {
         await r.localParticipant.publishTrack(video, {
           source: Track.Source.ScreenShare,
-          videoEncoding: (hint === 'motion' ? ScreenSharePresets.h1080fps30 : ScreenSharePresets.h1080fps15).encoding,
-          // Lower layers for viewers watching in a side tile instead of in focus.
+          videoEncoding: screenPreset(tier, hint).encoding,
+          // A lower layer for viewers watching in a side tile instead of in focus.
           simulcast: true,
-          screenShareSimulcastLayers:
-            hint === 'motion'
-              ? [ScreenSharePresets.h360fps15, ScreenSharePresets.h720fps30]
-              : [ScreenSharePresets.h360fps3, ScreenSharePresets.h720fps15],
+          screenShareSimulcastLayers: [screenSmallLayer(hint)],
+          // Under pressure, "Texto nítido" keeps its resolution and "Movimento" its frame rate.
           degradationPreference: hint === 'motion' ? 'maintain-framerate' : 'maintain-resolution'
         })
         if (systemAudio) {
