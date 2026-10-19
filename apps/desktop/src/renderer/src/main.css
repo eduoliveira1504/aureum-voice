@@ -34,6 +34,10 @@
   --label-blue: #5b9cf0;
   --label-purple: #a98af0;
   --label-pink: #e57aa8;
+  /* Badge metals: the rarity's color (bronze common, silver rare, gold legendary and mythic). */
+  --badge-bronze: #c08a5a;
+  --badge-silver: #c9d1da;
+  --badge-gold: #e8b531;
 }
 
 :root[data-theme='light'] {
@@ -59,6 +63,10 @@
   --label-blue: #2f6fd0;
   --label-purple: #7a52cc;
   --label-pink: #c23e7a;
+  /* Darker, so the rarity names read on light backgrounds. */
+  --badge-bronze: #94603a;
+  --badge-silver: #5f6b78;
+  --badge-gold: #9a6f00;
 }
 
 :root {
@@ -102,6 +110,10 @@
 
   /* Own chat messages: the accent toned toward the surface, readable with regular text. */
   --color-bubble-own: color-mix(in oklab, var(--accent) 28%, var(--bg-elevated));
+
+  --color-badge-bronze: var(--badge-bronze);
+  --color-badge-silver: var(--badge-silver);
+  --color-badge-gold: var(--badge-gold);
 
   --color-scrim: var(--scrim);
   --color-on-scrim: var(--on-scrim);

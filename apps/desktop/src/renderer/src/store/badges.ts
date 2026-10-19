@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { api, type Badge, type BadgeRarity, type HeldBadge } from '../lib/api'
 
 /** Rarest first, the order profiles list badges in. */
-const RARITY_RANK: Record<BadgeRarity, number> = { mitica: 0, lendaria: 1, rara: 2, comum: 3 }
+export const RARITY_RANK: Record<BadgeRarity, number> = { mitica: 0, lendaria: 1, rara: 2, comum: 3 }
 
 export const RARITY_LABEL: Record<BadgeRarity, string> = {
   comum: 'Comum',

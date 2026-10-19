@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { api, ApiError, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
 import { ACCENT_PRESETS } from '../store/appearance'
-import { BadgeShowcase } from './Badge'
+import { BadgeSummary } from './Badge'
 import { CustomStatusEditor, draftOf, statusFromDraft, type StatusDraft } from './CustomStatus'
 import { FormError } from './Modal'
 import { errorText } from './modals'
@@ -95,7 +95,7 @@ function bodyOf(form: Form, previous: CustomStatus | null): Partial<Me> {
   }
 }
 
-export function ProfileSettings({ user }: { user: Me }): ReactNode {
+export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges(): void }): ReactNode {
   const { setUser } = useAuth()
   const [form, setForm] = useState(() => formOf(user))
   const [error, setError] = useState<string | null>(null)
@@ -285,7 +285,7 @@ export function ProfileSettings({ user }: { user: Me }): ReactNode {
           <ProfileView user={preview} />
           <div className="mt-5 w-[340px]">
             <span className={labelClass}>Suas insígnias</span>
-            <BadgeShowcase badges={user.badges} />
+            <BadgeSummary badges={user.badges} onOpen={onOpenBadges} />
           </div>
         </div>
       </div>

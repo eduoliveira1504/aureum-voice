@@ -57,6 +57,8 @@ export interface Badge {
   description: string
   rarity: BadgeRarity
   numbered: boolean
+  /** Only granted while the beta runs. */
+  exclusive_beta: boolean
   /** Full art (tooltips, big sizes) and the simplified one for 32 px and below. */
   icon_svg: string
   icon_svg_small: string

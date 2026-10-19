@@ -1,12 +1,21 @@
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import type { HeldBadge } from '../lib/api'
+import type { BadgeRarity, HeldBadge } from '../lib/api'
 import { badgeTitle, RARITY_LABEL, sortBadges, useBadges, type ShownBadge } from '../store/badges'
 
 const SMALL_MAX = 32
 const PROFILE_VISIBLE = 5
-const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })
+export const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })
+
+/** The rarity's name in its metal's color. */
+export const RARITY_TEXT: Record<BadgeRarity, string> = {
+  comum: 'text-badge-bronze',
+  rara: 'text-badge-silver',
+  lendaria: 'text-badge-gold',
+  mitica: 'text-badge-gold'
+}
 
 function svgData(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
@@ -86,7 +95,9 @@ function BadgeTooltip({ shown, anchor }: { shown: ShownBadge; anchor: DOMRect })
         <BadgeIcon shown={shown} size={56} shine="always" />
         <div className="min-w-0">
           <div className="font-display font-semibold leading-tight">{badgeTitle(shown)}</div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-accent-text">{RARITY_LABEL[shown.badge.rarity]}</div>
+          <div className={`text-xs font-semibold uppercase tracking-wide ${RARITY_TEXT[shown.badge.rarity]}`}>
+            {RARITY_LABEL[shown.badge.rarity]}
+          </div>
         </div>
       </div>
       {shown.badge.description && <p className="mt-2 text-sm text-fg-muted">{shown.badge.description}</p>}
@@ -116,32 +127,30 @@ export function BadgeList({ badges }: { badges: HeldBadge[] }): ReactNode {
   )
 }
 
-/** Settings > Meu perfil: every badge the user holds, big, with what each one means. */
-export function BadgeShowcase({ badges }: { badges: HeldBadge[] }): ReactNode {
+/** Settings > Meu perfil: the badges the user holds at a glance; opens the badges page. */
+export function BadgeSummary({ badges, onOpen }: { badges: HeldBadge[]; onOpen(): void }): ReactNode {
   const shown = useShownBadges(badges)
-  if (!shown.length) {
-    return (
-      <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-sm text-fg-muted">
-        Você ainda não tem insígnias. Elas são dadas pelo Aureum, nunca escolhidas.
-      </p>
-    )
-  }
   return (
-    <ul className="space-y-2">
-      {shown.map((s) => (
-        <li key={s.key} className="flex items-center gap-3 rounded-control border border-line bg-main p-3">
-          <BadgeIcon shown={s} size={48} shine="always" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <span className="font-display font-semibold">{badgeTitle(s)}</span>
-              <span className="text-xs font-semibold uppercase tracking-wide text-accent-text">{RARITY_LABEL[s.badge.rarity]}</span>
-            </div>
-            {s.badge.description && <p className="text-sm text-fg-muted">{s.badge.description}</p>}
-            <p className="text-xs text-fg-subtle">Recebida em {dateFormat.format(new Date(s.granted_at))}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-3 rounded-control border border-line bg-main p-3 text-left hover:border-fg-subtle"
+    >
+      {shown.length ? (
+        <span className="flex -space-x-1">
+          {shown.slice(0, PROFILE_VISIBLE).map((s) => (
+            <BadgeIcon key={s.key} shown={s} size={32} shine="always" />
+          ))}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">
+          {shown.length ? `${shown.length} ${shown.length === 1 ? 'insígnia' : 'insígnias'}` : 'Nenhuma insígnia ainda'}
+        </span>
+        <span className="block text-xs text-fg-muted">Ver todas as insígnias do Aureum</span>
+      </span>
+      <ChevronRight size={18} className="shrink-0 text-fg-subtle" />
+    </button>
   )
 }
 

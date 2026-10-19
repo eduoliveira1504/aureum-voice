@@ -5,6 +5,7 @@ import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPre
 import { useVoice } from '../store/voice'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
+import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
 import { InputModeSettings } from './InputModeSettings'
 import { Modal } from './Modal'
@@ -36,7 +37,8 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
+// 'badges' has no tab of its own: it opens from Meu perfil.
+type Tab = 'profile' | 'badges' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -62,7 +64,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === key || (key === 'profile' && tab === 'badges') ? 'border-accent text-fg' : 'border-transparent text-fg-muted hover:text-fg'}`}
           >
             {label}
           </button>
@@ -70,7 +72,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
       </div>
 
       <div className="max-h-[60vh] overflow-y-auto pr-1">
-        {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} />}
+        {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} onOpenBadges={() => setTab('badges')} />}
+        {tab === 'badges' && state.status === 'signedIn' && <BadgesPage badges={state.user.badges} onBack={() => setTab('profile')} />}
         {tab === 'activity' && <ActivitySettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}

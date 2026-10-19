@@ -115,6 +115,8 @@ class BadgeOut(BaseModel):
     description: str
     rarity: BadgeRarity
     numbered: bool
+    # Only granted while the beta runs.
+    exclusive_beta: bool
     icon_svg: str
     icon_svg_small: str
 

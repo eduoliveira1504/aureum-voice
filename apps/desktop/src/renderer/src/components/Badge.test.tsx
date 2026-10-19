@@ -1,15 +1,17 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Badge } from '../lib/api'
 import { useBadges } from '../store/badges'
-import { BadgeList, BadgeShowcase, TopBadge } from './Badge'
+import { BadgeList, BadgeSummary, TopBadge } from './Badge'
+import { BadgesPage } from './BadgesPage'
 
 const badge = (key: string, name: string, rarity: Badge['rarity']): Badge => ({
   key,
   name,
   description: `Sobre ${name}`,
   rarity,
+  exclusive_beta: false,
   numbered: key === 'pioneer',
   icon_svg: `<svg data-art="full-${key}"/>`,
   icon_svg_small: `<svg data-art="small-${key}"/>`
@@ -58,16 +60,33 @@ describe('badges', () => {
     expect(container.querySelector('.badge-shine-hover')).not.toBeNull()
   })
 
-  it('the showcase lists every badge with its details, or says there are none', () => {
-    render(<BadgeShowcase badges={[held('bug_hunter'), held('pioneer', 1)]} />)
-    const items = screen.getAllByRole('listitem')
-    expect(items.map((li) => li.textContent)).toEqual([
-      expect.stringContaining('Pioneiro #1Mítica'),
-      expect.stringContaining('Caçador de bugsRara')
-    ])
-    expect(items[0].textContent).toContain('Recebida em 18 de outubro de 2026')
+  it('the summary in Meu perfil counts them and opens the page', () => {
+    const onOpen = vi.fn()
+    render(<BadgeSummary badges={[held('bug_hunter'), held('pioneer', 1)]} onOpen={onOpen} />)
+    fireEvent.click(screen.getByText('2 insígnias'))
+    expect(onOpen).toHaveBeenCalled()
     cleanup()
-    render(<BadgeShowcase badges={[]} />)
-    expect(screen.getByText(/ainda não tem insígnias/)).toBeTruthy()
+    render(<BadgeSummary badges={[]} onOpen={onOpen} />)
+    expect(screen.getByText('Nenhuma insígnia ainda')).toBeTruthy()
+  })
+
+  it('the page shows every badge: the ones you have first, the others locked', () => {
+    useBadges.setState({
+      catalog: {
+        pioneer: { ...badge('pioneer', 'Pioneiro', 'mitica'), exclusive_beta: true },
+        founder: { ...badge('founder', 'Fundador', 'mitica'), exclusive_beta: true },
+        bug_hunter: badge('bug_hunter', 'Caçador de bugs', 'rara')
+      }
+    })
+    render(<BadgesPage badges={[held('bug_hunter')]} onBack={() => {}} />)
+    const cards = screen.getAllByRole('listitem')
+    expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual([
+      'Caçador de bugs',
+      'Pioneiro (você não tem)',
+      'Fundador (você não tem)'
+    ])
+    expect(cards[0].textContent).toContain('Recebida em 18 de outubro de 2026')
+    expect(cards[1].textContent).toContain('Só durante o beta')
+    expect(screen.getByText(/Você tem 1 de 3/)).toBeTruthy()
   })
 })

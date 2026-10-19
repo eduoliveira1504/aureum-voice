@@ -8,6 +8,7 @@ const badge = (key: string, rarity: Badge['rarity'], numbered = false): Badge =>
   name: key,
   description: '',
   rarity,
+  exclusive_beta: false,
   numbered,
   icon_svg: '<svg/>',
   icon_svg_small: '<svg/>'
