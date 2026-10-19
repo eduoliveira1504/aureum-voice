@@ -96,6 +96,19 @@ export interface OverlayState {
   notice: string | null
 }
 
+/** A downloaded update waiting for a restart. */
+export interface UpdateState {
+  ready: boolean
+  version: string | null
+}
+
+/** What a bug report says about the app and the PC. */
+export interface AppInfo {
+  version: string
+  /** e.g. "Windows 10.0.26200 (x64)" */
+  os: string
+}
+
 /** API exposed to the renderer as `window.aureum` by the preload script. */
 export interface AureumBridge {
   session: {
@@ -119,6 +132,21 @@ export interface AureumBridge {
   window: {
     /** Colors of the window buttons area over the top bar (hex: background, symbols). */
     setTitleBarColors(color: string, symbolColor: string): Promise<void>
+    /** PNG of the app window as it looks right now. */
+    capture(): Promise<Uint8Array>
+  }
+  app: {
+    info(): Promise<AppInfo>
+    /** The app's last log lines (in memory only, tokens and e-mails removed). */
+    recentLogs(): Promise<string>
+    /** Ctrl+Shift+R anywhere in the window ("Reportar problema"). */
+    onReportProblem(listener: () => void): () => void
+  }
+  updates: {
+    getState(): Promise<UpdateState>
+    /** Restarts into the downloaded update. */
+    install(): Promise<void>
+    onReady(listener: (state: UpdateState) => void): () => void
   }
   tray: {
     setState(state: TrayState): Promise<void>

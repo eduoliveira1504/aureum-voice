@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { AureumBridge, OverlayState, TrayCommand } from '../shared/types'
+import type { AureumBridge, OverlayState, TrayCommand, UpdateState } from '../shared/types'
 
 const bridge: AureumBridge = {
   session: {
@@ -18,7 +18,26 @@ const bridge: AureumBridge = {
     clear: () => ipcRenderer.invoke('attachments:clear')
   },
   window: {
-    setTitleBarColors: (color, symbolColor) => ipcRenderer.invoke('window:title-bar', color, symbolColor)
+    setTitleBarColors: (color, symbolColor) => ipcRenderer.invoke('window:title-bar', color, symbolColor),
+    capture: () => ipcRenderer.invoke('window:capture')
+  },
+  app: {
+    info: () => ipcRenderer.invoke('app:info'),
+    recentLogs: () => ipcRenderer.invoke('app:recent-logs'),
+    onReportProblem: (listener) => {
+      const wrapped = (): void => listener()
+      ipcRenderer.on('app:report-problem', wrapped)
+      return () => ipcRenderer.removeListener('app:report-problem', wrapped)
+    }
+  },
+  updates: {
+    getState: () => ipcRenderer.invoke('updates:get-state'),
+    install: () => ipcRenderer.invoke('updates:install'),
+    onReady: (listener) => {
+      const wrapped = (_: unknown, state: UpdateState): void => listener(state)
+      ipcRenderer.on('updates:ready', wrapped)
+      return () => ipcRenderer.removeListener('updates:ready', wrapped)
+    }
   },
   tray: {
     setState: (state) => ipcRenderer.invoke('tray:set-state', state),

@@ -1,4 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { arch, release } from 'node:os'
 import { join } from 'node:path'
 
 import {
@@ -14,11 +15,15 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 
-import type { AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
+import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
 import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
+import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as overlay from './overlay'
 import { createTray, destroyTray, notify, setTrayState } from './tray'
+import { getUpdateState, installUpdate, startUpdater } from './updater'
+
+captureMainConsole()
 
 // Set at build time (apps/desktop/.env.production.local), so the installer friends get
 // already points at the public server; users can still change it on the login screen.
@@ -138,6 +143,16 @@ handle('attachments:get', attachmentCache.get)
 handle('attachments:put', attachmentCache.put)
 handle('attachments:clear', attachmentCache.clear)
 handle('tray:set-state', setTrayState)
+handle('app:recent-logs', recentLogs)
+handle('app:info', (): AppInfo => ({
+  version: app.getVersion(),
+  os: `${process.platform === 'win32' ? 'Windows' : process.platform} ${release()} (${arch()})`
+}))
+handle('updates:get-state', getUpdateState)
+handle('updates:install', () => {
+  quitting = true
+  installUpdate()
+})
 // Seconds without keyboard/mouse input on the whole PC (not just this app), for auto-idle.
 handle('system:idle-seconds', () => powerMonitor.getSystemIdleTime())
 
@@ -220,6 +235,8 @@ handle('window:title-bar', (color: unknown, symbolColor: unknown) => {
   mainWindow?.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT })
 })
 
+handle('window:capture', async () => (await mainWindow!.webContents.capturePage()).toPNG())
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -255,6 +272,14 @@ function createWindow(): void {
     if (!cachedSettings.trayHintShown) {
       notify('O Aureum continua rodando na bandeja', 'Para fechar de vez, use Sair do Aureum no ícone da bandeja.')
       void writeSettings({ trayHintShown: true })
+    }
+  })
+  captureWindowConsole(mainWindow.webContents, 'app')
+  // Ctrl+Shift+R opens "Reportar problema" (in Electron's default menu it would force a reload).
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.control && input.shift && !input.alt && input.key.toLowerCase() === 'r') {
+      event.preventDefault()
+      mainWindow?.webContents.send('app:report-problem')
     }
   })
   mainWindow.on('focus', () => overlay.setMainFocused(true))
@@ -330,6 +355,7 @@ if (!app.requestSingleInstanceLock()) {
     })
     void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
     void startGameDetection((game) => mainWindow?.webContents.send('games:changed', game))
+    startUpdater((state) => mainWindow?.webContents.send('updates:ready', state))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })

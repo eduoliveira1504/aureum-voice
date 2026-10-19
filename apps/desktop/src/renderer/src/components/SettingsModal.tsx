@@ -5,6 +5,7 @@ import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPre
 import { useVoice } from '../store/voice'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
+import { BugReports } from './BugReports'
 import { Modal } from './Modal'
 import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
@@ -34,11 +35,12 @@ async function listDevices(): Promise<Devices> {
   return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
 }
 
-type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows'
+type Tab = 'profile' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
   const [tab, setTab] = useState<Tab>(initialTab)
+  const isOwner = state.status === 'signedIn' && state.user.is_app_owner
 
   return (
     <Modal title="Configurações" wide onClose={onClose}>
@@ -51,7 +53,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['voice', 'Voz e vídeo'],
             ['sounds', 'Sons'],
             ['overlay', 'Overlay'],
-            ['windows', 'Windows']
+            ['windows', 'Windows'],
+            ...(isOwner ? ([['reports', 'Problemas']] as const) : [])
           ] as const
         ).map(([key, label]) => (
           <button
@@ -73,6 +76,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'sounds' && <SoundSettings />}
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
+        {tab === 'reports' && isOwner && <BugReports />}
       </div>
 
       <div className="mt-5 border-t border-line pt-4">

@@ -14,7 +14,7 @@ export default defineConfig({
   plugins: [base64Stub, react()],
   test: {
     environment: 'jsdom',
-    include: ['src/renderer/src/**/*.test.{ts,tsx}'],
+    include: ['src/renderer/src/**/*.test.{ts,tsx}', 'src/shared/**/*.test.ts'],
     setupFiles: ['src/renderer/src/test/setup.ts']
   }
 })

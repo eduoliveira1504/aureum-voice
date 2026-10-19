@@ -50,6 +50,22 @@ export interface Activity {
 
 export interface Me extends User {
   email: string
+  /** The app owner's account (reads bug reports). */
+  is_app_owner: boolean
+}
+
+/** A problem reported from the app; only the app owner lists them. */
+export interface BugReport {
+  id: string
+  author: User | null
+  description: string
+  app_version: string
+  os: string
+  logs: string
+  /** Protected: download it with fetchMedia. */
+  screenshot_url: string | null
+  resolved_at: string | null
+  created_at: string
 }
 
 export type Theme = 'dark' | 'light' | 'system'

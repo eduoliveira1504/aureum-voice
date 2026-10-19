@@ -9,6 +9,7 @@ import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
 import { OverlayHost } from '../components/Overlay'
 import { Panels } from '../components/Panels'
+import { openReportProblem } from '../components/ReportProblem'
 import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
 import { CallView, VoiceView } from '../components/VoiceView'
@@ -41,6 +42,9 @@ export function AppShell({ user }: { user: Me }): ReactNode {
   const narrow = useNav((s) => s.narrow)
   const { setUser } = useAuth()
   useOutgoingCall(user.id)
+
+  // Ctrl+Shift+R (caught by the main process, so it works over any screen).
+  useEffect(() => window.aureum.app.onReportProblem(() => void openReportProblem()), [])
 
   // One real-time connection for the whole signed-in session.
   useEffect(() => {

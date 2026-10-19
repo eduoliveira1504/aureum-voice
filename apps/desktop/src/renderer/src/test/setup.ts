@@ -13,7 +13,9 @@ const bridge = {
     set: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, trayHintShown: true })
   },
   attachments: { get: async () => null, put: async () => {}, clear: async () => {} },
-  window: { setTitleBarColors: async () => {} },
+  window: { setTitleBarColors: async () => {}, capture: async () => new Uint8Array() },
+  app: { info: async () => ({ version: '0.0.0-test', os: 'Test OS' }), recentLogs: async () => '', onReportProblem: unsubscribe },
+  updates: { getState: async () => ({ ready: false, version: null }), install: async () => {}, onReady: unsubscribe },
   tray: { setState: async () => {}, onCommand: unsubscribe },
   system: { idleSeconds: async () => 0 },
   games: {

@@ -1,4 +1,4 @@
-import { Bell, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
+import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, RefreshCw, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -14,6 +14,7 @@ import { ServerMenu } from './PlaceMenus'
 import { ServerBannerLayer } from './ServerBanner'
 import { CustomStatusModal } from './CustomStatus'
 import { ProfilePopover } from './ProfileCard'
+import { openReportProblem } from './ReportProblem'
 import { StatusBubble } from './profileBits'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
@@ -75,6 +76,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
         >
           <Search size={18} />
         </button>
+        <UpdateButton />
         <NotificationsButton me={me} />
         <ProfileButton me={me} />
       </div>
@@ -499,6 +501,15 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
               setSettings(true)
             }}
           />
+          <MenuItem
+            icon={Bug}
+            label="Reportar problema"
+            hint="Ctrl+Shift+R"
+            onClick={() => {
+              setOpen(false)
+              void openReportProblem()
+            }}
+          />
           <MenuItem icon={LogOut} label="Sair" danger onClick={() => void logout()} />
         </div>
       )}
@@ -512,6 +523,26 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
         />
       )}
     </div>
+  )
+}
+
+/** Shows up once an update finished downloading in the background. */
+function UpdateButton(): ReactNode {
+  const [version, setVersion] = useState<string | null>(null)
+  useEffect(() => {
+    void window.aureum.updates.getState().then((s) => s.ready && setVersion(s.version))
+    return window.aureum.updates.onReady((s) => setVersion(s.version))
+  }, [])
+  if (!version) return null
+  return (
+    <button
+      type="button"
+      title={`Versão ${version} pronta`}
+      onClick={() => void window.aureum.updates.install()}
+      className="flex items-center gap-1.5 rounded-control bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+    >
+      <RefreshCw size={14} /> Reiniciar para atualizar
+    </button>
   )
 }
 

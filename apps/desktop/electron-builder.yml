@@ -12,3 +12,11 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+# Updates (electron-updater) come from this public repository's GitHub releases. A "-beta.N"
+# version publishes to and follows the beta channel. `npm run release` uploads a draft release
+# (GH_TOKEN from the root .env); it only reaches people once published on GitHub.
+publish:
+  provider: github
+  owner: eduoliveira1504
+  repo: aureum-voice
+  releaseType: draft
