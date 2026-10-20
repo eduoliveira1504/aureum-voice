@@ -14,7 +14,7 @@ import {
 import { create } from 'zustand'
 
 import { api } from '../lib/api'
-import { loadMediaPrefs } from '../lib/mediaPrefs'
+import { gateOf, loadMediaPrefs } from '../lib/mediaPrefs'
 import {
   cameraPreset,
   FREE_TIER,
@@ -64,8 +64,8 @@ export function micCapture(prefs = loadMediaPrefs()): AudioCaptureOptions {
   return {
     deviceId: prefs.audioInput || undefined,
     noiseSuppression: false,
-    echoCancellation: true,
-    autoGainControl: true,
+    echoCancellation: prefs.echoCancellation,
+    autoGainControl: prefs.autoGainControl,
     sampleRate: { ideal: PROCESSING_RATE }
   }
 }
@@ -89,11 +89,14 @@ function syncMicProcessor(r: Room): Promise<void> {
     const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
     if (!track) return
     void logMic(track)
-    const denoise = loadMediaPrefs().noiseSuppression
+    const prefs = loadMediaPrefs()
     const current = track.getProcessor()
-    if (current?.name === MIC_PROCESSOR && (current as MicProcessor).denoise === denoise) return
+    if (current?.name === MIC_PROCESSOR && (current as MicProcessor).denoise === prefs.noiseSuppression) {
+      ;(current as MicProcessor).setGate(gateOf(prefs))
+      return
+    }
     try {
-      await track.setProcessor(new MicProcessor(denoise))
+      await track.setProcessor(new MicProcessor(prefs.noiseSuppression, gateOf(prefs)))
     } catch (err) {
       // The mic still works without it, as the device sends it.
       console.warn('Mic processor unavailable', err)
@@ -176,6 +179,9 @@ interface VoiceStore {
   setPushToTalk(held: boolean): void
   /** The input mode or the push-to-talk key changed in Settings. */
   applyInputMode(): Promise<void>
+  /** Applies noise suppression and sensitivity changes to the mic in the call, without
+   * reopening the device (echo cancellation and auto gain need applyDevicePrefs). */
+  applyMicProcessing(): Promise<void>
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
   clearError(): void
@@ -620,6 +626,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     applyInputMode: async () => {
       syncPushToTalk()
       await applyMic(false)
+    },
+
+    applyMicProcessing: async () => {
+      if (room) await syncMicProcessor(room)
     },
 
     announce,

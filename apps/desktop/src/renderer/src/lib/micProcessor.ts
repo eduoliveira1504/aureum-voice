@@ -7,10 +7,18 @@ import type { AudioProcessorOptions, Track, TrackProcessor } from 'livekit-clien
 
 // A file, never an inlined data: URL: the app's CSP (script-src 'self') would block that.
 import pickerUrl from './channelPicker.worklet.js?url&no-inline'
+import gateUrl from './voiceGate.worklet.js?url&no-inline'
 
 export const MIC_PROCESSOR = 'aureum-mic'
 /** RNNoise only works at 48 kHz. */
 export const PROCESSING_RATE = 48000
+
+/** dBFS of a linear RMS level (floored at -100). */
+export const toDb = (rms: number): number => (rms > 0 ? Math.max(-100, 20 * Math.log10(rms)) : -100)
+const fromDb = (db: number): number => 10 ** (db / 20)
+
+/** The level the voice gate receives (dBFS, after noise suppression) and whether it's open. */
+export type LevelListener = (db: number, open: boolean) => void
 
 let wasm: ArrayBuffer | undefined
 
@@ -26,10 +34,12 @@ function wasmBinary(): ArrayBuffer {
  *   mic (any rate, 1 or 2 channels) → resampled to 48 kHz by the AudioContext
  *     → channel picker (one channel, the louder; never a sum, see channelPicker.worklet.js)
  *     → RNNoise noise suppression, when on (free and open source, unlike LiveKit Cloud's Krisp)
+ *     → voice gate (manual sensitivity; open when it's automatic, see voiceGate.worklet.js)
  *     → mono track
  *
  * Each node is pinned to its channel count ('explicit' + 'discrete'), so Web Audio never mixes
- * channels on its own.
+ * channels on its own. The mic test in Configurações › Voz runs this same class, so what you hear
+ * there is what the others hear.
  */
 export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
   name = MIC_PROCESSOR
@@ -38,8 +48,26 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
   private source?: MediaStreamAudioSourceNode
   private picker?: AudioWorkletNode
   private rnnoise?: RnnoiseWorkletNode
+  private gate?: AudioWorkletNode
+  private listener: LevelListener | null = null
 
-  constructor(readonly denoise: boolean) {}
+  /** `gateDb`: the manual sensitivity threshold in dBFS, or null for automatic (no gate). */
+  constructor(
+    readonly denoise: boolean,
+    private gateDb: number | null = null
+  ) {}
+
+  /** Changes the sensitivity live, without restarting the mic. */
+  setGate(db: number | null): void {
+    this.gateDb = db
+    this.gate?.port.postMessage({ threshold: db === null ? 0 : fromDb(db) })
+  }
+
+  /** Reports the level ~20 times a second to `listener` (null stops it). */
+  onLevel(listener: LevelListener | null): void {
+    this.listener = listener
+    this.gate?.port.postMessage({ report: listener !== null })
+  }
 
   async init({ track }: AudioProcessorOptions): Promise<void> {
     const ctx = new AudioContext({ sampleRate: PROCESSING_RATE, latencyHint: 'interactive' })
@@ -47,6 +75,7 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
     try {
       if (ctx.sampleRate !== PROCESSING_RATE) throw new Error(`AudioContext runs at ${ctx.sampleRate} Hz`)
       await ctx.audioWorklet.addModule(pickerUrl)
+      await ctx.audioWorklet.addModule(gateUrl)
       if (this.denoise) await ctx.audioWorklet.addModule(workletUrl)
 
       const source = ctx.createMediaStreamSource(new MediaStream([track]))
@@ -70,9 +99,20 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
         last = last.connect(rnnoise)
         this.rnnoise = rnnoise
       }
-      last.connect(destination)
+      const gate = new AudioWorkletNode(ctx, 'aureum-voice-gate', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'discrete',
+        outputChannelCount: [1]
+      })
+      gate.port.onmessage = ({ data }: MessageEvent<{ level: number; open: boolean }>) =>
+        this.listener?.(toDb(data.level), data.open)
+      last.connect(gate).connect(destination)
       this.source = source
       this.picker = picker
+      this.gate = gate
+      this.setGate(this.gateDb)
+      this.onLevel(this.listener)
       this.processedTrack = destination.stream.getAudioTracks()[0]
       if (ctx.state === 'suspended') await ctx.resume()
     } catch (err) {
@@ -90,8 +130,9 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
     this.source?.disconnect()
     this.picker?.disconnect()
     this.rnnoise?.destroy()
+    this.gate?.disconnect()
     this.processedTrack?.stop()
     await this.ctx?.close().catch(() => {})
-    this.source = this.picker = this.rnnoise = this.processedTrack = this.ctx = undefined
+    this.source = this.picker = this.rnnoise = this.gate = this.processedTrack = this.ctx = undefined
   }
 }

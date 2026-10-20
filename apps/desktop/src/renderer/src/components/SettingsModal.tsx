@@ -1,42 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { AccountSettings, InvitesSettings } from './AccountSettings'
-import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
-import { useVoice } from '../store/voice'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
 import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
-import { InputModeSettings } from './InputModeSettings'
 import { Modal, ModalBody, ModalTabs } from './Modal'
 import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SoundSettings } from './SoundSettings'
-import { inputClass, labelClass, ToggleRow } from './ui'
+import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
-
-interface Devices {
-  audioinput: MediaDeviceInfo[]
-  audiooutput: MediaDeviceInfo[]
-  videoinput: MediaDeviceInfo[]
-}
-
-async function listDevices(): Promise<Devices> {
-  let all = await navigator.mediaDevices.enumerateDevices()
-  // Device names are hidden until media access is granted once.
-  if (all.some((d) => d.kind === 'audioinput' && !d.label)) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach((t) => t.stop())
-      all = await navigator.mediaDevices.enumerateDevices()
-    } catch {
-      // No permission or no mic: list whatever we have.
-    }
-  }
-  const of = (kind: MediaDeviceKind): MediaDeviceInfo[] => all.filter((d) => d.kind === kind && d.deviceId !== 'communications')
-  return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
-}
 
 // 'badges' has no tab of its own: it opens from Meu perfil.
 type Tab = 'profile' | 'badges' | 'account' | 'invites' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
@@ -90,56 +65,3 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
   )
 }
 
-function VoiceSettings(): ReactNode {
-  const applyDevicePrefs = useVoice((s) => s.applyDevicePrefs)
-  const [prefs, setPrefs] = useState<MediaPrefs>(loadMediaPrefs)
-  const [devices, setDevices] = useState<Devices | null>(null)
-
-  useEffect(() => {
-    void listDevices().then(setDevices)
-    const onChange = (): void => void listDevices().then(setDevices)
-    navigator.mediaDevices.addEventListener('devicechange', onChange)
-    return () => navigator.mediaDevices.removeEventListener('devicechange', onChange)
-  }, [])
-
-  function update(patch: Partial<MediaPrefs>): void {
-    // Re-read: the input mode section saves the same prefs.
-    const next = { ...loadMediaPrefs(), ...patch }
-    setPrefs(next)
-    saveMediaPrefs(next)
-    void applyDevicePrefs()
-  }
-
-  const select = (label: string, key: 'audioInput' | 'audioOutput' | 'videoInput', list: MediaDeviceInfo[] | undefined): ReactNode => (
-    <label className="block">
-      <span className={labelClass}>{label}</span>
-      <select
-        value={prefs[key]}
-        onChange={(e) => update({ [key]: e.target.value })}
-        className={inputClass}
-      >
-        <option value="">Padrão do sistema</option>
-        {list?.map((d, i) => (
-          <option key={d.deviceId} value={d.deviceId}>
-            {d.label || `Dispositivo ${i + 1}`}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-
-  return (
-    <div className="max-w-[440px] space-y-4">
-        {select('Microfone', 'audioInput', devices?.audioinput)}
-        {select('Saída de áudio', 'audioOutput', devices?.audiooutput)}
-        {select('Câmera', 'videoInput', devices?.videoinput)}
-        <ToggleRow
-          title="Supressão de ruído"
-          description="Reduz barulho de fundo, como teclado e ventilador. Processado no seu PC, antes do áudio sair."
-          checked={prefs.noiseSuppression}
-          onChange={(noiseSuppression) => update({ noiseSuppression })}
-        />
-        <InputModeSettings />
-    </div>
-  )
-}

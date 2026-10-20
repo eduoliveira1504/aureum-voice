@@ -34,6 +34,20 @@ fine in Discord and WhatsApp. In the 0008 pipeline:
   delivers (`sampleRate`, `channelCount`, `echoCancellation`, `autoGainControl`, `noiseSuppression`).
   It comes from the source track's `getSettings()`, before the processor. "Reportar problema" attaches it.
 
+**Configurações › Voz (same block)**
+- Separate switches for RNNoise, echo cancellation and auto gain, all on by default. Echo and gain
+  belong to the capture, so changing them reopens the mic in a call. RNNoise and the sensitivity only
+  change the processor, so the mic stays open.
+- Sensitivity: automatic (no gate: RNNoise removes what isn't voice) or manual. Manual adds a voice gate
+  at the end of the chain (`lib/voiceGate.worklet.js`). It cuts below a dBFS threshold, opens in 5 ms,
+  holds for 0.3 s and fades out in 50 ms. Its threshold changes live through the worklet's port. It
+  only applies in voice-activity mode, since in push-to-talk the key decides.
+- The mic test runs the same `MicProcessor` on its own capture. The meter reads the level the gate
+  receives, about 20 times a second, and turns gold while the voice passes. "Ouvir minha voz" plays the
+  processed track on the chosen output, so the user hears what the others hear.
+- The device in use is shown. A "Hands-Free" or "Viva-voz" name (a Bluetooth headset in its phone
+  profile) shows a hint to use another mic.
+
 ## Consequences
 
 - In Electron, a fake stereo mic with one channel inverted came out silent through a plain downmix, at
@@ -41,6 +55,8 @@ fine in Discord and WhatsApp. In the 0008 pipeline:
   normal stereo mic.
 - With echo cancellation on, Chromium processes the capture in mono before the app sees it, so a
   stereo device may reach the picker already mixed. The `[mic]` log shows it (`channelCount=1`), and
-  the per-feature switches in Configurações › Voz (next item of 3.2) let a tester confirm it.
+  the per-feature switches in Configurações › Voz let a tester confirm it.
+- In Electron, a −53 dB tone came out silent through the gate set at −40 dB, and a −13 dB one came out
+  at full level.
 - If the processor fails to start, the mic is sent as the device delivers it, without noise
   suppression. A warning goes to the console.

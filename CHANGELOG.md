@@ -12,3 +12,9 @@
 - Transmissão em tela cheia: botão pra sair no canto superior direito (ou Esc), e o volume continua
   à mão. Os controles e o cursor somem quando o mouse fica parado. Duplo clique no vídeo entra e
   sai da tela cheia.
+- **Microfone:** corrigida a voz "de túnel" em alguns headsets (como os com chip Realtek). O
+  Aureum agora usa só um canal do microfone, em vez de misturar os dois.
+- **Configurações › Voz e vídeo:** teste de microfone com medidor e "Ouvir minha voz"; liga e
+  desliga separados para supressão de ruído, cancelamento de eco e ganho automático;
+  sensibilidade automática ou manual; e o nome do microfone em uso. Usando fone Bluetooth, o app
+  avisa quando a qualidade cai.
