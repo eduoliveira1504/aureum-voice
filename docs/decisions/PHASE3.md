@@ -9,7 +9,7 @@ sem push (push só quando o Eduardo pedir). Plano curto antes de começar. Migra
 Alembic, testes da API, README e docs/decisions quando houver escolha de arquitetura.
 O Eduardo decide quando gerar release; uma release pode juntar um ou mais blocos.
 
-Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 3.0.
+Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 3.1 (código pronto; faltam os testes manuais).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -28,7 +28,7 @@ Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 3.0.
 - Depois de publicar: passos para o Eduardo testar no PC dele, com a versão anterior
   instalada, que o app baixa e instala a nova sozinho.
 
-## 3.0 Processo de release (pendência do PHASE2, fazer antes de tudo)
+## 3.0 Processo de release (pendência do PHASE2, fazer antes de tudo) ✅
 - No 0.2.0-beta.2 o `npm run release` criou DOIS rascunhos para a mesma tag (uploads em
   paralelo, cada um criou o seu).
 - Corrigir o scripts/release-desktop.mjs: criar (ou reaproveitar) o rascunho da tag ANTES
