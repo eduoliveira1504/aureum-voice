@@ -56,8 +56,8 @@ BADGES: dict[str, BadgeDefinition] = {
             rarity=BadgeRarity.mitica,
             exclusive_beta=True,
             priority=0,
-            icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,4 86,26 86,70 48,92 10,70 10,26" fill="none" stroke="#E8B531" stroke-width="2"/><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M28 62 L24 36 L37 46 L48 30 L59 46 L72 36 L68 62 Z" fill="#E8B531" stroke="#E8B531" stroke-width="2" stroke-linejoin="round"/><path d="M30 68 H66" stroke="#F4CF6A" stroke-width="3.5" stroke-linecap="round"/></svg>',
-            icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M28 64 L24 36 L37 46 L48 30 L59 46 L72 36 L68 64 Z" fill="#E8B531"/></svg>',
+            icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,4 86,26 86,70 48,92 10,70 10,26" fill="none" stroke="#E8B531" stroke-width="2"/><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531" stroke="#E8B531" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+            icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M48 22 L69 70 H57 L48 48 L39 70 H27 Z" fill="#E8B531"/></svg>',
         ),
         BadgeDefinition(
             # Name and art are placeholders while the testers vote; swapping them keeps the numbers.
