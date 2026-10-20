@@ -9,3 +9,6 @@
 - O conta-gotas da cor de destaque (Configurações › Aparência) não trava mais ao arrastar.
 - O overlay não aparece mais por cima do navegador, do Explorador de Arquivos, do Discord, do
   Spotify e do VS Code. Em Configurações › Overlay dá pra esconder ele em outros apps também.
+- Transmissão em tela cheia: botão pra sair no canto superior direito (ou Esc), e o volume continua
+  à mão. Os controles e o cursor somem quando o mouse fica parado. Duplo clique no vídeo entra e
+  sai da tela cheia.

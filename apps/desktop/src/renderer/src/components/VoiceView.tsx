@@ -7,6 +7,7 @@ import {
   Maximize2,
   Mic,
   MicOff,
+  Minimize2,
   MonitorOff,
   MonitorUp,
   PhoneOff,
@@ -341,54 +342,127 @@ function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): Reac
   const setVolume = useVoice((s) => s.setScreenVolume)
   const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
 
+  const fullscreen = useFullscreen(ref)
+  const idle = useIdle(fullscreen, CONTROLS_IDLE_MS)
+
   if (!track) return null
   // Controls must not also put the tile in focus.
   const stop = (e: { stopPropagation(): void }): void => e.stopPropagation()
+  const toggleFullscreen = (): void => {
+    if (fullscreen) void document.exitFullscreen()
+    else void ref.current?.requestFullscreen()
+  }
+  // In fullscreen the controls show while the mouse moves and hide with the cursor after it stops;
+  // in the tile, they show on hover.
+  const controlsShown = fullscreen
+    ? idle
+      ? 'pointer-events-none opacity-0'
+      : 'opacity-100'
+    : 'opacity-0 focus-within:opacity-100 group-hover:opacity-100'
 
   return (
     <TileFrame size={size} label={name} onClick={onClick} dark>
-      <div ref={ref} className="flex h-full w-full items-center justify-center bg-scrim">
-        <VideoTrackView track={track} mirror={false} fit="contain" />
-      </div>
-      <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
-        <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
-        <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
-      </div>
-      {size !== 'strip' && (
-        <div
-          onClick={stop}
-          onKeyDown={stop}
-          className="absolute bottom-2 right-2 flex items-center gap-2 rounded-item bg-scrim/70 px-2 py-1 text-on-scrim opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
-        >
-          {audio && (
-            <>
-              <button
-                type="button"
-                title={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
-                aria-label={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
-                onClick={() => setVolume(identity, volume === 0 ? 1 : 0)}
-              >
-                {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <input
-                type="range"
-                aria-label="Volume da transmissão"
-                min={0}
-                max={1}
-                step={0.05}
-                value={volume}
-                onChange={(e) => setVolume(identity, Number(e.target.value))}
-                className="w-24 accent-accent"
-              />
-            </>
-          )}
-          <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={() => void ref.current?.requestFullscreen()}>
-            <Maximize2 size={18} />
-          </button>
+      {/* The whole box goes fullscreen, so its labels and controls come along. */}
+      <div ref={ref} className={`relative flex h-full w-full items-center justify-center bg-scrim ${fullscreen && idle ? 'cursor-none' : ''}`}>
+        <div className="flex h-full w-full items-center justify-center" onDoubleClick={size === 'strip' ? undefined : toggleFullscreen}>
+          <VideoTrackView track={track} mirror={false} fit="contain" />
         </div>
-      )}
+        <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
+          <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+          <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
+        </div>
+        {fullscreen && (
+          <button
+            type="button"
+            aria-label="Sair da tela cheia"
+            title="Sair da tela cheia (Esc)"
+            onClick={(e) => {
+              stop(e)
+              void document.exitFullscreen()
+            }}
+            onDoubleClick={stop}
+            className={`absolute right-2 top-2 rounded-item bg-scrim/70 p-1.5 text-on-scrim transition-opacity hover:bg-scrim ${controlsShown}`}
+          >
+            <Minimize2 size={18} />
+          </button>
+        )}
+        {size !== 'strip' && (audio || !fullscreen) && (
+          <div
+            onClick={stop}
+            onKeyDown={stop}
+            onDoubleClick={stop}
+            className={`absolute bottom-2 right-2 flex items-center gap-2 rounded-item bg-scrim/70 px-2 py-1 text-on-scrim transition-opacity ${controlsShown}`}
+          >
+            {audio && (
+              <>
+                <button
+                  type="button"
+                  title={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
+                  aria-label={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
+                  onClick={() => setVolume(identity, volume === 0 ? 1 : 0)}
+                >
+                  {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
+                <input
+                  type="range"
+                  aria-label="Volume da transmissão"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={volume}
+                  onChange={(e) => setVolume(identity, Number(e.target.value))}
+                  className="w-24 accent-accent"
+                />
+              </>
+            )}
+            {!fullscreen && (
+              <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={toggleFullscreen}>
+                <Maximize2 size={18} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </TileFrame>
   )
+}
+
+const CONTROLS_IDLE_MS = 2000
+
+/** Whether `ref`'s element is the document's fullscreen element right now. */
+function useFullscreen(ref: { current: HTMLElement | null }): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const sync = (): void => setOn(document.fullscreenElement !== null && document.fullscreenElement === ref.current)
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [ref])
+  return on
+}
+
+/** While `watching`: true once the mouse has been still for `ms`, false again when it moves. */
+export function useIdle(watching: boolean, ms: number): boolean {
+  const [idle, setIdle] = useState(false)
+  useEffect(() => {
+    setIdle(false)
+    if (!watching) return
+    let timer = setTimeout(() => setIdle(true), ms)
+    const wake = (): void => {
+      setIdle(false)
+      clearTimeout(timer)
+      timer = setTimeout(() => setIdle(true), ms)
+    }
+    window.addEventListener('mousemove', wake)
+    window.addEventListener('mousedown', wake)
+    window.addEventListener('keydown', wake)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('mousemove', wake)
+      window.removeEventListener('mousedown', wake)
+      window.removeEventListener('keydown', wake)
+    }
+  }, [watching, ms])
+  return idle
 }
 
 export function VideoTrackView({
