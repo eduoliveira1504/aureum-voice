@@ -7,8 +7,8 @@ Executar UM bloco por vez, na ordem. Cada bloco: migrações Alembic, testes da 
 atualização do README e um docs/decisions quando houver escolha de arquitetura.
 Nada copiado do Discord (sons, ícones, textos, layout idêntico): o Aureum tem identidade própria.
 
-Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 2.9 (Polimentos concluídos; Cinema adiado).
-Ordem restante: 2.9.
+Status: ✅ Fase 2 concluída. Referência histórica; o trabalho continua no PHASE3.md.
+Pendências que ficaram aqui (script de release, convite de grupo) migraram para o PHASE3.
 
 ## 2.1 Design system e temas ✅ concluído
 Todo o app passa a usar tokens (CSS variables + Tailwind theme). Nenhuma cor hardcoded nos componentes.

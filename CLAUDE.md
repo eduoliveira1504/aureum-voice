@@ -1,8 +1,8 @@
 # Aureum Voice
 
-> Fase atual: 2. Spec em docs/decisions/PHASE2.md (um bloco por vez, na ordem).
-> A Fase 1 (núcleo) está concluída. Onde este arquivo e o PHASE2.md divergirem,
-> vale o PHASE2.md. O código e as migrações são a fonte da verdade do modelo de dados.
+> Fase atual: 3 (beta). Spec em docs/decisions/PHASE3.md (um bloco por vez, na ordem).
+> Fases 1 e 2 concluídas; PHASE2.md é referência histórica. Onde este arquivo e o
+> PHASE3.md divergirem, vale o PHASE3.md.
 
 App de comunicação (voz, câmera, compartilhamento de tela, chat e addons) com identidade
 própria. Público do beta: grupos de amigos e pequenos times de trabalho.
