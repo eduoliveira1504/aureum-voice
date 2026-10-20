@@ -35,6 +35,10 @@ O beta é fechado: só entra quem tem convite.
 
 Quem entra durante o beta ganha a insígnia **Pioneiro**, numerada na ordem de chegada.
 
+O app se atualiza sozinho. Se o ícone antigo continuar aparecendo depois de uma atualização,
+reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão ficam no
+[CHANGELOG](CHANGELOG.md).
+
 Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R) ou
 [abra uma issue](https://github.com/eduoliveira1504/aureum-voice/issues/new).
 
