@@ -1,0 +1,23 @@
+# Mensagens da @aureum. Edite à vontade: o texto entre chaves ({mencao}, {titulo}...) é
+# preenchido pelo Aureum e precisa continuar igual. Depois de editar, reinicie a API.
+#
+# {mencao}      @usuario da pessoa (vira menção clicável)
+# {canal_bugs}  o canal de bugs configurado (vira menção clicável)
+# {quando}      data e hora, horário de Brasília
+# Markdown simples funciona nas mensagens da @aureum: **negrito**, *itálico* e `código`.
+
+[servidor]
+boas_vindas = "⬢ {mencao} chegou! Pioneiro nº {numero} do Aureum. Seja bem-vindo(a)!"
+boas_vindas_sem_pioneiro = "⬢ {mencao} chegou! Seja bem-vindo(a)!"
+# Vai no fim das boas-vindas quando o canal de bugs está configurado.
+boas_vindas_bugs = " Achou um bug? Manda no {canal_bugs}."
+bug_resolvido = "🐞 Bug resolvido: {titulo}. Valeu, {mencao}!"
+
+[dm]
+seguranca_senha = "**Sua senha foi alterada** em {quando}.\nNão foi você? Troque sua senha agora."
+seguranca_email = "**O e-mail da sua conta foi alterado** para {novo} em {quando}.\nNão foi você? Troque sua senha agora."
+seguranca_login = "**Novo login na sua conta** em {quando}, no {sistema}.\nNão foi você? Troque sua senha agora."
+insignia = "Você ganhou a insígnia **{insignia}**!"
+bug_resolvido = "Seu bug \"{titulo}\" foi resolvido. Valeu!"
+bug_resolvido_insignia = "Seu bug \"{titulo}\" foi resolvido. Valeu! E você ganhou a insígnia **{insignia}**."
+convite = "{mencao} entrou com o seu convite!"

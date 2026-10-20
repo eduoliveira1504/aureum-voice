@@ -29,6 +29,11 @@ DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length
 Password = Annotated[str, Field(min_length=8, max_length=128)]
 AccentColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 LowerEmail = Annotated[EmailStr, AfterValidator(str.lower)]
+# A random id the app makes once per install and keeps (app/bot: "new sign-in" notices). Only a
+# hash of it is stored. Older apps don't send it.
+DeviceId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=8, max_length=64)]
+# "Windows 11", as the app shows it in bug reports.
+DeviceOs = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
 
 
 class RegisterRequest(BaseModel):
@@ -37,6 +42,7 @@ class RegisterRequest(BaseModel):
     password: Password
     display_name: DisplayName | None = None
     invite_code: Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)] | None = None
+    device_id: DeviceId | None = None
 
 
 Code = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)]
@@ -129,10 +135,13 @@ class PublicStats(BaseModel):
 class LoginRequest(BaseModel):
     email: LowerEmail
     password: str
+    device_id: DeviceId | None = None
+    os: DeviceOs | None = None
 
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+    device_id: DeviceId | None = None
 
 
 class TokenPair(BaseModel):
@@ -350,6 +359,12 @@ class SettingsOut(BaseModel):
     user_audio: dict[uuid.UUID, UserAudio] = {}
     column_sizes: dict[ColumnKey, ColumnSize] = {}
     muted_places: list[uuid.UUID] = []
+    # Official DM categories turned off (false); missing ones are on.
+    official_dm: dict[str, bool] = {}
+
+
+# What the user can turn off in Configurações › Notificações: everything but security.
+OfficialDmCategory = Literal["insignias", "bugs", "convites", "novidades", "avisos"]
 
 
 class SettingsUpdate(BaseModel):
@@ -368,6 +383,8 @@ class SettingsUpdate(BaseModel):
     user_audio: Annotated[dict[uuid.UUID, UserAudio | None], Field(max_length=50)] | None = None
     column_sizes: Annotated[dict[ColumnKey, ColumnSize | None], Field(max_length=30)] | None = None
     muted_places: Annotated[list[uuid.UUID], Field(max_length=500)] | None = None
+    # Merged per category, like the ones above.
+    official_dm: dict[OfficialDmCategory, bool | None] | None = None
 
 
 # --- Friends --------------------------------------------------------------
@@ -618,6 +635,8 @@ class DmOut(BaseModel):
 
     id: uuid.UUID
     type: ChannelType
+    # The official DM with @aureum (app/bot): read-only, pinned on top, its own look.
+    official: bool = False
     name: str | None
     # Groups only.
     icon_url: str | None = None
@@ -736,6 +755,9 @@ class MessageOut(BaseModel):
     call: CallOut | None = None
     # A system line posted by an addon: {"addon_key", "source_channel_id", "lines": [...]}.
     system: dict[str, Any] | None = None
+    # Posted by @aureum (app/bot): {"category", "badge"?}. The official look also needs the
+    # author's is_official; this never comes from what a message says.
+    official: dict[str, Any] | None = None
 
 
 # --- Bug reports --------------------------------------------------------------
@@ -753,6 +775,8 @@ class BugReportOut(BaseModel):
     # /api/media/bug-reports/{id}, for the owner only.
     screenshot_url: str | None
     resolved_at: datetime | None
+    # "Fechar (não é bug)".
+    dismissed_at: datetime | None = None
     created_at: datetime
 
 Confirmation.model_rebuild()

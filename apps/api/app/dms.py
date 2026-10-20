@@ -45,6 +45,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
             DmOut(
                 id=channel.id,
                 type=channel.type,
+                official=channel.is_official,
                 name=channel.name,
                 icon_url=channel.icon_url,
                 members=[

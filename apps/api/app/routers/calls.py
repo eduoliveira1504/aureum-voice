@@ -33,6 +33,8 @@ async def start_call(channel_id: uuid.UUID, user: CurrentUser, session: SessionD
     channel, _ = await get_channel_access(session, channel_id, user.id)
     if channel.type not in dms.DM_TYPES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Calls are for DMs and groups; servers have voice rooms")
+    if channel.is_official:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Esta conversa é só de leitura.")
     call, created = await calls.start(session, channel, user.id)
     if not created:
         response.status_code = status.HTTP_200_OK

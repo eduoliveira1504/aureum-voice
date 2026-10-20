@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import account_invites, badges, codes, mail
+from app import account_invites, badges, bot, codes, mail
 from app.config import get_settings
 from app.models import AccountInvite, AccountInviteUse, EmailCodePurpose, Server, ServerBan, ServerMember, User
 
@@ -25,8 +25,12 @@ from app.models import AccountInvite, AccountInviteUse, EmailCodePurpose, Server
 @dataclass
 class Confirmed:
     pioneer_number: int | None = None
+    # The Pioneiro badge was handed out just now (not on an earlier confirmation).
+    pioneer_granted: bool = False
     invites: int = 0
     joined: list[ServerMember] = field(default_factory=list)
+    # Whose invite the account signed up with, if it was someone's (not a CLI invite).
+    inviter_id: uuid.UUID | None = None
 
 
 async def send_verification(session: AsyncSession, user: User, *, wait: bool = True) -> None:
@@ -57,10 +61,12 @@ async def confirm(session: AsyncSession, user: User) -> Confirmed:
     if use is not None and use.confirmed_at is None:
         use.confirmed_at = now
         await session.execute(update(AccountInvite).where(AccountInvite.code == use.code).values(uses=AccountInvite.uses + 1))
+        result.inviter_id = await session.scalar(select(AccountInvite.owner_id).where(AccountInvite.code == use.code))
 
     if not user.is_official:
         if get_settings().aureum_beta:
             held = await badges.grant(session, user, badges.PIONEER)
+            result.pioneer_granted = held is not None
             result.pioneer_number = held.number if held else next(
                 (g.number for g in user.badge_grants if g.badge.key == badges.PIONEER), None
             )
@@ -80,10 +86,16 @@ async def confirm(session: AsyncSession, user: User) -> Confirmed:
 
 
 async def announce(session: AsyncSession, user: User, result: Confirmed) -> None:
-    """After the commit: the new member shows up in the servers, the badge on the profile."""
+    """After the commit: the new member shows up in the servers (welcomed by the bot), the
+    badge on the profile, and the official DM tells the newcomer about the badge and whoever
+    invited them that they arrived."""
     from app.routers.servers import announce_member_joined  # the router imports this module
 
     for member in result.joined:
         await announce_member_joined(session, member)
     if result.pioneer_number is not None:
         await badges.announce(session, user)
+    if result.pioneer_granted:
+        await bot.badge_granted(user.id, badges.PIONEER)
+    if result.inviter_id is not None:
+        await bot.invite_used(result.inviter_id, user.id)

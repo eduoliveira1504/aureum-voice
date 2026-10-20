@@ -250,6 +250,9 @@ class UserSettings(Base):
     column_sizes: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     # Channels and servers the user silenced: no unread badges (mentions still count).
     muted_places: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    # Categories of the official DM (app/bot) the user turned off, e.g. {"novidades": false}.
+    # Missing means on; "seguranca" can't be turned off.
+    official_dm: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -402,6 +405,8 @@ class Channel(Base):
     )
     # Group DMs only: the group's picture.
     icon_url: Mapped[str | None] = mapped_column(String(512))
+    # The official DM between @aureum and one user (app/bot): read-only, pinned, its own look.
+    is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     __table_args__ = (
         CheckConstraint("(type = 'addon') = (addon_key IS NOT NULL)", name="addon_key"),
@@ -465,6 +470,9 @@ class Message(Base):
     # Set on a system line an addon posts (see app.addons.base.AddonChannel.announce):
     # {"addon_key", "source_channel_id", "group", "lines": [...]}. Its content stays empty.
     system: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Set on what @aureum posts (app/bot): {"category", "badge"?}. Kept apart from `system`,
+    # which older apps read as an addon line.
+    official: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
@@ -529,6 +537,8 @@ class BugReport(Base):
     logs: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     screenshot_key: Mapped[str | None] = mapped_column(String(200))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Fechar (não é bug)": closed without a fix. No badge, no post, no DM.
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
     author: Mapped[User | None] = relationship(lazy="joined")
@@ -703,6 +713,71 @@ class PioneerNumber(Base):
     # Reserved for whoever signs up with this invite (CLI invites create --pioneiro N).
     invite_code: Mapped[str | None] = mapped_column(ForeignKey("account_invites.code", ondelete="SET NULL"), unique=True)
     created_at: Mapped[datetime] = _created_at()
+
+
+class UserDevice(Base):
+    """An app install that has signed in to the account, to tell a new sign-in apart (the
+    official DM's security notice). Only a hash of the id the app generates is kept; no IP."""
+
+    __tablename__ = "user_devices"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    device_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    first_seen: Mapped[datetime] = _created_at()
+
+
+# --- The official bot, @aureum (app/bot) ------------------------------------------------
+
+
+class BotAction(Base):
+    """Each bot action, switched on and off with the CLI (off until switched on). Server
+    actions also need their channel."""
+
+    __tablename__ = "bot_actions"
+
+    action: Mapped[str] = mapped_column(String(32), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    channel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("channels.id", ondelete="SET NULL"))
+
+
+class BotWelcome(Base):
+    """Who got the welcome in which official server: at most once, even after leaving."""
+
+    __tablename__ = "bot_welcomes"
+
+    server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class BotDelivery(Base):
+    """An official DM a user already got, by a key naming what it was ("badge:pioneer",
+    "broadcast:<hash>", ...): the same one never goes twice."""
+
+    __tablename__ = "bot_deliveries"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class BotOutbox(Base):
+    """A broadcast DM waiting to go out (sent by a worker at a steady pace). Unique per user and
+    key, so running the same broadcast again only queues who's still missing."""
+
+    __tablename__ = "bot_outbox"
+    __table_args__ = (
+        UniqueConstraint("user_id", "key"),
+        Index("ix_bot_outbox_due", "id", postgresql_where=text("sent_at IS NULL")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    category: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OutboxEmail(Base):

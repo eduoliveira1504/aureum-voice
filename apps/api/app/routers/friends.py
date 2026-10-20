@@ -101,6 +101,8 @@ async def send_request(body: FriendRequest, user: CurrentUser, session: SessionD
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No user with that username")
     if other.id == user.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="You can't add yourself")
+    if other.is_official and other.is_bot:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="A conta oficial do Aureum não aceita pedidos de amizade.")
 
     rows = await social.pair_rows(session, user.id, other.id)
     if any(r.status == FriendshipStatus.blocked and r.requester_id == user.id for r in rows):
@@ -160,7 +162,13 @@ async def remove_friend(user_id: uuid.UUID, user: CurrentUser, session: SessionD
 @router.post("/{user_id}/block", response_model=FriendOut)
 async def block_user(user_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> FriendOut:
     """Blocking also ends any friendship or pending request between the two."""
-    await _other_user(session, user.id, user_id)
+    other = await _other_user(session, user.id, user_id)
+    if other.is_official and other.is_bot:
+        # Its messages are security notices among others: it can be silenced, not blocked.
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Não dá pra bloquear a conta oficial do Aureum. Você pode silenciar a conversa.",
+        )
     rows = await social.pair_rows(session, user.id, user_id)
     mine = next((r for r in rows if r.requester_id == user.id and r.status == FriendshipStatus.blocked), None)
     had_relation = False

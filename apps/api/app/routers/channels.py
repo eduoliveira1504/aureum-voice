@@ -174,8 +174,15 @@ async def _text_channel(
     return channel, access
 
 
+# Older apps show this text as it comes, so it says what to do.
+READ_ONLY = "Esta conversa é só de leitura. Atualize o app."
+
+
 async def _require_dm_friends(session: AsyncSession, channel: Channel, user_id: uuid.UUID) -> None:
-    """A 1:1 DM stays readable after an unfriend or a block, but only friends can write."""
+    """A 1:1 DM stays readable after an unfriend or a block, but only friends can write. The
+    official DM (app/bot) is read-only for everyone."""
+    if channel.is_official:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=READ_ONLY)
     if channel.type != ChannelType.dm:
         return
     other = next(u for u in await channel_member_ids(session, channel.id) if u != user_id)
@@ -196,11 +203,11 @@ async def upload_attachment(
     """Uploads a file for a message about to be sent here (attachment_ids of the message).
     `voice` marks a voice message recorded in the app, with its duration and waveform."""
     channel, access = await _text_channel(session, channel_id, user.id)
+    await _require_dm_friends(session, channel, user.id)
     if access is not None:
         needed = Perm.SEND_MESSAGES | Perm.ATTACH_FILES
         if access.channel(channel) & needed != needed:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't send files here")
-    await _require_dm_friends(session, channel, user.id)
     meta = attachments.voice_meta(duration_ms, waveform) if voice else None
     return attachments.out(await attachments.upload(session, channel, user.id, file, voice=meta))
 
@@ -228,9 +235,9 @@ async def list_messages(
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
     channel, access = await _text_channel(session, channel_id, user.id)
+    await _require_dm_friends(session, channel, user.id)
     if access is not None:
         access.require_in(channel, Perm.SEND_MESSAGES)
-    await _require_dm_friends(session, channel, user.id)
     if channel.server_id is None:
         # Reopens the DM for whoever closed it, before the message exists: their read state
         # then doesn't count it yet, and message.created counts it once.

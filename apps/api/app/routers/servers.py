@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, images, presence, reads, voice
+from app import attachments, bot, images, presence, reads, voice
 from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
@@ -495,6 +495,9 @@ async def join_with_invite(code: str, user: CurrentUser, session: SessionDep) ->
     invite = await session.get(Invite, code)
     if invite is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Invite not found")
+    if user.is_official and user.is_bot:
+        # @aureum only acts in the official servers, which it is part of from the start.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="A conta oficial do Aureum não entra em servidores por convite.")
 
     server = await session.get(Server, invite.server_id)
     assert server is not None
@@ -530,7 +533,8 @@ async def claim_invite(session: AsyncSession, code: str) -> uuid.UUID | None:
 
 
 async def announce_member_joined(session: AsyncSession, member: ServerMember) -> None:
-    """Also marks the server's history read for the newcomer."""
+    """Also marks the server's history read for the newcomer, and in an official server the bot
+    welcomes them (once)."""
     await reads.seed(session, member.user_id, member.server_id)
     await session.commit()
     await session.refresh(member)
@@ -541,3 +545,4 @@ async def announce_member_joined(session: AsyncSession, member: ServerMember) ->
         {"server_id": str(member.server_id), "member": out.model_dump(mode="json")},
         await server_member_ids(session, member.server_id),
     )
+    await bot.welcome(member.server_id, member.user_id)

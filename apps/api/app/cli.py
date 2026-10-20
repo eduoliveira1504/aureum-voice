@@ -12,6 +12,11 @@
     python -m app.cli badges list <username>
     python -m app.cli badges grant <username> <badge>
     python -m app.cli badges revoke <username> <badge>
+    python -m app.cli bot status
+    python -m app.cli bot enable|disable --acao <ação>   (ações: see app/bot; all start off)
+    python -m app.cli bot set-channel --acao <boas-vindas|bugs|avisos> --canal <id>
+    python -m app.cli bot say [--canal <id>] "mensagem"   (without --canal: the avisos channel)
+    python -m app.cli bot broadcast --categoria <avisos|novidades> "mensagem" [--yes]
 
 `users create` also makes accounts sign-up refuses, like the reserved names (app/accounts.py).
 Without --password it makes a strong temporary password, prints it once (never logged) and the
@@ -35,7 +40,8 @@ from datetime import UTC, datetime, timedelta
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 
-from app import account_invites, badges as badge_rules, onboarding
+from app import account_invites, badges as badge_rules, bot, onboarding
+from app.bot import broadcast
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AccountInvite, Server, User
@@ -75,6 +81,8 @@ async def badges(action: str, username: str, badge: str | None) -> int:
         if changed:
             await session.commit()
             await badge_rules.announce(session, user)
+            if action == "grant":
+                await bot.badge_granted(user.id, badge)
         print(_describe(user))
     await broker.close()
     return 0
@@ -241,6 +249,96 @@ async def set_official(server_id: str, on: bool) -> int:
     return 0
 
 
+def _channel_id(value: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise SystemExit(f"Invalid channel id: {value!r}") from None
+
+
+async def bot_status() -> int:
+    async with SessionLocal() as session:
+        account = await bot.bot_user(session)
+        name = get_settings().aureum_bot_username
+        print(f"Bot account @{name}: {'ok' if account else 'MISSING (create it with users create --oficial)'}")
+        for name in bot.ACTIONS:
+            row = await bot.action(session, name)
+            channel = ""
+            if name in bot.SERVER_ACTIONS:
+                channel = f"  canal {row.channel_id}" if row.channel_id else "  (sem canal: não roda)"
+            print(f"  {name:<14} {'ligada' if row.enabled else 'desligada'}{channel}")
+        print(f"Broadcast DMs waiting: {await broadcast.pending(session)}")
+    return 0
+
+
+async def bot_switch(name: str, on: bool) -> int:
+    async with SessionLocal() as session:
+        row = await bot.set_action(session, name, enabled=on)
+        await session.commit()
+        state = "ligada" if on else "desligada"
+        print(f"{name}: {state}.")
+        if on and name in bot.SERVER_ACTIONS and row.channel_id is None:
+            print(f"Sem canal configurado, não roda: bot set-channel --acao {name} --canal <id>")
+    return 0
+
+
+async def bot_set_channel(name: str, channel_id: uuid.UUID) -> int:
+    async with SessionLocal() as session:
+        channel = await bot.official_text_channel(session, channel_id)
+        if channel is None:
+            print("That isn't a text channel of an official server (servers set-official)", file=sys.stderr)
+            return 1
+        row = await bot.set_action(session, name, channel_id=channel.id)
+        await session.commit()
+        print(f"{name}: canal #{channel.name} ({channel.id}){'' if row.enabled else '; a ação está desligada (bot enable)'}.")
+    return 0
+
+
+async def bot_say(content: str, channel_id: uuid.UUID | None) -> int:
+    content = content.strip()
+    if not content:
+        print("Empty message", file=sys.stderr)
+        return 2
+    async with SessionLocal() as session:
+        if channel_id is None:
+            channel_id = (await bot.action(session, bot.NOTICES)).channel_id
+            if channel_id is None:
+                print("No --canal and no avisos channel (bot set-channel --acao avisos)", file=sys.stderr)
+                return 2
+        channel = await bot.official_text_channel(session, channel_id)
+        account = await bot.bot_user(session)
+        if channel is None or account is None:
+            print("Needs a text channel of an official server and the bot account", file=sys.stderr)
+            return 1
+        await bot.post(session, account.id, channel, content, {"category": "say"})
+        print(f"Posted in #{channel.name} as @{account.username}.")
+    await broker.close()
+    return 0
+
+
+async def bot_broadcast(category: str, content: str, yes: bool) -> int:
+    content = content.strip()
+    if not content:
+        print("Empty message", file=sys.stderr)
+        return 2
+    async with SessionLocal() as session:
+        if await bot.bot_user(session) is None:
+            print("The bot account is missing", file=sys.stderr)
+            return 1
+        key = broadcast.key_of(category, content)
+        users = await broadcast.recipients(session, category, key)
+        print(f"Categoria {category}: {len(users)} pessoa(s) ainda vão receber esta mensagem.")
+        if not users:
+            return 0
+        if not yes and input("Enviar? [s/N] ").strip().lower() not in ("s", "sim", "y", "yes"):
+            print("Cancelado.")
+            return 1
+        await broadcast.queue(session, category, content, users)
+        await session.commit()
+        print(f"Na fila. A API envia {broadcast.PER_SECOND} por segundo; rodar o mesmo comando de novo continua de onde parou.")
+    return 0
+
+
 def _ask_password() -> str:
     first = getpass.getpass("Password: ")
     if getpass.getpass("Repeat the password: ") != first:
@@ -281,7 +379,33 @@ def main() -> int:
     badge_cmd.add_argument("username")
     badge_cmd.add_argument("badge", nargs="?")
 
+    bot_cmd = commands.add_parser("bot", help="the official bot @aureum (app/bot)")
+    bot_cmd.add_argument("action", choices=("status", "enable", "disable", "set-channel", "say", "broadcast"))
+    bot_cmd.add_argument("message", nargs="?", help="say/broadcast: the text (simple markdown)")
+    bot_cmd.add_argument("--acao", choices=bot.ACTIONS, help="enable/disable/set-channel: which action")
+    bot_cmd.add_argument("--canal", help="set-channel/say: the channel id")
+    bot_cmd.add_argument("--categoria", choices=bot.BROADCAST_CATEGORIES, help="broadcast: who gets it")
+    bot_cmd.add_argument("--yes", action="store_true", help="broadcast: don't ask for confirmation")
+
     args = parser.parse_args()
+    if args.command == "bot":
+        if args.action == "status":
+            return asyncio.run(bot_status())
+        if args.action in ("enable", "disable"):
+            if not args.acao:
+                parser.error(f"bot {args.action} needs --acao")
+            return asyncio.run(bot_switch(args.acao, args.action == "enable"))
+        if args.action == "set-channel":
+            if args.acao not in bot.SERVER_ACTIONS or not args.canal:
+                parser.error(f"bot set-channel needs --acao ({'|'.join(bot.SERVER_ACTIONS)}) and --canal")
+            return asyncio.run(bot_set_channel(args.acao, _channel_id(args.canal)))
+        if not args.message:
+            parser.error(f"bot {args.action} needs the message text")
+        if args.action == "say":
+            return asyncio.run(bot_say(args.message, _channel_id(args.canal) if args.canal else None))
+        if not args.categoria:
+            parser.error("bot broadcast needs --categoria")
+        return asyncio.run(bot_broadcast(args.categoria, args.message, args.yes))
     if args.command == "users" and args.action == "update":
         if args.email or args.display_name or args.password or args.pioneiro is not None or args.confirmado:
             parser.error("users update only takes --oficial, --verificado and --bot")

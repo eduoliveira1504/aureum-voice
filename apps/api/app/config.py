@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     aureum_beta: bool = False
     # While true, signing up needs an account invite (a separate switch from AUREUM_BETA).
     aureum_invite_only: bool = True
+    # The official bot's account (app/bot). It must be an official bot account (CLI --oficial).
+    aureum_bot_username: str = "aureum"
 
     # Public address of the API (the Funnel URL): invite links, e-mail images and links.
     public_base_url: str = "http://localhost:8000"

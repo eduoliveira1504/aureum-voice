@@ -17,6 +17,7 @@ DEFAULTS = {
     "column_sizes": {},
     "muted_places": [],
     "status": "online",
+    "official_dm": {},
 }
 
 

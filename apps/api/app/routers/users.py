@@ -6,13 +6,14 @@ from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFil
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, codes, images, mail, presence, ratelimit, storage
+from app import account_invites, bot, codes, images, mail, presence, ratelimit, storage
 from app.access import audience_ids, get_channel_access
 from app.deps import CurrentUser, SessionDep, SignedInUser
 from app.mail.render import mask
 from app.models import AccountInvite, AccountInviteUse, Attachment, AttachmentKind, EmailCodePurpose, User, UserSettings
 from app.realtime import broker
-from app.routers.auth import CODE_SENDS_PER_IP, CODE_TRIES_PER_IP, rejected, too_soon
+from app.accounts import looks_official
+from app.routers.auth import CODE_SENDS_PER_IP, CODE_TRIES_PER_IP, OFFICIAL_NAME, rejected, too_soon
 from app.schemas import (
     ChangeEmail,
     CodeRequest,
@@ -33,6 +34,7 @@ MERGED_SETTINGS = {
     "panel_layouts": 200,  # one per server; stale ones (left servers) are cheap to keep
     "user_audio": 1000,
     "column_sizes": 30,
+    "official_dm": 10,
 }
 ImageKind = Literal["avatar", "banner"]
 # Profile fields where null means "back to the default".
@@ -53,6 +55,8 @@ async def get_me(user: SignedInUser) -> User:
 
 @router.patch("/me", response_model=UserMe)
 async def update_me(body: UserUpdate, user: CurrentUser, session: SessionDep) -> User:
+    if body.display_name and not user.is_official and looks_official(body.display_name):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=OFFICIAL_NAME)
     for field, value in body.model_dump(mode="json", exclude_unset=True).items():
         if field == "display_name" and value is None:
             continue  # display_name is required; ignore explicit nulls
@@ -172,6 +176,7 @@ async def confirm_email_change(body: CodeRequest, request: Request, user: Curren
     except IntegrityError:  # someone else took the address meanwhile
         await session.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This email is already taken")
+    await bot.security(user.id, "email", novo=mask(row.new_email))
     return user
 
 

@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import badges, mail, storage
 from app.addons.registry import ADDONS
+from app.bot import broadcast
 from app.config import get_settings
 from app.db import SessionLocal
 from app.realtime import broker
@@ -28,11 +29,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     async with SessionLocal() as session:
         await badges.sync_badges(session)
         await badges.grant_founder_if_due(session)
-    sender = asyncio.create_task(mail.run_worker())
+    workers = [asyncio.create_task(mail.run_worker()), asyncio.create_task(broadcast.run_worker())]
     yield
-    sender.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
-        await sender
+    for worker in workers:
+        worker.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await worker
     await broker.close()
 
 

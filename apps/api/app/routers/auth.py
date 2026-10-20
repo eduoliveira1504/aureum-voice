@@ -3,8 +3,8 @@ from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, badges, codes, mail, onboarding, ratelimit
-from app.accounts import is_reserved
+from app import account_invites, badges, bot, codes, mail, onboarding, ratelimit
+from app.accounts import is_reserved, looks_official
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep, SignedInUser
 from app.models import AccountInvite, AccountInviteUse, EmailCodePurpose, User
@@ -47,6 +47,8 @@ INVITE_DETAILS = {
     "exhausted": "This invite has no spots left",
     "expired": "This invite has expired",
 }
+# Shown as is by the app (pt-BR, like the other messages people read directly).
+OFFICIAL_NAME = "Esse nome é parecido demais com o do Aureum. Escolha outro."
 CODE_DETAILS = {
     "invalid": "Wrong code",
     "expired": "This code has expired; ask for a new one",
@@ -125,6 +127,8 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
 
     if is_reserved(body.username):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This username is reserved")
+    if looks_official(body.display_name or ""):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=OFFICIAL_NAME)
     existing = await session.scalar(
         select(User).where(or_(User.username == body.username, User.email == body.email))
     )
@@ -150,6 +154,7 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
     except IntegrityError:  # lost a race with a concurrent registration
         await session.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Username or email already taken")
+    await bot.seen_device(user.id, body.device_id)  # the account's first install
     return token_pair(user)
 
 
@@ -228,7 +233,11 @@ async def login(body: LoginRequest, request: Request, session: SessionDep) -> To
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
         await session.commit()
-    return token_pair(user)
+    tokens = token_pair(user)
+    # An install that never signed in to this account: a notice in the official DM.
+    if await bot.seen_device(user.id, body.device_id):
+        await bot.security(user.id, "login", sistema=body.os or "sistema desconhecido")
+    return tokens
 
 
 @router.post("/refresh", response_model=TokenPair)
@@ -237,6 +246,8 @@ async def refresh(body: RefreshRequest, session: SessionDep) -> TokenPair:
     user = await session.get(User, claims.user_id) if claims else None
     if user is None or claims is None or user.session_epoch != claims.epoch:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+    # Already signed in here: the install is only recorded, never reported as new.
+    await bot.seen_device(user.id, body.device_id)
     return token_pair(user)
 
 
@@ -256,7 +267,10 @@ async def change_password(body: ChangePassword, user: SignedInUser, session: Ses
     user.must_change_password = False
     if not replacing_temporary:
         mail.enqueue(session, user.email, "notice_password", nome=user.display_name, username=user.username, quando=mail.when())
-    return await end_other_sessions(session, user)
+    tokens = await end_other_sessions(session, user)
+    if not replacing_temporary:
+        await bot.security(user.id, "senha")
+    return tokens
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
@@ -291,4 +305,6 @@ async def reset_password(body: ResetPassword, request: Request, session: Session
     user.password_hash = hash_password(body.new_password)
     user.must_change_password = False
     mail.enqueue(session, user.email, "notice_password", nome=user.display_name, username=user.username, quando=mail.when())
-    return await end_other_sessions(session, user)
+    tokens = await end_other_sessions(session, user)
+    await bot.security(user.id, "senha")
+    return tokens

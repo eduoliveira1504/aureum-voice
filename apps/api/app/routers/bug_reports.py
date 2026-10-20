@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, 
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app import badges, ratelimit, storage
+from app import badges, bot, ratelimit, storage
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.images import MAX_IMAGE_BYTES
@@ -45,6 +45,7 @@ def _out(report: BugReport) -> BugReportOut:
         logs=report.logs,
         screenshot_url=f"{storage.MEDIA_PREFIX}bug-reports/{report.id}" if report.screenshot_key else None,
         resolved_at=report.resolved_at,
+        dismissed_at=report.dismissed_at,
         created_at=report.created_at,
     )
 
@@ -94,7 +95,11 @@ async def list_bug_reports(user: CurrentUser, session: SessionDep) -> list[BugRe
 
 
 class BugReportUpdate(BaseModel):
-    resolved: bool
+    """`resolved`: fixed (badge, the bot's public line and DM). `dismissed`: "Fechar (não é
+    bug)", closed without any of that. Either one reopens with false."""
+
+    resolved: bool | None = None
+    dismissed: bool | None = None
 
 
 @router.patch("/bug-reports/{report_id}", response_model=BugReportOut)
@@ -105,8 +110,18 @@ async def update_bug_report(
     report = await session.get(BugReport, report_id)
     if report is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
-    if body.resolved != (report.resolved_at is not None):
+    if body.resolved and body.dismissed:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A report is either resolved or dismissed")
+    if body.dismissed is not None and body.dismissed != (report.dismissed_at is not None):
+        report.dismissed_at = datetime.now(UTC) if body.dismissed else None
+        if body.dismissed:
+            report.resolved_at = None
+        await session.commit()
+        await session.refresh(report)
+    if body.resolved is not None and body.resolved != (report.resolved_at is not None):
         report.resolved_at = datetime.now(UTC) if body.resolved else None
+        if body.resolved:
+            report.dismissed_at = None
         # A resolved report earns its author the bug hunter badge (kept if it's reopened later).
         hunter = report.author if body.resolved else None
         granted = hunter is not None and await badges.grant(session, hunter, badges.BUG_HUNTER, granted_by=user.id)
@@ -114,6 +129,8 @@ async def update_bug_report(
         await session.refresh(report)
         if granted and hunter is not None:
             await badges.announce(session, hunter)
+        if body.resolved:
+            await bot.bug_resolved(report.id, bool(granted))
     return _out(report)
 
 
