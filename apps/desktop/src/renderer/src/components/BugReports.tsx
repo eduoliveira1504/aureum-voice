@@ -1,4 +1,4 @@
-import { Check, RotateCcw, X } from 'lucide-react'
+import { Check, RotateCcw, Wrench, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { api, fetchMedia, type BugReport } from '../lib/api'
@@ -19,8 +19,12 @@ export function BugReports(): ReactNode {
     api<BugReport[]>('/bug-reports').then(setReports, (err) => setError(errorText(err, 'Não foi possível carregar.')))
   }, [])
 
-  /** resolved: badge, the bot's thanks and DM. dismissed: "não é bug", none of that. */
-  async function update(report: BugReport, change: { resolved: boolean } | { dismissed: boolean }): Promise<void> {
+  /** confirmed: the bot says it's being fixed. resolved: badge, the bot's thanks and DM.
+   *  dismissed: "não é bug", none of that. */
+  async function update(
+    report: BugReport,
+    change: { confirmed: boolean } | { resolved: boolean } | { dismissed: boolean }
+  ): Promise<void> {
     try {
       const updated = await api<BugReport>(`/bug-reports/${report.id}`, { method: 'PATCH', body: change })
       setReports((list) => list?.map((r) => (r.id === updated.id ? updated : r)) ?? null)
@@ -66,7 +70,20 @@ export function BugReports(): ReactNode {
               </>
             ) : (
               <>
-                <button type="button" onClick={() => void update(r, { resolved: true })} className={`ml-auto ${actionClass}`}>
+                {r.confirmed_at ? (
+                  <span className="ml-auto text-xs text-fg-subtle">Confirmado</span>
+                ) : (
+                  <button
+                    type="button"
+                    title="Avisa no canal de bugs e pra pessoa que o bug é real e já está sendo corrigido"
+                    onClick={() => void update(r, { confirmed: true })}
+                    className={`ml-auto ${actionClass}`}
+                  >
+                    <Wrench size={14} />
+                    Confirmar bug
+                  </button>
+                )}
+                <button type="button" onClick={() => void update(r, { resolved: true })} className={actionClass}>
                   <Check size={14} />
                   Marcar como resolvido
                 </button>

@@ -183,4 +183,20 @@ describe('bug reports', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Fechados/ }))
     expect(await screen.findByText('Não é bug')).toBeTruthy()
   })
+
+  it('confirms a report as a real bug, once', async () => {
+    const report: BugReport = {
+      id: 'r-2', author: ANA, description: 'Som cortando', app_version: '0.2.0', os: 'Windows 11', logs: '',
+      screenshot_url: null, confirmed_at: null, resolved_at: null, dismissed_at: null, created_at: '2026-10-20T12:00:00Z'
+    }
+    const call = vi.spyOn(api, 'api').mockImplementation(async (_path, options) =>
+      options?.method === 'PATCH' ? { ...report, confirmed_at: '2026-10-20T13:00:00Z' } : [report]
+    )
+    render(<BugReports />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar bug' }))
+    await waitFor(() => expect(call).toHaveBeenCalledWith('/bug-reports/r-2', { method: 'PATCH', body: { confirmed: true } }))
+    expect(await screen.findByText('Confirmado')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirmar bug' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Marcar como resolvido' })).toBeTruthy() // still open
+  })
 })

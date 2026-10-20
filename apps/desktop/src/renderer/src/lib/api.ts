@@ -120,6 +120,8 @@ export interface BugReport {
   logs: string
   /** Protected: download it with fetchMedia. */
   screenshot_url: string | null
+  /** "Confirmar bug": real and being fixed. */
+  confirmed_at?: string | null
   resolved_at: string | null
   /** "Fechar (não é bug)": closed without a fix. */
   dismissed_at?: string | null

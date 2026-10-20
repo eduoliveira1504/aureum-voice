@@ -1,5 +1,11 @@
 # Novidades do Aureum
 
+## Próxima versão
+
+- A @aureum aparece sempre online, e avisa sozinha no #avisos quando sai versão nova.
+- **Problemas reportados** (só para o dono do app): botão **Confirmar bug**, que avisa no canal de
+  bugs e para quem reportou que o bug já está sendo corrigido.
+
 ## 0.2.0-beta.3
 
 - **Ícone novo:** o Aureum ganhou o logo oficial no atalho, no instalador, na janela, na barra
