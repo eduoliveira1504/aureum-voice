@@ -56,6 +56,6 @@ window.matchMedia ??= ((query: string) => ({
 Element.prototype.scrollIntoView ??= () => {}
 // Noise suppression loads WebAssembly and audio worklets, which only exist in a real browser;
 // tests never start a call.
-vi.mock('../lib/noiseFilter', () => ({ NOISE_FILTER: 'aureum-rnnoise', NoiseFilter: class {} }))
+vi.mock('../lib/micProcessor', () => ({ MIC_PROCESSOR: 'aureum-mic', PROCESSING_RATE: 48000, MicProcessor: class {} }))
 
 afterEach(() => cleanup())

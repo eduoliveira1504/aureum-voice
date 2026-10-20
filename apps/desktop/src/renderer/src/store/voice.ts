@@ -5,6 +5,7 @@ import {
   RoomEvent,
   Track,
   VideoPresets,
+  type AudioCaptureOptions,
   type LocalAudioTrack,
   type RemoteAudioTrack,
   type RemoteTrack,
@@ -25,7 +26,7 @@ import {
   type ScreenMode
 } from '../lib/mediaTier'
 import { useAppearance } from './appearance'
-import { NOISE_FILTER, NoiseFilter } from '../lib/noiseFilter'
+import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
 import { sendRealtime } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
 import { startThumbnails } from '../lib/thumbnail'
@@ -49,7 +50,25 @@ export interface Publishable {
 
 const ANYTHING: Publishable = { mic: true, camera: true, screen: true }
 
-let noiseFilterSync: Promise<void> = Promise.resolve()
+let micProcessorSync: Promise<void> = Promise.resolve()
+/** The mic capture last described in the logs (so a mute/unmute doesn't log it again). */
+let loggedMic = ''
+
+/**
+ * How the mic is opened. The browser's own noise suppression stays off: RNNoise does that job
+ * (see lib/micProcessor.ts), and both stacked made voices sound muffled. 48 kHz is asked for so
+ * most devices need no resampling. No channel count is forced: asking for mono makes the browser
+ * sum the channels, and the processor picks one instead.
+ */
+export function micCapture(prefs = loadMediaPrefs()): AudioCaptureOptions {
+  return {
+    deviceId: prefs.audioInput || undefined,
+    noiseSuppression: false,
+    echoCancellation: true,
+    autoGainControl: true,
+    sampleRate: { ideal: PROCESSING_RATE }
+  }
+}
 
 // Push-to-talk: in that mode the mic only opens while the key is held (read by the main process,
 // see lib/pushToTalk.ts). The release waits a moment so the end of a word isn't cut off.
@@ -63,23 +82,42 @@ function pushToTalkOn(): boolean {
   return prefs.inputMode === 'ptt' && !!prefs.pttKey
 }
 
-/** Puts the RNNoise filter on the mic track, or takes it off, to match the setting. Calls are
- * queued so a quick toggle can't set up two filters at once. */
-function syncNoiseFilter(r: Room): Promise<void> {
-  noiseFilterSync = noiseFilterSync.then(async () => {
+/** Puts the mic processor (one channel, 48 kHz, RNNoise when on) on the mic track, matching the
+ * setting. Calls are queued so a quick toggle can't set up two processors at once. */
+function syncMicProcessor(r: Room): Promise<void> {
+  micProcessorSync = micProcessorSync.then(async () => {
     const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
     if (!track) return
-    const want = loadMediaPrefs().noiseSuppression
-    const has = track.getProcessor()?.name === NOISE_FILTER
+    void logMic(track)
+    const denoise = loadMediaPrefs().noiseSuppression
+    const current = track.getProcessor()
+    if (current?.name === MIC_PROCESSOR && (current as MicProcessor).denoise === denoise) return
     try {
-      if (want && !has) await track.setProcessor(new NoiseFilter())
-      else if (!want && has) await track.stopProcessor()
+      await track.setProcessor(new MicProcessor(denoise))
     } catch (err) {
-      // The mic still works without it (with the browser's own, weaker suppression).
-      console.warn('Noise filter unavailable', err)
+      // The mic still works without it, as the device sends it.
+      console.warn('Mic processor unavailable', err)
     }
   })
-  return noiseFilterSync
+  return micProcessorSync
+}
+
+/** Describes the mic capture in the app's logs (attached to "Reportar problema") whenever it
+ * changes: device name and what the device actually delivers (getSettings of the source track,
+ * before the processor). */
+async function logMic(track: LocalAudioTrack): Promise<void> {
+  const { deviceId, sampleRate, channelCount, echoCancellation, autoGainControl, noiseSuppression } =
+    track.getSourceTrackSettings()
+  const device = (await navigator.mediaDevices.enumerateDevices().catch(() => [])).find(
+    (d) => d.kind === 'audioinput' && d.deviceId === deviceId
+  )
+  const line =
+    `[mic] "${device?.label ?? 'desconhecido'}" sampleRate=${sampleRate} channelCount=${channelCount} ` +
+    `echoCancellation=${echoCancellation} autoGainControl=${autoGainControl} noiseSuppression=${noiseSuppression} ` +
+    `rnnoise=${loadMediaPrefs().noiseSuppression}`
+  if (line === loggedMic) return
+  loggedMic = line
+  console.info(line)
 }
 
 /** The token's canPublishSources; without it (DM calls) anything goes. */
@@ -297,7 +335,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       await r.localParticipant.setMicrophoneEnabled(micOpen()).catch(() => {
         set({ muted: true, error: 'Não foi possível acessar o microfone.' })
       })
-      await syncNoiseFilter(r)
+      await syncMicProcessor(r)
     }
     if (announceIt) announce()
     bump()
@@ -337,12 +375,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
           simulcast: true,
           videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360]
         },
-        audioCaptureDefaults: {
-          deviceId: prefs.audioInput || undefined,
-          noiseSuppression: prefs.noiseSuppression,
-          echoCancellation: true,
-          autoGainControl: true
-        },
+        audioCaptureDefaults: micCapture(prefs),
         videoCaptureDefaults: {
           deviceId: prefs.videoInput || undefined,
           resolution: VideoPresets.h720.resolution
@@ -382,7 +415,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         // In push-to-talk the mic is published muted, so the first press opens it right away.
         await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic)
         if (!micOpen()) await r.localParticipant.setMicrophoneEnabled(false)
-        await syncNoiseFilter(r)
+        await syncMicProcessor(r)
       } catch {
         set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
         announce()
@@ -550,19 +583,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       const prefs = loadMediaPrefs()
       if (prefs.audioOutput) await r.switchActiveDevice('audiooutput', prefs.audioOutput).catch(() => {})
       if (get().camera && prefs.videoInput) await r.switchActiveDevice('videoinput', prefs.videoInput).catch(() => {})
-      // Restart the mic so a new device and the browser's noise-suppression setting take effect.
+      // Restart the mic so a new device takes effect (RNNoise on/off is the processor's job).
       if (r.localParticipant.isMicrophoneEnabled) {
         await r.localParticipant.setMicrophoneEnabled(false)
         await r.localParticipant
-          .setMicrophoneEnabled(true, {
-            deviceId: prefs.audioInput || undefined,
-            noiseSuppression: prefs.noiseSuppression,
-            echoCancellation: true,
-            autoGainControl: true
-          })
+          .setMicrophoneEnabled(true, micCapture(prefs))
           .catch(() => set({ error: 'Não foi possível usar esse microfone.' }))
       }
-      await syncNoiseFilter(r)
+      await syncMicProcessor(r)
       bump()
     },
 
