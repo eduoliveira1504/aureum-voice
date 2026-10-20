@@ -13,7 +13,11 @@ import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
 
 import type { OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
+import { appName, foregroundApp } from './foregroundApp'
 import { watchCombos } from './keyWatch'
+// Programs that are never games (browsers, the file explorer, chat and music apps): the overlay
+// stays hidden while one of them is in front. Edit the JSON to change the list.
+import overlayExceptions from './overlayExceptions.json'
 
 /** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
  *  closing is never reused; any other popup stays denied. */
@@ -45,8 +49,14 @@ const DEFAULT_PREFS: OverlayPrefs = {
   size: 'medium',
   opacity: 100,
   showCameras: true,
-  onlySpeaking: false
+  onlySpeaking: false,
+  hiddenApps: []
 }
+
+const FOREGROUND_POLL_MS = 1000
+const MAX_HIDDEN_APPS = 100
+/** The bundled exceptions plus the app itself ("aureum voice" installed, "electron" in dev). */
+const NEVER_OVER = new Set([...overlayExceptions.map(appName), appName(process.execPath)])
 
 const MARGIN = 16
 const DEFAULT_SIZE = { width: 260, height: 360 }
@@ -69,6 +79,10 @@ let noticeTimer: NodeJS.Timeout | null = null
 let hidden = false
 /** Stops the key watch (see keyWatch.ts); null while it isn't running. */
 let stopWatch: (() => void) | null = null
+/** Polls the program in front (see foregroundApp.ts); null while it isn't running. */
+let foregroundTimer: NodeJS.Timeout | null = null
+/** The program in front is a browser or another app the overlay stays out of. */
+let exceptionInFront = false
 const lastFired = new Map<string, number>()
 let saveTimer: NodeJS.Timeout | null = null
 let notify: (state: OverlayState) => void = () => {}
@@ -122,7 +136,17 @@ function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPref
     size: raw.size === 'small' || raw.size === 'medium' || raw.size === 'large' ? raw.size : base.size,
     opacity: isFiniteNumber(raw.opacity) ? Math.round(Math.min(100, Math.max(30, raw.opacity))) : base.opacity,
     showCameras: bool(raw.showCameras, base.showCameras),
-    onlySpeaking: bool(raw.onlySpeaking, base.onlySpeaking)
+    onlySpeaking: bool(raw.onlySpeaking, base.onlySpeaking),
+    hiddenApps: Array.isArray(raw.hiddenApps)
+      ? [
+          ...new Set(
+            raw.hiddenApps
+              .filter((v): v is string => typeof v === 'string' && /^[^\\/:*?"<>|]{1,128}$/.test(v))
+              .map(appName)
+              .filter(Boolean)
+          )
+        ].slice(0, MAX_HIDDEN_APPS)
+      : base.hiddenApps
   }
 }
 
@@ -235,6 +259,7 @@ function registerShortcuts(): void {
  * shortcuts work in games that block Windows hotkeys. Stopped at any other time.
  */
 function syncKeyWatch(): void {
+  syncForegroundWatch()
   stopWatch?.()
   stopWatch = null
   if (!active || !prefs.enabled || shortcutsPaused) return
@@ -242,6 +267,32 @@ function syncKeyWatch(): void {
     { accelerator: prefs.toggleShortcut, onPress: () => fire('toggle') },
     { accelerator: prefs.editShortcut, onPress: () => fire('edit') }
   ])
+}
+
+/**
+ * Asks once a second, only in a call with the overlay on, which program is in front (its file
+ * name only), and hides the overlay over the exceptions. The name is compared here and dropped.
+ */
+function syncForegroundWatch(): void {
+  const wanted = active && prefs.enabled
+  if (wanted && !foregroundTimer) {
+    checkForeground()
+    foregroundTimer = setInterval(checkForeground, FOREGROUND_POLL_MS)
+  } else if (!wanted && foregroundTimer) {
+    clearInterval(foregroundTimer)
+    foregroundTimer = null
+    exceptionInFront = false
+  }
+}
+
+/** Updates exceptionInFront; returns whether it changed. Unknown programs count as games. */
+function checkForeground(): boolean {
+  const name = foregroundApp()
+  const excluded = name !== null && (NEVER_OVER.has(name) || prefs.hiddenApps.includes(name))
+  if (excluded === exceptionInFront) return false
+  exceptionInFront = excluded
+  apply()
+  return true
 }
 
 const NOTICE_MS = 2200
@@ -312,8 +363,10 @@ function placed(bounds: OverlayBounds | null): OverlayBounds {
 /** Shows, hides and switches the window between click-through and edit mode. */
 function apply(): void {
   if (!win || win.isDestroyed()) return
-  // Hidden while the app itself is in front: it's for when you're in another window (the game).
-  const show = prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden))
+  // Hidden while the app itself is in front: it's for when you're in another window (the game),
+  // and not a browser or another app from the exceptions.
+  const show =
+    prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden && !exceptionInFront))
   if (!show) {
     if (win.isVisible()) win.hide()
     return
@@ -401,7 +454,8 @@ export function setMainFocused(focused: boolean): void {
   mainFocused = focused
   // Clicking back into the app ends edit mode, like pressing Concluir.
   if (focused && editing) setEditing(false)
-  else apply()
+  // Leaving the app for a browser must not flash the overlay until the next poll.
+  else if (focused || !foregroundTimer || !checkForeground()) apply()
 }
 
 export async function startOverlay(onState: (state: OverlayState) => void): Promise<void> {
@@ -414,6 +468,7 @@ export async function startOverlay(onState: (state: OverlayState) => void): Prom
   app.on('will-quit', () => {
     globalShortcut.unregisterAll()
     stopWatch?.()
+    if (foregroundTimer) clearInterval(foregroundTimer)
     if (saveTimer) void savePrefs()
   })
 }

@@ -83,6 +83,9 @@ export interface OverlayPrefs {
   opacity: number
   showCameras: boolean
   onlySpeaking: boolean
+  /** Programs (file name without ".exe", lowercase) the overlay never shows over, on top of
+   *  the bundled exceptions (browsers etc., see main/overlayExceptions.json). */
+  hiddenApps: string[]
 }
 
 /** What the main process tells the app's window about the overlay. */

@@ -98,9 +98,23 @@ later:
    in a call with the overlay turned on. For push-to-talk, it will be only while push-to-talk is the
    active input mode in a call. It also stops while Settings records a new shortcut.
 
+**Not over browsers and other apps (Phase 3, block 3.1)**
+- The first version showed the overlay over any window but the app's own, browsers included. Now it
+  also stays hidden while the program in front is an exception: the bundled list in
+  `src/main/overlayExceptions.json` (browsers, the file explorer, Discord, Spotify, VS Code, plus the
+  app itself) and the user's own list in Settings › Overlay ("Ocultar overlay neste app").
+- The program in front comes from `GetForegroundWindow` → `GetWindowThreadProcessId` →
+  `QueryFullProcessImageNameW` (koffi, `src/main/foregroundApp.ts`). Only the executable's file name is
+  kept, never the window title. It's compared in the main process and dropped: never sent to the
+  server or to the app's window, never logged. It's asked at most once a second, only while in a call
+  with the overlay on, plus once when the app loses focus (so switching to a browser doesn't flash the
+  overlay). A program that can't be read (an elevated one, say) counts as a game.
+- Gating on the exceptions, not on the detected game (0010), keeps the overlay working in games the
+  detection list doesn't know.
+
 **Preferences stay on this PC**
 - The preferences are kept in `overlay.json` in the app's data folder: on/off, shortcuts, bounds, size,
-  opacity (30–100%), show cameras, and only who's speaking. The position depends on this PC's
+  opacity (30–100%), show cameras, only who's speaking, and the apps to hide it over. The position depends on this PC's
   monitors, so the preferences aren't synced through `user_settings`. Saved bounds are clamped back
   onto a monitor if the layout changes.
 - "Only who's speaking" keeps a person up for 1.5 s after they stop, so they don't flicker between
@@ -112,5 +126,5 @@ later:
 - New runtime dependency: `koffi` (its Windows x64 binary is about 2 MB, unpacked from the asar
   by electron-builder).
 - Exclusive-fullscreen games show no overlay. Users have to switch the game to borderless.
-- Over a non-game window (a browser, say), the overlay also shows while the app isn't focused. The
-  show/hide shortcut covers that. Gating it on the detected game (0010) could come later.
+- Over a non-game window that isn't in either exception list, the overlay still shows while the app
+  isn't focused; the user adds that program to their list, or uses the show/hide shortcut.

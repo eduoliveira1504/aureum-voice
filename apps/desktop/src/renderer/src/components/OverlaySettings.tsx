@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Move } from 'lucide-react'
+import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Move, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { OverlayCorner, OverlayPrefs } from '../../../shared/types'
@@ -86,6 +86,65 @@ function ShortcutRow({ title, field, prefs }: { title: string; field: 'toggleSho
   )
 }
 
+/** "vivaldi.exe" -> "vivaldi", the form the main process compares (see main/foregroundApp.ts). */
+const appKey = (exe: string): string => exe.replace(/\.exe$/i, '').trim().toLowerCase()
+
+/** "Ocultar overlay neste app": the user's own exceptions, picked from the open programs. */
+function HiddenApps({ hidden, onChange }: { hidden: string[]; onChange(next: string[]): void }): ReactNode {
+  const [running, setRunning] = useState<string[] | null>(null)
+  const choices = (running ?? []).filter((name) => !hidden.includes(name))
+
+  const loadRunning = (): void => {
+    void window.aureum.games.running().then((apps) =>
+      setRunning([...new Set(apps.map((a) => appKey(a.exe)))].sort((a, b) => a.localeCompare(b)))
+    )
+  }
+
+  return (
+    <section>
+      <span className={labelClass}>Ocultar overlay neste app</span>
+      <p className="mb-2 text-xs text-fg-subtle">
+        O overlay já não aparece sobre navegadores, o Explorador de Arquivos, Discord, Spotify e VS Code. Para isso o
+        Aureum confere só o nome do programa em primeiro plano, uma vez por segundo durante a chamada; o nome não sai do
+        seu PC.
+      </p>
+      {hidden.length > 0 && (
+        <ul className="mb-2 flex flex-wrap gap-2">
+          {hidden.map((name) => (
+            <li key={name} className="flex items-center gap-1 rounded-item border border-line bg-main py-1 pl-2.5 pr-1 text-sm">
+              {name}.exe
+              <button
+                type="button"
+                aria-label={`Mostrar overlay de novo em ${name}.exe`}
+                title="Remover"
+                onClick={() => onChange(hidden.filter((h) => h !== name))}
+                className="rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg"
+              >
+                <X size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <select
+        aria-label="Adicionar app"
+        value=""
+        onFocus={loadRunning}
+        onMouseDown={() => running === null && loadRunning()}
+        onChange={(e) => e.target.value && onChange([...hidden, e.target.value])}
+        className="w-full max-w-72 rounded-control border border-line bg-main px-3 py-2 text-sm"
+      >
+        <option value="">{running === null ? 'Adicionar app aberto…' : choices.length ? 'Escolha um app aberto…' : 'Nenhum outro app aberto'}</option>
+        {choices.map((name) => (
+          <option key={name} value={name}>
+            {name}.exe
+          </option>
+        ))}
+      </select>
+    </section>
+  )
+}
+
 /** Settings > Overlay: the in-game overlay. Saved on this PC only (its position depends on the monitors). */
 export function OverlaySettings(): ReactNode {
   const state = useOverlay((s) => s.state)
@@ -97,10 +156,12 @@ export function OverlaySettings(): ReactNode {
     <div className="max-w-[480px] space-y-4">
       <ToggleRow
         title="Mostrar overlay em jogos"
-        description="Durante uma chamada, mostra quem está nela por cima de outras janelas. Some quando o Aureum está em primeiro plano."
+        description="Durante uma chamada, mostra quem está nela por cima do jogo. Some quando o Aureum, um navegador ou um app da lista abaixo está em primeiro plano."
         checked={prefs.enabled}
         onChange={(enabled) => set({ enabled })}
       />
+
+      <HiddenApps hidden={prefs.hiddenApps} onChange={(hiddenApps) => set({ hiddenApps })} />
 
       <section className="space-y-2">
         <span className={labelClass}>Atalhos (funcionam com o Aureum em segundo plano)</span>

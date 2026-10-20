@@ -7,3 +7,5 @@
   guarda o ícone em cache).
 - A insígnia **Fundador** agora traz o "A" do logo.
 - O conta-gotas da cor de destaque (Configurações › Aparência) não trava mais ao arrastar.
+- O overlay não aparece mais por cima do navegador, do Explorador de Arquivos, do Discord, do
+  Spotify e do VS Code. Em Configurações › Overlay dá pra esconder ele em outros apps também.
