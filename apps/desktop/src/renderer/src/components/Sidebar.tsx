@@ -564,7 +564,8 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
   const createGroup = useSocial((s) => s.createGroup)
   const [creating, setCreating] = useState(false)
   const [leaving, setLeaving] = useState<Dm | null>(null)
-  const list = Object.values(dms).sort((a, b) => b.last_message_id - a.last_message_id)
+  // The official DM (@aureum) stays pinned on top; the rest by latest activity.
+  const list = Object.values(dms).sort((a, b) => Number(!!b.official) - Number(!!a.official) || b.last_message_id - a.last_message_id)
 
   return (
     <>
@@ -648,7 +649,7 @@ function DmItem({
       onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={meId} />)}
       className={`group relative flex items-center rounded-item ${
         active ? 'bg-elevated text-fg' : unread ? 'text-fg hover:bg-elevated/60' : 'text-fg-muted hover:bg-elevated/60 hover:text-fg'
-      } ${muted && !active ? 'opacity-60' : ''}`}
+      } ${muted && !active ? 'opacity-60' : ''} ${dm.official ? 'ring-1 ring-inset ring-badge-gold/40' : ''}`}
     >
       <button
         type="button"
@@ -678,7 +679,7 @@ function DmItem({
         )}
         {!collapsed && <CountBadge count={unread} tone="danger" />}
       </button>
-      {!collapsed && (
+      {!collapsed && !dm.official && (
         <button
           type="button"
           title={closeLabel}

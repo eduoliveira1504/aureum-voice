@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   panel_layouts: {},
   user_audio: {},
   column_sizes: {},
-  muted_places: []
+  muted_places: [],
+  official_dm: {}
 }
 
 const CACHE_KEY = 'aureum.appearance'
@@ -33,7 +34,7 @@ const NEUTRALS = [...SURFACES, '--border', '--text', '--text-muted'] as const
 
 type Resolved = 'dark' | 'light'
 /** Settings the server merges key by key: only changed keys are sent, null removes one. */
-type Merged = 'panel_layouts' | 'user_audio' | 'column_sizes'
+type Merged = 'panel_layouts' | 'user_audio' | 'column_sizes' | 'official_dm'
 type Patch = Partial<Omit<UserSettings, Merged>>
 /** What goes to PATCH /users/me/settings; merged settings only with the keys that changed. */
 type Pending = Patch & { [K in Merged]?: Record<string, UserSettings[K][string] | null> }

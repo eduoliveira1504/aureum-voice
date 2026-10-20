@@ -18,3 +18,7 @@
   desliga separados para supressão de ruído, cancelamento de eco e ganho automático;
   sensibilidade automática ou manual; e o nome do microfone em uso. Usando fone Bluetooth, o app
   avisa quando a qualidade cai.
+- **@aureum, a conta oficial:** uma conversa fixa no topo das suas mensagens, só de leitura, com
+  avisos de segurança (senha ou e-mail alterados, login num computador novo), insígnias ganhas,
+  bugs resolvidos, convites usados e novidades. Em **Configurações › Notificações** você escolhe o
+  que receber (segurança fica sempre ligada). O Aureum nunca pede sua senha ou código.

@@ -23,7 +23,8 @@ import { channelTab, useNav } from '../store/nav'
 import { useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
-import { NameMarks } from './Badge'
+import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
+import { badgeTitle } from '../store/badges'
 import { ConfirmModal } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -71,10 +72,56 @@ function withMentions(text: string, mention: ((username: string) => ReactNode) |
   return out
 }
 
-/** Renders text with http(s) links made clickable (they open in the system browser) and
- * @mentions of people in the conversation. */
-function Linkified({ text, own = false, mention }: { text: string; own?: boolean; mention?: (username: string) => ReactNode }): ReactNode {
+/** A channel mention, "<#id>" in the text (the bot writes them): the channel's #name, which
+ * opens it. A channel the user can't see shows as a plain "#canal". */
+function ChannelMention({ id }: { id: string }): ReactNode {
+  // A string, not an object: the selector must return the same value while nothing changed.
+  const serverId = useChat((s) => Object.values(s.servers).find((server) => server.channels.some((c) => c.id === id))?.id ?? null)
+  const name = useChat((s) => (serverId ? s.servers[serverId]?.channels.find((c) => c.id === id)?.name : undefined))
+  const openTab = useNav((s) => s.openTab)
+  if (!serverId || !name) return <span className="font-medium">#canal</span>
+  return (
+    <button
+      type="button"
+      onClick={() => openTab(serverId, channelTab(id))}
+      className="rounded-sm bg-accent/15 px-0.5 font-medium text-accent-text hover:underline"
+    >
+      #{name}
+    </button>
+  )
+}
+
+const CHANNEL_MENTION = /<#([0-9a-f-]{36})>/g
+// Simple markdown, only in @aureum's messages: **bold**, *italic* and `code`.
+const MARKDOWN = /(\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*|`[^`\n]+`)/g
+
+function withMarkdown(text: string, rest: (text: string) => ReactNode[]): ReactNode[] {
+  return text.split(MARKDOWN).map((part, i) => {
+    if (i % 2 === 0) return <Fragment key={i}>{rest(part)}</Fragment>
+    if (part.startsWith('**')) return <strong key={i}>{rest(part.slice(2, -2))}</strong>
+    if (part.startsWith('`')) return <code key={i} className="rounded-sm bg-main px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>
+    return <em key={i}>{rest(part.slice(1, -1))}</em>
+  })
+}
+
+/** Renders text with http(s) links made clickable (they open in the system browser), channel
+ * mentions and @mentions of people in the conversation; `rich` adds simple markdown. */
+function Linkified({
+  text,
+  own = false,
+  rich = false,
+  mention
+}: {
+  text: string
+  own?: boolean
+  rich?: boolean
+  mention?: (username: string) => ReactNode
+}): ReactNode {
   const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g)
+  const plain = (part: string): ReactNode[] =>
+    part.split(CHANNEL_MENTION).map((piece, j) =>
+      j % 2 === 1 ? <ChannelMention key={j} id={piece} /> : <Fragment key={j}>{withMentions(piece, mention)}</Fragment>
+    )
   return parts.map((part, i) =>
     i % 2 === 1 ? (
       // On the accent-tinted bubble the accent text color can lack contrast: underline instead.
@@ -82,8 +129,24 @@ function Linkified({ text, own = false, mention }: { text: string; own?: boolean
         {part}
       </a>
     ) : (
-      <Fragment key={i}>{withMentions(part, mention)}</Fragment>
+      <Fragment key={i}>{rich ? withMarkdown(part, plain) : plain(part)}</Fragment>
     )
+  )
+}
+
+/** Posted by @aureum: the official look needs both the message's mark and an official author,
+ * so no one can fake it by what they write. */
+export const isOfficialMessage = (message: Message): boolean => !!message.official && !!message.author?.is_official
+
+/** The badge an official "you got a badge" notice is about, shown big under it. */
+function OfficialBadge({ badgeKey, me }: { badgeKey: string; me: Me }): ReactNode {
+  const [shown] = useShownBadges(me.badges.filter((b) => b.key === badgeKey))
+  if (!shown) return null
+  return (
+    <div className="mt-2 flex items-center gap-3 rounded-control border border-line bg-elevated px-3 py-2">
+      <BadgeIcon shown={shown} size={72} shine="always" />
+      <span className="font-display text-lg font-semibold">{badgeTitle(shown)}</span>
+    </div>
   )
 }
 
@@ -111,10 +174,13 @@ export function ChatView({
   nameColorOf,
   nameOf,
   intro,
-  placeholder
+  placeholder,
+  readOnlyNote
 }: {
   channel: Channel
   me: Me
+  /** Shown instead of the message box when `canSend` is false (default: no permission). */
+  readOnlyNote?: string
   /** Can delete other people's messages. */
   canModerate: boolean
   canSend?: boolean
@@ -302,6 +368,11 @@ export function ChatView({
                   mention={mentionFor(message.author?.id === me.id)}
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                   authorName={message.author ? nameOf?.(message.author.id) : null}
+                  extra={
+                    isOfficialMessage(message) && message.official?.badge ? (
+                      <OfficialBadge badgeKey={message.official.badge} me={me} />
+                    ) : undefined
+                  }
                 />
               )}
             </Fragment>
@@ -318,7 +389,7 @@ export function ChatView({
         />
       ) : (
         <p className="mx-4 mb-6 shrink-0 rounded-control border border-line bg-elevated px-4 py-2.5 text-sm text-fg-subtle">
-          Você não tem permissão para enviar mensagens neste canal.
+          {readOnlyNote ?? 'Você não tem permissão para enviar mensagens neste canal.'}
         </p>
       )}
       {profile.popover}
@@ -457,9 +528,12 @@ function MessageRow({
   onAuthorMenu,
   mention,
   nameColor: roleNameColor,
-  authorName
+  authorName,
+  extra
 }: {
   message: Message
+  /** Shown under the text (the badge of an official badge notice). */
+  extra?: ReactNode
   /** Written by the signed-in user: shown on the right, mirrored, with their avatar but no name. */
   own: boolean
   grouped: boolean
@@ -524,12 +598,13 @@ function MessageRow({
               className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
             >
               <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
-                <Linkified text={message.content} own={own} mention={mention} />
+                <Linkified text={message.content} own={own} rich={isOfficialMessage(message)} mention={mention} />
                 {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
               </p>
             </div>
           )
         )}
+        {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
         {!editing && (canEdit || canDelete) && (
           <div

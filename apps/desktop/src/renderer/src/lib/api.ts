@@ -121,6 +121,8 @@ export interface BugReport {
   /** Protected: download it with fetchMedia. */
   screenshot_url: string | null
   resolved_at: string | null
+  /** "Fechar (não é bug)": closed without a fix. */
+  dismissed_at?: string | null
   created_at: string
 }
 
@@ -169,7 +171,12 @@ export interface UserSettings {
   column_sizes: Record<string, number>
   /** Silenced channels and servers: no unread badges (mentions still count). */
   muted_places: string[]
+  /** Official DM categories turned off (false); missing ones are on. */
+  official_dm: Record<string, boolean>
 }
+
+/** What @aureum's DM is about. Security can't be turned off. */
+export type OfficialCategory = 'seguranca' | 'insignias' | 'bugs' | 'convites' | 'novidades' | 'avisos'
 
 export interface UserAudio {
   volume: number
@@ -283,6 +290,8 @@ export interface Call {
 export interface Dm {
   id: string
   type: 'dm' | 'group_dm'
+  /** The official DM with @aureum: read-only, pinned on top, its own look. */
+  official?: boolean
   name: string | null
   /** Groups only: the group's picture. */
   icon_url: string | null
@@ -366,6 +375,8 @@ export interface Message {
   call: Call | null
   /** Set on a system line posted by an addon ("moveu “X” para Feito"); content is empty. */
   system?: MessageSystem | null
+  /** Posted by @aureum. Only counts with an official author (author.is_official). */
+  official?: { category: string; badge?: string } | null
 }
 
 export interface MessageSystem {
@@ -446,7 +457,7 @@ export function refreshSession(): Promise<boolean> {
       const res = await send('/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken })
+        body: JSON.stringify({ refresh_token: refreshToken, device_id: installId() })
       })
       if (res.status === 401) {
         await clearTokens()
@@ -572,8 +583,34 @@ export function uploadFile<T>(
   }
 }
 
+const INSTALL_KEY = 'aureum.installId'
+
+/**
+ * A random id for this install, made once and kept. The API stores only a hash of it, to tell a
+ * sign-in from a new install apart (the official DM's security notice); it says nothing else
+ * about the PC.
+ */
+export function installId(): string | undefined {
+  try {
+    let id = localStorage.getItem(INSTALL_KEY)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(INSTALL_KEY, id)
+    }
+    return id
+  } catch {
+    return undefined // no storage: the API just can't tell installs apart
+  }
+}
+
 export async function login(email: string, password: string): Promise<void> {
-  await storeTokens(await api<TokenPair>('/auth/login', { method: 'POST', body: { email, password }, auth: false }))
+  const os = await window.aureum.app
+    .info()
+    .then((info) => info.os)
+    .catch(() => undefined)
+  await storeTokens(
+    await api<TokenPair>('/auth/login', { method: 'POST', body: { email, password, device_id: installId(), os }, auth: false })
+  )
 }
 
 export async function register(input: {
@@ -583,7 +620,7 @@ export async function register(input: {
   display_name?: string
   invite_code?: string
 }): Promise<void> {
-  await storeTokens(await api<TokenPair>('/auth/register', { method: 'POST', body: input, auth: false }))
+  await storeTokens(await api<TokenPair>('/auth/register', { method: 'POST', body: { ...input, device_id: installId() }, auth: false }))
 }
 
 /** Whether sign-up asks for an account invite (AUREUM_INVITE_ONLY). */

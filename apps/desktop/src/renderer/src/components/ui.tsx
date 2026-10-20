@@ -81,20 +81,31 @@ export function ToggleRow({
   title,
   description,
   checked,
-  onChange
+  onChange,
+  disabled = false
 }: {
   title: string
   description: string
   checked: boolean
   onChange(checked: boolean): void
+  /** Shown but fixed (a setting that can't be turned off). */
+  disabled?: boolean
 }): ReactNode {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-control border border-line bg-main px-3 py-2.5">
+    <label
+      className={`flex items-center justify-between gap-4 rounded-control border border-line bg-main px-3 py-2.5 ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+    >
       <span>
         <span className="block font-medium">{title}</span>
         <span className="block text-xs text-fg-subtle">{description}</span>
       </span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5 shrink-0 accent-accent" />
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-5 w-5 shrink-0 accent-accent disabled:opacity-60"
+      />
     </label>
   )
 }

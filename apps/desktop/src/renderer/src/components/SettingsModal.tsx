@@ -7,6 +7,7 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
 import { Modal, ModalBody, ModalTabs } from './Modal'
+import { NotificationSettings } from './NotificationSettings'
 import { OverlaySettings } from './OverlaySettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SoundSettings } from './SoundSettings'
@@ -14,7 +15,19 @@ import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
 
 // 'badges' has no tab of its own: it opens from Meu perfil.
-type Tab = 'profile' | 'badges' | 'account' | 'invites' | 'activity' | 'appearance' | 'voice' | 'sounds' | 'overlay' | 'windows' | 'reports'
+type Tab =
+  | 'profile'
+  | 'badges'
+  | 'account'
+  | 'invites'
+  | 'activity'
+  | 'appearance'
+  | 'voice'
+  | 'sounds'
+  | 'notifications'
+  | 'overlay'
+  | 'windows'
+  | 'reports'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -33,6 +46,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['appearance', 'Aparência'],
             ['voice', 'Voz e vídeo'],
             ['sounds', 'Sons'],
+            ['notifications', 'Notificações'],
             ['overlay', 'Overlay'],
             ['windows', 'Windows'],
             ...(isOwner ? ([['reports', 'Problemas']] as const) : [])
@@ -51,6 +65,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'voice' && <VoiceSettings />}
         {tab === 'sounds' && <SoundSettings />}
+        {tab === 'notifications' && <NotificationSettings />}
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
         {tab === 'reports' && isOwner && <BugReports />}

@@ -18,6 +18,9 @@ import { CallView } from './VoiceView'
 
 type Dialog = 'add' | 'rename' | 'leave'
 
+const OFFICIAL_READ_ONLY =
+  'Esta é uma conversa oficial do Aureum. Pra falar com a gente, use o botão de bug ou o servidor do beta.'
+
 /** A DM or group: header with call and people buttons, the call when you're in it, and the chat. */
 export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const peer = dmPeer(dm, me.id)
@@ -62,19 +65,24 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
 
   const headerButton = 'rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg disabled:cursor-not-allowed disabled:opacity-40'
 
+  const official = !!dm.official
   const chat = (
     <ChatView
       key={dm.id}
       channel={channel}
       me={me}
       canModerate={false}
+      canSend={!official}
+      readOnlyNote={OFFICIAL_READ_ONLY}
       intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
       placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}
     />
   )
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    // The official DM gets a thin gold frame; no other conversation can (it comes from the API's
+    // official flag, never from what a message says).
+    <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${official ? 'ring-1 ring-inset ring-badge-gold/40' : ''}`}>
       <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-2">
         {peer ? (
           // The person: click for their profile, right click for their menu.
@@ -101,7 +109,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
           </div>
         )}
         <span className="flex-1" />
-        {call && !inCall && (
+        {!official && call && !inCall && (
           <button
             type="button"
             onClick={() => void join(null, dm.id)}
@@ -111,7 +119,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             Entrar na chamada
           </button>
         )}
-        {!call && (
+        {!official && !call && (
           <button
             type="button"
             title={isFriend ? 'Ligar' : 'Só amigos podem ligar'}
@@ -135,15 +143,17 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             <MessageSquare size={20} />
           </button>
         )}
-        <button
-          type="button"
-          title={inCall ? 'Adicionar pessoas à chamada' : group ? 'Adicionar pessoas' : 'Criar grupo com mais pessoas'}
-          aria-label="Adicionar pessoas"
-          onClick={() => setDialog('add')}
-          className={headerButton}
-        >
-          <UserPlus size={20} />
-        </button>
+        {!official && (
+          <button
+            type="button"
+            title={inCall ? 'Adicionar pessoas à chamada' : group ? 'Adicionar pessoas' : 'Criar grupo com mais pessoas'}
+            aria-label="Adicionar pessoas"
+            onClick={() => setDialog('add')}
+            className={headerButton}
+          >
+            <UserPlus size={20} />
+          </button>
+        )}
         {group && (
           <>
             <button
@@ -199,6 +209,11 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         )}
         {group && membersOpen && <GroupMembers dm={dm} meId={me.id} onOpen={profile.open} />}
       </div>
+      {official && (
+        <p className="shrink-0 border-t border-line px-4 py-2 text-center text-xs text-fg-subtle">
+          O Aureum nunca pede sua senha ou código.
+        </p>
+      )}
       {profile.popover}
 
       {dialog === 'add' && (
@@ -276,9 +291,13 @@ function DmIntro({ dm, meId, isFriend }: { dm: Dm; meId: string; isFriend: boole
       {profile.popover}
       <h3 className="mt-3 text-3xl font-bold">{title}</h3>
       <p className="mt-1 text-fg-muted">
-        {peer ? `Este é o começo da sua conversa com @${peer.username}.` : `Este é o começo do grupo ${title}.`}
+        {dm.official
+          ? 'A conversa oficial do Aureum: avisos de segurança, insígnias, bugs resolvidos e novidades chegam aqui.'
+          : peer
+            ? `Este é o começo da sua conversa com @${peer.username}.`
+            : `Este é o começo do grupo ${title}.`}
       </p>
-      {!isFriend && (
+      {!isFriend && !dm.official && (
         <p className="mt-2 text-sm text-fg-subtle">Vocês não são amigos agora: dá pra ler a conversa, mas não mandar mensagens nem ligar.</p>
       )}
     </>

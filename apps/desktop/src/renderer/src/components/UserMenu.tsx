@@ -69,6 +69,8 @@ export function UserContextMenu({
   const member = server?.members.find((m) => m.user.id === user.id)
   const social = useSocial.getState()
   const isFriend = friend?.kind === 'friend'
+  // @aureum takes no friend requests and can't be blocked (its DM can be silenced instead).
+  const officialBot = !!user.is_official && !!user.is_bot
 
   const openProfile = (): void => {
     const at = menuPoint()
@@ -91,7 +93,7 @@ export function UserContextMenu({
           <Item icon={Phone} label="Ligar" onClick={() => run(social.openDm(user.id).then(social.startCall))} />
         </>
       )}
-      {!isMe && !friend && <Item icon={UserPlus} label="Adicionar amigo" onClick={() => run(social.sendRequest(user.username), 'Pedido enviado')} />}
+      {!isMe && !friend && !officialBot && <Item icon={UserPlus} label="Adicionar amigo" onClick={() => run(social.sendRequest(user.username), 'Pedido enviado')} />}
       {!isMe && friend?.kind === 'incoming' && <Item icon={Check} label="Aceitar pedido de amizade" onClick={() => run(social.accept(user.id))} />}
       {!isMe && friend?.kind === 'outgoing' && <Item icon={X} label="Cancelar pedido de amizade" onClick={() => run(social.remove(user.id))} />}
       {!isMe && isFriend && (
@@ -135,6 +137,7 @@ export function UserContextMenu({
       <Separator />
       <Item icon={Copy} label="Copiar ID" onClick={() => copy(user.id, 'ID copiado')} />
       {!isMe &&
+        !officialBot &&
         (friend?.kind === 'blocked' ? (
           <Item icon={Ban} label="Desbloquear" onClick={() => run(social.unblock(user.id))} />
         ) : (
