@@ -73,6 +73,31 @@ function saveCache(settings: UserSettings): void {
 }
 
 let surfaces: string[] = []
+let previewFrame = 0
+
+/**
+ * While a color picker is being dragged: paints the accent straight on <html>, at most once per
+ * frame, with no React state, re-tint or save. data-accent-preview also pauses CSS transitions
+ * (main.css). The final color goes through `update` on release, which repaints everything and
+ * saves; `endAccentPreview` restores the saved color if the picker closes without a choice.
+ */
+export function previewAccent(accent: string): void {
+  cancelAnimationFrame(previewFrame)
+  previewFrame = requestAnimationFrame(() => {
+    previewFrame = 0
+    const root = document.documentElement
+    root.dataset.accentPreview = ''
+    root.style.setProperty('--accent', accent)
+    root.style.setProperty('--on-accent', inkOn(accent))
+    root.style.setProperty('--accent-text', readableOn(accent, surfaces))
+  })
+}
+
+export function endAccentPreview(): void {
+  if (document.documentElement.dataset.accentPreview === undefined && !previewFrame) return
+  const { settings, resolved } = useAppearance.getState()
+  applyToDocument(settings, resolved)
+}
 
 /**
  * Writes the theme to <html>. data-theme picks the base palette in main.css (drawn around the
@@ -82,6 +107,9 @@ let surfaces: string[] = []
 function applyToDocument(settings: UserSettings, resolved: Resolved): void {
   const root = document.documentElement
   const accent = settings.accent_color
+  cancelAnimationFrame(previewFrame)
+  previewFrame = 0
+  delete root.dataset.accentPreview
   root.dataset.theme = resolved
   for (const name of NEUTRALS) root.style.removeProperty(name) // read the base palette, not last tint
   const css = getComputedStyle(root)

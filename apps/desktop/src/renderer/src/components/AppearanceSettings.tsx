@@ -1,8 +1,8 @@
 import { Check, Hash, Monitor, Moon, Pipette, Sun } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Theme } from '../lib/api'
-import { ACCENT_PRESETS, useAppearance } from '../store/appearance'
+import { ACCENT_PRESETS, endAccentPreview, previewAccent, useAppearance } from '../store/appearance'
 import { inputClass, labelClass, Segmented } from './ui'
 
 const HEX_RE = /^#[0-9a-f]{6}$/i
@@ -69,13 +69,7 @@ export function AppearanceSettings(): ReactNode {
                 }`}
               >
                 <Pipette size={18} />
-                <input
-                  type="color"
-                  aria-label="Escolher outra cor"
-                  value={accent.toLowerCase()}
-                  onChange={(e) => update({ accent_color: e.target.value.toUpperCase() })}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                />
+                <AccentPicker accent={accent} />
               </span>
               Outra
             </label>
@@ -107,6 +101,49 @@ export function AppearanceSettings(): ReactNode {
         <ThemePreview />
       </div>
     </div>
+  )
+}
+
+/**
+ * The free color picker. Dragging fires "input" many times a second: those only repaint the accent
+ * (previewAccent, no React state). The color is applied and saved once, on "change" (picker
+ * released or closed). Uncontrolled, so React never resets the value mid-drag.
+ */
+function AccentPicker({ accent }: { accent: string }): ReactNode {
+  const ref = useRef<HTMLInputElement>(null)
+  const update = useAppearance((s) => s.update)
+
+  useEffect(() => {
+    if (ref.current) ref.current.value = accent.toLowerCase()
+  }, [accent])
+
+  useEffect(() => {
+    const input = ref.current
+    if (!input) return
+    const onInput = (): void => previewAccent(input.value.toUpperCase())
+    const onChange = (): void => {
+      const chosen = input.value.toUpperCase()
+      if (chosen !== useAppearance.getState().settings.accent_color.toUpperCase()) update({ accent_color: chosen })
+      endAccentPreview() // same color as before: nothing to save, just drop the preview
+    }
+    input.addEventListener('input', onInput)
+    input.addEventListener('change', onChange)
+    input.addEventListener('blur', endAccentPreview)
+    return () => {
+      input.removeEventListener('input', onInput)
+      input.removeEventListener('change', onChange)
+      input.removeEventListener('blur', endAccentPreview)
+    }
+  }, [update])
+
+  return (
+    <input
+      ref={ref}
+      type="color"
+      aria-label="Escolher outra cor"
+      defaultValue={accent.toLowerCase()}
+      className="absolute inset-0 cursor-pointer opacity-0"
+    />
   )
 }
 

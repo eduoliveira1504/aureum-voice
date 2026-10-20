@@ -211,6 +211,12 @@ textarea {
   background: var(--text-muted);
 }
 
+/* While the accent picker is dragged, colors change every frame: transitions would restart on
+ * every element that uses the accent (see previewAccent in store/appearance.ts). */
+:root[data-accent-preview] * {
+  transition: none !important;
+}
+
 /* --- Badges -------------------------------------------------------------------
  * Mythic badges: a soft glow and a diagonal light band that crosses them every ~4s, clipped
  * to the badge's own shape (masked by its art). The animation lives here, never in the SVGs.
