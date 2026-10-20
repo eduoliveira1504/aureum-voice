@@ -1,8 +1,9 @@
 /**
  * Automatic updates from the GitHub releases of the public repository (electron-updater).
  * Checks when the app opens and every 6 hours, downloads in the background and then tells the
- * window, which offers "Reiniciar para atualizar". The channel comes from the app version: a
- * "-beta.N" version follows the beta channel (beta.yml). Installed app only.
+ * window, which offers "Reiniciar para atualizar". Releases ship only latest.yml: a "-beta.N"
+ * version allows prereleases, looks for beta.yml first and falls back to latest.yml. Installed
+ * app only.
  */
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
