@@ -1,6 +1,6 @@
 # Novidades do Aureum
 
-## Próxima versão
+## 0.2.0-beta.3
 
 - **Ícone novo:** o Aureum ganhou o logo oficial no atalho, no instalador, na janela, na barra
   de tarefas e na bandeja. Se o ícone antigo continuar aparecendo, reinicie o PC (o Windows

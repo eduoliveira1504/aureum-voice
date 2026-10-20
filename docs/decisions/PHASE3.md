@@ -9,7 +9,8 @@ sem push (push só quando o Eduardo pedir). Plano curto antes de começar. Migra
 Alembic, testes da API, README e docs/decisions quando houver escolha de arquitetura.
 O Eduardo decide quando gerar release; uma release pode juntar um ou mais blocos.
 
-Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 3.3. O 3.1 e o 3.2 têm o código pronto e esperam os testes manuais.
+Status: blocos com ✅ estão prontos; NÃO refazer. Próximo: 3.4. O 3.1, o 3.2 e o 3.3 têm o código pronto (release 0.2.0-beta.3) e esperam os
+testes manuais; as ações da @aureum se ligam pela CLI depois da release.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
