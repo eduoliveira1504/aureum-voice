@@ -38,8 +38,12 @@ the release, while older apps would still show `<#id>` raw.
 **Official server.**
 - The welcome goes once per person and server (`bot_welcomes`), even if they leave and come back. It
   carries the Pioneiro number when there is one, and points to the bugs channel when that is set.
-- A resolved bug posts "🐞 Bug resolvido: [título]. Valeu, @fulano!". Reports have no title, so the
-  title is the first line of the description, cut at 60 characters.
+- "Confirmar bug" (`bug_reports.confirmed_at`) posts "🔧 Bug encontrado: [título]. Já estamos
+  corrigindo." and DMs the author. It's a button, not a post per report: many reports aren't bugs,
+  and a report can carry logs the author didn't mean to make public.
+- A resolved bug posts "✅ Bug corrigido: [título]. Valeu, @fulano! Atualizem o app e testem, por
+  favor." Reports have no title, so the title is the first line of the description, cut at 60
+  characters. Mark it resolved once the fix is released, or people test a version without it.
 - "Fechar (não é bug)" (`bug_reports.dismissed_at`) gives no badge, posts nothing and sends no DM.
 
 **Official DM.**
@@ -70,6 +74,19 @@ refresh and sign-up. The API keeps only `sha256(user_id:id)` (`user_devices`), n
 - The key comes from the category and the text. Running the same command again counts only who still
   lacks the message, and puts back in line the rows taken but never delivered.
 
+**Release announcements** (`app/bot/releases.py`, action `novidades`). Pulled from the backlog so
+the bot needs nobody to type anything.
+- A worker reads the repository's public releases on GitHub every 15 minutes, without a token. The
+  public API allows 60 requests an hour per IP and this uses 4; it costs nothing.
+- Only the newest release published in the last 3 days counts, so switching it on never announces
+  old versions. Each tag is announced once (`bot_releases`), claimed before posting.
+- It posts in the `avisos` channel and queues a `novidades` DM through the broadcast queue, with the
+  release text as notes. `npm run release` fills that text from the version's section of
+  CHANGELOG.md.
+
+**Always online.** Bot accounts never open a WebSocket, so presence would show them offline.
+`presence.statuses` shows `is_bot` accounts as online, always.
+
 **Protection.**
 - @aureum takes no friend requests, can't be blocked (it can be silenced), and can't join a server by
   invite. There is no user search to hide it from.
@@ -80,7 +97,8 @@ refresh and sign-up. The API keeps only `sha256(user_id:id)` (`user_devices`), n
 
 ## Consequences
 
-- Five tables and four columns, all additive: the app's previous version works against them.
+- Six tables and five columns, all additive: the app's previous version works against them.
+- "Confirmar bug" needs the next app release; the API side and the announcements work with any app.
 - The API container runs migrations on start, so deploying is migrating. The production rules apply
   (`pg_dump` first).
 - The new app's side (pinned official DM, read-only footer, `<#id>` and markdown, Configurações ›

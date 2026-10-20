@@ -3,7 +3,8 @@
 It combines the live connections (realtime.Broker), the status the user picked (kept in
 user_settings and mirrored in Redis) and idleness: each connection reports when its PC has had
 no input for a while, and the user shows as idle once all their connections are. Invisible
-users show as offline.
+users show as offline. Bot accounts (the official @aureum) have no connection but are always
+there: they always show as online.
 
 `presence.updated` goes out only when the visible status actually changes.
 
@@ -20,10 +21,12 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
+
 from app.access import audience_ids
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import UserStatus
+from app.models import User, UserStatus
 from app.realtime import broker
 from app.schemas import Presence
 
@@ -75,9 +78,13 @@ def _visible(alive: list[str], idle: set[str], chosen: str | None) -> Presence:
     return "online"
 
 
-async def statuses(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Presence]:
-    """Visible status per user; offline for anyone without a live connection."""
-    ids = list(dict.fromkeys(user_ids))
+async def _bots(ids: list[uuid.UUID]) -> set[uuid.UUID]:
+    async with SessionLocal() as session:
+        return set(await session.scalars(select(User.id).where(User.id.in_(ids), User.is_bot.is_(True))))
+
+
+async def _live(ids: list[uuid.UUID]) -> dict[uuid.UUID, Presence]:
+    """Visible status from the live connections; offline for anyone without one."""
     if not ids:
         return {}
     now = time.time()
@@ -95,6 +102,16 @@ async def statuses(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Presence]:
         user_id: _visible(raw[3 * i], set(raw[3 * i + 1]), raw[3 * i + 2])
         for i, user_id in enumerate(ids)
     }
+
+
+async def statuses(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Presence]:
+    """Visible status per user: from the live connections, and always online for bots."""
+    ids = list(dict.fromkeys(user_ids))
+    if not ids:
+        return {}
+    bots = await _bots(ids)
+    people = await _live([u for u in ids if u not in bots])
+    return {u: "online" if u in bots else people[u] for u in ids}
 
 
 async def activities(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:

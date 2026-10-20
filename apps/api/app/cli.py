@@ -266,6 +266,8 @@ async def bot_status() -> int:
             channel = ""
             if name in bot.SERVER_ACTIONS:
                 channel = f"  canal {row.channel_id}" if row.channel_id else "  (sem canal: não roda)"
+            elif name == bot.RELEASES:
+                channel = "  (versões novas: canal de avisos + DM)"
             print(f"  {name:<14} {'ligada' if row.enabled else 'desligada'}{channel}")
         print(f"Broadcast DMs waiting: {await broadcast.pending(session)}")
     return 0

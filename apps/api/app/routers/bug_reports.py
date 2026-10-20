@@ -44,6 +44,7 @@ def _out(report: BugReport) -> BugReportOut:
         os=report.os,
         logs=report.logs,
         screenshot_url=f"{storage.MEDIA_PREFIX}bug-reports/{report.id}" if report.screenshot_key else None,
+        confirmed_at=report.confirmed_at,
         resolved_at=report.resolved_at,
         dismissed_at=report.dismissed_at,
         created_at=report.created_at,
@@ -95,9 +96,11 @@ async def list_bug_reports(user: CurrentUser, session: SessionDep) -> list[BugRe
 
 
 class BugReportUpdate(BaseModel):
-    """`resolved`: fixed (badge, the bot's public line and DM). `dismissed`: "Fechar (não é
-    bug)", closed without any of that. Either one reopens with false."""
+    """`confirmed`: "Confirmar bug", it's real and being fixed (the bot's public line and DM).
+    `resolved`: fixed (badge, the bot's public line and DM). `dismissed`: "Fechar (não é bug)",
+    closed without any of that. Each one is undone with false."""
 
+    confirmed: bool | None = None
     resolved: bool | None = None
     dismissed: bool | None = None
 
@@ -112,6 +115,12 @@ async def update_bug_report(
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     if body.resolved and body.dismissed:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A report is either resolved or dismissed")
+    if body.confirmed is not None and body.confirmed != (report.confirmed_at is not None):
+        report.confirmed_at = datetime.now(UTC) if body.confirmed else None
+        await session.commit()
+        await session.refresh(report)
+        if body.confirmed:
+            await bot.bug_confirmed(report.id)
     if body.dismissed is not None and body.dismissed != (report.dismissed_at is not None):
         report.dismissed_at = datetime.now(UTC) if body.dismissed else None
         if body.dismissed:

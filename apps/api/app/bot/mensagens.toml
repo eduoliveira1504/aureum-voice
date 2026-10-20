@@ -4,6 +4,7 @@
 # {mencao}      @usuario da pessoa (vira menção clicável)
 # {canal_bugs}  o canal de bugs configurado (vira menção clicável)
 # {quando}      data e hora, horário de Brasília
+# {versao}      a versão nova do app (ex: 0.2.0-beta.4)
 # Markdown simples funciona nas mensagens da @aureum: **negrito**, *itálico* e `código`.
 
 [servidor]
@@ -11,13 +12,18 @@ boas_vindas = "⬢ {mencao} chegou! Pioneiro nº {numero} do Aureum. Seja bem-vi
 boas_vindas_sem_pioneiro = "⬢ {mencao} chegou! Seja bem-vindo(a)!"
 # Vai no fim das boas-vindas quando o canal de bugs está configurado.
 boas_vindas_bugs = " Achou um bug? Manda no {canal_bugs}."
-bug_resolvido = "🐞 Bug resolvido: {titulo}. Valeu, {mencao}!"
+bug_confirmado = "🔧 **Bug encontrado:** {titulo}. Já estamos corrigindo. Valeu pelo aviso, {mencao}!"
+bug_resolvido = "✅ **Bug corrigido:** {titulo}. Valeu, {mencao}! Atualizem o app e testem, por favor."
+# Versão nova publicada no GitHub, no canal de avisos. As notas da versão vão logo abaixo.
+versao_nova = "⬢ **Saiu a versão {versao} do Aureum!** O app se atualiza sozinho: é só fechar e abrir de novo."
 
 [dm]
+versao_nova = "⬢ **Saiu a versão {versao} do Aureum!** O app se atualiza sozinho: é só fechar e abrir de novo."
 seguranca_senha = "**Sua senha foi alterada** em {quando}.\nNão foi você? Troque sua senha agora."
 seguranca_email = "**O e-mail da sua conta foi alterado** para {novo} em {quando}.\nNão foi você? Troque sua senha agora."
 seguranca_login = "**Novo login na sua conta** em {quando}, no {sistema}.\nNão foi você? Troque sua senha agora."
 insignia = "Você ganhou a insígnia **{insignia}**!"
-bug_resolvido = "Seu bug \"{titulo}\" foi resolvido. Valeu!"
-bug_resolvido_insignia = "Seu bug \"{titulo}\" foi resolvido. Valeu! E você ganhou a insígnia **{insignia}**."
+bug_confirmado = "Confirmamos o bug \"{titulo}\" que você reportou. Já estamos corrigindo e te avisamos aqui quando sair a correção."
+bug_resolvido = "Seu bug \"{titulo}\" foi corrigido. Atualize o app e teste, por favor. Valeu!"
+bug_resolvido_insignia = "Seu bug \"{titulo}\" foi corrigido. Atualize o app e teste, por favor. Valeu! E você ganhou a insígnia **{insignia}**."
 convite = "{mencao} entrou com o seu convite!"

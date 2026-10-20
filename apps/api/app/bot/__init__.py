@@ -5,8 +5,10 @@ server, a bug report is resolved, a badge is granted, a password changes...). No
 process and no token: it posts as the account named by AUREUM_BOT_USERNAME (default "aureum"),
 which must be an official bot account (CLI `users create --oficial`). Without it, nothing runs.
 
-- In official servers: the welcome and the public "bug resolved" line, each in the channel set
-  with the CLI (`bot set-channel`). No channel, no post.
+- In official servers: the welcome and the public "bug confirmed" / "bug fixed" lines, each in
+  the channel set with the CLI (`bot set-channel`). No channel, no post.
+- New app releases: announced once in the avisos channel and as a "novidades" DM, as soon as
+  they're published on GitHub (app/bot/releases.py).
 - In each user's official DM (created with its first message): notices by category. The user can
   turn categories off, except security. The same notice never goes twice (bot_deliveries).
 - Every action is switched with the CLI (`bot enable|disable`) and starts off.
@@ -50,11 +52,13 @@ log = logging.getLogger(__name__)
 # Server actions: they post in the channel set for them.
 WELCOME = "boas-vindas"
 BUGS = "bugs"
-NOTICES = "avisos"  # where `bot say` posts when no channel is given
+NOTICES = "avisos"  # where `bot say` and the release announcements post
 SERVER_ACTIONS = (WELCOME, BUGS, NOTICES)
+# Announces each new app release (in the avisos channel and as a novidades DM).
+RELEASES = "novidades"
 
 # Official DM categories. Security can't be turned off by the user; the broadcast ones
-# (avisos, novidades) are sent only by the CLI's `bot broadcast`.
+# (avisos, novidades) go out through the broadcast queue (`bot broadcast`, release announcements).
 SECURITY = "seguranca"
 BADGES = "insignias"
 BUG_DMS = "bugs"
@@ -65,7 +69,7 @@ CATEGORIES = (SECURITY, BADGES, BUG_DMS, INVITES, NEWS, ANNOUNCEMENTS)
 BROADCAST_CATEGORIES = (ANNOUNCEMENTS, NEWS)
 # DM actions switched with the CLI, one per category the bot sends by itself.
 DM_ACTIONS = {f"dm-{c}": c for c in (SECURITY, BADGES, BUG_DMS, INVITES)}
-ACTIONS = (*SERVER_ACTIONS, *DM_ACTIONS)
+ACTIONS = (*SERVER_ACTIONS, RELEASES, *DM_ACTIONS)
 
 TITLE_MAX = 60
 
@@ -135,7 +139,7 @@ async def official_text_channel(session: AsyncSession, channel_id: uuid.UUID) ->
     return channel if server is not None and server.is_official else None
 
 
-async def _server_channel(session: AsyncSession, name: str) -> Channel | None:
+async def server_channel(session: AsyncSession, name: str) -> Channel | None:
     """The channel of a server action, when the action is on and its channel still qualifies."""
     row = await action(session, name)
     if not row.enabled or row.channel_id is None:
@@ -257,7 +261,7 @@ async def welcome(server_id: uuid.UUID, user_id: uuid.UUID) -> None:
     async def work(session: AsyncSession) -> None:
         from app import badges
 
-        channel = await _server_channel(session, WELCOME)
+        channel = await server_channel(session, WELCOME)
         if channel is None or channel.server_id != server_id:
             return
         bot = await bot_user(session)
@@ -275,12 +279,32 @@ async def welcome(server_id: uuid.UUID, user_id: uuid.UUID) -> None:
             if number is not None
             else text("servidor", "boas_vindas_sem_pioneiro", mencao=mention(user))
         )
-        bugs = await _server_channel(session, BUGS)
+        bugs = await server_channel(session, BUGS)
         if bugs is not None and bugs.server_id == server_id:
             content += text("servidor", "boas_vindas_bugs", canal_bugs=channel_mention(bugs.id))
         await post(session, bot.id, channel, content, {"category": "boas-vindas"})
 
     await _run("welcome", work)
+
+
+async def bug_confirmed(report_id: uuid.UUID) -> None:
+    """"Confirmar bug": the public "we're on it" line and the author's DM (once per report)."""
+
+    async def work(session: AsyncSession) -> None:
+        report = await session.get(BugReport, report_id)
+        author = await session.get(User, report.author_id) if report and report.author_id else None
+        if report is None or author is None:
+            return
+        title = bug_title(report)
+        channel = await server_channel(session, BUGS)
+        bot = await bot_user(session)
+        if channel is not None and bot is not None and not author.is_official:
+            content = text("servidor", "bug_confirmado", titulo=title, mencao=mention(author))
+            await post(session, bot.id, channel, content, {"category": "bugs"})
+        if await enabled(session, "dm-bugs"):
+            await send_dm(session, author, BUG_DMS, text("dm", "bug_confirmado", titulo=title), key=f"bug-confirmed:{report_id}")
+
+    await _run("bug confirmed", work)
 
 
 async def bug_resolved(report_id: uuid.UUID, badge_granted: bool) -> None:
@@ -294,7 +318,7 @@ async def bug_resolved(report_id: uuid.UUID, badge_granted: bool) -> None:
         if report is None or author is None:
             return
         title = bug_title(report)
-        channel = await _server_channel(session, BUGS)
+        channel = await server_channel(session, BUGS)
         bot = await bot_user(session)
         if channel is not None and bot is not None and not author.is_official:
             content = text("servidor", "bug_resolvido", titulo=title, mencao=mention(author))

@@ -252,8 +252,10 @@ quebrar instalações existentes, fim do Tailscale Funnel e do LiveKit Cloud.
 - Landing page (docs/design/landing/) e o convite de grupo do WhatsApp
   (invites create --usos 15 --dias 7), passo 6 pendente do lançamento.
 - Login com Google e Discord; importar servidores do Discord.
-- Bot: anúncio automático de release, marcos de pioneiros, comandos /ajuda, /convites e
-  /status, tirar a @aureum dos servidores depois do beta, bots externos com token.
+- Bot: marcos de pioneiros, comandos /ajuda, /convites e /status, tirar a @aureum dos
+  servidores depois do beta, bots externos com token. (O anúncio automático de release, o
+  "Confirmar bug" e a @aureum sempre online foram puxados para o 3.3, a pedido do Eduardo;
+  ver 0021.)
 - Painel de sons: sons padrão próprios (gerados pelo script de síntese).
 - Cinema (assistir junto), mapa Minecraft (BlueMap), status de servidor de Mine, fichas
   de RPG, ouvir junto no Spotify.

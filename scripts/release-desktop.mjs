@@ -12,6 +12,9 @@
 // parallel and, with no release to find, each one used to create its own draft. At the end the
 // script checks there is exactly one draft for the tag, holding the .exe, its .blockmap and
 // latest.yml.
+//
+// The release text is this version's section of CHANGELOG.md ("## <version>"): @aureum posts it
+// in the avisos channel once the release is published (apps/api/app/bot/releases.py).
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -63,6 +66,21 @@ const github = async (method, path, body) => {
   return response.json()
 }
 
+const changelogNotes = () => {
+  const file = join(root, 'CHANGELOG.md')
+  const text = existsSync(file) ? readFileSync(file, 'utf8').replace(/\r/g, '') : ''
+  const lines = text.split('\n')
+  const start = lines.findIndex((l) => l.trim() === `## ${version}`)
+  if (start < 0) return ''
+  const end = lines.findIndex((l, i) => i > start && l.startsWith('## '))
+  return lines.slice(start + 1, end < 0 ? undefined : end).join('\n').trim()
+}
+
+const notes = changelogNotes()
+if (!notes) {
+  console.warn(`CHANGELOG.md has no "## ${version}" section: the release (and @aureum's announcement) goes without notes.`)
+}
+
 // Drafts only show up in the list (never in /releases/tags/:tag), and they are listed first.
 const releasesForTag = async () =>
   (await github('GET', '/releases?per_page=100')).filter((release) => release.tag_name === tag)
@@ -80,10 +98,11 @@ const prepareDraft = async () => {
     )
   }
   if (existing.length === 1) {
+    await github('PATCH', `/releases/${existing[0].id}`, { body: notes })
     console.log(`Reusing the existing draft for ${tag}.`)
     return
   }
-  await github('POST', '/releases', { tag_name: tag, name: version, draft: true, prerelease: false })
+  await github('POST', '/releases', { tag_name: tag, name: version, body: notes, draft: true, prerelease: false })
   console.log(`Created the draft release for ${tag}.`)
 }
 

@@ -774,6 +774,8 @@ class BugReportOut(BaseModel):
     logs: str
     # /api/media/bug-reports/{id}, for the owner only.
     screenshot_url: str | None
+    # "Confirmar bug": real and being fixed.
+    confirmed_at: datetime | None = None
     resolved_at: datetime | None
     # "Fechar (não é bug)".
     dismissed_at: datetime | None = None

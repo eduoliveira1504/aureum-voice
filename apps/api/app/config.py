@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     aureum_invite_only: bool = True
     # The official bot's account (app/bot). It must be an official bot account (CLI --oficial).
     aureum_bot_username: str = "aureum"
+    # Public GitHub repository whose releases the bot announces (empty: no announcements).
+    aureum_releases_repo: str = "eduoliveira1504/aureum-voice"
 
     # Public address of the API (the Funnel URL): invite links, e-mail images and links.
     public_base_url: str = "http://localhost:8000"

@@ -536,6 +536,8 @@ class BugReport(Base):
     # The app's last log lines, with tokens already removed on the device.
     logs: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     screenshot_key: Mapped[str | None] = mapped_column(String(200))
+    # "Confirmar bug": it's real and being fixed (the bot says so in the bugs channel).
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # "Fechar (não é bug)": closed without a fix. No badge, no post, no DM.
     dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -747,6 +749,15 @@ class BotWelcome(Base):
 
     server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class BotRelease(Base):
+    """An app release (GitHub tag) the bot already announced: each one once."""
+
+    __tablename__ = "bot_releases"
+
+    tag: Mapped[str] = mapped_column(String(64), primary_key=True)
     created_at: Mapped[datetime] = _created_at()
 
 

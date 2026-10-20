@@ -2,6 +2,7 @@
 read-only official DMs by category, anti-impersonation, broadcasts and the CLI."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -9,7 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 
 from app import bot, cli
-from app.bot import broadcast
+from app.bot import broadcast, releases
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AccountInvite, BotOutbox, BugReport, User, UserSettings
@@ -153,15 +154,40 @@ async def test_resolved_bug_posts_thanks_and_dms_with_the_badge_once(client: Asy
     assert (await owner.patch(f"/bug-reports/{first}", {"resolved": True})).status_code == 200
     assert (await owner.patch(f"/bug-reports/{second}", {"resolved": True})).status_code == 200
     public = [m["content"] for m in await messages(owner, bugs_id) if m["author"]["username"] == "aureum"]
-    assert public == ["🐞 Bug resolvido: Tela preta ao abrir a câmera. Valeu, @hunter!", "🐞 Bug resolvido: Som cortando. Valeu, @hunter!"]
+    assert public == [
+        "✅ **Bug corrigido:** Tela preta ao abrir a câmera. Valeu, @hunter! Atualizem o app e testem, por favor.",
+        "✅ **Bug corrigido:** Som cortando. Valeu, @hunter! Atualizem o app e testem, por favor.",
+    ]
     assert await dm_texts(hunter) == [
-        'Seu bug "Tela preta ao abrir a câmera" foi resolvido. Valeu! E você ganhou a insígnia **Caçador de bugs**.',
-        'Seu bug "Som cortando" foi resolvido. Valeu!',
+        'Seu bug "Tela preta ao abrir a câmera" foi corrigido. Atualize o app e teste, por favor. Valeu! E você ganhou a insígnia **Caçador de bugs**.',
+        'Seu bug "Som cortando" foi corrigido. Atualize o app e teste, por favor. Valeu!',
     ]
     # Reopened and resolved again: no repeat.
     await owner.patch(f"/bug-reports/{first}", {"resolved": False})
     await owner.patch(f"/bug-reports/{first}", {"resolved": True})
     assert len(await dm_texts(hunter)) == 2
+
+
+async def test_confirmed_bug_says_we_are_on_it_once(client: AsyncClient, aureum, monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(get_settings(), "aureum_owner_username", "owner")
+    owner = await make_user(client, "owner")
+    _, _, bugs_id = await official_server(owner)
+    await switch(bot.BUGS, "dm-bugs", bugs=bugs_id)
+    reporter = await make_user(client, "reporter")
+    report_id = await report(reporter)
+
+    res = await owner.patch(f"/bug-reports/{report_id}", {"confirmed": True})
+    assert res.status_code == 200 and res.json()["confirmed_at"] and res.json()["resolved_at"] is None
+    public = [m["content"] for m in await messages(owner, bugs_id) if m["author"]["username"] == "aureum"]
+    assert public == ["🔧 **Bug encontrado:** Tela preta ao abrir a câmera. Já estamos corrigindo. Valeu pelo aviso, @reporter!"]
+    assert await dm_texts(reporter) == [
+        'Confirmamos o bug "Tela preta ao abrir a câmera" que você reportou. Já estamos corrigindo e te avisamos aqui quando sair a correção.'
+    ]
+    # Confirming again changes nothing; resolving later keeps it confirmed and adds the fix DM.
+    await owner.patch(f"/bug-reports/{report_id}", {"confirmed": True})
+    res = await owner.patch(f"/bug-reports/{report_id}", {"resolved": True})
+    assert res.json()["confirmed_at"] and res.json()["resolved_at"]
+    assert len(await dm_texts(reporter)) == 2
 
 
 async def test_dismissed_bug_grants_nothing(client: AsyncClient, aureum, monkeypatch) -> None:  # noqa: ANN001
@@ -359,6 +385,67 @@ async def test_broadcast_counts_confirms_dedups_and_resumes(client: AsyncClient,
     assert await cli.bot_broadcast("novidades", text, yes=True) == 0
     assert "0 pessoa(s)" in capsys.readouterr().out
     assert [len(await dm_texts(u)) for u in users] == [1, 1, 0]
+
+
+# --- Release announcements -----------------------------------------------------------------
+
+NOW = datetime(2026, 10, 24, 12, 0, tzinfo=UTC)
+
+
+def release(tag: str, days_ago: float, body: str = "", draft: bool = False) -> dict[str, Any]:
+    published = (NOW - timedelta(days=days_ago)).isoformat().replace("+00:00", "Z")
+    return {"tag_name": tag, "draft": draft, "published_at": None if draft else published, "body": body}
+
+
+def test_only_the_newest_recent_published_release_counts() -> None:
+    assert releases.newest([release("v0.2.0-beta.2", 10), release("v0.2.0-beta.1", 30)], NOW) is None
+    found = releases.newest([release("v0.3.0", 0, draft=True), release("v0.2.0-beta.4", 0.1), release("v0.2.0-beta.3", 1)], NOW)
+    assert found is not None and found["tag_name"] == "v0.2.0-beta.4"
+
+
+def test_release_notes_read_like_a_chat_message() -> None:
+    body = "- **Ícone novo:** o Aureum ganhou o logo\n  oficial na bandeja.\r\n- Overlay corrigido.\n\n### Para quem testa\nReinicie o app."
+    assert releases.notes(body) == "• **Ícone novo:** o Aureum ganhou o logo oficial na bandeja.\n• Overlay corrigido.\n\n**Para quem testa**\nReinicie o app."
+    assert releases.notes(None) == ""
+    assert len(releases.notes("x" * 5000)) == releases.NOTES_MAX
+
+
+async def test_new_release_announced_once_in_avisos_and_by_dm(client: AsyncClient, aureum, monkeypatch) -> None:  # noqa: ANN001
+    owner = await make_user(client, "owner")
+    _, avisos_id, _ = await official_server(owner)
+    reader, quiet = await make_user(client, "reader"), await make_user(client, "quiet")
+    await quiet.patch("/users/me/settings", {"official_dm": {"novidades": False}})
+
+    async def fetch() -> list[dict[str, Any]]:
+        return [release("v0.2.0-beta.4", 0.5, "- Microfone corrigido.")]
+
+    monkeypatch.setattr(releases, "fetch", fetch)
+    await switch(avisos=avisos_id)
+    assert await releases.check(NOW) is False  # the action starts off: nothing, and it isn't spent
+    await switch(bot.NOTICES, bot.RELEASES)
+    assert await releases.check(NOW) is True
+    assert await releases.check(NOW) is False  # once per tag
+    while await broadcast.send_due():
+        pass
+
+    expected = "⬢ **Saiu a versão 0.2.0-beta.4 do Aureum!** O app se atualiza sozinho: é só fechar e abrir de novo.\n\n• Microfone corrigido."
+    posted = [m for m in await messages(owner, avisos_id) if m["author"]["username"] == "aureum"]
+    assert [m["content"] for m in posted] == [expected] and posted[0]["official"] == {"category": "novidades"}
+    assert await dm_texts(reader) == [expected]
+    assert await dm_texts(quiet) == []
+
+
+# --- Presence ------------------------------------------------------------------------------
+
+
+async def test_the_bot_always_shows_online(client: AsyncClient, aureum) -> None:  # noqa: ANN001
+    await switch("dm-insignias")
+    mari = await make_user(client, "mari")
+    await cli.badges("grant", "mari", "bug_hunter")
+    dm = await official_dm(mari)
+    assert dm is not None
+    statuses = {m["user"]["username"]: m["status"] for m in dm["members"]}
+    assert statuses == {"mari": "offline", "aureum": "online"}  # nobody is connected over the WebSocket
 
 
 async def test_cli_status_and_switches(client: AsyncClient, aureum, capsys) -> None:  # noqa: ANN001
