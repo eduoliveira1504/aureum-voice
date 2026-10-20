@@ -17,6 +17,9 @@ técnico fica em docs/DEVELOPMENT.md. A landing (site/) é toda em português.
 - Personalização e identidade são grátis; plano pago só para o que tem custo real
   (qualidade de transmissão, armazenamento).
 - Identidade própria: nada copiado do Discord (sons, ícones, textos, layout idêntico).
+- Logo oficial: docs/design/brand/logo.svg (32px pra cima) e logo-small.svg (16–24px). São a
+  fonte de todos os ícones: `npm run build:icons` (apps/desktop) gera o .ico e os PNGs da bandeja;
+  o componente Logo.tsx e a insígnia Fundador repetem o desenho. Trocou o logo, rode de novo.
 
 ## Regras de custo (OBRIGATÓRIO)
 O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatize nada que gere cobrança.
