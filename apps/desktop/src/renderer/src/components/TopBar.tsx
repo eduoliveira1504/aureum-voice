@@ -8,6 +8,7 @@ import { useChat } from '../store/chat'
 import { serverTabs, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { contextMenu } from './ContextMenu'
+import { Logo } from './Logo'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { ServerMenu } from './PlaceMenus'
@@ -89,7 +90,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
 function Brand(): ReactNode {
   return (
     <div className="mb-1.5 mr-2 flex shrink-0 items-center gap-2 self-center pl-1">
-      <span className="flex h-7 w-7 items-center justify-center rounded-item bg-accent font-display text-sm font-bold text-on-accent">A</span>
+      <Logo size={30} className="text-accent-text" />
       <span className="hidden font-display text-[15px] font-semibold tracking-tight lg:inline">Aureum</span>
     </div>
   )
