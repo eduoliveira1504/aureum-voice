@@ -245,6 +245,14 @@ npm run sounds -- message # only the named ones
 Output is byte-identical between runs, so git only shows the sounds that actually changed. The sounds
 are © Aureum, all rights reserved (see `docs/sounds/LICENSES.md`).
 
+### Icons
+
+Every app icon comes from the two official logos in `docs/design/brand`: `logo-small.svg` (filled, for
+16–24px) and `logo.svg` (32px and up). `npm run build:icons` in `apps/desktop`
+(`scripts/build-icons.mjs`, rendered by the app's own Electron, no extra dependency) writes
+`build/icon.ico` (16–256px: exe, installer, uninstaller, shortcut, window) and `resources/tray-N.png`
+(16/20/24/32px for 100–200% display scaling). Both are committed; rerun the script after changing a logo.
+
 ### Admin commands
 
 Run inside the API container, from the repository root:

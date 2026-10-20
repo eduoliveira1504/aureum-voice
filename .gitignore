@@ -41,6 +41,8 @@ venv/
 .coverage
 htmlcov/
 build/
+# electron-builder's resources (icon.ico from npm run build:icons) are kept
+!apps/desktop/build/
 
 # --- Logs / misc ---
 logs/

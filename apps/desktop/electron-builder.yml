@@ -5,10 +5,15 @@ directories:
   output: release
 files:
   - out/**
+  - resources/** # read at runtime (tray icons); electron-vite points at them, it does not copy them
   - package.json
+# Icons come from docs/design/brand via `npm run build:icons`.
 win:
   target: nsis
+  icon: build/icon.ico
 nsis:
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true

@@ -15,6 +15,7 @@ import {
   type IpcMainInvokeEvent
 } from 'electron'
 
+import appIcon from '../../build/icon.ico?asset'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
 import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
@@ -257,6 +258,7 @@ function createWindow(): void {
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: '#0a0908', symbolColor: '#f4efe4', height: TITLE_BAR_HEIGHT },
     title: 'Aureum Voice',
+    icon: appIcon, // window and taskbar (the installed exe carries the same icon)
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -340,6 +342,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
+    // Same as electron-builder's appId, so the taskbar groups the window with the shortcut's icon.
     app.setAppUserModelId('com.aureum.voice')
     const isAppWindow = (contents: Electron.WebContents | null): boolean =>
       !!contents && contents === mainWindow?.webContents
