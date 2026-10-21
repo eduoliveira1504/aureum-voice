@@ -519,6 +519,17 @@ class BanOut(BaseModel):
 AddonKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_-]{1,32}$")]
 
 
+class ChannelOrder(BaseModel):
+    # One sidebar section: every channel of this type the user can see, in the new order.
+    type: Literal["text", "voice", "addon"]
+    channel_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=500)]
+
+
+class ChannelPosition(BaseModel):
+    id: uuid.UUID
+    position: int
+
+
 class ChannelCreate(BaseModel):
     name: Name
     type: Literal["text", "voice", "addon"] = "text"

@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +42,9 @@ from app.schemas import (
     BanCreate,
     BanOut,
     ChannelCreate,
+    ChannelOrder,
     ChannelOut,
+    ChannelPosition,
     InviteCreate,
     InviteOut,
     MemberOut,
@@ -398,6 +400,59 @@ async def mark_server_read(server_id: uuid.UUID, user: CurrentUser, session: Ses
 
 
 # --- Channels -------------------------------------------------------------------
+
+
+@router.put("/servers/{server_id}/channels/order", response_model=list[ChannelPosition])
+async def reorder_channels(server_id: uuid.UUID, body: ChannelOrder, user: CurrentUser, session: SessionDep) -> list[ChannelPosition]:
+    """Reorders one sidebar section (rooms, conversations or addons). The order is the server's,
+    the same for everyone. The list holds the section's channels the user can see; channels hidden
+    from them keep their place for those who see them. Positions are renumbered across the whole
+    server in one transaction. Returns the new positions of the channels the user can see."""
+    access = await server_access(session, server_id, user.id)
+    access.require(Perm.MANAGE_CHANNELS)
+    # One reorder per server at a time, so two people dragging can't interleave.
+    await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": f"channel_order:{server_id}"})
+    channels = list(
+        await session.scalars(select(Channel).where(Channel.server_id == server_id).order_by(Channel.position, Channel.name, Channel.id))
+    )
+    overwrites = await channel_overwrites(session, [c.id for c in channels])
+    access = ServerAccess(access.ctx, user.id, overwrites)
+    section_type = ChannelType(body.type)
+    visible = [c for c in channels if c.type == section_type and access.can_view(c)]
+    if len(body.channel_ids) != len(visible) or set(body.channel_ids) != {c.id for c in visible}:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="List every channel of this section you can see, once"
+        )
+    # The visible channels take each other's slots in the new order; everything else stays put.
+    by_id = {c.id: c for c in visible}
+    moved = iter(by_id[i] for i in body.channel_ids)
+    ordered = [next(moved) if c.id in by_id else c for c in channels]
+    changed = [c for i, c in enumerate(ordered) if c.position != i]
+    for i, channel in enumerate(ordered):
+        channel.position = i
+    await session.commit()
+    if changed:
+        await _announce_positions(session, server_id, changed, access.ctx, overwrites)
+    return [ChannelPosition(id=c.id, position=c.position) for c in ordered if access.can_view(c)]
+
+
+async def _announce_positions(
+    session: AsyncSession, server_id: uuid.UUID, changed: list[Channel], ctx: Context, overwrites: dict[uuid.UUID, list[Overwrite]]
+) -> None:
+    """channels.reordered to every member, with only the channels they can see (one event per
+    distinct view, not per person)."""
+    audiences: dict[tuple[uuid.UUID, ...], list[uuid.UUID]] = {}
+    for member_id in await server_member_ids(session, server_id):
+        seen = tuple(
+            c.id for c in changed if ctx.in_channel(member_id, overwrites.get(c.id, []), voice=c.type == ChannelType.voice) & Perm.VIEW_CHANNEL
+        )
+        if seen:
+            audiences.setdefault(seen, []).append(member_id)
+    positions = {c.id: c.position for c in changed}
+    for seen, members in audiences.items():
+        data = {"server_id": str(server_id), "channels": [{"id": str(i), "position": positions[i]} for i in seen]}
+        await broker.publish("channels.reordered", data, members)
+
 
 
 @router.post("/servers/{server_id}/channels", response_model=ChannelOut, status_code=status.HTTP_201_CREATED)
