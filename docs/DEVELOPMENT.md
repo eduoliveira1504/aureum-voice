@@ -58,6 +58,8 @@ for real-time media. The whole stack is open source and designed to run at zero 
   parts move it) and Windows' buttons are drawn over it in the theme's colors:
   - a tab bar with Home and one tab per open server (drag to reorder, close and reopen);
   - a sidebar that follows the tab, with rooms, conversations and add-ons, collapsible to icons;
+    people who manage channels reorder them by dragging or from the channel's menu, the same order
+    for everyone ([ADR 0023](decisions/0023-channel-order.md));
   - up to two panels side by side, each with its own tabs.
   
   The layout follows the user to any PC ([ADR 0005](decisions/0005-app-shell-panels-and-read-state.md)).

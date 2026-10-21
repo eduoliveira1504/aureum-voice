@@ -13,8 +13,9 @@ de docs do bloco).
 
 Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
-desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na 0.2.0-beta.5. Testes manuais pendentes listados no 3.1, no
-3.2 e no 3.4.
+desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
+0.2.0-beta.5. 3.5 pronto no código, ainda sem release (a API sobe sem migração). Testes manuais
+pendentes listados no 3.1, no 3.2, no 3.4 e no 3.5.
 Próximo: 3.5 (Reordenar canais).
 
 ## Regras de produção (valem para todos os blocos)
@@ -143,7 +144,13 @@ acesso não aparece); ordenações; estados vazios; "Marcar tudo como lido"; ace
 pedido pelo hub; Entrar numa sala pelo card; atualização em tempo real ao alguém entrar
 numa call.
 
-## 3.5 Reordenar canais
+## 3.5 Reordenar canais ✅ concluído (teste manual pendente)
+Ver docs/decisions/0023-channel-order.md. PUT /servers/{id}/channels/order por seção, canais
+ocultos mantêm o lugar, evento channels.reordered só com o que cada um vê; arrastar na barra
+lateral com indicador e "Mover para cima/baixo" no menu do canal.
+Teste manual pendente: arrastar nas três seções com duas pessoas online (a outra vê na hora),
+canal privado entre os arrastados e arrastar um canal para o painel continua funcionando.
+
 - channels.position já existe (e a rota de edição do canal aceita position); falta a
   reordenação em lote e a interface.
 - Quem tem MANAGE_CHANNELS arrasta e solta canais na barra lateral para mudar a ordem,
@@ -419,7 +426,7 @@ Funnel e do LiveKit Cloud.
 - ✅ (teste pendente) Voz limpa com o headset Havit do beta; teste de microfone em Configurações.
 - ✅ @aureum dá boas-vindas, avisa bug resolvido e manda DMs oficiais.
 - ✅ Início abre no hub: ao vivo, pendências, minhas tarefas, amigos ativos e servidores.
-- Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
+- ✅ Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
 - Trocar microfone e saída dentro da call.
 - 15 Pioneiros no máximo; todos os testers com Beta Tester.
 - Perfil editado direto do cartão, com recorte de avatar e banner (inclusive GIF).
