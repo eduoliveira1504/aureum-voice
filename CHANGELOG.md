@@ -1,5 +1,12 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.5
+
+- **Seus servidores** subiu no Início: agora fica ao lado de "Ao vivo agora", numa grade com o
+  ícone de cada servidor, quantas pessoas estão em call, uma bolinha vermelha quando alguém está
+  transmitindo e as menções. Clicar abre o servidor, mesmo que você tenha fechado a aba dele. O
+  "+" no fim cria ou entra num servidor, e "Ver todos" mostra a lista completa.
+
 ## 0.2.0-beta.4
 
 - **Início novo:** o app abre num resumo do que importa agora. Mostra quem está em call nos seus

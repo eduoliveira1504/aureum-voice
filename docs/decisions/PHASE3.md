@@ -13,7 +13,7 @@ de docs do bloco).
 
 Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
-desde 21/10, backup backups/aureum-2026-10-21.dump). Testes manuais pendentes listados no 3.1, no
+desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na 0.2.0-beta.5. Testes manuais pendentes listados no 3.1, no
 3.2 e no 3.4.
 Próximo: 3.5 (Reordenar canais).
 
