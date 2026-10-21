@@ -8,6 +8,7 @@ import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { DmView } from './DmView'
+import { HomeHub } from './HomeHub'
 import { ConfirmModal } from './modals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
 import { ActivityLine, activityLabel, StatusBubble, useElapsed } from './profileBits'
@@ -15,21 +16,25 @@ import { userContextMenu } from './UserMenu'
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 
-/** The Home tab's content: the friends list, or the open conversation. */
+/** The Home tab's content: the hub, the friends list, or the open conversation. */
 export function HomeView({ me }: { me: Me }): ReactNode {
   const page = useNav((s) => s.homePage)
-  const dm = useSocial((s) => (page === 'friends' ? undefined : s.dms[page]))
+  const conversation = page !== 'hub' && page !== 'friends'
+  const dm = useSocial((s) => (conversation ? s.dms[page] : undefined))
   const loaded = useSocial((s) => s.loaded)
 
-  // The conversation was closed or left (maybe on another device): back to friends.
+  // The conversation was closed or left (maybe on another device): back to the hub.
   useEffect(() => {
-    if (loaded && page !== 'friends' && !dm) useNav.setState({ homePage: 'friends' })
-  }, [loaded, page, dm])
+    if (loaded && conversation && !dm) useNav.setState({ homePage: 'hub' })
+  }, [loaded, conversation, dm])
 
   return (
     <div className="flex min-w-0 flex-1 py-2 pr-2">
-      <section aria-label={dm ? dmTitle(dm, me.id) : 'Amigos'} className="flex min-w-0 flex-1 overflow-hidden rounded-panel border border-line bg-main">
-        {dm ? <DmView key={dm.id} dm={dm} me={me} /> : <FriendsPage me={me} />}
+      <section
+        aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? 'Amigos' : 'Início'}
+        className="flex min-w-0 flex-1 overflow-hidden rounded-panel border border-line bg-main"
+      >
+        {dm ? <DmView key={dm.id} dm={dm} me={me} /> : page === 'friends' ? <FriendsPage me={me} /> : <HomeHub me={me} />}
       </section>
     </div>
   )

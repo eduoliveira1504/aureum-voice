@@ -11,8 +11,8 @@ import { useVoice } from './voice'
  */
 
 export type Place = 'home' | string // 'home' or a server id
-/** What the Home tab shows: the friends list or a conversation (DM or group id). */
-export type HomePage = 'friends' | string
+/** What the Home tab shows: the hub, the friends list or a conversation (DM or group id). */
+export type HomePage = 'hub' | 'friends' | string
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 export const MAX_PANELS = 2
@@ -106,7 +106,7 @@ interface NavState {
   narrow: boolean
 
   go(place: Place): void
-  /** Goes to Home, on the friends list or a conversation. */
+  /** Goes to Home, on the hub, the friends list or a conversation. */
   openHome(page: HomePage): void
   /** Goes to a server, putting its tab back on the bar if it was closed. */
   openServer(id: string): void
@@ -158,7 +158,7 @@ export const useNav = create<NavState>()((set, get) => {
 
   return {
     place: 'home',
-    homePage: 'friends',
+    homePage: 'hub',
     focusedPanel: {},
     pipMinimized: false,
     pipCorner: loadPip().corner,

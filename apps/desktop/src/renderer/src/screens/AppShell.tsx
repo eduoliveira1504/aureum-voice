@@ -55,7 +55,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     const chat = useChat.getState()
     chat.reset(user.id)
     useSocial.getState().reset(user.id)
-    useNav.setState({ place: 'home', homePage: 'friends' }) // the app always opens on Home
+    useNav.setState({ place: 'home', homePage: 'hub' }) // the app always opens on the Home hub
     const realtime = new Realtime(
       (event) => {
         // Our own profile changed (maybe on another device): keep the signed-in user fresh.

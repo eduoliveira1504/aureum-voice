@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Hash,
   HeadphoneOff,
+  House,
   LayoutDashboard,
   Lock,
   MicOff,
@@ -147,6 +148,7 @@ function Item({
         type="button"
         title={collapsed ? label : undefined}
         aria-label={collapsed ? label : undefined}
+        aria-current={active ? 'page' : undefined}
         draggable={!!dragTab}
         onDragStart={(e) => dragTab && e.dataTransfer.setData(PANEL_DRAG_TYPE, JSON.stringify({ tab: dragTab }))}
         onClick={(e) => side(e) || onClick()}
@@ -555,7 +557,7 @@ function ServerHeader({
   )
 }
 
-/** Home sidebar: friends, then DMs and groups by latest activity. */
+/** Home sidebar: the hub and friends, then DMs and groups by latest activity. */
 function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean; onCollapse?: (c: boolean) => void }): ReactNode {
   const homePage = useNav((s) => s.homePage)
   const openHome = useNav((s) => s.openHome)
@@ -574,15 +576,18 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
         <CollapseButton collapsed={collapsed} onCollapse={onCollapse} />
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-        <Item
-          icon={Users}
-          label="Amigos"
-          collapsed={collapsed}
-          active={homePage === 'friends'}
-          dot={collapsed && pending > 0 ? 'accent' : undefined}
-          badge={<CountBadge count={pending} tone="danger" />}
-          onClick={() => openHome('friends')}
-        />
+        <div className="space-y-px">
+          <Item icon={House} label="Início" collapsed={collapsed} active={homePage === 'hub'} onClick={() => openHome('hub')} />
+          <Item
+            icon={Users}
+            label="Amigos"
+            collapsed={collapsed}
+            active={homePage === 'friends'}
+            dot={collapsed && pending > 0 ? 'accent' : undefined}
+            badge={<CountBadge count={pending} tone="danger" />}
+            onClick={() => openHome('friends')}
+          />
+        </div>
         <Section title="Mensagens diretas" collapsed={collapsed} onAdd={() => setCreating(true)} addLabel="Novo grupo">
           {list.map((dm) => (
             <DmItem

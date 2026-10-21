@@ -125,7 +125,7 @@ export const useSocial = create<SocialState>()((set, get) => {
     const voice = useVoice.getState()
     if (voice.channelId === id && !voice.serverId) void voice.leave()
     const nav = useNav.getState()
-    if (nav.homePage === id) useNav.setState({ homePage: 'friends' })
+    if (nav.homePage === id) useNav.setState({ homePage: 'hub' })
   }
 
   const setCall = (call: Call): void => {
