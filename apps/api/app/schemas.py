@@ -27,6 +27,7 @@ Username = Annotated[
 ]
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
 Password = Annotated[str, Field(min_length=8, max_length=128)]
+AppVersion = Annotated[str, StringConstraints(pattern=r"^[0-9A-Za-z.+-]{1,40}$")]
 AccentColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 LowerEmail = Annotated[EmailStr, AfterValidator(str.lower)]
 # A random id the app makes once per install and keeps (app/bot: "new sign-in" notices). Only a
@@ -361,6 +362,7 @@ class SettingsOut(BaseModel):
     muted_places: list[uuid.UUID] = []
     # Official DM categories turned off (false); missing ones are on.
     official_dm: dict[str, bool] = {}
+    news_dismissed: str | None = None
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -385,6 +387,8 @@ class SettingsUpdate(BaseModel):
     muted_places: Annotated[list[uuid.UUID], Field(max_length=500)] | None = None
     # Merged per category, like the ones above.
     official_dm: dict[OfficialDmCategory, bool | None] | None = None
+    # An app version, e.g. "0.2.0-beta.4".
+    news_dismissed: AppVersion | None = None
 
 
 # --- Friends --------------------------------------------------------------

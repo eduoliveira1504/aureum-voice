@@ -253,6 +253,9 @@ class UserSettings(Base):
     # Categories of the official DM (app/bot) the user turned off, e.g. {"novidades": false}.
     # Missing means on; "seguranca" can't be turned off.
     official_dm: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    # The app version whose "Novidades do Aureum" card in Home the user dismissed; the card
+    # comes back with the next version.
+    news_dismissed: Mapped[str | None] = mapped_column(String(40))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

@@ -18,6 +18,7 @@ DEFAULTS = {
     "muted_places": [],
     "status": "online",
     "official_dm": {},
+    "news_dismissed": None,
 }
 
 
@@ -137,3 +138,14 @@ async def test_call_audio_and_columns_merge(client: AsyncClient) -> None:
     await user.patch("/users/me/settings", {"muted_places": [SERVER_A, CHANNEL]})
     res = await user.patch("/users/me/settings", {"muted_places": [CHANNEL]})
     assert res.json()["muted_places"] == [CHANNEL]
+
+
+async def test_dismissed_news_version(client: AsyncClient) -> None:
+    user = await make_user(client, "news")
+    res = await user.patch("/users/me/settings", {"news_dismissed": "0.2.0-beta.3"})
+    assert res.status_code == 200 and res.json()["news_dismissed"] == "0.2.0-beta.3"
+    # Other settings leave it alone.
+    await user.patch("/users/me/settings", {"theme": "light"})
+    assert (await user.get("/users/me/settings")).json()["news_dismissed"] == "0.2.0-beta.3"
+    for bad in ["", "x" * 41, "0.2 beta", "<b>"]:
+        assert (await user.patch("/users/me/settings", {"news_dismissed": bad})).status_code == 422, bad
