@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
-import { api, type Call, type Dm, type Friend, type HomeData, type HomeTask, type Message, type ServerDetail } from '../lib/api'
+import { api, type Call, type Channel, type Dm, type Friend, type HomeData, type HomeTask, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { channelPermissions, has, Perm } from '../lib/permissions'
 import type { ServerEvent } from '../lib/realtime'
 import { useAppearance } from './appearance'
 import { useChat } from './chat'
@@ -214,4 +215,47 @@ export function usePendingItems(): PendingItem[] {
 export function friendsInCall(friends: Record<string, Friend>, servers: Record<string, ServerDetail>, dms: Record<string, Dm>): Set<string> {
   const states = [...Object.values(servers).flatMap((s) => s.voice_states), ...Object.values(dms).flatMap((d) => d.voice_states)]
   return new Set(states.map((v) => v.user_id).filter((id) => friends[id]?.kind === 'friend'))
+}
+
+/** A room with people in it, or a call in one of my conversations. */
+export type LiveRoom = {
+  key: string
+  states: VoiceState[]
+  /** Friends of mine among them. */
+  friends: number
+  /** When the first person still there arrived (null if unknown). */
+  since: string | null
+} & ({ kind: 'room'; server: ServerDetail; channel: Channel } | { kind: 'call'; dm: Dm })
+
+const earliest = (states: VoiceState[]): string | null =>
+  states.reduce<string | null>((min, v) => (v.joined_at && (!min || v.joined_at < min) ? v.joined_at : min), null)
+
+/**
+ * "Ao vivo agora": server rooms with people that I can see and join (VIEW_CHANNEL comes with the
+ * server's data, CONNECT is checked here), and calls going on in my DMs and groups. Rooms with
+ * friends first, then the busiest.
+ */
+export function liveRooms(
+  servers: Record<string, ServerDetail>,
+  dms: Record<string, Dm>,
+  friends: Record<string, Friend>,
+  meId: string
+): LiveRoom[] {
+  const friendsIn = (states: VoiceState[]): number => states.filter((v) => friends[v.user_id]?.kind === 'friend').length
+  const rooms: LiveRoom[] = []
+  for (const server of Object.values(servers)) {
+    for (const channel of server.channels) {
+      if (channel.type !== 'voice') continue
+      const states = server.voice_states.filter((v) => v.channel_id === channel.id)
+      if (!states.length || !has(channelPermissions(server, channel, meId), Perm.CONNECT)) continue
+      rooms.push({ kind: 'room', key: channel.id, server, channel, states, friends: friendsIn(states), since: earliest(states) })
+    }
+  }
+  for (const dm of Object.values(dms)) {
+    if (!dm.call || !dm.voice_states.length) continue
+    rooms.push({ kind: 'call', key: dm.id, dm, states: dm.voice_states, friends: friendsIn(dm.voice_states), since: earliest(dm.voice_states) })
+  }
+  return rooms.sort(
+    (a, b) => Number(b.friends > 0) - Number(a.friends > 0) || b.states.length - a.states.length || b.friends - a.friends
+  )
 }

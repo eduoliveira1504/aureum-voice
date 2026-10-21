@@ -325,6 +325,8 @@ export interface VoiceState {
   /** Set by a moderator (server rooms only). */
   server_muted?: boolean
   server_deafened?: boolean
+  /** When they entered this room (missing on older API versions). */
+  joined_at?: string | null
 }
 
 /** The signed-in user's read state of a text channel. */
