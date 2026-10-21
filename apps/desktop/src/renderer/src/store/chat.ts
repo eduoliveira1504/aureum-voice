@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type ReadState, type Server, type ServerDetail } from '../lib/api'
+import { stepId, withSectionOrder, type Section } from '../lib/channelOrder'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
 import { useAppearance } from './appearance'
@@ -75,6 +76,10 @@ interface ChatState {
    */
   markRead(channelId: string, force?: boolean): void
   addServer(server: ServerDetail): void
+  /** Saves a sidebar section's order (MANAGE_CHANNELS): applied right away, then as the API says. */
+  reorderChannels(serverId: string, section: Section, ids: string[]): Promise<void>
+  /** Moves a channel one place up (-1) or down (+1) in its section. */
+  moveChannel(serverId: string, channelId: string, delta: -1 | 1): Promise<void>
   /** Refetches one server (its roles or permissions changed: which channels we see may differ). */
   refreshServer(id: string): Promise<void>
   focusMessage(channelId: string, messageId: number): void
@@ -116,6 +121,15 @@ export const useChat = create<ChatState>()((set, get) => {
   const patchServer = (id: string, fn: (s: ServerDetail) => ServerDetail): void => {
     serverMutations++
     set((st) => (st.servers[id] ? { servers: { ...st.servers, [id]: fn(st.servers[id]) } } : {}))
+  }
+
+  /** New positions from the API (a reorder, ours or someone else's): applied and re-sorted. */
+  const applyPositions = (serverId: string, positions: { id: string; position: number }[]): void => {
+    const byId = new Map(positions.map((p) => [p.id, p.position]))
+    patchServer(serverId, (s) => ({
+      ...s,
+      channels: s.channels.map((c) => (byId.has(c.id) ? { ...c, position: byId.get(c.id)! } : c)).sort(byPosition)
+    }))
   }
 
   const removeServer = (id: string): void => {
@@ -228,6 +242,29 @@ export const useChat = create<ChatState>()((set, get) => {
       }))
     },
 
+    reorderChannels: async (serverId, section, ids) => {
+      patchServer(serverId, (s) => ({ ...s, channels: withSectionOrder(s.channels, ids).sort(byPosition) }))
+      try {
+        const positions = await api<{ id: string; position: number }[]>(`/servers/${serverId}/channels/order`, {
+          method: 'PUT',
+          body: { type: section, channel_ids: ids }
+        })
+        applyPositions(serverId, positions)
+      } catch (err) {
+        void get().refreshServer(serverId) // back to the saved order
+        throw err
+      }
+    },
+
+    moveChannel: async (serverId, channelId, delta) => {
+      const channels = get().servers[serverId]?.channels ?? []
+      const channel = channels.find((c) => c.id === channelId)
+      if (!channel || channel.type === 'dm' || channel.type === 'group_dm') return
+      const ids = channels.filter((c) => c.type === channel.type).map((c) => c.id)
+      const next = stepId(ids, channelId, delta)
+      if (next !== ids) await get().reorderChannels(serverId, channel.type, next)
+    },
+
     refreshServer: async (id) => {
       let detail: ServerDetail
       try {
@@ -311,6 +348,9 @@ export const useChat = create<ChatState>()((set, get) => {
             ...s,
             channels: [...s.channels.filter((c) => c.id !== data.id), data].sort(byPosition)
           }))
+          break
+        case 'channels.reordered':
+          applyPositions(data.server_id, data.channels)
           break
         case 'channel.deleted':
           if (useVoice.getState().channelId === data.id) void useVoice.getState().leave()

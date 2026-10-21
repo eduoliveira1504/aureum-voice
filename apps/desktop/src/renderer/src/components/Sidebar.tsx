@@ -20,10 +20,11 @@ import {
   X,
   type LucideIcon
 } from 'lucide-react'
-import { Fragment, useCallback, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useCallback, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { addonIcon } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
+import { moveId, reorderDragType, type Section as ChannelSection } from '../lib/channelOrder'
 import { serverPeople } from '../lib/members'
 import { basePermissions, channelActions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
@@ -222,6 +223,76 @@ function Section({
   )
 }
 
+/**
+ * A channel in its sidebar section that people with MANAGE_CHANNELS can drag up or down: a line
+ * shows where it will land. The drag carries a type per section, so other sections ignore it,
+ * and dragging a channel into the panels still works (both ride on the same drag).
+ */
+function Reorderable({
+  serverId,
+  section,
+  ids,
+  id,
+  enabled,
+  children
+}: {
+  serverId: string
+  section: ChannelSection
+  /** The section's channel ids, in order. */
+  ids: string[]
+  id: string
+  enabled: boolean
+  children: ReactNode
+}): ReactNode {
+  const [over, setOver] = useState<'before' | 'after' | null>(null)
+  const type = reorderDragType(section)
+  if (!enabled) return children
+  const ours = (e: DragEvent): boolean => e.dataTransfer.types.includes(type)
+  const side = (e: DragEvent<HTMLDivElement>): 'before' | 'after' => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+  }
+  return (
+    <div
+      draggable
+      data-channel-id={id}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(type, id)
+        e.dataTransfer.effectAllowed = 'move'
+      }}
+      onDragOver={(e) => {
+        if (!ours(e)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setOver(side(e))
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null)
+      }}
+      onDrop={(e) => {
+        if (!ours(e)) return
+        e.preventDefault()
+        setOver(null)
+        const moved = e.dataTransfer.getData(type)
+        const next = moveId(ids, moved, id, side(e) === 'after')
+        if (moved && next.some((x, i) => x !== ids[i])) {
+          useChat.getState().reorderChannels(serverId, section, next).catch(() => {})
+        }
+      }}
+      className="relative"
+    >
+      {over && (
+        <span
+          aria-hidden
+          data-drop-indicator={over}
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
+        />
+      )}
+      {children}
+    </div>
+  )
+}
+
 function ServerPlaces({
   server,
   me,
@@ -246,6 +317,8 @@ function ServerPlaces({
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const perms = basePermissions(server, me.id)
   const canCreateChannels = has(perms, Perm.MANAGE_CHANNELS)
+  // The same permission reorders channels (the API checks it too).
+  const canReorder = canCreateChannels
   const canAddAddons = canCreateChannels && has(perms, Perm.MANAGE_ADDONS)
 
   // Where each tab is showing: highlighted when it's a panel's active tab.
@@ -261,6 +334,7 @@ function ServerPlaces({
   const people = serverPeople(server)
   const texts = server.channels.filter((c) => c.type === 'text')
   const addons = server.channels.filter((c) => c.type === 'addon')
+  const idsOf = (list: Channel[]): string[] => list.map((c) => c.id)
 
   return (
     <>
@@ -291,25 +365,27 @@ function ServerPlaces({
             const mine = callChannelId === room.id
             return (
               <Fragment key={room.id}>
-                <Item
-                  icon={Volume2}
-                  label={room.name ?? ''}
-                  collapsed={collapsed}
-                  locked={isPrivate(server, room)}
-                  active={mine}
-                  dot={here.length ? 'success' : undefined}
-                  badge={
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
-                      {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
-                    </span>
-                  }
-                  trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
-                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={room} meId={me.id} />)}
-                  // Clicking a room joins it (the call shows in the floating window); clicking the
-                  // room you're in opens the call in a panel.
-                  onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
-                />
+                <Reorderable serverId={server.id} section="voice" ids={idsOf(rooms)} id={room.id} enabled={canReorder}>
+                  <Item
+                    icon={Volume2}
+                    label={room.name ?? ''}
+                    collapsed={collapsed}
+                    locked={isPrivate(server, room)}
+                    active={mine}
+                    dot={here.length ? 'success' : undefined}
+                    badge={
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
+                        {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
+                      </span>
+                    }
+                    trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
+                    onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={room} meId={me.id} />)}
+                    // Clicking a room joins it (the call shows in the floating window); clicking the
+                    // room you're in opens the call in a panel.
+                    onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
+                  />
+                </Reorderable>
                 {!collapsed && here.length > 0 && <RoomPeople serverId={server.id} states={here} people={people} mine={mine} meId={me.id} />}
               </Fragment>
             )
@@ -325,29 +401,30 @@ function ServerPlaces({
             const unread = muted ? 0 : (read?.unread_count ?? 0)
             const where = placeOf(tab)
             return (
-              <Item
-                key={channel.id}
-                icon={Hash}
-                label={channel.name ?? ''}
-                collapsed={collapsed}
-                locked={isPrivate(server, channel)}
-                active={where.active}
-                panelHint={where.hint}
-                dot={collapsed && unread > 0 ? 'accent' : undefined}
-                muted={muted}
-                badge={
-                  read?.mention_count ? (
-                    <CountBadge count={read.mention_count} tone="danger" />
-                  ) : (
-                    <CountBadge count={unread} />
-                  )
-                }
-                trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
-                onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
-                dragTab={tab}
-                onClick={() => openTab(server.id, tab)}
-                onSide={() => openTab(server.id, tab, true)}
-              />
+              <Reorderable key={channel.id} serverId={server.id} section="text" ids={idsOf(texts)} id={channel.id} enabled={canReorder}>
+                <Item
+                  icon={Hash}
+                  label={channel.name ?? ''}
+                  collapsed={collapsed}
+                  locked={isPrivate(server, channel)}
+                  active={where.active}
+                  panelHint={where.hint}
+                  dot={collapsed && unread > 0 ? 'accent' : undefined}
+                  muted={muted}
+                  badge={
+                    read?.mention_count ? (
+                      <CountBadge count={read.mention_count} tone="danger" />
+                    ) : (
+                      <CountBadge count={unread} />
+                    )
+                  }
+                  trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
+                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
+                  dragTab={tab}
+                  onClick={() => openTab(server.id, tab)}
+                  onSide={() => openTab(server.id, tab, true)}
+                />
+              </Reorderable>
             )
           })}
         </Section>
@@ -358,20 +435,21 @@ function ServerPlaces({
               const tab = channelTab(channel.id)
               const where = placeOf(tab)
               return (
-                <Item
-                  key={channel.id}
-                  icon={addonIcon(channel.addon_key)}
-                  label={channel.name ?? ''}
-                  collapsed={collapsed}
-                  locked={isPrivate(server, channel)}
-                  active={where.active}
-                  panelHint={where.hint}
-                  trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
-                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
-                  dragTab={tab}
-                  onClick={() => openTab(server.id, tab)}
-                  onSide={() => openTab(server.id, tab, true)}
-                />
+                <Reorderable key={channel.id} serverId={server.id} section="addon" ids={idsOf(addons)} id={channel.id} enabled={canReorder}>
+                  <Item
+                    icon={addonIcon(channel.addon_key)}
+                    label={channel.name ?? ''}
+                    collapsed={collapsed}
+                    locked={isPrivate(server, channel)}
+                    active={where.active}
+                    panelHint={where.hint}
+                    trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
+                    onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
+                    dragTab={tab}
+                    onClick={() => openTab(server.id, tab)}
+                    onSide={() => openTab(server.id, tab, true)}
+                  />
+                </Reorderable>
               )
             })}
             {addons.length === 0 && !collapsed && (

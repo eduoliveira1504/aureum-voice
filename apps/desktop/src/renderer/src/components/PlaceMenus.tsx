@@ -1,4 +1,4 @@
-import { CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
@@ -52,6 +52,13 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
   const text = channel.type === 'text'
   const { canSettings, canDelete } = channelActions(server, channel, meId)
   const label = `${text ? '#' : ''}${channel.name}`
+  // Reordering without dragging (keyboard and precision): one place at a time, within the section.
+  const section = server.channels.filter((c) => c.type === channel.type)
+  const index = section.findIndex((c) => c.id === channel.id)
+  const canMove = has(basePermissions(server, meId), Perm.MANAGE_CHANNELS) && section.length > 1
+  const move = (delta: -1 | 1) => (): void => {
+    useChat.getState().moveChannel(server.id, channel.id, delta).catch((err) => toast(errorText(err, 'Não foi possível mover o canal.')))
+  }
 
   return (
     <>
@@ -76,6 +83,8 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
           }
         />
       )}
+      {canMove && index > 0 && <Item icon={ArrowUp} label="Mover para cima" onClick={move(-1)} />}
+      {canMove && index < section.length - 1 && <Item icon={ArrowDown} label="Mover para baixo" onClick={move(1)} />}
       {has(basePermissions(server, meId), Perm.CREATE_INVITE) && <Item icon={Link} label="Copiar convite" onClick={() => copyInvite(server.id)} />}
       <Separator />
       <Item icon={Copy} label="Copiar ID" onClick={() => copy(channel.id, 'ID copiado')} />
