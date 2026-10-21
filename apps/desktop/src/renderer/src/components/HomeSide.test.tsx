@@ -101,6 +101,51 @@ describe('Seus servidores', () => {
     expect(list.map((s) => s.server.id)).toEqual(['s-l', 's-c', 's-q'])
     expect([list[0].inCall, list[0].streaming, list[1].mentions]).toEqual([2, 1, 2])
   })
+
+  it('is a grid beside Ao vivo agora, out of the side column', async () => {
+    const live = server('s-l', 'Ao vivo', [room('v-1', 'Sala'), { id: 't-1', type: 'text' } as Channel], [state('a', 'v-1', true), state('b', 'v-1')])
+    useChat.setState({ servers: { 's-l': live }, order: ['s-l'], reads: { 't-1': { channel_id: 't-1', last_read_message_id: 0, unread_count: 1, mention_count: 3 } } })
+    render(<HomeHub me={ME} />)
+    const grid = screen.getByRole('region', { name: 'Seus servidores' })
+    const side = screen.getByRole('complementary', { name: 'Coluna lateral' })
+    expect(side.contains(grid)).toBe(false)
+    expect(within(side).queryByRole('region', { name: 'Seus servidores' })).toBeNull()
+    // Same row as the live rooms: their nearest shared container is that row.
+    const liveRooms = screen.getByRole('region', { name: 'Ao vivo agora' })
+    const row = grid.parentElement?.parentElement
+    expect(row?.contains(liveRooms)).toBe(true)
+    expect(row?.contains(side)).toBe(false)
+
+    const tile = within(grid).getByRole('button', { name: /Ao vivo/ })
+    expect(within(tile).getByLabelText('1 transmitindo')).toBeTruthy()
+    expect(tile.textContent).toContain('2 em call')
+    expect(tile.textContent).toContain('3')
+  })
+
+  it('opens a server bringing its closed tab back, and + creates or joins one', async () => {
+    const update = vi.fn()
+    useAppearance.setState({ settings: { ...DEFAULT_SETTINGS, closed_tabs: ['s-1'], tab_order: ['s-1'] }, update } as never)
+    useChat.setState({ servers: { 's-1': server('s-1', 'Squad', []) }, order: ['s-1'] })
+    render(<HomeHub me={ME} />)
+    const grid = screen.getByRole('region', { name: 'Seus servidores' })
+    fireEvent.click(within(grid).getByRole('button', { name: /Squad/ }))
+    expect(useNav.getState().place).toBe('s-1')
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ closed_tabs: [] }))
+
+    fireEvent.click(within(grid).getByRole('button', { name: 'Criar ou entrar em um servidor' }))
+    expect(await screen.findByRole('dialog', { name: 'Criar um servidor' })).toBeTruthy()
+  })
+
+  it('shows up to 10, and Ver todos lists the rest', () => {
+    const many = Array.from({ length: 12 }, (_, i) => server(`s-${i}`, `Servidor ${i}`, []))
+    useChat.setState({ servers: Object.fromEntries(many.map((s) => [s.id, s])), order: many.map((s) => s.id) })
+    render(<HomeHub me={ME} />)
+    const grid = screen.getByRole('region', { name: 'Seus servidores' })
+    const tiles = (): HTMLElement[] => within(grid).getAllByRole('button', { name: /Servidor [0-9]+/ })
+    expect(tiles()).toHaveLength(10)
+    fireEvent.click(within(grid).getByRole('button', { name: 'Ver todos (12)' }))
+    expect(tiles()).toHaveLength(12)
+  })
 })
 
 describe('Novidades do Aureum', () => {

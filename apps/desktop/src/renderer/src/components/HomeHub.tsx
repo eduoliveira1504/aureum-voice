@@ -1,4 +1,4 @@
-import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, X, type LucideIcon } from 'lucide-react'
+import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, Volume2, X, type LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 
 import type { Activity, Dm, Friend, HomeTask, Me, Message, Presence, ServerDetail, User } from '../lib/api'
@@ -21,6 +21,7 @@ import { AddFriendModal, StartCallModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, PRESENCE_LABEL, PresenceAvatar, ServerIcon } from './ui'
 
 const LIVE_PREVIEW = 6
+const SIDE_COLUMN = 'flex flex-col gap-6 @min-[1000px]:w-[300px] @min-[1000px]:shrink-0'
 const CARD_GRID = 'grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]'
 
 /** "Bom dia" from 5h, "Boa tarde" from 12h, "Boa noite" from 18h, by the PC's clock. */
@@ -74,16 +75,23 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
     <div className="@container flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-8 py-7">
         <Header me={me} onDialog={setDialog} />
-        <LiveNow me={me} onCall={() => setDialog('call')} />
-        {/* Side by side on wide windows; below ~1000px the side column goes under the main one. */}
+        {/* Two columns on wide windows, the right one as wide as the side column below it; under
+            ~1000px everything stacks (servers under the live rooms, the side column at the end). */}
+        <div className="flex flex-col gap-6 @min-[1000px]:flex-row @min-[1000px]:items-start">
+          <div className="min-w-0 flex-1">
+            <LiveNow me={me} onCall={() => setDialog('call')} />
+          </div>
+          <div className={SIDE_COLUMN}>
+            <YourServers onAdd={() => setDialog('create')} />
+          </div>
+        </div>
         <div className="flex flex-col gap-6 @min-[1000px]:flex-row @min-[1000px]:items-start">
           <div className="flex min-w-0 flex-1 flex-col gap-6">
             <Pending me={me} />
             <Tasks />
           </div>
-          <aside aria-label="Coluna lateral" className="flex flex-col gap-6 @min-[1000px]:w-[300px] @min-[1000px]:shrink-0">
+          <aside aria-label="Coluna lateral" className={SIDE_COLUMN}>
             <ActiveFriends me={me} />
-            <YourServers />
             <News />
           </aside>
         </div>
@@ -709,7 +717,7 @@ function AllTasksModal({ onClose }: { onClose(): void }): ReactNode {
 }
 
 const FRIENDS_PREVIEW = 6
-const SERVERS_PREVIEW = 5
+const SERVERS_PREVIEW = 10
 
 /** Where a friend is in a call that I can see: a server room or one of my conversations. */
 interface FriendCall {
@@ -901,7 +909,12 @@ export function serverSummaries(
     .sort((a, b) => b.inCall - a.inCall || (b.lastActivity ?? '').localeCompare(a.lastActivity ?? ''))
 }
 
-function YourServers(): ReactNode {
+/**
+ * A compact grid of my servers beside the live rooms, most active first: a red dot when someone streams, people in a
+ * call and mentions. Opening one brings its tab back if it was closed, so this is also where
+ * closed tabs come back. The last tile creates or joins a server.
+ */
+function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
   const order = useChat((s) => s.order)
   const servers = useChat((s) => s.servers)
   const reads = useChat((s) => s.reads)
@@ -909,44 +922,74 @@ function YourServers(): ReactNode {
   const activity = useHome((s) => s.activity)
   const [all, setAll] = useState(false)
   const list = serverSummaries(order, servers, reads, activity)
-  const now = useMinute()
+  const shown = all ? list : list.slice(0, SERVERS_PREVIEW)
+  const tile = 'flex min-w-0 items-center gap-2 rounded-control border border-line bg-panel px-2.5 py-2 text-left'
 
   return (
-    <SideCard
-      title="Seus servidores"
-      action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : 'Ver todos'}</LinkButton>}
-    >
+    <section aria-label="Seus servidores">
+      <SectionHeader
+        title="Seus servidores"
+        action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : `Ver todos (${list.length})`}</LinkButton>}
+      />
       {!loaded ? (
-        <SideSkeleton />
-      ) : list.length === 0 ? (
-        <p className="py-3 text-sm text-fg-subtle">Você ainda não está em nenhum servidor.</p>
+        <div className={SERVER_GRID}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} aria-hidden className="h-14 animate-pulse rounded-control bg-elevated/60" />
+          ))}
+        </div>
       ) : (
-        <ul className="space-y-1">
-          {(all ? list : list.slice(0, SERVERS_PREVIEW)).map((s) => {
-            const live = [s.inCall && `${s.inCall} em call`, s.streaming && `${s.streaming} transmitindo`].filter(Boolean).join(' · ')
-            const line = live || (s.lastActivity ? `Última mensagem há ${ago(s.lastActivity, now)}` : 'Sem mensagens ainda')
-            return (
-              <li key={s.server.id}>
-                <button
-                  type="button"
-                  onClick={() => useNav.getState().openServer(s.server.id)}
-                  className="flex w-full items-center gap-3 rounded-item px-1 py-1.5 text-left hover:bg-elevated"
-                >
-                  <ServerIcon name={s.server.name} url={s.server.icon_url} size={34} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{s.server.name}</span>
-                    <span className="block truncate text-xs text-fg-subtle">{line}</span>
-                  </span>
-                  <CountBadge count={s.mentions} tone="danger" />
-                </button>
-              </li>
-            )
-          })}
+        <ul className={SERVER_GRID}>
+          {shown.map((s) => (
+            <li key={s.server.id} className="min-w-0">
+              <button
+                type="button"
+                title={s.server.name}
+                onClick={() => useNav.getState().openServer(s.server.id)}
+                className={`${tile} w-full hover:border-accent/60`}
+              >
+                <span className="relative shrink-0">
+                  <ServerIcon name={s.server.name} url={s.server.icon_url} size={32} />
+                  {s.streaming > 0 && (
+                    <span
+                      title={`${s.streaming} transmitindo`}
+                      aria-label={`${s.streaming} transmitindo`}
+                      className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-danger"
+                    />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{s.server.name}</span>
+                  {s.inCall > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-success">
+                      <Volume2 size={12} className="shrink-0" />
+                      {s.inCall} em call
+                    </span>
+                  )}
+                </span>
+                <CountBadge count={s.mentions} tone="danger" />
+              </button>
+            </li>
+          ))}
+          <li className="min-w-0">
+            <button
+              type="button"
+              onClick={onAdd}
+              aria-label="Criar ou entrar em um servidor"
+              title="Criar ou entrar em um servidor"
+              className={`${tile} h-full w-full justify-center border-dashed text-fg-muted hover:border-accent/60 hover:text-fg`}
+            >
+              <Plus size={18} />
+              {list.length === 0 && <span className="text-sm font-medium">Criar ou entrar em um servidor</span>}
+            </button>
+          </li>
         </ul>
       )}
-    </SideCard>
+    </section>
   )
 }
+
+// Wraps into more rows on narrow windows; never scrolls sideways.
+const SERVER_GRID = 'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]'
 
 /** "**bold**" in changelog lines. */
 function Inline({ text }: { text: string }): ReactNode {

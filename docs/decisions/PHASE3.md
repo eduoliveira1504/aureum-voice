@@ -74,6 +74,8 @@ miniaturas; VoiceState.joined_at; user_settings.news_dismissed; CHANGELOG embuti
 Teste manual pendente: hub com o beta de verdade (salas, transmissão com miniatura, menção,
 DM com mensagem de voz, chamada perdida, pedido de amizade, tarefa com prazo) e janela abaixo
 de 1000px.
+Ajuste depois da 0.2.0-beta.4: "Seus servidores" saiu da coluna lateral e virou uma grade compacta
+ao lado do "Ao vivo agora" (item 6 abaixo); a coluna lateral ficou com Amigos ativos e Novidades.
 
 Referência visual: docs/design/home/inicio-hub.png (mockup aprovado). Seguir o layout,
 os tokens do 2.1 e as fontes; os nomes no mockup são exemplos.
@@ -116,8 +118,13 @@ Objetivo: o Início deixa de abrir na lista de amigos e vira um hub com o que im
    jogando, depois disponíveis; atividade do 2.5 ("Jogando X"). Botão conforme o caso:
    Entrar (em call numa sala que o usuário vê), Ligar ou Mensagem. Até 6 + "Ver todos"
    (abre Amigos). Invisível e offline não aparecem.
-6. Seus servidores (coluna lateral): ordenados por atividade, com linha de resumo
-   ("3 em call · 1 transmitindo") e badge de menções. "Ver todos".
+6. Seus servidores (ao lado do "Ao vivo agora", na mesma linha e na largura da coluna lateral;
+   abaixo de ~1000px desce para baixo dele): grade compacta com ícone +
+   nome, bolinha vermelha quando alguém transmite, contador de pessoas em call e badge de
+   menções, ordenada por atividade. Clicar abre a aba do servidor e a reabre se estava fechada
+   (é por aqui que a pessoa recupera abas fechadas). Último item "+": o mesmo fluxo de
+   criar/entrar em servidor do topo. Até 10 + "Ver todos". Em janela estreita a grade quebra
+   em mais linhas, sem rolagem lateral.
 7. Novidades do Aureum (coluna lateral, borda accent sutil): versão instalada e 3 itens do
    CHANGELOG local do app; "Ver tudo que mudou" abre o CHANGELOG num modal. Dá pra
    dispensar; volta na próxima versão.
@@ -126,7 +133,8 @@ Objetivo: o Início deixa de abrir na lista de amigos e vira um hub com o que im
 - Carga inicial por uma rota única (ex: GET /me/home) e atualizações pelos eventos de
   WebSocket que já existem (sem polling).
 - Miniaturas só nos cards visíveis; o hub não pode pesar mais que a Visão geral de um servidor.
-- Responsivo: abaixo de ~1000px a coluna lateral vai pra baixo da principal.
+- Responsivo: abaixo de ~1000px a coluna lateral (Amigos ativos e Novidades) vai pra baixo da
+  principal.
 - Estados de carregamento (esqueleto) e vazio em todas as seções.
 
 ### Testes
