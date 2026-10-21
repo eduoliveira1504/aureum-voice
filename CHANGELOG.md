@@ -2,6 +2,12 @@
 
 ## Próxima versão
 
+- **Início novo:** o app abre num resumo do que importa agora. Mostra quem está em call nos seus
+  servidores e grupos (com a tela de quem está transmitindo), menções e mensagens que você perdeu,
+  chamadas perdidas e pedidos de amizade, as suas tarefas do Kanban de todos os servidores, os
+  amigos online e as novidades da versão. A lista de amigos virou o item **Amigos** na barra lateral.
+- Clicar numa menção ou mensagem no Início abre a conversa já na mensagem; clicar numa tarefa abre
+  o card no quadro.
 - A @aureum aparece sempre online, e avisa sozinha no #avisos quando sai versão nova.
 - **Problemas reportados** (só para o dono do app): botão **Confirmar bug**, que avisa no canal de
   bugs e para quem reportou que o bug já está sendo corrigido.

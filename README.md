@@ -16,6 +16,8 @@ amigos ou o seu time:
 
 - **Salas ao vivo:** a visão geral do servidor mostra quem está em cada sala e quem está falando, antes
   de você entrar.
+- **Início:** um resumo do que importa agora: quem está em call, as menções e mensagens que você
+  perdeu e as suas tarefas do Kanban, de todos os servidores.
 - **Câmera e tela com áudio:** compartilhe a tela ou uma janela com o som do jogo junto.
 - **Lado a lado:** chat e quadro Kanban na mesma tela.
 - **Overlay nos jogos:** veja quem está falando sem sair da partida.

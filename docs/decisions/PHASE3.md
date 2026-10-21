@@ -12,8 +12,9 @@ Ao terminar um bloco, marcar ✅ neste arquivo e atualizar a linha de Status (no
 de docs do bloco).
 
 Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
-o bot @aureum ligado em produção; testes manuais pendentes listados no 3.1 e no 3.2.
-Próximo: 3.4 (Início).
+o bot @aureum ligado em produção; 3.4 pronto no código, ainda sem release (a API precisa da
+migração news_dismissed, com pg_dump antes). Testes manuais pendentes listados no 3.1, no 3.2 e no 3.4.
+Próximo: 3.5 (Reordenar canais).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -64,7 +65,15 @@ CLI bot status/enable/disable/set-channel/say/broadcast (fila, ritmo, retomada);
 "Aureum" recusados.
 Canais do servidor oficial configurados e ações ligadas pela CLI.
 
-## 3.4 Início: hub
+## 3.4 Início: hub ✅ concluído (teste manual pendente)
+Ver docs/decisions/0022-home-hub.md. Ao vivo, Amigos ativos e Seus servidores vêm dos stores já
+carregados; GET /users/me/home traz menções, DMs não lidas, tarefas e a última atividade dos
+servidores. Tarefas pelo hook AddonManifest.assigned; home.watch (até 6 servidores) para as
+miniaturas; VoiceState.joined_at; user_settings.news_dismissed; CHANGELOG embutido no app.
+Teste manual pendente: hub com o beta de verdade (salas, transmissão com miniatura, menção,
+DM com mensagem de voz, chamada perdida, pedido de amizade, tarefa com prazo) e janela abaixo
+de 1000px.
+
 Referência visual: docs/design/home/inicio-hub.png (mockup aprovado). Seguir o layout,
 os tokens do 2.1 e as fontes; os nomes no mockup são exemplos.
 Objetivo: o Início deixa de abrir na lista de amigos e vira um hub com o que importa agora.
@@ -400,7 +409,7 @@ Funnel e do LiveKit Cloud.
 - ✅ Conta-gotas fluido; overlay só em jogo; tela cheia com botão de sair.
 - ✅ (teste pendente) Voz limpa com o headset Havit do beta; teste de microfone em Configurações.
 - ✅ @aureum dá boas-vindas, avisa bug resolvido e manda DMs oficiais.
-- Início abre no hub: ao vivo, pendências, minhas tarefas, amigos ativos e servidores.
+- ✅ Início abre no hub: ao vivo, pendências, minhas tarefas, amigos ativos e servidores.
 - Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
 - Trocar microfone e saída dentro da call.
 - 15 Pioneiros no máximo; todos os testers com Beta Tester.

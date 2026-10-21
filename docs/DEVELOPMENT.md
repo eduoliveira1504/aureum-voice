@@ -63,6 +63,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   The layout follows the user to any PC ([ADR 0005](decisions/0005-app-shell-panels-and-read-state.md)).
   Columns resize by dragging, with sizes saved per user too. The overview tab is pinned first, and
   hovering a server tab previews its banner and who's online and in calls.
+- A Home hub (Início) that the app opens on. It shows rooms and calls with people that the user can
+  join, what's waiting (mentions, unread DMs, missed calls, friend requests), their Kanban tasks
+  across servers, active friends, servers by activity and the installed version's notes. It loads
+  with one request (`GET /api/users/me/home`), and everything else comes from data the app already
+  holds, kept live by the usual events ([ADR 0022](decisions/0022-home-hub.md))
 - A server overview showing who's in which room and live screen thumbnails (low-res JPEGs over the
   API WebSocket, so watching costs no media bandwidth), unread news grouped by channel, and the
   members, online first
