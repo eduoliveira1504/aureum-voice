@@ -1,10 +1,14 @@
 """The Kanban board addon: columns, cards, moves, labels, history, permissions, live events."""
 
+import uuid
+from datetime import date
 from typing import Any
 
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
 
+from app.addons.registry import ADDONS
+from app.db import SessionLocal
 from app.permissions import Perm
 from tests.helpers import ApiUser, make_server, make_user, text_channel, ws_client
 from tests.test_addons import add_card, board_channel
@@ -227,3 +231,43 @@ async def test_history(client: AsyncClient) -> None:
     assert len(everything) == 5 and other["id"] in [e["card_id"] for e in everything]
     page = (await member.get(url(cid, "/history"), params={"limit": 2, "before": everything[1]["id"]})).json()
     assert [e["id"] for e in page] == [e["id"] for e in everything[2:4]]
+
+
+async def test_assigned_lists_unfinished_cards_of_the_given_boards(client: AsyncClient) -> None:
+    owner, member = await make_user(client, "owner"), await make_user(client, "member")
+    sid = (await make_server(owner, member))["id"]
+    cid = (await board_channel(owner, sid))["id"]
+    other = (await board_channel(owner, sid, "Outro"))["id"]
+    todo, doing, done = [c["id"] for c in (await board(owner, cid))["columns"]]
+    label = (await owner.post(url(cid, "/labels"), {"name": "Bug", "color": "red"})).json()
+
+    async def card(board_id: str, column: str, title: str, assignee: str | None = member.id, **extra: Any) -> dict[str, Any]:
+        body = {"column_id": column, "title": title, "assignee_id": assignee, **extra}
+        res = await owner.post(url(board_id, "/cards"), body)
+        assert res.status_code == 201, res.text
+        return res.json()
+
+    mine = await card(cid, todo, "Login", label_ids=[label["id"]], due_date="2026-11-01")
+    await card(cid, doing, "Cadastro")
+    await card(cid, done, "Pronto")  # finished: left out
+    await card(cid, todo, "Do owner", owner.id)
+    await card(cid, todo, "Sem ninguém", None)
+    other_todo = (await board(owner, other))["columns"][0]["id"]
+    await card(other, other_todo, "Em outro quadro")  # board not passed: left out
+
+    async with SessionLocal() as session:
+        items = await ADDONS["kanban"].assigned(session, [uuid.UUID(cid)], uuid.UUID(member.id))  # type: ignore[misc]
+        assert await ADDONS["kanban"].assigned(session, [], uuid.UUID(member.id)) == []  # type: ignore[misc]
+    by_title = {i.title: i for i in items}
+    assert set(by_title) == {"Login", "Cadastro"}
+    login = by_title["Login"]
+    assert str(login.id) == mine["id"] and str(login.workspace_id) == cid
+    assert login.status == "A fazer" and by_title["Cadastro"].status == "Fazendo"
+    assert [(lb.name, lb.color) for lb in login.labels] == [("Bug", "red")]
+    assert login.due_date == date(2026, 11, 1) and by_title["Cadastro"].due_date is None
+
+    # Moving it to a done column takes it off the list.
+    await owner.post(url(cid, f"/cards/{mine['id']}/move"), {"column_id": done, "position": 0})
+    async with SessionLocal() as session:
+        items = await ADDONS["kanban"].assigned(session, [uuid.UUID(cid)], uuid.UUID(member.id))  # type: ignore[misc]
+    assert [i.title for i in items] == ["Cadastro"]

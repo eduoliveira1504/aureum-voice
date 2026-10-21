@@ -10,7 +10,7 @@ import logging
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -35,6 +35,31 @@ ANNOUNCE_MAX_LINES = 20
 CleanupHook = Callable[[AsyncSession, list[uuid.UUID]], Awaitable[None]]
 
 
+class ItemLabel(BaseModel):
+    name: str
+    # A label token name (--label-<color>), never a raw color.
+    color: str
+
+
+class AssignedItem(BaseModel):
+    """Something in an addon assigned to a user and not finished yet (a Kanban card), as the
+    Home hub lists it. Addon-agnostic: the host adds where it lives (server, channel)."""
+
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    title: str
+    # Where it stands now, in the addon's words (a Kanban column's name).
+    status: str
+    labels: list[ItemLabel] = []
+    due_date: date | None = None
+    updated_at: datetime
+
+
+# The unfinished items assigned to a user in these workspaces. The host passes only
+# workspaces the user can see; the addon never checks permissions itself.
+AssignedHook = Callable[[AsyncSession, list[uuid.UUID], uuid.UUID], Awaitable[list[AssignedItem]]]
+
+
 @dataclass(frozen=True)
 class AddonManifest:
     key: str
@@ -49,6 +74,9 @@ class AddonManifest:
     # Named actions and the channel permission each needs. "view" is always VIEW_CHANNEL.
     permissions: Mapping[str, Perm] = field(default_factory=dict)
     on_cleanup: CleanupHook | None = None
+    # Lists what's assigned to a user, for "Minhas tarefas" in Home; None if the addon has no
+    # such thing.
+    assigned: AssignedHook | None = None
     # Whether it posts system lines (AddonChannel.announce) to a text channel picked in the
     # channel's settings.
     announces: bool = False

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.addons.base import AddonChannel, AddonManifest, addon_channel
+from app.addons.base import AddonChannel, AddonManifest, AssignedItem, ItemLabel, addon_channel
 from app.addons.kanban.models import KanbanCard, KanbanColumn, KanbanEvent, KanbanLabel
 from app.deps import CurrentUser, SessionDep
 from app.permissions import Perm
@@ -142,6 +142,39 @@ class LabelUpdate(BaseModel):
 async def cleanup(session: AsyncSession, workspace_ids: list[uuid.UUID]) -> None:
     for model in (KanbanEvent, KanbanCard, KanbanLabel, KanbanColumn):
         await session.execute(delete(model).where(model.workspace_id.in_(workspace_ids)))
+
+
+async def assigned(session: AsyncSession, workspace_ids: list[uuid.UUID], user_id: uuid.UUID) -> list[AssignedItem]:
+    """The user's cards in columns not marked done, in these workspaces."""
+    if not workspace_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(KanbanCard, KanbanColumn.name)
+            .join(KanbanColumn, KanbanColumn.id == KanbanCard.column_id)
+            .where(
+                KanbanCard.workspace_id.in_(workspace_ids),
+                KanbanCard.assignee_id == user_id,
+                KanbanColumn.stage != "done",
+            )
+        )
+    ).all()
+    label_ids = {label_id for card, _ in rows for label_id in card.label_ids}
+    labels: dict[uuid.UUID, KanbanLabel] = {}
+    if label_ids:
+        labels = {label.id: label for label in await session.scalars(select(KanbanLabel).where(KanbanLabel.id.in_(label_ids)))}
+    return [
+        AssignedItem(
+            id=card.id,
+            workspace_id=card.workspace_id,
+            title=card.title,
+            status=column_name,
+            labels=[ItemLabel(name=labels[i].name, color=labels[i].color) for i in card.label_ids if i in labels],
+            due_date=card.due_date,
+            updated_at=card.updated_at,
+        )
+        for card, column_name in rows
+    ]
 
 
 async def _lock(session: AsyncSession, workspace_id: uuid.UUID) -> None:
@@ -513,5 +546,6 @@ manifest = AddonManifest(
     router=router,
     permissions={"edit": Perm.SEND_MESSAGES, "manage": Perm.MANAGE_ADDONS},
     on_cleanup=cleanup,
+    assigned=assigned,
     announces=True,
 )
