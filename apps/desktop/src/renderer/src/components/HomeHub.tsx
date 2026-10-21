@@ -1,7 +1,7 @@
-import { AtSign, Gamepad2, Link2, Phone, PhoneMissed, Plus, Radio, UserPlus, type LucideIcon } from 'lucide-react'
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { AtSign, CalendarDays, Gamepad2, Link2, Phone, PhoneMissed, Plus, Radio, UserPlus, type LucideIcon } from 'lucide-react'
+import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 
-import type { Me, Message, User } from '../lib/api'
+import type { HomeTask, Me, Message, User } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
 import { memberName } from '../lib/members'
 import { useActivity } from '../store/activity'
@@ -11,6 +11,7 @@ import { channelTab, useNav } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
+import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { activityLabel } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
@@ -72,6 +73,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
         <Header me={me} onDialog={setDialog} />
         <LiveNow me={me} onCall={() => setDialog('call')} />
         <Pending me={me} />
+        <Tasks />
       </div>
       <Dialogs me={me} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
@@ -551,5 +553,144 @@ function Row({
       )}
       {actions && <span className="flex shrink-0 items-center gap-2">{actions}</span>}
     </div>
+  )
+}
+
+const TASKS_PREVIEW = 6
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/**
+ * A due date as the hub shows it: "23 out · atrasado" (danger), "23 out · hoje", "amanhã" or
+ * "em 2 dias" (idle), or just "30 nov". `due` is YYYY-MM-DD, compared with the PC's date.
+ */
+export function dueLabel(due: string, today: Date = new Date()): { text: string; tone: 'danger' | 'idle' | 'muted' } {
+  const [y, m, d] = due.split('-').map(Number)
+  const date = `${d} ${MONTHS[m - 1]}`
+  const days = Math.round((new Date(y, m - 1, d).getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000)
+  if (days < 0) return { text: `${date} · atrasado`, tone: 'danger' }
+  if (days === 0) return { text: `${date} · hoje`, tone: 'idle' }
+  if (days === 1) return { text: `${date} · amanhã`, tone: 'idle' }
+  if (days === 2) return { text: `${date} · em 2 dias`, tone: 'idle' }
+  return { text: date, tone: 'muted' }
+}
+
+const DUE_TONES = { danger: 'text-danger', idle: 'text-idle', muted: 'text-fg-muted' }
+
+/** Label colors are token names (--label-<color>), the same the addon uses. */
+const labelStyle = (color: string): CSSProperties => ({
+  color: `var(--label-${color})`,
+  background: `color-mix(in oklab, var(--label-${color}) 16%, transparent)`
+})
+
+const openTask = (task: HomeTask): void => useNav.getState().openAddonItem(task.server_id, task.channel_id, task.id)
+
+function Tasks(): ReactNode {
+  const loaded = useHome((s) => s.loaded)
+  const tasks = useHome((s) => s.tasks)
+  const total = useHome((s) => s.tasksTotal)
+  const [all, setAll] = useState(false)
+
+  return (
+    <section aria-label="Minhas tarefas" className="rounded-panel border border-line bg-panel/40 p-4">
+      <SectionHeader
+        title="Minhas tarefas"
+        hint="de todos os Kanbans"
+        action={total > TASKS_PREVIEW && <LinkButton onClick={() => setAll(true)}>Ver todas ({total})</LinkButton>}
+      />
+      {!loaded ? (
+        <div className={TASK_GRID}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} aria-hidden className="h-28 animate-pulse rounded-control bg-elevated/60" />
+          ))}
+        </div>
+      ) : tasks.length === 0 ? (
+        <p className="py-6 text-center text-sm text-fg-subtle">Nenhuma tarefa com você.</p>
+      ) : (
+        <ul className={TASK_GRID}>
+          {tasks.slice(0, TASKS_PREVIEW).map((task) => (
+            <li key={task.id}>
+              <TaskCard task={task} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {all && <AllTasksModal onClose={() => setAll(false)} />}
+    </section>
+  )
+}
+
+const TASK_GRID = 'grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]'
+
+function TaskCard({ task }: { task: HomeTask }): ReactNode {
+  const due = task.due_date ? dueLabel(task.due_date) : null
+  return (
+    <button
+      type="button"
+      onClick={() => openTask(task)}
+      className="flex h-full w-full flex-col gap-2 rounded-control border border-line bg-panel p-3 text-left hover:border-accent/60"
+    >
+      <span className="flex flex-wrap gap-1">
+        {task.labels.map((label) => (
+          <span key={label.name} style={labelStyle(label.color)} className="truncate rounded px-1.5 py-0.5 text-[11px] font-semibold">
+            {label.name}
+          </span>
+        ))}
+        <span className="truncate rounded bg-elevated px-1.5 py-0.5 text-[11px] font-semibold text-fg-muted">{task.status}</span>
+      </span>
+      <span className="line-clamp-2 font-semibold">{task.title}</span>
+      {due && (
+        <span className={`flex items-center gap-1.5 text-xs ${DUE_TONES[due.tone]}`}>
+          <CalendarDays size={13} className="shrink-0" />
+          {due.text}
+        </span>
+      )}
+      <span className="mt-auto truncate text-xs text-fg-subtle">
+        {task.server_name} › {task.channel_name}
+      </span>
+    </button>
+  )
+}
+
+function AllTasksModal({ onClose }: { onClose(): void }): ReactNode {
+  const [tasks, setTasks] = useState<HomeTask[] | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    useHome.getState().loadAllTasks().then(setTasks, () => setError(true))
+  }, [])
+
+  return (
+    <Modal title="Minhas tarefas" subtitle="Tudo que está com você e ainda não foi concluído." onClose={onClose} wide>
+      {error ? (
+        <p className="py-6 text-center text-sm text-danger">Não foi possível carregar as tarefas.</p>
+      ) : !tasks ? (
+        <p className="py-6 text-center text-sm text-fg-subtle">Carregando…</p>
+      ) : (
+        <ul className="space-y-1">
+          {tasks.map((task) => {
+            const due = task.due_date ? dueLabel(task.due_date) : null
+            return (
+              <li key={task.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    openTask(task)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-item px-3 py-2 text-left hover:bg-elevated"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{task.title}</span>
+                    <span className="block truncate text-xs text-fg-subtle">
+                      {task.status} · {task.server_name} › {task.channel_name}
+                    </span>
+                  </span>
+                  {due && <span className={`shrink-0 text-xs ${DUE_TONES[due.tone]}`}>{due.text}</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Modal>
   )
 }

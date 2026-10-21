@@ -329,8 +329,18 @@ export function Placeholder({ title, text, children }: { title: string; text: st
 /** An addon channel: its addon's own panel, or a note when this app version doesn't have it. */
 function AddonView({ server, channel, me }: { server: ServerDetail; channel: Channel; me: Me }): ReactNode {
   const addon = addonModule(channel.addon_key)
+  const openItem = useNav((s) => (s.addonItem?.channelId === channel.id ? s.addonItem.itemId : null))
   if (!addon) {
     return <Placeholder title={channel.name ?? 'Addon'} text="Este addon não existe nesta versão do Aureum. Atualize o app para usá-lo." />
   }
-  return <addon.Panel server={server} channel={channel} me={me} perms={channelPermissions(server, channel, me.id)} />
+  return (
+    <addon.Panel
+      server={server}
+      channel={channel}
+      me={me}
+      perms={channelPermissions(server, channel, me.id)}
+      openItem={openItem}
+      onItemOpened={useNav.getState().clearAddonItem}
+    />
+  )
 }

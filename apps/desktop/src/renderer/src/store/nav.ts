@@ -104,6 +104,8 @@ interface NavState {
   callFullscreen: boolean
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
+  /** An item an addon channel should show when it opens (a Kanban card picked in Home). */
+  addonItem: { channelId: string; itemId: string } | null
 
   go(place: Place): void
   /** Goes to Home, on the hub, the friends list or a conversation. */
@@ -135,6 +137,9 @@ interface NavState {
   expandCall(serverId: string): void
   setCallFullscreen(on: boolean): void
   setNarrow(narrow: boolean): void
+  /** Opens an addon channel of a server on one of its items. */
+  openAddonItem(serverId: string, channelId: string, itemId: string): void
+  clearAddonItem(): void
 }
 
 const saveLayout = (serverId: string, layout: PanelLayout): void =>
@@ -164,6 +169,7 @@ export const useNav = create<NavState>()((set, get) => {
     pipCorner: loadPip().corner,
     callFullscreen: false,
     narrow: false,
+    addonItem: null,
 
     go: (place) => set({ place }),
 
@@ -314,7 +320,15 @@ export const useNav = create<NavState>()((set, get) => {
 
     setCallFullscreen: (callFullscreen) => set({ callFullscreen }),
 
-    setNarrow: (narrow) => set({ narrow })
+    setNarrow: (narrow) => set({ narrow }),
+
+    openAddonItem: (serverId, channelId, itemId) => {
+      set({ addonItem: { channelId, itemId } })
+      get().openServer(serverId)
+      get().openTab(serverId, channelTab(channelId))
+    },
+
+    clearAddonItem: () => set({ addonItem: null })
   }
 })
 

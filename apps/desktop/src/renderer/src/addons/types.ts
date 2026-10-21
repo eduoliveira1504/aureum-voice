@@ -11,6 +11,9 @@ export interface AddonViewProps {
   me: Me
   /** The user's permissions in the channel (bits from lib/permissions). */
   perms: number
+  /** An item picked outside the addon (a task in Home): show it, then call onItemOpened. */
+  openItem?: string | null
+  onItemOpened?: () => void
 }
 
 export interface AddonSettingsProps {

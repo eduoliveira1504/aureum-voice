@@ -29,7 +29,7 @@ interface Drop {
   index: number
 }
 
-export function KanbanPanel({ server, channel, me }: AddonViewProps): ReactNode {
+export function KanbanPanel({ server, channel, me, openItem, onItemOpened }: AddonViewProps): ReactNode {
   const board = useKanban((s) => s.boards[channel.id])
   const [error, setError] = useState<string | null>(null)
   const [openCard, setOpenCard] = useState<string | null>(null)
@@ -43,6 +43,14 @@ export function KanbanPanel({ server, channel, me }: AddonViewProps): ReactNode 
       .load(channel.id)
       .catch(() => setError('Não foi possível abrir o quadro.'))
   }, [channel.id])
+
+  // A card picked outside the board (Home's tasks): open it once the board is here.
+  const loaded = !!board
+  useEffect(() => {
+    if (!openItem || !loaded) return
+    if (useKanban.getState().boards[channel.id]?.cards.some((c) => c.id === openItem)) setOpenCard(openItem)
+    onItemOpened?.()
+  }, [openItem, loaded, channel.id, onItemOpened])
 
   const fail = useCallback((err: unknown): void => {
     setError(err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar a mudança.')
