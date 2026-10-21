@@ -5,7 +5,8 @@ it. Each API process subscribes to the channel and forwards events to the WebSoc
 holds locally, so any number of API processes can run side by side.
 
 A few high-volume events (screen-share thumbnails) go to connections instead of users:
-only those currently watching a server's overview (and, when given, only of some users).
+only those currently watching a server (and, when given, only of some users). A connection
+watches from two places at once: the server overview on screen, and the Home hub's live cards.
 """
 
 import asyncio
@@ -41,8 +42,10 @@ class Broker:
         self._owners: dict[WebSocket, uuid.UUID] = {}
         # The session epoch of each connection's token (see end_sessions).
         self._epochs: dict[WebSocket, int] = {}
-        # Connections showing a server's overview, by server id.
+        # Connections watching a server, by server id, and what each connection watches from
+        # where ("overview", "home").
         self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
+        self._watching: dict[WebSocket, dict[str, set[uuid.UUID]]] = {}
 
     @property
     def redis(self) -> Redis:
@@ -140,7 +143,7 @@ class Broker:
         self._epochs[ws] = epoch
 
     def unregister(self, user_id: uuid.UUID, ws: WebSocket) -> None:
-        self.watch(None, ws)
+        self.unwatch(ws)
         self._owners.pop(ws, None)
         self._epochs.pop(ws, None)
         sockets = self._sockets.get(user_id)
@@ -149,14 +152,25 @@ class Broker:
             if not sockets:
                 del self._sockets[user_id]
 
-    def watch(self, server_id: uuid.UUID | None, ws: WebSocket) -> None:
-        """A connection watches at most one server overview at a time (None: none)."""
-        for sid in [sid for sid, sockets in self._watchers.items() if ws in sockets]:
+    def watch(self, ws: WebSocket, place: str, server_ids: Iterable[uuid.UUID]) -> None:
+        """Sets the servers a connection watches from one place (empty: none from there); it
+        gets the events of every server any of its places watches, once."""
+        places = self._watching.setdefault(ws, {})
+        before = set().union(*places.values())
+        places[place] = set(server_ids)
+        after = set().union(*places.values())
+        for sid in before - after:
             self._watchers[sid].discard(ws)
             if not self._watchers[sid]:
                 del self._watchers[sid]
-        if server_id is not None:
-            self._watchers[server_id].add(ws)
+        for sid in after - before:
+            self._watchers[sid].add(ws)
+        if not after:
+            del self._watching[ws]
+
+    def unwatch(self, ws: WebSocket) -> None:
+        for place in list(self._watching.get(ws, {})):
+            self.watch(ws, place, ())
 
     def presence_key(self, user_id: uuid.UUID) -> str:
         return f"{self._presence_prefix}:{user_id}"

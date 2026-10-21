@@ -1,7 +1,9 @@
+import asyncio
 import base64
+import uuid
 
 from httpx import AsyncClient
-from httpx_ws import aconnect_ws
+from httpx_ws import AsyncWebSocketSession, aconnect_ws
 
 from app import voice
 from tests.helpers import make_server, make_user, ws_client
@@ -97,3 +99,51 @@ async def test_only_members_can_watch(client: AsyncClient) -> None:
         assert (await next_event(ws, "error"))["message"] == "Server not found"
         await ws.send_json({"type": "overview.watch", "data": {"server_id": "nope"}})
         assert (await next_event(ws, "error"))["message"] == "Invalid overview.watch payload"
+
+
+async def send_until_stored(sharer_ws: AsyncWebSocketSession, server_id: str) -> None:
+    """Sends thumbnails until one gets past the per-user throttle and is kept."""
+    async with asyncio.timeout(voice.THUMBNAIL_MIN_INTERVAL_MS / 1000 + 2):
+        while not await voice.get_thumbnails(uuid.UUID(server_id)):
+            await sharer_ws.send_json({"type": "screen.thumbnail", "data": {"image": JPEG}})
+            await asyncio.sleep(0.3)
+
+
+async def test_home_hub_watches_up_to_six_servers(client: AsyncClient) -> None:
+    sharer, viewer = await make_user(client, "sharer"), await make_user(client, "viewer")
+    server = await make_server(sharer, viewer)
+    other = await make_server(sharer, viewer, name="Outro")
+    strangers = await make_server(sharer, name="Sem o viewer")
+    vid = voice_channel(server)
+
+    async with ws_client() as wsc, aconnect_ws(ws_url(viewer), wsc) as vws, aconnect_ws(ws_url(sharer), wsc) as sws:
+        await next_event(vws, "ready")
+        await next_event(sws, "ready")
+        await sws.send_json({"type": "voice.update", "data": {"channel_id": vid, "screen": True}})
+        await sws.send_json({"type": "screen.thumbnail", "data": {"image": JPEG}})
+        await next_event(vws, "voice.state")
+
+        # Watching from Home sends the current ones; servers the user isn't in are skipped.
+        await vws.send_json({"type": "home.watch", "data": {"server_ids": [server["id"], other["id"], strangers["id"]]}})
+        assert (await next_event(vws, "screen.thumbnail"))["server_id"] == server["id"]
+
+        # The overview of the same server can open and close without cutting Home off: the
+        # connection keeps getting the server's thumbnails, once each.
+        await vws.send_json({"type": "overview.watch", "data": {"server_id": server["id"]}})
+        assert (await next_event(vws, "screen.thumbnail"))["image"] == JPEG
+        await vws.send_json({"type": "overview.watch", "data": {"server_id": None}})
+        await sws.send_json({"type": "voice.update", "data": {"channel_id": vid, "screen": False}})
+        assert (await next_event(vws, "screen.thumbnail"))["image"] is None
+        await no_event(vws, "screen.thumbnail")
+
+        # Leaving the hub stops it.
+        await vws.send_json({"type": "home.watch", "data": {"server_ids": []}})
+        await sws.send_json({"type": "voice.update", "data": {"channel_id": vid, "screen": True}})
+        await next_event(vws, "voice.state")
+        await send_until_stored(sws, server["id"])
+        await no_event(vws, "screen.thumbnail")
+
+        too_many = [server["id"]] * 7
+        for bad in ({"server_ids": too_many}, {"server_ids": ["nope"]}, {"server_ids": server["id"]}, None):
+            await vws.send_json({"type": "home.watch", "data": bad})
+            assert (await next_event(vws, "error"))["message"] == "Invalid home.watch payload"

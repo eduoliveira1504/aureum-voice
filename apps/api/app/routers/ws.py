@@ -95,24 +95,52 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
         await calls.joined(scope.id, user_id)
 
 
+# The Home hub watches the servers of its live cards on screen, at most this many.
+HOME_WATCH_MAX = 6
+
+
+async def _send_thumbnails(websocket: WebSocket, user_id: uuid.UUID, server_ids: set[uuid.UUID]) -> None:
+    """The current thumbnails of these servers, of rooms the user can see."""
+    for server_id in server_ids:
+        async with SessionLocal() as session:
+            visible = await visible_channel_ids(session, server_id, user_id)
+        for event in await voice.get_thumbnails(server_id):
+            if event["channel_id"] and uuid.UUID(event["channel_id"]) in visible:
+                await websocket.send_json({"type": "screen.thumbnail", "data": event})
+
+
 async def _handle_overview_watch(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:
     """The client opened (server_id) or closed (null) a server's overview: it gets that
     server's screen-share thumbnails, starting with the current ones."""
     raw = data.get("server_id") if isinstance(data, dict) else None
     if raw is None:
-        return broker.watch(None, websocket)
+        broker.watch(websocket, "overview", ())
+        return
     try:
         server_id = uuid.UUID(str(raw))
     except ValueError:
         return await _send_error(websocket, "Invalid overview.watch payload")
     async with SessionLocal() as session:
-        visible = await visible_channel_ids(session, server_id, user_id)
         if await session.get(ServerMember, (server_id, user_id)) is None:
             return await _send_error(websocket, "Server not found")
-    broker.watch(server_id, websocket)
-    for event in await voice.get_thumbnails(server_id):
-        if event["channel_id"] and uuid.UUID(event["channel_id"]) in visible:
-            await websocket.send_json({"type": "screen.thumbnail", "data": event})
+    broker.watch(websocket, "overview", [server_id])
+    await _send_thumbnails(websocket, user_id, {server_id})
+
+
+async def _handle_home_watch(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:
+    """The Home hub shows live cards of these servers (empty: the hub was closed): it gets
+    their thumbnails, starting with the current ones. Servers the user isn't in are skipped."""
+    raw = data.get("server_ids") if isinstance(data, dict) else None
+    try:
+        if not isinstance(raw, list) or len(raw) > HOME_WATCH_MAX:
+            raise ValueError
+        server_ids = {uuid.UUID(str(r)) for r in raw}
+    except ValueError:
+        return await _send_error(websocket, "Invalid home.watch payload")
+    async with SessionLocal() as session:
+        mine = {s for s in server_ids if await session.get(ServerMember, (s, user_id)) is not None}
+    broker.watch(websocket, "home", mine)
+    await _send_thumbnails(websocket, user_id, mine)
 
 
 async def _handle_thumbnail(user_id: uuid.UUID, data: Any) -> None:
@@ -201,6 +229,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
                 await _handle_voice_update(websocket, user_id, message.get("data"))
             elif message.get("type") == "overview.watch":
                 await _handle_overview_watch(websocket, user_id, message.get("data"))
+            elif message.get("type") == "home.watch":
+                await _handle_home_watch(websocket, user_id, message.get("data"))
             elif message.get("type") == "screen.thumbnail":
                 await _handle_thumbnail(user_id, message.get("data"))
             elif message.get("type") == "presence.idle":
