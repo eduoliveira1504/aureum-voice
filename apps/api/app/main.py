@@ -14,7 +14,7 @@ from app.bot import broadcast, releases
 from app.config import get_settings
 from app.db import SessionLocal
 from app.realtime import broker
-from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, moderation, public, roles, servers, users, web, ws
+from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, home, moderation, public, roles, servers, users, web, ws
 
 settings = get_settings()
 
@@ -59,6 +59,7 @@ app.add_middleware(
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)
 api.include_router(users.router)
+api.include_router(home.router)
 # Before media_router, whose /media/{key:path} would match its screenshot route.
 api.include_router(bug_reports.router)
 api.include_router(badges_router.router)
