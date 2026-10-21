@@ -14,9 +14,10 @@ de docs do bloco).
 Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
 desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
-0.2.0-beta.5. 3.5 pronto no código, ainda sem release (a API sobe sem migração). Testes manuais
-pendentes listados no 3.1, no 3.2, no 3.4 e no 3.5.
-Próximo: 3.5 (Reordenar canais).
+0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
+backups/aureum-2026-10-21b.dump). Testes manuais pendentes listados no 3.1, no 3.2, no 3.4 e
+no 3.5.
+Próximo: 3.6 (Áudio dentro da call).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:

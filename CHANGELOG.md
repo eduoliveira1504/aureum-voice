@@ -1,6 +1,6 @@
 # Novidades do Aureum
 
-## Próxima versão
+## 0.2.0-beta.5.5
 
 - **Reordenar canais:** quem pode gerenciar canais arrasta salas, conversas e addons na barra
   lateral para mudar a ordem (uma linha mostra onde o canal vai cair), ou usa "Mover para cima" e
