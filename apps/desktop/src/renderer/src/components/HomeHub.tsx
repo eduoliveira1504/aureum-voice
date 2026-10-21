@@ -1,10 +1,13 @@
-import { AtSign, CalendarDays, Gamepad2, Link2, Phone, PhoneMissed, Plus, Radio, UserPlus, type LucideIcon } from 'lucide-react'
-import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
+import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, X, type LucideIcon } from 'lucide-react'
+import { Fragment, useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 
-import type { HomeTask, Me, Message, User } from '../lib/api'
+import type { Activity, Dm, Friend, HomeTask, Me, Message, Presence, ServerDetail, User } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
+import { CHANGELOG, releaseNotes } from '../lib/changelog'
 import { memberName } from '../lib/members'
+import { channelPermissions, has, Perm } from '../lib/permissions'
 import { useActivity } from '../store/activity'
+import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { friendsInCall, liveRooms, useHome, usePendingItems, type LiveRoom, type PendingItem } from '../store/home'
 import { channelTab, useNav } from '../store/nav'
@@ -15,7 +18,7 @@ import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { activityLabel } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
-import { Avatar, GroupAvatar } from './ui'
+import { Avatar, CountBadge, GroupAvatar, PRESENCE_LABEL, PresenceAvatar, ServerIcon } from './ui'
 
 const LIVE_PREVIEW = 6
 const CARD_GRID = 'grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]'
@@ -68,12 +71,22 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
   }, [])
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="@container flex min-w-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-8 py-7">
         <Header me={me} onDialog={setDialog} />
         <LiveNow me={me} onCall={() => setDialog('call')} />
-        <Pending me={me} />
-        <Tasks />
+        {/* Side by side on wide windows; below ~1000px the side column goes under the main one. */}
+        <div className="flex flex-col gap-6 @min-[1000px]:flex-row @min-[1000px]:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Pending me={me} />
+            <Tasks />
+          </div>
+          <aside aria-label="Coluna lateral" className="flex flex-col gap-6 @min-[1000px]:w-[300px] @min-[1000px]:shrink-0">
+            <ActiveFriends me={me} />
+            <YourServers />
+            <News />
+          </aside>
+        </div>
       </div>
       <Dialogs me={me} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
@@ -692,5 +705,314 @@ function AllTasksModal({ onClose }: { onClose(): void }): ReactNode {
         </ul>
       )}
     </Modal>
+  )
+}
+
+const FRIENDS_PREVIEW = 6
+const SERVERS_PREVIEW = 5
+
+/** Where a friend is in a call that I can see: a server room or one of my conversations. */
+interface FriendCall {
+  label: string
+  /** Whether I could join them there (CONNECT in a room, or a call in my DM or group). */
+  join?: () => void
+}
+
+function callOf(userId: string, servers: Record<string, ServerDetail>, dms: Record<string, Dm>, meId: string): FriendCall | null {
+  for (const server of Object.values(servers)) {
+    const state = server.voice_states.find((v) => v.user_id === userId)
+    const room = state && server.channels.find((c) => c.id === state.channel_id)
+    if (!room) continue
+    const joinable = has(channelPermissions(server, room, meId), Perm.CONNECT)
+    return { label: `Em call · ${room.name}`, join: joinable ? () => void useVoice.getState().join(server.id, room.id) : undefined }
+  }
+  const dm = Object.values(dms).find((d) => d.call && d.voice_states.some((v) => v.user_id === userId))
+  if (!dm) return null
+  return {
+    label: dm.type === 'group_dm' ? `Em call · ${dmTitle(dm, meId)}` : 'Em call com você',
+    join: () => {
+      useNav.getState().openHome(dm.id)
+      void useVoice.getState().join(null, dm.id)
+    }
+  }
+}
+
+export interface ActiveFriend {
+  friend: Friend
+  status: Presence
+  call: FriendCall | null
+  activity: Activity | undefined
+}
+
+/** Friends online, away or busy (invisible shows as offline): in a call first, then playing, then the rest. */
+export function activeFriends(
+  friends: Record<string, Friend>,
+  presence: Record<string, Presence>,
+  activities: Record<string, Activity>,
+  servers: Record<string, ServerDetail>,
+  dms: Record<string, Dm>,
+  meId: string
+): ActiveFriend[] {
+  const rank = (f: ActiveFriend): number => (f.call ? 0 : f.activity ? 1 : 2)
+  return Object.values(friends)
+    .filter((f) => f.kind === 'friend')
+    .map((friend) => ({
+      friend,
+      status: presence[friend.user.id] ?? friend.status,
+      call: callOf(friend.user.id, servers, dms, meId),
+      activity: activities[friend.user.id]
+    }))
+    .filter((f) => f.status !== 'offline')
+    .sort((a, b) => rank(a) - rank(b) || a.friend.user.display_name.localeCompare(b.friend.user.display_name))
+}
+
+function SideCard({ title, children, hint, action, className = '' }: { title: string; children: ReactNode; hint?: string; action?: ReactNode; className?: string }): ReactNode {
+  return (
+    <section aria-label={title} className={`rounded-panel border p-4 ${className || 'border-line bg-panel/40'}`}>
+      <div className="mb-3 flex items-baseline gap-2">
+        <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold">{title}</h2>
+        {hint && <span className="shrink-0 text-xs text-fg-subtle">{hint}</span>}
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function ActiveFriends({ me }: { me: Me }): ReactNode {
+  const friends = useSocial((s) => s.friends)
+  const presence = useSocial((s) => s.presence)
+  const dms = useSocial((s) => s.dms)
+  const loaded = useSocial((s) => s.loaded)
+  const servers = useChat((s) => s.servers)
+  const activities = useActivity((s) => s.byUser)
+  const list = activeFriends(friends, presence, activities, servers, dms, me.id)
+
+  return (
+    <SideCard
+      title="Amigos ativos"
+      hint={loaded ? `${list.length} online` : undefined}
+      action={list.length > FRIENDS_PREVIEW && <LinkButton onClick={() => useNav.getState().openHome('friends')}>Ver todos</LinkButton>}
+    >
+      {!loaded ? (
+        <SideSkeleton />
+      ) : list.length === 0 ? (
+        <p className="py-3 text-sm text-fg-subtle">Nenhum amigo online agora.</p>
+      ) : (
+        <ul className="space-y-1">
+          {list.slice(0, FRIENDS_PREVIEW).map((f) => (
+            <li key={f.friend.user.id}>
+              <ActiveFriendRow item={f} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </SideCard>
+  )
+}
+
+function ActiveFriendRow({ item }: { item: ActiveFriend }): ReactNode {
+  const { friend, status, call, activity } = item
+  const user = friend.user
+  const line = call ? call.label : activity ? activityLabel(activity) : PRESENCE_LABEL[status]
+  const social = useSocial.getState()
+  const action = call?.join ? (
+    <RowButton onClick={call.join}>Entrar</RowButton>
+  ) : activity ? (
+    <IconButton
+      label={`Ligar para ${user.display_name}`}
+      icon={Phone}
+      onClick={async () => {
+        const id = await social.openDm(user.id)
+        await social.startCall(id)
+      }}
+    />
+  ) : (
+    <IconButton label={`Mensagem para ${user.display_name}`} icon={MessageCircle} onClick={() => social.openDm(user.id)} />
+  )
+  return (
+    <div className="flex items-center gap-3 rounded-item px-1 py-1.5">
+      <PresenceAvatar name={user.display_name} url={user.avatar_url} status={status} size={34} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{user.display_name}</span>
+        <span className="block truncate text-xs text-fg-subtle">{line}</span>
+      </span>
+      {action}
+    </div>
+  )
+}
+
+function IconButton({ label, icon: Icon, onClick }: { label: string; icon: LucideIcon; onClick(): Promise<unknown> | void }): ReactNode {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true)
+        void Promise.resolve(onClick())
+          .catch(() => {})
+          .finally(() => setBusy(false))
+      }}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control border border-line text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-50"
+    >
+      <Icon size={16} />
+    </button>
+  )
+}
+
+function SideSkeleton(): ReactNode {
+  return (
+    <div className="space-y-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} aria-hidden className="h-10 animate-pulse rounded-item bg-elevated/60" />
+      ))}
+    </div>
+  )
+}
+
+export interface ServerSummary {
+  server: ServerDetail
+  inCall: number
+  streaming: number
+  mentions: number
+  lastActivity: string | null
+}
+
+/** My servers, most active first: people in a call, then the newest message. */
+export function serverSummaries(
+  order: string[],
+  servers: Record<string, ServerDetail>,
+  reads: Record<string, { mention_count: number } | undefined>,
+  activity: Record<string, string | null>
+): ServerSummary[] {
+  return order
+    .map((id) => servers[id])
+    .filter(Boolean)
+    .map((server) => ({
+      server,
+      inCall: server.voice_states.length,
+      streaming: server.voice_states.filter((v) => v.screen).length,
+      mentions: server.channels.reduce((n, c) => n + (reads[c.id]?.mention_count ?? 0), 0),
+      lastActivity: activity[server.id] ?? null
+    }))
+    .sort((a, b) => b.inCall - a.inCall || (b.lastActivity ?? '').localeCompare(a.lastActivity ?? ''))
+}
+
+function YourServers(): ReactNode {
+  const order = useChat((s) => s.order)
+  const servers = useChat((s) => s.servers)
+  const reads = useChat((s) => s.reads)
+  const loaded = useChat((s) => s.loaded)
+  const activity = useHome((s) => s.activity)
+  const [all, setAll] = useState(false)
+  const list = serverSummaries(order, servers, reads, activity)
+  const now = useMinute()
+
+  return (
+    <SideCard
+      title="Seus servidores"
+      action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : 'Ver todos'}</LinkButton>}
+    >
+      {!loaded ? (
+        <SideSkeleton />
+      ) : list.length === 0 ? (
+        <p className="py-3 text-sm text-fg-subtle">Você ainda não está em nenhum servidor.</p>
+      ) : (
+        <ul className="space-y-1">
+          {(all ? list : list.slice(0, SERVERS_PREVIEW)).map((s) => {
+            const live = [s.inCall && `${s.inCall} em call`, s.streaming && `${s.streaming} transmitindo`].filter(Boolean).join(' · ')
+            const line = live || (s.lastActivity ? `Última mensagem há ${ago(s.lastActivity, now)}` : 'Sem mensagens ainda')
+            return (
+              <li key={s.server.id}>
+                <button
+                  type="button"
+                  onClick={() => useNav.getState().openServer(s.server.id)}
+                  className="flex w-full items-center gap-3 rounded-item px-1 py-1.5 text-left hover:bg-elevated"
+                >
+                  <ServerIcon name={s.server.name} url={s.server.icon_url} size={34} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{s.server.name}</span>
+                    <span className="block truncate text-xs text-fg-subtle">{line}</span>
+                  </span>
+                  <CountBadge count={s.mentions} tone="danger" />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </SideCard>
+  )
+}
+
+/** "**bold**" in changelog lines. */
+function Inline({ text }: { text: string }): ReactNode {
+  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : <Fragment key={i}>{part}</Fragment>
+  )
+}
+
+const NEWS_ITEMS = 3
+
+function News(): ReactNode {
+  const dismissed = useAppearance((s) => s.settings.news_dismissed)
+  const [version, setVersion] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    window.aureum.app.info().then((info) => setVersion(info.version), () => {})
+  }, [])
+  const notes = version ? releaseNotes(CHANGELOG, version) : null
+  // Dismissed until the next version.
+  if (!version || !notes || dismissed === version) return null
+
+  return (
+    <SideCard
+      title="Novidades do Aureum"
+      className="border-accent/50 bg-accent/5"
+      action={
+        <button
+          type="button"
+          title="Dispensar"
+          aria-label="Dispensar"
+          onClick={() => useAppearance.getState().update({ news_dismissed: version })}
+          className="shrink-0 self-center rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg"
+        >
+          <X size={16} />
+        </button>
+      }
+    >
+      <p className="mb-2 text-xs font-semibold text-accent-text">{notes.title}</p>
+      <ul className="list-disc space-y-1.5 pl-5 text-sm">
+        {notes.items.slice(0, NEWS_ITEMS).map((item) => (
+          <li key={item} className="line-clamp-2">
+            <Inline text={item} />
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3">
+        <LinkButton onClick={() => setOpen(true)}>Ver tudo que mudou</LinkButton>
+      </div>
+      {open && (
+        <Modal title="Novidades do Aureum" onClose={() => setOpen(false)} wide>
+          <div className="space-y-5 pr-1">
+            {CHANGELOG.map((section) => (
+              <section key={section.title}>
+                <h3 className="font-display font-semibold">{section.title}</h3>
+                <ul className="mt-1.5 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+                  {section.items.map((item) => (
+                    <li key={item}>
+                      <Inline text={item} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </Modal>
+      )}
+    </SideCard>
   )
 }

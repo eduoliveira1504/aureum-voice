@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -27,6 +28,8 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
-    plugins: [base64Import(), react(), tailwindcss()]
+    plugins: [base64Import(), react(), tailwindcss()],
+    // The repo's CHANGELOG.md is built into the app (Novidades in Home); the dev server may read it.
+    server: { fs: { allow: [resolve(__dirname, '../..')] } }
   }
 })
