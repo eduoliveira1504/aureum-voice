@@ -123,7 +123,7 @@ Objetivo: o Início deixa de abrir na lista de amigos e vira um hub com o que im
    nome, bolinha vermelha quando alguém transmite, contador de pessoas em call e badge de
    menções, ordenada por atividade. Clicar abre a aba do servidor e a reabre se estava fechada
    (é por aqui que a pessoa recupera abas fechadas). Último item "+": o mesmo fluxo de
-   criar/entrar em servidor do topo. Até 10 + "Ver todos". Em janela estreita a grade quebra
+   criar/entrar em servidor do topo. Até 6 + "Ver todos" (lista completa num modal). Em janela estreita a grade quebra
    em mais linhas, sem rolagem lateral.
 7. Novidades do Aureum (coluna lateral, borda accent sutil): versão instalada e 3 itens do
    CHANGELOG local do app; "Ver tudo que mudou" abre o CHANGELOG num modal. Dá pra

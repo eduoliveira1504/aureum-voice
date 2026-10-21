@@ -717,7 +717,8 @@ function AllTasksModal({ onClose }: { onClose(): void }): ReactNode {
 }
 
 const FRIENDS_PREVIEW = 6
-const SERVERS_PREVIEW = 10
+// Three rows of two beside the live rooms; the rest in "Ver todos".
+const SERVERS_PREVIEW = 6
 
 /** Where a friend is in a call that I can see: a server room or one of my conversations. */
 interface FriendCall {
@@ -910,9 +911,10 @@ export function serverSummaries(
 }
 
 /**
- * A compact grid of my servers beside the live rooms, most active first: a red dot when someone streams, people in a
- * call and mentions. Opening one brings its tab back if it was closed, so this is also where
- * closed tabs come back. The last tile creates or joins a server.
+ * A compact grid of my servers beside the live rooms, most active first: a red dot when someone
+ * streams, people in a call and mentions. Opening one brings its tab back if it was closed, so
+ * this is also where closed tabs come back. The last tile creates or joins a server; "Ver todos"
+ * lists every one in a modal, so the grid never grows past the live rooms beside it.
  */
 function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
   const order = useChat((s) => s.order)
@@ -922,14 +924,12 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
   const activity = useHome((s) => s.activity)
   const [all, setAll] = useState(false)
   const list = serverSummaries(order, servers, reads, activity)
-  const shown = all ? list : list.slice(0, SERVERS_PREVIEW)
-  const tile = 'flex min-w-0 items-center gap-2 rounded-control border border-line bg-panel px-2.5 py-2 text-left'
 
   return (
     <section aria-label="Seus servidores">
       <SectionHeader
         title="Seus servidores"
-        action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : `Ver todos (${list.length})`}</LinkButton>}
+        action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(true)}>Ver todos ({list.length})</LinkButton>}
       />
       {!loaded ? (
         <div className={SERVER_GRID}>
@@ -939,35 +939,9 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
         </div>
       ) : (
         <ul className={SERVER_GRID}>
-          {shown.map((s) => (
+          {list.slice(0, SERVERS_PREVIEW).map((s) => (
             <li key={s.server.id} className="min-w-0">
-              <button
-                type="button"
-                title={s.server.name}
-                onClick={() => useNav.getState().openServer(s.server.id)}
-                className={`${tile} w-full hover:border-accent/60`}
-              >
-                <span className="relative shrink-0">
-                  <ServerIcon name={s.server.name} url={s.server.icon_url} size={32} />
-                  {s.streaming > 0 && (
-                    <span
-                      title={`${s.streaming} transmitindo`}
-                      aria-label={`${s.streaming} transmitindo`}
-                      className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-danger"
-                    />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{s.server.name}</span>
-                  {s.inCall > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-success">
-                      <Volume2 size={12} className="shrink-0" />
-                      {s.inCall} em call
-                    </span>
-                  )}
-                </span>
-                <CountBadge count={s.mentions} tone="danger" />
-              </button>
+              <ServerTile summary={s} />
             </li>
           ))}
           <li className="min-w-0">
@@ -976,7 +950,7 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
               onClick={onAdd}
               aria-label="Criar ou entrar em um servidor"
               title="Criar ou entrar em um servidor"
-              className={`${tile} h-full w-full justify-center border-dashed text-fg-muted hover:border-accent/60 hover:text-fg`}
+              className={`${TILE} h-full w-full justify-center border-dashed text-fg-muted hover:border-accent/60 hover:text-fg`}
             >
               <Plus size={18} />
               {list.length === 0 && <span className="text-sm font-medium">Criar ou entrar em um servidor</span>}
@@ -984,7 +958,55 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
           </li>
         </ul>
       )}
+      {all && (
+        <Modal title="Seus servidores" onClose={() => setAll(false)} wide>
+          <ul className={SERVER_GRID}>
+            {list.map((s) => (
+              <li key={s.server.id} className="min-w-0">
+                <ServerTile summary={s} onOpen={() => setAll(false)} />
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
     </section>
+  )
+}
+
+const TILE = 'flex min-w-0 items-center gap-2 rounded-control border border-line bg-panel px-2.5 py-2 text-left'
+
+function ServerTile({ summary: s, onOpen }: { summary: ServerSummary; onOpen?: () => void }): ReactNode {
+  return (
+    <button
+      type="button"
+      title={s.server.name}
+      onClick={() => {
+        onOpen?.()
+        useNav.getState().openServer(s.server.id)
+      }}
+      className={`${TILE} w-full hover:border-accent/60`}
+    >
+      <span className="relative shrink-0">
+        <ServerIcon name={s.server.name} url={s.server.icon_url} size={32} />
+        {s.streaming > 0 && (
+          <span
+            title={`${s.streaming} transmitindo`}
+            aria-label={`${s.streaming} transmitindo`}
+            className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-danger"
+          />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{s.server.name}</span>
+        {s.inCall > 0 && (
+          <span className="flex items-center gap-1 text-xs text-success">
+            <Volume2 size={12} className="shrink-0" />
+            {s.inCall} em call
+          </span>
+        )}
+      </span>
+      <CountBadge count={s.mentions} tone="danger" />
+    </button>
   )
 }
 

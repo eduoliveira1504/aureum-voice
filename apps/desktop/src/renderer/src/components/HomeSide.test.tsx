@@ -136,15 +136,19 @@ describe('Seus servidores', () => {
     expect(await screen.findByRole('dialog', { name: 'Criar um servidor' })).toBeTruthy()
   })
 
-  it('shows up to 10, and Ver todos lists the rest', () => {
+  it('shows up to 6, and Ver todos lists them all', async () => {
     const many = Array.from({ length: 12 }, (_, i) => server(`s-${i}`, `Servidor ${i}`, []))
     useChat.setState({ servers: Object.fromEntries(many.map((s) => [s.id, s])), order: many.map((s) => s.id) })
     render(<HomeHub me={ME} />)
     const grid = screen.getByRole('region', { name: 'Seus servidores' })
     const tiles = (): HTMLElement[] => within(grid).getAllByRole('button', { name: /Servidor [0-9]+/ })
-    expect(tiles()).toHaveLength(10)
+    expect(tiles()).toHaveLength(6)
     fireEvent.click(within(grid).getByRole('button', { name: 'Ver todos (12)' }))
-    expect(tiles()).toHaveLength(12)
+    const dialog = await screen.findByRole('dialog', { name: 'Seus servidores' })
+    expect(within(dialog).getAllByRole('button', { name: /Servidor [0-9]+/ })).toHaveLength(12)
+    fireEvent.click(within(dialog).getByRole('button', { name: /Servidor 11/ }))
+    expect(useNav.getState().place).toBe('s-11')
+    expect(screen.queryByRole('dialog', { name: 'Seus servidores' })).toBeNull()
   })
 })
 
