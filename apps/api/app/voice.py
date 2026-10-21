@@ -83,6 +83,9 @@ class VoiceState(VoiceFlags):
     # Set by a moderator (server rooms only); clients can't change them.
     server_muted: bool = False
     server_deafened: bool = False
+    # When they entered this room (kept across mute/camera changes); set by set_state. None
+    # only for states stored before the field existed.
+    joined_at: datetime | None = None
 
 
 def apply_moderation(state: VoiceState, *, muted: bool, deafened: bool) -> None:
@@ -237,6 +240,10 @@ async def set_state(state: VoiceState, scope: Scope, recipients_for: RecipientsF
     """Puts the user in a voice channel, leaving any channel they were in elsewhere."""
     redis = broker.redis
     previous = await current_state(state.user_id)
+    if previous is not None and previous[0] == scope and previous[1].channel_id == state.channel_id:
+        state.joined_at = previous[1].joined_at
+    else:
+        state.joined_at = datetime.now(UTC)
     if previous and previous[0] != scope:
         await _remove(state.user_id, previous[0], await recipients_for(previous[0], previous[1].channel_id))
     await redis.hset(_scope_key(scope), str(state.user_id), state.model_dump_json())

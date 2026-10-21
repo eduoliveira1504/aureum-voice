@@ -96,3 +96,23 @@ async def test_explicit_leave_and_channel_delete(client: AsyncClient) -> None:
 def test_unknown_plans_get_the_free_tier() -> None:
     # A plan without a tier yet (e.g. added to the enum before its limits) never breaks calls.
     assert media.tier_for("someday") == media.TIERS[UserPlan.free]  # type: ignore[arg-type]
+
+
+async def test_voice_state_says_when_they_joined_the_room(client: AsyncClient) -> None:
+    owner = await make_user(client, "owner")
+    server = await make_server(owner)
+    vid = voice_channel(server)
+    other = (await owner.post(f"/servers/{server['id']}/channels", {"name": "Outra", "type": "voice"})).json()["id"]
+
+    async with ws_client() as wsc, aconnect_ws(f"/ws?token={owner.token}", wsc) as ws:
+        await next_event(ws, "ready")
+        await ws.send_json({"type": "voice.update", "data": {"channel_id": vid}})
+        joined = (await next_event(ws, "voice.state"))["state"]["joined_at"]
+        assert joined is not None
+        # Toggling the mic or camera keeps it; moving to another room starts over.
+        await ws.send_json({"type": "voice.update", "data": {"channel_id": vid, "muted": True}})
+        assert (await next_event(ws, "voice.state"))["state"]["joined_at"] == joined
+        await ws.send_json({"type": "voice.update", "data": {"channel_id": other}})
+        while (event := await next_event(ws, "voice.state"))["state"] is None:
+            pass
+        assert event["state"]["channel_id"] == other and event["state"]["joined_at"] > joined
