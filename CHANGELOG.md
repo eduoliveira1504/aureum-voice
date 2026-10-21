@@ -8,7 +8,7 @@
   amigos online e as novidades da versão. A lista de amigos virou o item **Amigos** na barra lateral.
 - Clicar numa menção ou mensagem no Início abre a conversa já na mensagem; clicar numa tarefa abre
   o card no quadro.
-- A @aureum aparece sempre online, e avisa sozinha no #avisos quando sai versão nova.
+- A conta oficial do Aureum aparece sempre online, e avisa sozinha no #avisos quando sai versão nova.
 - **Problemas reportados** (só para o dono do app): botão **Confirmar bug**, que avisa no canal de
   bugs e para quem reportou que o bug já está sendo corrigido.
 
@@ -30,7 +30,7 @@
   desliga separados para supressão de ruído, cancelamento de eco e ganho automático;
   sensibilidade automática ou manual; e o nome do microfone em uso. Usando fone Bluetooth, o app
   avisa quando a qualidade cai.
-- **@aureum, a conta oficial:** uma conversa fixa no topo das suas mensagens, só de leitura, com
+- **A conta oficial do Aureum:** uma conversa fixa no topo das suas mensagens, só de leitura, com
   avisos de segurança (senha ou e-mail alterados, login num computador novo), insígnias ganhas,
   bugs resolvidos, convites usados e novidades. Em **Configurações › Notificações** você escolhe o
   que receber (segurança fica sempre ligada). O Aureum nunca pede sua senha ou código.

@@ -14,7 +14,12 @@
 // latest.yml.
 //
 // The release text is this version's section of CHANGELOG.md ("## <version>"): @aureum posts it
-// in the avisos channel once the release is published (apps/api/app/bot/releases.py).
+// in the avisos channel once the release is published (apps/api/app/bot/releases.py). It may not
+// @mention anyone: on GitHub "@name" is a real account (there is a stranger called "aureum"),
+// which would be notified and listed as a contributor of the release.
+//
+// `npm run release -- --notes-only` just rewrites the existing draft's text from CHANGELOG.md,
+// without building or uploading anything.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -77,6 +82,14 @@ const changelogNotes = () => {
 }
 
 const notes = changelogNotes()
+// "@name" outside `code`, not part of an e-mail address.
+const mentions = notes.replace(/`[^`]*`/g, '').match(/(?<![\w.@`])@[A-Za-z0-9-]+/g)
+if (mentions) {
+  fail(
+    `the CHANGELOG section for ${version} mentions ${[...new Set(mentions)].join(', ')}. On GitHub that ` +
+      'notifies those accounts and lists them as contributors. Rephrase it (e.g. "a conta oficial do Aureum").'
+  )
+}
 if (!notes) {
   console.warn(`CHANGELOG.md has no "## ${version}" section: the release (and @aureum's announcement) goes without notes.`)
 }
@@ -84,6 +97,10 @@ if (!notes) {
 // Drafts only show up in the list (never in /releases/tags/:tag), and they are listed first.
 const releasesForTag = async () =>
   (await github('GET', '/releases?per_page=100')).filter((release) => release.tag_name === tag)
+
+// Sent whole on every create or edit: editing a draft without tag_name turns it into an
+// "untagged-..." draft, which would ship without its tag (and break updates).
+const draftFields = { tag_name: tag, name: version, body: notes, draft: true, prerelease: false }
 
 const prepareDraft = async () => {
   const existing = await releasesForTag()
@@ -98,11 +115,11 @@ const prepareDraft = async () => {
     )
   }
   if (existing.length === 1) {
-    await github('PATCH', `/releases/${existing[0].id}`, { body: notes })
+    await github('PATCH', `/releases/${existing[0].id}`, draftFields)
     console.log(`Reusing the existing draft for ${tag}.`)
     return
   }
-  await github('POST', '/releases', { tag_name: tag, name: version, body: notes, draft: true, prerelease: false })
+  await github('POST', '/releases', draftFields)
   console.log(`Created the draft release for ${tag}.`)
 }
 
@@ -138,6 +155,16 @@ const run = (args) => {
     env: { ...process.env, GH_TOKEN: token }
   })
   if (result.status !== 0) process.exit(result.status ?? 1)
+}
+
+if (process.argv.includes('--notes-only')) {
+  const releases = await github('GET', '/releases?per_page=100')
+  // Also finds a draft that an edit without the tag already turned into "untagged-...".
+  const drafts = releases.filter((r) => r.draft && (r.tag_name === tag || (r.name === version && r.tag_name.startsWith('untagged-'))))
+  if (drafts.length !== 1) fail(`expected exactly 1 draft for ${tag} on GitHub, found ${drafts.length}.`)
+  await github('PATCH', `/releases/${drafts[0].id}`, draftFields)
+  console.log(`Updated the text of the draft for ${tag}: ${drafts[0].html_url}`)
+  process.exit(0)
 }
 
 run(['run', 'build'])
