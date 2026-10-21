@@ -34,6 +34,9 @@ import { userContextMenu } from './UserMenu'
 const MAX_LENGTH = 4000
 const MAX_FILES = 10
 const GROUP_WINDOW_MS = 5 * 60 * 1000
+// Opening on a message (from Home) loads at most this many older pages looking for it.
+const MAX_FOCUS_PAGES = 5
+const FLASH_MS = 2000
 
 const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
 const dayFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -261,6 +264,31 @@ export function ChatView({
     }
   }, [items])
 
+  // Opened on a given message (from Home's hub): load back to it, scroll there and flash it.
+  const focus = useChat((s) => (s.focus?.channelId === channel.id ? s.focus.messageId : null))
+  const [flash, setFlash] = useState<number | null>(null)
+  const focusTries = useRef(0)
+  useEffect(() => {
+    if (focus === null || !entry?.loaded || entry.loading) return
+    const el = listRef.current?.querySelector(`[data-message-id="${focus}"]`)
+    if (el) {
+      atBottom.current = false
+      el.scrollIntoView({ block: 'center' })
+      setFlash(focus)
+    } else if (entry.hasMore && focusTries.current < MAX_FOCUS_PAGES) {
+      focusTries.current++
+      loadMessages(channel.id, true).catch(() => useChat.getState().clearFocus())
+      return
+    }
+    focusTries.current = 0
+    useChat.getState().clearFocus()
+  }, [focus, entry?.loaded, entry?.loading, entry?.hasMore, items, channel.id, loadMessages])
+  useEffect(() => {
+    if (flash === null) return
+    const timer = setTimeout(() => setFlash(null), FLASH_MS)
+    return () => clearTimeout(timer)
+  }, [flash])
+
   function onScroll(): void {
     const el = listRef.current
     if (!el) return
@@ -335,7 +363,11 @@ export function ChatView({
             prev.author?.id === message.author?.id &&
             date.getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS
           return (
-            <Fragment key={message.id}>
+            <div
+              key={message.id}
+              data-message-id={message.id}
+              className={`transition-colors duration-700 ${flash === message.id ? 'bg-accent/10' : ''}`}
+            >
               {newDay && (
                 <div className="mx-4 mb-1 mt-5 flex items-center gap-2 text-xs font-semibold text-fg-subtle">
                   <div className="h-px flex-1 bg-line" />
@@ -375,7 +407,7 @@ export function ChatView({
                   }
                 />
               )}
-            </Fragment>
+            </div>
           )
         })}
       </div>

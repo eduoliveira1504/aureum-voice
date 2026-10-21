@@ -1,19 +1,20 @@
-import { Gamepad2, Link2, Phone, Plus, Radio, UserPlus, type LucideIcon } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { AtSign, Gamepad2, Link2, Phone, PhoneMissed, Plus, Radio, UserPlus, type LucideIcon } from 'lucide-react'
+import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-import type { Me, User } from '../lib/api'
+import type { Me, Message, User } from '../lib/api'
+import { messagePreview } from '../lib/attachments'
 import { memberName } from '../lib/members'
 import { useActivity } from '../store/activity'
 import { useChat } from '../store/chat'
-import { friendsInCall, liveRooms, useHome, usePendingItems, type LiveRoom } from '../store/home'
-import { useNav } from '../store/nav'
-import { dmTitle, useSocial } from '../store/social'
+import { friendsInCall, liveRooms, useHome, usePendingItems, type LiveRoom, type PendingItem } from '../store/home'
+import { channelTab, useNav } from '../store/nav'
+import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 import { AddServerModal } from './modals'
 import { activityLabel } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
-import { Avatar } from './ui'
+import { Avatar, GroupAvatar } from './ui'
 
 const LIVE_PREVIEW = 6
 const CARD_GRID = 'grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]'
@@ -70,6 +71,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-8 py-7">
         <Header me={me} onDialog={setDialog} />
         <LiveNow me={me} onCall={() => setDialog('call')} />
+        <Pending me={me} />
       </div>
       <Dialogs me={me} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
@@ -297,5 +299,257 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
         </button>
       </div>
     </article>
+  )
+}
+
+const PENDING_PREVIEW = 8
+const shortDate = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+
+/** "12 min", "3 h", "ontem", "18/10": how long ago, short. */
+export function ago(iso: string, now: number = Date.now()): string {
+  const minutes = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000))
+  if (minutes < 1) return 'agora'
+  if (minutes < 60) return `${minutes} min`
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h`
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  return new Date(iso).toDateString() === yesterday.toDateString() ? 'ontem' : shortDate.format(new Date(iso))
+}
+
+/** A message in one line: its text, or what it carries ("Mensagem de voz · 0:42"). */
+export function previewOf(message: Message): string {
+  const voice = message.attachments.find((a) => a.kind === 'voice')
+  if (voice) {
+    const seconds = Math.round((voice.duration_ms ?? 0) / 1000)
+    return `Mensagem de voz · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  }
+  return messagePreview(message).replace(/\s+/g, ' ')
+}
+
+function Pending({ me }: { me: Me }): ReactNode {
+  const loaded = useHome((s) => s.loaded)
+  const items = usePendingItems()
+  const [all, setAll] = useState(false)
+  const [error, setError] = useState(false)
+  const shown = all ? items : items.slice(0, PENDING_PREVIEW)
+  const readable = items.some((i) => i.kind === 'mention' || i.kind === 'dm')
+  const now = useMinute()
+
+  const markAll = (): void => {
+    setError(false)
+    useHome.getState().markAllRead().catch(() => setError(true))
+  }
+
+  return (
+    <section aria-label="Pra você ver" className="rounded-panel border border-line bg-panel/40 p-4">
+      <SectionHeader title="Pra você ver" action={readable && <LinkButton onClick={markAll}>Marcar tudo como lido</LinkButton>} />
+      {error && <p className="mb-2 text-sm text-danger">Não foi possível marcar como lido. Tente de novo.</p>}
+      {!loaded ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} aria-hidden className="h-14 animate-pulse rounded-item bg-elevated/60" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-fg-subtle">Nada pendente por aqui.</p>
+      ) : (
+        <ul className="space-y-1">
+          {shown.map((item) => (
+            <li key={item.key}>
+              <PendingRow item={item} me={me} now={now} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {items.length > PENDING_PREVIEW && (
+        <div className="mt-2 text-center">
+          <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : `Ver tudo (${items.length})`}</LinkButton>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number }): ReactNode {
+  const [busy, setBusy] = useState(false)
+  const run = (fn: () => Promise<unknown>) => (): void => {
+    setBusy(true)
+    fn().catch(() => setBusy(false))
+  }
+  const nav = useNav.getState()
+  const social = useSocial.getState()
+
+  if (item.kind === 'mention') {
+    const { server, message } = item
+    const channel = server.channels.find((c) => c.id === message.channel_id)
+    const author = server.members.find((m) => m.user.id === message.author?.id)
+    const name = author ? memberName(author) : (message.author?.display_name ?? 'Alguém')
+    const open = (): void => {
+      nav.openServer(server.id)
+      nav.openTab(server.id, channelTab(message.channel_id))
+      useChat.getState().focusMessage(message.channel_id, message.id)
+    }
+    return (
+      <Row
+        icon={<RowIcon tone="accent" icon={AtSign} />}
+        title={
+          <>
+            <b>{name}</b> mencionou você em <b>#{channel?.name}</b>
+          </>
+        }
+        detail={`“${previewOf(message)}” · ${server.name}`}
+        time={ago(message.created_at, now)}
+        onOpen={open}
+        highlight
+      />
+    )
+  }
+
+  if (item.kind === 'dm') {
+    const { dm, message, unread } = item
+    const peer = dmPeer(dm, me.id)
+    const count = unread === 1 ? 'uma mensagem' : `${unread} mensagens`
+    const open = (): void => {
+      nav.openHome(dm.id)
+      useChat.getState().focusMessage(dm.id, message.id)
+    }
+    return (
+      <Row
+        icon={peer ? <Avatar name={peer.display_name} url={peer.avatar_url} size={32} /> : <GroupAvatar url={dm.icon_url} size={32} />}
+        title={
+          peer ? (
+            <>
+              <b>{peer.display_name}</b> mandou {count}
+            </>
+          ) : (
+            <>
+              {count[0].toUpperCase() + count.slice(1)} em <b>{dmTitle(dm, me.id)}</b>
+            </>
+          )
+        }
+        detail={peer ? previewOf(message) : `${message.author?.display_name ?? 'Alguém'}: ${previewOf(message)}`}
+        time={ago(message.created_at, now)}
+        onOpen={open}
+      />
+    )
+  }
+
+  if (item.kind === 'missed_call') {
+    const { dm, call } = item
+    const caller = dm?.members.find((m) => m.user.id === call.started_by)?.user
+    return (
+      <Row
+        icon={<RowIcon tone="danger" icon={PhoneMissed} />}
+        title={
+          <>
+            Chamada perdida de <b>{caller?.display_name ?? 'alguém'}</b>
+          </>
+        }
+        detail={dm?.type === 'group_dm' ? dmTitle(dm, me.id) : undefined}
+        time={ago(call.started_at, now)}
+        onOpen={dm ? () => nav.openHome(dm.id) : undefined}
+        actions={
+          dm && (
+            <RowButton
+              disabled={busy}
+              onClick={run(async () => {
+                nav.openHome(dm.id)
+                await social.startCall(dm.id)
+              })}
+            >
+              Ligar
+            </RowButton>
+          )
+        }
+      />
+    )
+  }
+
+  const { friend } = item
+  return (
+    <Row
+      icon={<RowIcon tone="success" icon={UserPlus} />}
+      title={
+        <>
+          <b>@{friend.user.username}</b> quer ser seu amigo
+        </>
+      }
+      detail={friend.user.display_name}
+      time={ago(friend.since, now)}
+      actions={
+        <>
+          <RowButton primary disabled={busy} onClick={run(() => social.accept(friend.user.id))}>
+            Aceitar
+          </RowButton>
+          <RowButton disabled={busy} onClick={run(() => social.remove(friend.user.id))}>
+            Recusar
+          </RowButton>
+        </>
+      }
+    />
+  )
+}
+
+const ICON_TONES = { accent: 'bg-accent/15 text-accent-text', danger: 'bg-danger/15 text-danger', success: 'bg-success/15 text-success' }
+
+function RowIcon({ tone, icon: Icon }: { tone: keyof typeof ICON_TONES; icon: LucideIcon }): ReactNode {
+  return (
+    <span className={`flex h-8 w-8 items-center justify-center rounded-item ${ICON_TONES[tone]}`}>
+      <Icon size={16} />
+    </span>
+  )
+}
+
+function RowButton({ primary = false, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }): ReactNode {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`rounded-control px-3 py-1.5 text-sm font-semibold disabled:opacity-50 ${
+        primary ? 'bg-accent text-on-accent hover:bg-accent-hover' : 'border border-line text-fg hover:bg-elevated'
+      }`}
+    />
+  )
+}
+
+function Row({
+  icon,
+  title,
+  detail,
+  time,
+  actions,
+  highlight = false,
+  onOpen
+}: {
+  icon: ReactNode
+  title: ReactNode
+  detail?: string
+  time: string
+  actions?: ReactNode
+  /** Mentions stand out a little. */
+  highlight?: boolean
+  onOpen?: () => void
+}): ReactNode {
+  const body = (
+    <>
+      <span className="shrink-0">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm [&_b]:font-semibold">{title}</span>
+        {detail && <span className="block truncate text-xs text-fg-subtle">{detail}</span>}
+      </span>
+      {!actions && <span className="shrink-0 text-xs text-fg-subtle">{time}</span>}
+    </>
+  )
+  return (
+    <div className={`flex items-center gap-3 rounded-item px-3 py-2 ${highlight ? 'bg-elevated' : onOpen ? 'hover:bg-elevated' : ''}`}>
+      {onOpen ? (
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          {body}
+        </button>
+      ) : (
+        <span className="flex min-w-0 flex-1 items-center gap-3">{body}</span>
+      )}
+      {actions && <span className="flex shrink-0 items-center gap-2">{actions}</span>}
+    </div>
   )
 }

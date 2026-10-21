@@ -58,6 +58,8 @@ interface ChatState {
   messages: Record<string, ChannelMessages>
   /** Unread/mention counters per text channel id. */
   reads: Record<string, ReadState>
+  /** A message to scroll to when its channel shows up on screen (opened from Home's hub). */
+  focus: { channelId: string; messageId: number } | null
 
   reset(meId: string | null): void
   setStatus(status: ConnectionStatus): void
@@ -75,6 +77,8 @@ interface ChatState {
   addServer(server: ServerDetail): void
   /** Refetches one server (its roles or permissions changed: which channels we see may differ). */
   refreshServer(id: string): Promise<void>
+  focusMessage(channelId: string, messageId: number): void
+  clearFocus(): void
   /** Adds read states loaded elsewhere (DMs come with the social store). */
   mergeReads(states: ReadState[]): void
   applyEvent(event: ServerEvent): void
@@ -99,7 +103,8 @@ const initial = {
   servers: {},
   order: [],
   messages: {},
-  reads: {}
+  reads: {},
+  focus: null
 }
 
 export const useChat = create<ChatState>()((set, get) => {
@@ -245,6 +250,9 @@ export const useChat = create<ChatState>()((set, get) => {
       if (voice.serverId === id && voice.channelId && !visible.has(voice.channelId)) void voice.leave()
       get().addServer(detail)
     },
+
+    focusMessage: (channelId, messageId) => set({ focus: { channelId, messageId } }),
+    clearFocus: () => set({ focus: null }),
 
     mergeReads: (states) =>
       set((st) => ({ reads: { ...st.reads, ...Object.fromEntries(states.map((r) => [r.channel_id, r])) } })),
