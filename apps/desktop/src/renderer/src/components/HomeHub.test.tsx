@@ -2,7 +2,7 @@
  * Block 3.4: Home opens on the hub (Início), with Amigos next to it in the sidebar.
  */
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '../lib/api'
@@ -10,8 +10,9 @@ import type { Me, User } from '../lib/api'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useSocial } from '../store/social'
-import { greeting } from './HomeHub'
+import { greeting, hubSummary } from './HomeHub'
 import { Sidebar } from './Sidebar'
+import { StartCallModal } from './socialModals'
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ state: { status: 'signedIn', user: ME }, logout: async () => {}, setUser: () => {} })
@@ -59,6 +60,42 @@ describe('greeting', () => {
       'Boa noite',
       'Boa noite'
     ])
+  })
+})
+
+describe('summary line', () => {
+  it('counts friends in a call and things waiting, or says all is clear', () => {
+    expect(hubSummary(2, 4)).toBe('2 amigos em call agora e 4 coisas esperando por você.')
+    expect(hubSummary(1, 0)).toBe('1 amigo em call agora.')
+    expect(hubSummary(0, 1)).toBe('1 coisa esperando por você.')
+    expect(hubSummary(0, 0)).toBe('Tudo em dia por aqui.')
+  })
+})
+
+describe('Iniciar chamada', () => {
+  it('calls a friend through their DM, or a group', async () => {
+    const group = { id: 'g-1', type: 'group_dm', name: 'Duo de sexta', icon_url: null, members: [], last_message_id: 1, voice_states: [] }
+    useSocial.setState({
+      friends: { [ANA.id]: { user: ANA, kind: 'friend', since: '2026-01-01T00:00:00Z', status: 'online' } },
+      dms: { [group.id]: group as never }
+    })
+    const openDm = vi.fn(async () => 'd-ana')
+    const startCall = vi.fn(async () => {})
+    useSocial.setState({ openDm, startCall } as never)
+    const onClose = vi.fn()
+    const { unmount } = render(<StartCallModal meId={ME.id} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: /Ana/ }))
+    await waitFor(() => expect(startCall).toHaveBeenCalledWith('d-ana'))
+    expect(openDm).toHaveBeenCalledWith(ANA.id)
+    expect(useNav.getState().homePage).toBe('d-ana')
+    expect(onClose).toHaveBeenCalled()
+    unmount()
+
+    render(<StartCallModal meId={ME.id} onClose={() => {}} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar amigos e grupos' }), { target: { value: 'sexta' } })
+    expect(screen.queryByRole('button', { name: /Ana/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Duo de sexta/ }))
+    await waitFor(() => expect(startCall).toHaveBeenCalledWith('g-1'))
   })
 })
 

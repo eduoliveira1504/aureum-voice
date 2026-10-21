@@ -23,7 +23,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   user_audio: {},
   column_sizes: {},
   muted_places: [],
-  official_dm: {}
+  official_dm: {},
+  news_dismissed: null
 }
 
 const CACHE_KEY = 'aureum.appearance'

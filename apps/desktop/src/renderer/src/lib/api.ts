@@ -175,6 +175,8 @@ export interface UserSettings {
   muted_places: string[]
   /** Official DM categories turned off (false); missing ones are on. */
   official_dm: Record<string, boolean>
+  /** The app version whose "Novidades do Aureum" card in Home was dismissed. */
+  news_dismissed: string | null
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
@@ -379,6 +381,37 @@ export interface Message {
   system?: MessageSystem | null
   /** Posted by @aureum. Only counts with an official author (author.is_official). */
   official?: { category: string; badge?: string } | null
+}
+
+/** GET /users/me/home: what the Home hub needs beyond what the app already holds. */
+export interface HomeData {
+  /** Unread messages that mention me, newest first. */
+  mentions: { server_id: string; message: Message }[]
+  /** Unread DMs and groups (not silenced) with the newest message from someone else. */
+  dms: { channel_id: string; unread_count: number; message: Message }[]
+  /** The first few of my tasks (GET /users/me/tasks has them all). */
+  tasks: HomeTask[]
+  tasks_total: number
+  /** Newest message in a channel I can see, per server. */
+  servers: { id: string; last_activity_at: string | null }[]
+}
+
+/** Something assigned to me in an addon (a Kanban card), not finished. */
+export interface HomeTask {
+  id: string
+  addon_key: string
+  workspace_id: string
+  title: string
+  /** Where it stands, in the addon's words (the card's column). */
+  status: string
+  /** Colors are label token names (--label-<color>). */
+  labels: { name: string; color: string }[]
+  due_date: string | null
+  updated_at: string
+  server_id: string
+  server_name: string
+  channel_id: string
+  channel_name: string
 }
 
 export interface MessageSystem {

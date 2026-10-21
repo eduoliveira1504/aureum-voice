@@ -22,6 +22,7 @@ import { useActivity } from '../store/activity'
 import { loadAppearance, useAppearance } from '../store/appearance'
 import { useBadges } from '../store/badges'
 import { useChat } from '../store/chat'
+import { useHome } from '../store/home'
 import { layoutOf, membersOpenFor, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
@@ -71,6 +72,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         useActivity.getState().applyEvent(event)
         useChat.getState().applyEvent(event)
         useSocial.getState().applyEvent(event)
+        useHome.getState().applyEvent(event)
       },
       (s) => useChat.getState().setStatus(s)
     )

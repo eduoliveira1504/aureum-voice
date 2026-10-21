@@ -1,7 +1,7 @@
 import { Ban, Check, EllipsisVertical, MessageCircle, Phone, UserMinus, UserPlus, Users, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { ApiError, type Friend, type Me, type User } from '../lib/api'
+import { type Friend, type Me, type User } from '../lib/api'
 import { useActivity, useUserActivity } from '../store/activity'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
@@ -10,6 +10,7 @@ import { useVoice } from '../store/voice'
 import { DmView } from './DmView'
 import { HomeHub } from './HomeHub'
 import { ConfirmModal } from './modals'
+import { AddFriend } from './socialModals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
 import { ActivityLine, activityLabel, StatusBubble, useElapsed } from './profileBits'
 import { userContextMenu } from './UserMenu'
@@ -143,81 +144,6 @@ function EmptyTab({ tab, onAdd }: { tab: Tab; onAdd(): void }): ReactNode {
           Adicionar pelo @username
         </button>
       )}
-    </div>
-  )
-}
-
-function requestError(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.status === 404) return 'Ninguém com esse username.'
-    if (err.status === 400) return 'Esse é você.'
-    if (err.status === 403) return 'Não dá pra enviar um pedido para essa pessoa.'
-    if (err.status === 429) return 'Muitos pedidos seguidos. Tente de novo mais tarde.'
-    if (err.status === 409) return err.detail === 'Unblock this user first' ? 'Desbloqueie essa pessoa primeiro.' : 'Vocês já são amigos.'
-  }
-  return err instanceof TypeError ? 'Não foi possível conectar ao servidor.' : 'Algo deu errado. Tente de novo.'
-}
-
-function AddFriend(): ReactNode {
-  const sendRequest = useSocial((s) => s.sendRequest)
-  const [value, setValue] = useState('')
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  async function submit(e: FormEvent): Promise<void> {
-    e.preventDefault()
-    const username = value.trim().replace(/^@/, '')
-    if (!username) return
-    setBusy(true)
-    try {
-      const friend = await sendRequest(username)
-      setResult({
-        ok: true,
-        text:
-          friend.kind === 'friend'
-            ? `Você e ${friend.user.display_name} agora são amigos.`
-            : `Pedido enviado para ${friend.user.display_name}.`
-      })
-      setValue('')
-    } catch (err) {
-      setResult({ ok: false, text: requestError(err) })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="px-6 py-6">
-      <h3 className="font-display text-lg font-semibold">Adicionar amigo</h3>
-      <p className="mt-1 text-sm text-fg-muted">Digite o @username da pessoa. Ela precisa aceitar o pedido.</p>
-      <form
-        onSubmit={submit}
-        className={`mt-4 flex items-center gap-2 rounded-control border bg-elevated p-1.5 pl-3 focus-within:ring-2 focus-within:ring-accent/25 ${
-          result ? (result.ok ? 'border-success' : 'border-danger') : 'border-line focus-within:border-accent'
-        }`}
-      >
-        <span className="text-fg-subtle">@</span>
-        <input
-          autoFocus
-          value={value}
-          maxLength={33}
-          onChange={(e) => {
-            setValue(e.target.value)
-            setResult(null)
-          }}
-          placeholder="username"
-          aria-label="Username"
-          className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] outline-none placeholder:text-fg-subtle"
-        />
-        <button
-          type="submit"
-          disabled={busy || !value.trim()}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Enviar pedido
-        </button>
-      </form>
-      {result && <p className={`mt-2 text-sm ${result.ok ? 'text-success' : 'text-danger'}`}>{result.text}</p>}
     </div>
   )
 }

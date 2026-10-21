@@ -27,9 +27,9 @@ function parseInviteCode(input: string): string {
   return input.trim().split('/').filter(Boolean).pop() ?? ''
 }
 
-export function AddServerModal({ onClose }: { onClose(): void }): ReactNode {
+export function AddServerModal({ initial = 'create', onClose }: { initial?: 'create' | 'join'; onClose(): void }): ReactNode {
   const addServer = useChat((s) => s.addServer)
-  const [tab, setTab] = useState<'create' | 'join'>('create')
+  const [tab, setTab] = useState<'create' | 'join'>(initial)
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
