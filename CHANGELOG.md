@@ -1,6 +1,6 @@
 # Novidades do Aureum
 
-## Próxima versão
+## 0.2.0-beta.4
 
 - **Início novo:** o app abre num resumo do que importa agora. Mostra quem está em call nos seus
   servidores e grupos (com a tela de quem está transmitindo), menções e mensagens que você perdeu,

@@ -12,8 +12,9 @@ Ao terminar um bloco, marcar ✅ neste arquivo e atualizar a linha de Status (no
 de docs do bloco).
 
 Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
-o bot @aureum ligado em produção; 3.4 pronto no código, ainda sem release (a API precisa da
-migração news_dismissed, com pg_dump antes). Testes manuais pendentes listados no 3.1, no 3.2 e no 3.4.
+o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
+desde 21/10, backup backups/aureum-2026-10-21.dump). Testes manuais pendentes listados no 3.1, no
+3.2 e no 3.4.
 Próximo: 3.5 (Reordenar canais).
 
 ## Regras de produção (valem para todos os blocos)
