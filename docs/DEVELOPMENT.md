@@ -133,6 +133,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   Talvez / Não vou per occurrence, reminders from @aureum (a day and 15 minutes before, and at the
   start) and its own permission. Add-ons can list what has a date (`dated_items`), gathered by
   `GET /api/users/me/agenda` for Home and calendars ([ADR 0029](decisions/0029-events-and-dated-items.md))
+- A calendar add-on with month, week and list views of a server's events and Kanban due dates, each
+  item only from channels the user can see, with filters per source and "only mine"
+  ([ADR 0030](decisions/0030-calendar-addon.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](decisions/0003-design-tokens-and-themes.md))
 

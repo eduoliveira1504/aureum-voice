@@ -25,8 +25,11 @@ manual pendente listado na parte A. 3.9 parte B (Enquetes) pronta em 25/10 (API 
 core b8d4f2a6c731 e branch polls; app), ainda não em produção nem publicada; passos de produção
 acumulados no topo do 3.9. 3.9 parte C (Eventos) pronta em 25/10 (hook dated_items e agenda;
 API com branch events e permissão MANAGE_EVENTS sem migração; lembretes da @aureum dependem de
-`bot enable --acao dm-eventos`; app), ainda não em produção nem publicada.
-Próximo: 3.9 parte D (Calendário).
+`bot enable --acao dm-eventos`; app), ainda não em produção nem publicada. 3.9 parte D
+(Calendário) pronta em 25/10 (API sem migração; app). 3.9 ✅ inteiro em 25/10: falta a produção
+(lista acumulada no topo do 3.9, que também cobre o 3.8) e a release 0.2.0-beta.6 com o 3.6 ao
+3.9; testes manuais pendentes listados em cada parte.
+Próximo: 3.10 (Perfil: edição fora das Configurações e recorte de imagens), depois de publicar.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -167,7 +170,7 @@ contas e pergunta), com OK do Eduardo.
 - Testes: limite do Pioneiro (inclusive concorrência no nº 20), Beta Tester na
   confirmação e retroativa, conta oficial não recebe nenhuma das duas.
 
-## 3.9 Leva de addons: Quadro, Enquetes, Eventos e Calendário
+## 3.9 Leva de addons: Quadro, Enquetes, Eventos e Calendário ✅ concluído (falta produção e teste manual)
 Todos no framework do 2.8 (módulo isolado, tabelas addon_<key>_, workspace_id genérico,
 sem dependência direta de servidor dentro do módulo). Fazer na ordem A → D; cada parte
 pode virar release sozinha.
@@ -176,22 +179,25 @@ pode virar release sozinha.
 O Eduardo vai publicar o 3.6 ao 3.9 de uma vez. A API roda `alembic upgrade heads` sozinha ao
 subir (Dockerfile), então reconstruir a API aplica as migrações: o backup vem ANTES.
 1. Backup do banco (sem ele, nada segue):
-   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_dump -U aureum -Fc aureum > backups/aureum-AAAA-MM-DD.dump`
-   Restauração, se precisar:
-   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_restore -U aureum -d aureum --clean --if-exists < backups/aureum-AAAA-MM-DD.dump`
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > backups/aureum-AAAA-MM-DD.dump`
+   Conferir que o arquivo não está vazio (`ls -l backups/`). Restauração, se precisar:
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < backups/aureum-AAAA-MM-DD.dump`
 2. Reconstruir e reiniciar a API (aplica as migrações):
    `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
    Migrações que entram: core a7c3e1f5b902 (EDIT_WHITEBOARD ao @everyone, 3.9A) e core
    b8d4f2a6c731 (messages.embed, 3.9B); branches whiteboard (c2d8f4a6e310), polls
-   (d5a9e3c7f164) e events (e9b3d7f1a428). A permissão nova MANAGE_EVENTS (3.9C) não precisa
-   de migração. Conferir: `... exec api alembic current` mostra uma linha por branch.
+   (d5a9e3c7f164) e events (e9b3d7f1a428). A permissão nova MANAGE_EVENTS (3.9C) e o
+   Calendário (3.9D, sem tabelas) não precisam de migração. Conferir: `... exec api alembic current` mostra uma linha por branch.
 3. Do 3.8: `docker compose ... exec api python -m app.cli badges grant-all beta_tester`
    (mostra quantas contas e pergunta).
 4. Do 3.9C: ligar os lembretes de eventos da @aureum:
    `docker compose ... exec api python -m app.cli bot enable --acao dm-eventos`
    (os workers de prazo das enquetes e de lembretes dos eventos sobem sozinhos com a API).
-5. Release do app (`npm run release`, 0.2.0-beta.6) só depois da API no ar: apps antigos
-   continuam funcionando com a API nova (enquete aparece como texto "📊 Enquete: …").
+5. Conferir a API no ar: `curl -s https://<endereço do Funnel>/api/health` e o app atual
+   (beta.5.5) abrindo normalmente.
+6. Release do app (`npm run release`, 0.2.0-beta.6, seguindo o Ritual de release) só depois da
+   API no ar: apps antigos continuam funcionando com a API nova (enquete aparece como texto
+   "📊 Enquete: …"; os addons novos aparecem com o aviso de atualizar o app).
 
 ### Hook novo no framework (fazer antes da parte D; vai no começo da C) ✅ concluído
 - AddonManifest ganha o hook opcional dated_items(session, workspace_ids, inicio, fim):
@@ -273,7 +279,14 @@ quem marcou; desligar "Eventos" em Notificações para de chegar.
 - Testes: criar/editar/cancelar (avisa quem marcou), presença, lembretes na hora certa
   (inclusive fuso), repetição semanal, permissões.
 
-### D. Calendário (addon_key calendar)
+### D. Calendário (addon_key calendar) ✅ concluída (teste manual pendente)
+Ver docs/decisions/0030-calendar-addon.md. Produção: nada além da lista acumulada (sem migração).
+Teste manual: adicionar o addon Calendário num servidor com Eventos e Kanban; Mês, Semana e Lista;
+card com prazo aparece no dia certo e em vermelho quando atrasado; evento no dia e horário certos
+(fuso do PC); filtros por fonte (dois quadros Kanban separados) e "Só meus"; clicar abre o card no
+Kanban e o evento no Eventos; "Criar evento" num dia vazio abre o Eventos com a data; mudar o prazo
+de um card noutro PC e ver o calendário atualizar sozinho; um membro sem acesso a um quadro privado
+não vê os prazos dele; card "Calendário" na Visão geral.
 - Canal de addon "Calendário" no servidor, com visões Mês, Semana e Lista (próximos 30 dias).
 - NÃO guarda eventos próprios: junta, pelo hook dated_items, tudo que tem data nos
   addons do mesmo servidor que a pessoa pode ver: eventos (3.9C), prazos dos cards do
@@ -587,7 +600,8 @@ Funnel e do LiveKit Cloud.
 - ✅ (teste pendente) Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
 - ✅ (teste pendente) Trocar microfone, saída e câmera dentro da call, pela barra de controles.
 - ✅ (falta produção) 20 Pioneiros no máximo; todos os testers com Beta Tester.
-- Quadro branco, Enquetes, Eventos e Calendário (juntando Kanban e Eventos) funcionando.
+- ✅ (falta produção e teste manual) Quadro branco, Enquetes, Eventos e Calendário (juntando
+  Kanban e Eventos) funcionando.
 - Perfil editado direto do cartão, com recorte de avatar e banner (inclusive GIF).
 - Reações, emojis, figurinhas, visto nas DMs e preview de links no chat.
 - Categorias livres com permissões, inclusive categoria só pra admins.
