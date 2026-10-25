@@ -1,4 +1,4 @@
-import { Forward, Hash, Paperclip, Phone, PhoneMissed, Plus, Smile, Trash2 } from 'lucide-react'
+import { Check, CheckCheck, Forward, Hash, Paperclip, Phone, PhoneMissed, Plus, Smile, Trash2 } from 'lucide-react'
 import {
   Fragment,
   useEffect,
@@ -275,7 +275,8 @@ export function ChatView({
   nameOf,
   intro,
   placeholder,
-  readOnlyNote
+  readOnlyNote,
+  peerRead
 }: {
   channel: Channel
   me: Me
@@ -295,12 +296,15 @@ export function ChatView({
   /** Shown above the first message (defaults to the server channel's welcome). */
   intro?: ReactNode
   placeholder?: string
+  /** 1:1 DMs with read receipts: the last message the other person read (marks "Vista"). */
+  peerRead?: number | null
 }): ReactNode {
   const entry = useChat((s) => s.messages[channel.id])
   const loadMessages = useChat((s) => s.loadMessages)
   const markRead = useChat((s) => s.markRead)
   const deleteMessage = useChat((s) => s.deleteMessage)
   const items = entry?.items
+  const receipts = useMemo(() => receiptMarks(items ?? [], me.id, peerRead), [items, me.id, peerRead])
   const [editingId, setEditingId] = useState<number | null>(null)
   // The message being answered from the message box, and whether its author gets notified.
   const [replying, setReplying] = useState<{ message: Message; mention: boolean } | null>(null)
@@ -549,6 +553,7 @@ export function ChatView({
                       }
                     />
                   }
+                  receipt={receipts.get(message.id)}
                   quote={
                     message.reply_to_id ? (
                       <ReplyQuote message={message} nameOf={(id) => nameOf?.(id)} onJump={(id) => useChat.getState().focusMessage(channel.id, id)} />
@@ -749,10 +754,13 @@ function MessageRow({
   body,
   quote,
   reactions,
+  receipt,
   extra
 }: {
   /** The reaction chips under it. */
   reactions?: ReactNode
+  /** 1:1 DMs: "Enviada" or "Vista" under it (see receiptMarks). */
+  receipt?: Receipt
   message: Message
   /** Shown instead of the text (a chat addon's thing, like a poll). */
   body?: ReactNode
@@ -847,9 +855,38 @@ function MessageRow({
         {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
         {reactions}
+        {receipt && <ReceiptMark receipt={receipt} />}
       </div>
       {!editing && <MessageActionBar message={message} actions={actions} />}
     </div>
+  )
+}
+
+type Receipt = 'sent' | 'seen'
+
+/** Where the read receipts go in a 1:1 DM, so they don't fill the chat: "Vista" on the last of
+ * my messages the other person read, and "Enviada" on my last one when they haven't read it yet.
+ * Nothing while receipts are off (`peerRead` null). */
+export function receiptMarks(items: Message[], meId: string, peerRead: number | null | undefined): Map<number, Receipt> {
+  const marks = new Map<number, Receipt>()
+  if (peerRead === null || peerRead === undefined) return marks
+  const mine = items.filter((m) => m.author?.id === meId && !m.call && !m.system)
+  const seen = mine.findLast((m) => m.id <= peerRead)
+  const last = mine.at(-1)
+  if (seen) marks.set(seen.id, 'seen')
+  if (last && last !== seen) marks.set(last.id, 'sent')
+  return marks
+}
+
+function ReceiptMark({ receipt }: { receipt: Receipt }): ReactNode {
+  return receipt === 'seen' ? (
+    <span className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-accent">
+      <CheckCheck size={13} aria-hidden /> Vista
+    </span>
+  ) : (
+    <span className="mt-0.5 flex items-center gap-1 text-[11px] text-fg-subtle">
+      <Check size={13} aria-hidden /> Enviada
+    </span>
   )
 }
 

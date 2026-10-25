@@ -313,6 +313,9 @@ export const useSocial = create<SocialState>()((set, get) => {
             patchDm(data.channel_id, (dm) => ({ ...dm, last_message_id: Math.max(dm.last_message_id, data.id) }))
           }
           break
+        case 'dm.read':
+          patchDm(data.channel_id, (dm) => ({ ...dm, peer_read_message_id: data.last_read_message_id }))
+          break
         case 'read.updated':
           if (data.server_id === null) get().loadMissed() // reading a conversation clears its missed calls
           break

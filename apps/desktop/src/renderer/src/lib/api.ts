@@ -198,6 +198,8 @@ export interface UserSettings {
   /** Emoji picker: skin tone (0 default, 1-5 light to dark) and recent emojis, newest first. */
   emoji_tone: number
   recent_emojis: string[]
+  /** "Confirmação de leitura" in 1:1 DMs; off hides it both ways. */
+  read_receipts: boolean
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
@@ -325,6 +327,9 @@ export interface Dm {
   read: ReadState
   call: Call | null
   voice_states: VoiceState[]
+  /** 1:1 DMs: the last message the other person read, while both have read receipts on (null
+   * otherwise; missing from older APIs). Changes come as "dm.read". */
+  peer_read_message_id?: number | null
 }
 
 export interface Server {

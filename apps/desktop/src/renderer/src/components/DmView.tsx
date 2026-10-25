@@ -2,6 +2,7 @@ import { LogOut, MessageSquare, Pencil, Phone, UserPlus, Users } from 'lucide-re
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { ApiError, type Channel, type Dm, type Me, type User } from '../lib/api'
+import { useAppearance } from '../store/appearance'
 import { useNav } from '../store/nav'
 import { dmPeer, dmTitle, RING_MS, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
@@ -66,6 +67,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
   const headerButton = 'rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg disabled:cursor-not-allowed disabled:opacity-40'
 
   const official = !!dm.official
+  // The API already hides it when either side turned receipts off; this hides it right away.
+  const receipts = useAppearance((s) => s.settings.read_receipts !== false)
   const chat = (
     <ChatView
       key={dm.id}
@@ -75,6 +78,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
       canSend={!official}
       canReact={official || !peer || isFriend}
       readOnlyNote={OFFICIAL_READ_ONLY}
+      peerRead={receipts ? dm.peer_read_message_id : null}
       intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
       placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}
     />

@@ -26,7 +26,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   official_dm: {},
   news_dismissed: null,
   emoji_tone: 0,
-  recent_emojis: []
+  recent_emojis: [],
+  read_receipts: true
 }
 
 const CACHE_KEY = 'aureum.appearance'

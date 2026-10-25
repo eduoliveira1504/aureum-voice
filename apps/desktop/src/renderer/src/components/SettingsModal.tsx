@@ -10,6 +10,7 @@ import { useUnsavedGuard } from './EditProfileModal'
 import { Modal, ModalBody, ModalTabs } from './Modal'
 import { NotificationSettings } from './NotificationSettings'
 import { OverlaySettings } from './OverlaySettings'
+import { PrivacySettings } from './PrivacySettings'
 import { ProfileEditor } from './ProfileEditor'
 import { SoundSettings } from './SoundSettings'
 import { VoiceSettings } from './VoiceSettings'
@@ -24,6 +25,7 @@ type Tab =
   | 'voice'
   | 'sounds'
   | 'notifications'
+  | 'privacy'
   | 'overlay'
   | 'windows'
   | 'reports'
@@ -50,6 +52,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['voice', 'Voz e vídeo'],
             ['sounds', 'Sons'],
             ['notifications', 'Notificações'],
+            ['privacy', 'Privacidade'],
             ['overlay', 'Overlay'],
             ['windows', 'Windows'],
             ...(isOwner ? ([['reports', 'Problemas']] as const) : []),
@@ -69,6 +72,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'voice' && <VoiceSettings />}
         {tab === 'sounds' && <SoundSettings />}
         {tab === 'notifications' && <NotificationSettings />}
+        {tab === 'privacy' && <PrivacySettings />}
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
         {tab === 'reports' && isOwner && <BugReports />}
