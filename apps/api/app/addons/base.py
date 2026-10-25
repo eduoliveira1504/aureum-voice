@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.access import channel_audience, get_channel_for_member
 from app.messages import chat_channel, post_message, require_dm_friends
 from app.models import Channel, ChannelType, Message
-from app.permissions import Perm, ServerAccess, channel_viewers
+from app.permissions import Perm, ServerAccess, channel_overwrites, channel_viewers
 from app.realtime import broker
 from app.schemas import MessageOut
 
@@ -201,11 +201,22 @@ class AddonChannel:
         return self.manifest.parse_config(self.channel.config)
 
     def can(self, action: str) -> bool:
+        # An action mapped to several bits is allowed by any of them.
         return bool(self.access.channel(self.channel) & self.manifest.action_perm(action))
 
     def require(self, action: str) -> None:
         if not self.can(action):
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You don't have permission to do this")
+
+    async def voice_room(self, channel_id: uuid.UUID) -> Channel | None:
+        """A voice room of the same server that the user can see (where an event happens), or
+        None."""
+        room = await self.session.get(Channel, channel_id)
+        if room is None or room.type != ChannelType.voice or room.server_id != self.channel.server_id:
+            return None
+        overwrites = (await channel_overwrites(self.session, [room.id]))[room.id]
+        perms = self.access.ctx.in_channel(self.access.user_id, overwrites, voice=True)
+        return room if perms & Perm.VIEW_CHANNEL else None
 
     async def member_ids(self) -> set[uuid.UUID]:
         """Who can see the channel: the people the addon may assign things to."""

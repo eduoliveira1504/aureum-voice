@@ -59,6 +59,7 @@ class Perm(enum.IntFlag):
     # from messages. Stored in BIGINT (63 usable bits), but the desktop app does 32-bit math, so
     # new bits stay at or below 1 << 30 until it moves to BigInt.
     EDIT_WHITEBOARD = 1 << 24
+    MANAGE_EVENTS = 1 << 25
 
 
 ALL = Perm((1 << len(Perm)) - 1)
@@ -101,6 +102,7 @@ CHANNEL_PERMS = (
     | Perm.MOVE_MEMBERS
     | Perm.MANAGE_ADDONS
     | Perm.EDIT_WHITEBOARD
+    | Perm.MANAGE_EVENTS
 )
 
 VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
