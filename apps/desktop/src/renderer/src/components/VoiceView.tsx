@@ -29,6 +29,7 @@ import { pttKeyLabel } from '../lib/pushToTalk'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, getRoom, isSharing, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
+import { DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
@@ -167,7 +168,7 @@ export function CallView({
         <>
           <CallStage tiles={tiles} layout={layout} focused={focused} people={people} meId={meId} onFocus={focusOn} />
           {footer}
-          <CallControls />
+          <CallControls autoHide={fullscreen} />
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
@@ -625,34 +626,52 @@ function PushToTalkHint(): ReactNode {
   )
 }
 
-export function CallControls(): ReactNode {
+/**
+ * The call's control bar, at the bottom of the call, centered. The arrows next to the mic,
+ * headphone and camera open their device menus. With `autoHide` (the call in fullscreen) it fades
+ * out while the mouse stands still, unless a menu is open.
+ */
+export function CallControls({ autoHide = false }: { autoHide?: boolean }): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
     useVoice()
   const [picking, setPicking] = useState(false)
+  const [menus, setMenus] = useState(0)
+  const idle = useIdle(autoHide, CONTROLS_IDLE_MS)
+  const hidden = autoHide && idle && menus === 0 && !picking
+  const menuOpen = (open: boolean): void => setMenus((n) => Math.max(0, n + (open ? 1 : -1)))
   const connecting = phase === 'connecting'
   return (
-    <div className="shrink-0">
+    <div className={`shrink-0 transition-opacity ${hidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
       <PushToTalkHint />
-      <div className="flex justify-center gap-3 pb-6">
-        <ControlButton
-          label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
-          active={!muted && allowed.mic}
-          disabled={!allowed.mic}
-          onClick={toggleMute}
-        >
-          {muted || !allowed.mic ? <MicOff size={22} /> : <Mic size={22} />}
-        </ControlButton>
-        <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
-          {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
-        </ControlButton>
-        <ControlButton
-          label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
-          active={!camera}
-          disabled={connecting || (!camera && !allowed.camera)}
-          onClick={toggleCamera}
-        >
-          {camera ? <Video size={22} /> : <VideoOff size={22} />}
-        </ControlButton>
+      <div role="toolbar" aria-label="Controles da chamada" className="flex items-center justify-center gap-3 pb-6">
+        <div className="flex">
+          <ControlButton
+            label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
+            active={!muted && allowed.mic}
+            disabled={!allowed.mic}
+            onClick={toggleMute}
+          >
+            {muted || !allowed.mic ? <MicOff size={22} /> : <Mic size={22} />}
+          </ControlButton>
+          <DeviceArrow kind="mic" onOpenChange={menuOpen} />
+        </div>
+        <div className="flex">
+          <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
+            {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
+          </ControlButton>
+          <DeviceArrow kind="output" onOpenChange={menuOpen} />
+        </div>
+        <div className="flex">
+          <ControlButton
+            label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
+            active={!camera}
+            disabled={connecting || (!camera && !allowed.camera)}
+            onClick={toggleCamera}
+          >
+            {camera ? <Video size={22} /> : <VideoOff size={22} />}
+          </ControlButton>
+          <DeviceArrow kind="camera" onOpenChange={menuOpen} />
+        </div>
         <ControlButton
           label={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
           active={!screen}

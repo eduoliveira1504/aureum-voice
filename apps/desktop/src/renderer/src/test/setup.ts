@@ -29,7 +29,8 @@ const bridge = {
   },
   screen: { getSources: async () => [], select: async () => {} },
   overlay: {
-    getState: vi.fn(),
+    // Never answers by default: tests that need the overlay state set the store themselves.
+    getState: vi.fn(() => new Promise<never>(() => {})),
     setPrefs: vi.fn(),
     setEditing: async () => {},
     setActive: async () => {},

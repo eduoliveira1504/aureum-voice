@@ -18,6 +18,7 @@ import { useChat } from '../store/chat'
 import { useCallOnScreen, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
+import { DeviceArrow } from './CallDeviceMenus'
 import { toast } from './ContextMenu'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
@@ -78,7 +79,8 @@ export function useCallContext(meId: string | null): CallContext | null {
   }
 }
 
-/** Mic, deafen, camera, screen and leave buttons shared by the call card and the floating window. */
+/** Mic, deafen, camera, screen and leave buttons shared by the call card and the floating window,
+ * with the device menus' arrows (only mic and leave when `compact`: the collapsed sidebar). */
 export function CallButtons({ size = 18, compact = false }: { size?: number; compact?: boolean }): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, serverMuted, serverDeafened } = useVoice()
   const { toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } = useVoice.getState()
@@ -100,6 +102,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
       <button type="button" title={micLabel} aria-label={micLabel} disabled={!allowed.mic} onClick={toggleMute} className={`${button} ${tone(micOff)}`}>
         {micOff ? <MicOff size={size} /> : <Mic size={size} />}
       </button>
+      {!compact && <DeviceArrow kind="mic" small />}
       {!compact && (
         <button
           type="button"
@@ -112,6 +115,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
           {deafened || serverDeafened ? <HeadphoneOff size={size} /> : <Headphones size={size} />}
         </button>
       )}
+      {!compact && <DeviceArrow kind="output" small />}
       {!compact && (
         <button
           type="button"
@@ -124,6 +128,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
           {camera ? <Video size={size} /> : <VideoOff size={size} />}
         </button>
       )}
+      {!compact && <DeviceArrow kind="camera" small />}
       {!compact && (
         <button
           type="button"
