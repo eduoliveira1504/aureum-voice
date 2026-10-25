@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { api, type Call, type Channel, type Dm, type Friend, type HomeData, type HomeTask, type Message, type ServerDetail, type VoiceState } from '../lib/api'
+import { agendaPath, api, type AgendaItem, type Call, type Channel, type Dm, type Friend, type HomeData, type HomeTask, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import type { ServerEvent } from '../lib/realtime'
 import { useAppearance } from './appearance'
@@ -26,6 +26,8 @@ interface HomeState {
   dmPreviews: Record<string, Message>
   tasks: HomeTask[]
   tasksTotal: number
+  /** Today's events (in my zone) I said Vou or Talvez to, not over yet. */
+  todayEvents: AgendaItem[]
   /** Newest message I can see per server (ISO time). */
   activity: Record<string, string | null>
 
@@ -44,6 +46,15 @@ let openCount = 0
 let tasksTimer: ReturnType<typeof setTimeout> | undefined
 
 export const useHome = create<HomeState>()((set, get) => {
+  const loadToday = async (): Promise<void> => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 1)
+    const items = await api<AgendaItem[]>(agendaPath(start, end, { mine: 'true' }))
+    set({ todayEvents: items.filter((i) => i.kind === 'event') })
+  }
+
   const refreshTasks = (): void => {
     clearTimeout(tasksTimer)
     tasksTimer = setTimeout(() => {
@@ -60,6 +71,7 @@ export const useHome = create<HomeState>()((set, get) => {
     dmPreviews: {},
     tasks: [],
     tasksTotal: 0,
+    todayEvents: [],
     activity: {},
 
     open: () => {
@@ -73,6 +85,8 @@ export const useHome = create<HomeState>()((set, get) => {
     },
 
     load: async () => {
+      // Apart: an older API without the agenda leaves it empty, the rest still loads.
+      void loadToday().catch(() => {})
       const data = await api<HomeData>('/users/me/home')
       set({
         loaded: true,
@@ -145,7 +159,8 @@ export const useHome = create<HomeState>()((set, get) => {
           break
 
         default:
-          if (type.startsWith('addon.')) refreshTasks()
+          if (type.startsWith('addon.events.')) void loadToday().catch(() => {})
+          else if (type.startsWith('addon.')) refreshTasks()
       }
     }
   }
@@ -158,6 +173,7 @@ export type PendingItem =
   | { kind: 'dm'; key: string; at: string; dm: Dm; unread: number; message: Message }
   | { kind: 'missed_call'; key: string; at: string; dm: Dm | undefined; call: Call }
   | { kind: 'friend_request'; key: string; at: string; friend: Friend }
+  | { kind: 'event'; key: string; at: string; event: AgendaItem }
 
 interface PendingSources {
   mentions: HomeState['mentions']
@@ -168,6 +184,9 @@ interface PendingSources {
   friends: Record<string, Friend>
   missed: Call[]
   muted: string[]
+  /** Today's events of mine (the hub drops the ones already over). */
+  events?: AgendaItem[]
+  now?: number
 }
 
 /**
@@ -196,7 +215,13 @@ export function pendingItems(src: PendingSources): PendingItem[] {
   for (const friend of Object.values(src.friends)) {
     if (friend.kind === 'incoming') items.push({ kind: 'friend_request', key: `f:${friend.user.id}`, at: friend.since, friend })
   }
-  return items.sort((a, b) => b.at.localeCompare(a.at))
+  const now = src.now ?? Date.now()
+  const events = (src.events ?? [])
+    .filter((e) => e.starts_at && new Date(e.ends_at ?? e.starts_at).getTime() > now)
+    .sort((a, b) => a.starts_at!.localeCompare(b.starts_at!))
+    .map((event): PendingItem => ({ kind: 'event', key: `e:${event.id}`, at: event.starts_at!, event }))
+  // Today's events first, soonest first; then the rest, newest first.
+  return [...events, ...items.sort((a, b) => b.at.localeCompare(a.at))]
 }
 
 export function usePendingItems(): PendingItem[] {
@@ -208,7 +233,8 @@ export function usePendingItems(): PendingItem[] {
   const friends = useSocial((s) => s.friends)
   const missed = useSocial((s) => s.missed)
   const muted = useAppearance((s) => s.settings.muted_places)
-  return pendingItems({ mentions, dmPreviews, servers, reads, dms, friends, missed, muted })
+  const events = useHome((s) => s.todayEvents)
+  return pendingItems({ mentions, dmPreviews, servers, reads, dms, friends, missed, muted, events })
 }
 
 /** Friends in a call right now: in a room of a shared server I can see, or in a call with me. */

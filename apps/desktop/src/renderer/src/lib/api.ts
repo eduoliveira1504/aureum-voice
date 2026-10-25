@@ -180,7 +180,7 @@ export interface UserSettings {
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
-export type OfficialCategory = 'seguranca' | 'insignias' | 'bugs' | 'convites' | 'novidades' | 'avisos'
+export type OfficialCategory = 'seguranca' | 'insignias' | 'bugs' | 'convites' | 'novidades' | 'avisos' | 'eventos'
 
 export interface UserAudio {
   volume: number
@@ -382,10 +382,22 @@ export interface Message {
   /** Set on a system line posted by an addon ("moveu “X” para Feito"); content is empty. */
   system?: MessageSystem | null
   /** Posted by @aureum. Only counts with an official author (author.is_official). */
-  official?: { category: string; badge?: string } | null
+  official?: { category: string; badge?: string; event?: OfficialEventRef } | null
   /** Carries something of an addon that lives in chats (a poll); apps that know the addon show
    * it instead of the content, a fallback for those that don't. */
   embed?: { addon_key: string; id: string } | null
+}
+
+/** The event an official "eventos" notice is about (a reminder, a change...). */
+export interface OfficialEventRef {
+  id: string
+  /** The events channel it's in. */
+  channel_id: string
+  server_id: string | null
+  /** The voice room it happens in, if any. */
+  room_id: string | null
+  /** The occurrence's start; the app shows it in the user's own zone. */
+  starts_at: string
 }
 
 /** GET /users/me/home: what the Home hub needs beyond what the app already holds. */
@@ -417,6 +429,40 @@ export interface HomeTask {
   server_name: string
   channel_id: string
   channel_name: string
+}
+
+/** GET /users/me/agenda: something with a date in an addon (an event, a card's due date). */
+export interface AgendaItem {
+  /** Unique per addon (a weekly event's occurrences each have one). */
+  id: string
+  workspace_id: string
+  /** What to open in the addon (AddonViewProps.openItem). */
+  item_id: string
+  title: string
+  /** The addon's word for it: "event", "card". */
+  kind: string
+  /** All-day items have `day` (YYYY-MM-DD); timed ones `starts_at` and maybe `ends_at`. */
+  all_day: boolean
+  day: string | null
+  starts_at: string | null
+  ends_at: string | null
+  /** A label token name (--label-<color>), or null. */
+  color: string | null
+  done: boolean
+  cancelled: boolean
+  /** Assigned to me, or an event I said Vou or Talvez to. */
+  mine: boolean
+  addon_key: string
+  server_id: string
+  server_name: string
+  channel_id: string
+  channel_name: string
+}
+
+/** The agenda's query for [start, end): the app's own day boundaries go as ISO times. */
+export function agendaPath(start: Date, end: Date, extra: Record<string, string> = {}): string {
+  const params = new URLSearchParams({ start: start.toISOString(), end: end.toISOString(), ...extra })
+  return `/users/me/agenda?${params}`
 }
 
 export interface MessageSystem {

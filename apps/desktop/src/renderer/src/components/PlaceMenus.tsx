@@ -1,8 +1,8 @@
-import { ArrowDown, ArrowUp, CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
-import { basePermissions, channelActions, has, Perm } from '../lib/permissions'
+import { basePermissions, channelActions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
@@ -118,6 +118,10 @@ export function ServerMenu({ server, meId, tabs }: { server: ServerDetail; meId:
   const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)
   const canInvite = has(perms, Perm.CREATE_INVITE)
   const isOwner = server.owner_id === meId
+  // "Criar evento" opens the first events channel where the user can create them.
+  const eventsChannel = server.channels.find(
+    (c) => c.type === 'addon' && c.addon_key === 'events' && has(channelPermissions(server, c, meId), Perm.MANAGE_EVENTS | Perm.MANAGE_ADDONS)
+  )
 
   const markRead = (): void => {
     api<ReadState[]>(`/servers/${server.id}/read`, { method: 'POST' }).then(
@@ -153,6 +157,9 @@ export function ServerMenu({ server, meId, tabs }: { server: ServerDetail; meId:
           />
           <Item icon={Link} label="Copiar convite" onClick={() => copyInvite(server.id)} />
         </>
+      )}
+      {eventsChannel && (
+        <Item icon={CalendarPlus} label="Criar evento" onClick={() => useNav.getState().openAddonItem(server.id, eventsChannel.id, 'new')} />
       )}
       <Separator />
       <Item icon={Copy} label="Copiar ID" onClick={() => copy(server.id, 'ID copiado')} />

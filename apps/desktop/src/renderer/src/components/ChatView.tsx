@@ -14,7 +14,7 @@ import {
 } from 'react'
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
-import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type User } from '../lib/api'
+import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type OfficialEventRef, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import type { Recording } from '../lib/voiceRecorder'
 import { useReadableColor } from '../store/appearance'
@@ -150,6 +150,42 @@ function OfficialBadge({ badgeKey, me }: { badgeKey: string; me: Me }): ReactNod
     <div className="mt-2 flex items-center gap-3 rounded-control border border-line bg-elevated px-3 py-2">
       <BadgeIcon shown={shown} size={72} shine="always" />
       <span className="font-display text-lg font-semibold">{badgeTitle(shown)}</span>
+    </div>
+  )
+}
+
+const eventTimeFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+// "Entrar na sala" stays while the event can still be going on.
+const EVENT_JOIN_HOURS = 12
+
+/** The event an official "eventos" notice is about: its time in the user's zone, the way in. */
+function OfficialEvent({ event }: { event: OfficialEventRef }): ReactNode {
+  const room = useChat((s) => (event.server_id && event.room_id ? s.servers[event.server_id]?.channels.find((c) => c.id === event.room_id) : undefined))
+  const canSeeEvents = useChat((s) => !!event.server_id && !!s.servers[event.server_id]?.channels.some((c) => c.id === event.channel_id))
+  const inRoom = useVoice((s) => s.phase !== 'idle' && s.channelId === event.room_id)
+  const start = new Date(event.starts_at)
+  const joinable = !!room && Date.now() < start.getTime() + EVENT_JOIN_HOURS * 60 * 60 * 1000
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-control border border-line bg-elevated px-3 py-2 text-sm">
+      <span className="text-fg-muted">{eventTimeFmt.format(start)}</span>
+      {joinable && !inRoom && (
+        <button
+          type="button"
+          onClick={() => void useVoice.getState().join(event.server_id, room.id)}
+          className="rounded-control bg-accent px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+        >
+          Entrar na sala
+        </button>
+      )}
+      {canSeeEvents && (
+        <button
+          type="button"
+          onClick={() => useNav.getState().openAddonItem(event.server_id!, event.channel_id, event.id)}
+          className="text-xs font-semibold text-accent-text hover:underline"
+        >
+          Ver evento
+        </button>
+      )}
     </div>
   )
 }
@@ -419,6 +455,8 @@ export function ChatView({
                   extra={
                     isOfficialMessage(message) && message.official?.badge ? (
                       <OfficialBadge badgeKey={message.official.badge} me={me} />
+                    ) : isOfficialMessage(message) && message.official?.event ? (
+                      <OfficialEvent event={message.official.event} />
                     ) : undefined
                   }
                 />

@@ -11,6 +11,7 @@ const CATEGORIES: { key: OfficialCategory; title: string; description: string }[
     description: 'Senha ou e-mail alterados e login num computador novo. Sempre ligado, e avisa mesmo com a conversa silenciada.'
   },
   { key: 'insignias', title: 'Insígnias', description: 'Quando você ganha uma insígnia.' },
+  { key: 'eventos', title: 'Eventos', description: 'Lembretes dos eventos em que você marcou Vou ou Talvez, e avisos de mudança.' },
   { key: 'bugs', title: 'Bugs', description: 'Quando um problema que você reportou é resolvido.' },
   { key: 'convites', title: 'Convites', description: 'Quando alguém entra com um convite seu.' },
   { key: 'novidades', title: 'Novidades', description: 'O que mudou em cada versão nova do app.' },

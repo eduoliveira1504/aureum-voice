@@ -393,6 +393,8 @@ function Pending({ me }: { me: Me }): ReactNode {
   )
 }
 
+const eventTime = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
 function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number }): ReactNode {
   const [busy, setBusy] = useState(false)
   const run = (fn: () => Promise<unknown>) => (): void => {
@@ -484,6 +486,36 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
             </RowButton>
           )
         }
+      />
+    )
+  }
+
+  if (item.kind === 'event') {
+    const { event } = item
+    const start = new Date(event.starts_at!)
+    const happening = start.getTime() <= now
+    return (
+      <Row
+        icon={<RowIcon tone={event.cancelled ? 'danger' : 'accent'} icon={CalendarDays} />}
+        title={
+          event.cancelled ? (
+            <>
+              <b>{event.title}</b> foi cancelado
+            </>
+          ) : happening ? (
+            <>
+              <b>{event.title}</b> está acontecendo agora
+            </>
+          ) : (
+            <>
+              <b>{event.title}</b> hoje às {eventTime.format(start)}
+            </>
+          )
+        }
+        detail={`${event.server_name} · ${event.channel_name}`}
+        time={happening ? 'agora' : eventTime.format(start)}
+        onOpen={() => nav.openAddonItem(event.server_id, event.channel_id, event.item_id)}
+        highlight={!event.cancelled}
       />
     )
   }

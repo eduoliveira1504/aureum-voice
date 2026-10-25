@@ -31,12 +31,13 @@ export const Perm = {
   MOVE_MEMBERS: 1 << 22,
   MANAGE_ADDONS: 1 << 23,
   // Addon permissions. Bitwise math here is 32-bit: new bits stay at or below 1 << 30.
-  EDIT_WHITEBOARD: 1 << 24
+  EDIT_WHITEBOARD: 1 << 24,
+  MANAGE_EVENTS: 1 << 25
 } as const
 
 export type PermName = keyof typeof Perm
 
-export const ALL = (1 << 25) - 1
+export const ALL = (1 << 26) - 1
 const VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
 
 /** Permissions a channel override can change (the rest are server-wide). */
@@ -54,7 +55,8 @@ export const CHANNEL_PERMS =
   Perm.CONNECT |
   VOICE_ONLY |
   Perm.MANAGE_ADDONS |
-  Perm.EDIT_WHITEBOARD
+  Perm.EDIT_WHITEBOARD |
+  Perm.MANAGE_EVENTS
 
 const OWNER_RANK = 1 << 30
 
@@ -178,7 +180,12 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
     title: 'Addons',
     items: [
       { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Adicionar, configurar e excluir addons (com Gerenciar canais).' },
-      { perm: 'EDIT_WHITEBOARD', label: 'Editar quadro branco', description: 'Desenhar, escrever e criar quadros. Quem não tem só vê.' }
+      { perm: 'EDIT_WHITEBOARD', label: 'Editar quadro branco', description: 'Desenhar, escrever e criar quadros. Quem não tem só vê.' },
+      {
+        perm: 'MANAGE_EVENTS',
+        label: 'Gerenciar eventos',
+        description: 'Criar, editar e cancelar eventos. Quem gerencia addons também pode. Todos que veem o canal respondem.'
+      }
     ]
   }
 ]

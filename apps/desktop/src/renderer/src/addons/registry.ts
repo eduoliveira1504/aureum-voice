@@ -1,6 +1,7 @@
 import { Puzzle, type LucideIcon } from 'lucide-react'
 
 import type { ServerEvent } from '../lib/realtime'
+import events from './events'
 import kanban from './kanban'
 import polls from './polls'
 import type { AddonModule, ChatAddonModule } from './types'
@@ -11,7 +12,7 @@ import whiteboard from './whiteboard'
  * a newer API) still shows up, with a note to update the app. Adding one: create
  * src/addons/<key>/ and list it here.
  */
-const MODULES: Record<string, AddonModule> = Object.fromEntries([kanban, whiteboard].map((m) => [m.key, m]))
+const MODULES: Record<string, AddonModule> = Object.fromEntries([kanban, whiteboard, events].map((m) => [m.key, m]))
 
 /** Addons that live in chats (their things are messages), by key. */
 const CHAT_MODULES: Record<string, ChatAddonModule> = Object.fromEntries([polls].map((m) => [m.key, m]))
