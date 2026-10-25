@@ -12,14 +12,10 @@ import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
 
-import { appKey, gameApps, overGame } from '../shared/overlayRule'
+import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame } from '../shared/overlayRule'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
 import { foregroundApp } from './foregroundApp'
 import { watchCombos } from './keyWatch'
-// Programs that are never games (browsers, chat and music apps, launchers and game clients): the
-// overlay never shows over them, even if one is added as a game by mistake. Edit the JSON to
-// change the list.
-import overlayExceptions from './overlayExceptions.json'
 
 /** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
  *  closing is never reused; any other popup stays denied. */
@@ -52,13 +48,14 @@ const DEFAULT_PREFS: OverlayPrefs = {
   opacity: 100,
   showCameras: true,
   onlySpeaking: false,
-  hiddenApps: []
+  hiddenApps: [],
+  games: []
 }
 
 const FOREGROUND_POLL_MS = 1000
-const MAX_HIDDEN_APPS = 100
+const MAX_APPS = 100
 /** The bundled exceptions plus the app itself ("aureum voice" installed, "electron" in dev). */
-const NEVER_OVER = new Set([...overlayExceptions.map(appKey), appKey(process.execPath)])
+const NEVER_OVER = new Set([...OVERLAY_EXCEPTIONS, appKey(process.execPath)])
 
 const MARGIN = 16
 const DEFAULT_SIZE = { width: 260, height: 360 }
@@ -131,6 +128,19 @@ function cleanBounds(value: unknown): OverlayBounds | null {
   }
 }
 
+/** A list of program names (see appKey), or `fallback` when it isn't a list. */
+function cleanApps(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  return [
+    ...new Set(
+      value
+        .filter((v): v is string => typeof v === 'string' && /^[^\\/:*?"<>|]{1,128}$/.test(v))
+        .map(appKey)
+        .filter(Boolean)
+    )
+  ].slice(0, MAX_APPS)
+}
+
 function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPrefs {
   const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback)
   const shortcut = (v: unknown, fallback: string): string => (typeof v === 'string' && isSafeShortcut(v) ? v : fallback)
@@ -143,16 +153,8 @@ function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPref
     opacity: isFiniteNumber(raw.opacity) ? Math.round(Math.min(100, Math.max(30, raw.opacity))) : base.opacity,
     showCameras: bool(raw.showCameras, base.showCameras),
     onlySpeaking: bool(raw.onlySpeaking, base.onlySpeaking),
-    hiddenApps: Array.isArray(raw.hiddenApps)
-      ? [
-          ...new Set(
-            raw.hiddenApps
-              .filter((v): v is string => typeof v === 'string' && /^[^\\/:*?"<>|]{1,128}$/.test(v))
-              .map(appKey)
-              .filter(Boolean)
-          )
-        ].slice(0, MAX_HIDDEN_APPS)
-      : base.hiddenApps
+    hiddenApps: cleanApps(raw.hiddenApps, base.hiddenApps),
+    games: cleanApps(raw.games, base.games)
   }
 }
 
@@ -208,11 +210,13 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
     }
   }
   prefs = next
+  games = gameApps(knownGames, detectedGame, prefs.games)
   // Re-registers the hotkeys and restarts the key watch; turning the overlay off stops the watch.
   if (shortcutsChanged) registerShortcuts()
   else syncKeyWatch()
   if (!prefs.enabled) editing = false
   await savePrefs()
+  if (foregroundTimer) checkForeground()
   apply()
   changed()
   return getState()
@@ -305,7 +309,7 @@ function checkForeground(): boolean {
 export function setGames(known: KnownGame[], detected: string | null): void {
   knownGames = known
   detectedGame = detected
-  games = gameApps(knownGames, detectedGame, [])
+  games = gameApps(knownGames, detectedGame, prefs.games)
   if (foregroundTimer) checkForeground()
 }
 

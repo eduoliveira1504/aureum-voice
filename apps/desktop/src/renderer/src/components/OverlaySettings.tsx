@@ -1,7 +1,8 @@
 import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Move, X } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import type { OverlayCorner, OverlayPrefs } from '../../../shared/types'
+import { appKey, gameApps, OVERLAY_EXCEPTIONS } from '../../../shared/overlayRule'
+import type { KnownGame, OverlayCorner, OverlayPrefs } from '../../../shared/types'
 import { setOverlayPrefs, useOverlay } from '../store/overlay'
 import { labelClass, Segmented, ToggleRow } from './ui'
 
@@ -86,13 +87,33 @@ function ShortcutRow({ title, field, prefs }: { title: string; field: 'toggleSho
   )
 }
 
-/** "vivaldi.exe" -> "vivaldi", the form the main process compares (see main/foregroundApp.ts). */
-const appKey = (exe: string): string => exe.replace(/\.exe$/i, '').trim().toLowerCase()
+/** Program names (see appKey) as removable chips, with the game's name when it's a known one. */
+function AppChips({ apps, label, removeLabel, onRemove }: { apps: string[]; label(app: string): string; removeLabel(name: string): string; onRemove(app: string): void }): ReactNode {
+  if (!apps.length) return null
+  return (
+    <ul className="mb-2 flex flex-wrap gap-2">
+      {apps.map((app) => (
+        <li key={app} className="flex items-center gap-1 rounded-item border border-line bg-main py-1 pl-2.5 pr-1 text-sm">
+          {label(app)}
+          <button
+            type="button"
+            aria-label={removeLabel(label(app))}
+            title="Remover"
+            onClick={() => onRemove(app)}
+            className="rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg"
+          >
+            <X size={14} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-/** "Ocultar overlay neste app": the user's own exceptions, picked from the open programs. */
-function HiddenApps({ hidden, onChange }: { hidden: string[]; onChange(next: string[]): void }): ReactNode {
+/** Picks one of the programs open right now (listed when the menu opens), except the `skip` ones. */
+function OpenAppPicker({ label, empty, skip, onPick }: { label: string; empty: string; skip(app: string): boolean; onPick(app: string): void }): ReactNode {
   const [running, setRunning] = useState<string[] | null>(null)
-  const choices = (running ?? []).filter((name) => !hidden.includes(name))
+  const choices = (running ?? []).filter((app) => !skip(app))
 
   const loadRunning = (): void => {
     void window.aureum.games.running().then((apps) =>
@@ -101,46 +122,117 @@ function HiddenApps({ hidden, onChange }: { hidden: string[]; onChange(next: str
   }
 
   return (
-    <section>
-      <span className={labelClass}>Ocultar overlay neste app</span>
-      <p className="mb-2 text-xs text-fg-subtle">
-        O overlay só aparece sobre jogos. Para isso o Aureum confere só o nome do programa em primeiro plano, uma vez por
-        segundo durante a chamada; o nome não sai do seu PC.
-      </p>
-      {hidden.length > 0 && (
-        <ul className="mb-2 flex flex-wrap gap-2">
-          {hidden.map((name) => (
-            <li key={name} className="flex items-center gap-1 rounded-item border border-line bg-main py-1 pl-2.5 pr-1 text-sm">
-              {name}.exe
+    <select
+      aria-label={label}
+      value=""
+      onFocus={loadRunning}
+      onMouseDown={() => running === null && loadRunning()}
+      onChange={(e) => e.target.value && onPick(e.target.value)}
+      className="w-full max-w-72 rounded-control border border-line bg-main px-3 py-2 text-sm"
+    >
+      <option value="">{running === null ? `${label}…` : choices.length ? 'Escolha um programa aberto…' : empty}</option>
+      {choices.map((app) => (
+        <option key={app} value={app}>
+          {app}.exe
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** The known games, searchable, each with "Ocultar" (its programs go to the hidden list). */
+function KnownGames({ known, hidden, onHide }: { known: KnownGame[]; hidden: string[]; onHide(game: KnownGame, hide: boolean): void }): ReactNode {
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const shown = known.filter((g) => g.name.toLowerCase().includes(q))
+  return (
+    <details className="mt-2 text-sm">
+      <summary className="cursor-pointer text-fg-muted hover:text-fg">Ver jogos conhecidos ({known.length})</summary>
+      <input
+        type="search"
+        aria-label="Buscar jogo"
+        placeholder="Buscar jogo…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="mt-2 w-full rounded-control border border-line bg-main px-3 py-2"
+      />
+      <ul className="mt-2 max-h-56 overflow-y-auto rounded-control border border-line">
+        {shown.map((game) => {
+          const off = game.exe.every((exe) => hidden.includes(appKey(exe)))
+          return (
+            <li key={`${game.name}:${game.exe.join()}`} className="flex items-center justify-between gap-2 px-3 py-1.5 even:bg-main">
+              <span className={`truncate ${off ? 'text-fg-subtle line-through' : ''}`}>{game.name}</span>
               <button
                 type="button"
-                aria-label={`Mostrar overlay de novo em ${name}.exe`}
-                title="Remover"
-                onClick={() => onChange(hidden.filter((h) => h !== name))}
-                className="rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg"
+                onClick={() => onHide(game, !off)}
+                className="shrink-0 rounded-item px-2 py-0.5 text-xs font-medium text-fg-muted hover:bg-elevated hover:text-fg"
               >
-                <X size={14} />
+                {off ? 'Mostrar overlay' : 'Ocultar overlay'}
               </button>
             </li>
-          ))}
-        </ul>
-      )}
-      <select
-        aria-label="Adicionar app"
-        value=""
-        onFocus={loadRunning}
-        onMouseDown={() => running === null && loadRunning()}
-        onChange={(e) => e.target.value && onChange([...hidden, e.target.value])}
-        className="w-full max-w-72 rounded-control border border-line bg-main px-3 py-2 text-sm"
-      >
-        <option value="">{running === null ? 'Adicionar app aberto…' : choices.length ? 'Escolha um app aberto…' : 'Nenhum outro app aberto'}</option>
-        {choices.map((name) => (
-          <option key={name} value={name}>
-            {name}.exe
-          </option>
-        ))}
-      </select>
-    </section>
+          )
+        })}
+      </ul>
+    </details>
+  )
+}
+
+/** "Jogos com overlay" and "Ocultar overlay neste jogo": the overlay shows only over games
+ *  (see shared/overlayRule.ts), the known ones plus the ones added here. */
+function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: Partial<OverlayPrefs>): void }): ReactNode {
+  const [known, setKnown] = useState<KnownGame[]>([])
+  useEffect(() => void window.aureum.games.known().then(setKnown), [])
+  const knownApps = useMemo(() => gameApps(known, null, []), [known])
+  const names = useMemo(() => new Map(known.flatMap((g) => g.exe.map((exe) => [appKey(exe), g.name] as const))), [known])
+  const label = (app: string): string => names.get(app) ?? `${app}.exe`
+  const isGame = (app: string): boolean => knownApps.has(app) || prefs.games.includes(app)
+
+  const hide = (game: KnownGame, on: boolean): void => {
+    const apps = game.exe.map(appKey)
+    set({ hiddenApps: on ? [...new Set([...prefs.hiddenApps, ...apps])] : prefs.hiddenApps.filter((a) => !apps.includes(a)) })
+  }
+
+  return (
+    <>
+      <section>
+        <span className={labelClass}>Jogos com overlay</span>
+        <p className="mb-2 text-xs text-fg-subtle">
+          O overlay só aparece sobre jogos: os conhecidos pelo Aureum, os que você adicionou em Atividade e os que você
+          adicionar aqui. Launchers e clients (Steam, Riot Client, Epic etc.) nunca contam. Para isso o Aureum confere só o
+          nome do programa em primeiro plano, uma vez por segundo durante a chamada; o nome não sai do seu PC.
+        </p>
+        <AppChips
+          apps={prefs.games}
+          label={label}
+          removeLabel={(name) => `Remover ${name} dos jogos com overlay`}
+          onRemove={(app) => set({ games: prefs.games.filter((g) => g !== app) })}
+        />
+        <OpenAppPicker
+          label="Adicionar jogo"
+          empty="Nenhum outro programa aberto"
+          skip={(app) => isGame(app) || OVERLAY_EXCEPTIONS.has(app)}
+          onPick={(app) => set({ games: [...prefs.games, app] })}
+        />
+        <KnownGames known={known} hidden={prefs.hiddenApps} onHide={hide} />
+      </section>
+
+      <section>
+        <span className={labelClass}>Ocultar overlay neste jogo</span>
+        <p className="mb-2 text-xs text-fg-subtle">O overlay não aparece sobre estes jogos.</p>
+        <AppChips
+          apps={prefs.hiddenApps}
+          label={label}
+          removeLabel={(name) => `Mostrar overlay de novo em ${name}`}
+          onRemove={(app) => set({ hiddenApps: prefs.hiddenApps.filter((h) => h !== app) })}
+        />
+        <OpenAppPicker
+          label="Ocultar jogo aberto"
+          empty="Nenhum outro jogo aberto"
+          skip={(app) => !isGame(app) || prefs.hiddenApps.includes(app)}
+          onPick={(app) => set({ hiddenApps: [...prefs.hiddenApps, app] })}
+        />
+      </section>
+    </>
   )
 }
 
@@ -160,7 +252,7 @@ export function OverlaySettings(): ReactNode {
         onChange={(enabled) => set({ enabled })}
       />
 
-      <HiddenApps hidden={prefs.hiddenApps} onChange={(hiddenApps) => set({ hiddenApps })} />
+      <OverlayGames prefs={prefs} set={set} />
 
       <section className="space-y-2">
         <span className={labelClass}>Atalhos (funcionam com o Aureum em segundo plano)</span>

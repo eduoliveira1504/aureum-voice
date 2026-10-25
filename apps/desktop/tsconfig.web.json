@@ -12,6 +12,7 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "outDir": "node_modules/.tsc/web"
   },
   "include": ["src/renderer/src/**/*", "src/shared/**/*"]

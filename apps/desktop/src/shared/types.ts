@@ -84,8 +84,10 @@ export interface OverlayPrefs {
   showCameras: boolean
   onlySpeaking: boolean
   /** Programs (file name without ".exe", lowercase) the overlay never shows over, on top of
-   *  the bundled exceptions (browsers etc., see main/overlayExceptions.json). */
+   *  the bundled exceptions (browsers etc., see shared/overlayExceptions.json). */
   hiddenApps: string[]
+  /** Programs the user added as games in Settings > Overlay, on top of the known games. */
+  games: string[]
 }
 
 /** What the main process tells the app's window about the overlay. */

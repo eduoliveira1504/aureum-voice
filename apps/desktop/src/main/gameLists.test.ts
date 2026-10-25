@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { appKey } from '../shared/overlayRule'
+import { appKey, OVERLAY_EXCEPTIONS } from '../shared/overlayRule'
 import type { KnownGame } from '../shared/types'
 import games from './games.json'
-import overlayExceptions from './overlayExceptions.json'
 
 // The bundled lists: games.json names the executable of the match itself, never a launcher or
 // client, and the overlay exceptions win over it.
@@ -11,8 +10,7 @@ describe('bundled game lists', () => {
   const exes = (games as KnownGame[]).flatMap((g) => g.exe.map(appKey))
 
   it('has no game executable among the overlay exceptions', () => {
-    const exceptions = new Set(overlayExceptions.map(appKey))
-    expect(exes.filter((e) => exceptions.has(e))).toEqual([])
+    expect(exes.filter((e) => OVERLAY_EXCEPTIONS.has(e))).toEqual([])
   })
 
   it('names each executable once', () => {
