@@ -1,12 +1,16 @@
+import json
+import secrets
+import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, StringConstraints
+from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import storage
 from app.addons.base import AddonChannel, AddonManifest, addon_channel
 from app.addons.whiteboard.models import WhiteboardBoard, WhiteboardFile, WhiteboardSnapshot
 from app.deps import CurrentUser, SessionDep
@@ -14,6 +18,16 @@ from app.permissions import Perm
 
 # Archived boards count too: archiving hides a board, it doesn't free a place.
 MAX_BOARDS = 200
+# The scene as JSON; images don't count (they're stored apart).
+MAX_SCENE_BYTES = 5 * 1024 * 1024
+MAX_ELEMENTS_PER_SAVE = 2000
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_THUMBNAIL_BYTES = 512 * 1024
+# A version is kept when someone edits after this long without one, then the last MAX_SNAPSHOTS.
+SNAPSHOT_EVERY = timedelta(minutes=10)
+MAX_SNAPSHOTS = 50
+# What can be drawn. Leaves out Excalidraw's embeds (they load other sites) and its AI frames.
+ELEMENT_TYPES = frozenset({"rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "image", "frame"})
 
 router = APIRouter()
 
@@ -66,6 +80,46 @@ class BoardUpdate(BaseModel):
     archived: bool | None = None
 
 
+class Element(BaseModel):
+    """An Excalidraw element. Only what the merge needs is checked; the rest is kept as is."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: Annotated[str, StringConstraints(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
+    type: str
+    version: Annotated[int, Field(ge=1, lt=2**31)]
+    # Excalidraw's names.
+    versionNonce: Annotated[int, Field(ge=-(2**31), lt=2**32)]  # noqa: N815
+    isDeleted: bool = False  # noqa: N815
+
+
+class ElementsSave(BaseModel):
+    elements: Annotated[list[Element], Field(max_length=MAX_ELEMENTS_PER_SAVE)]
+    # Picked by the sending app; it skips its own changes when they come back live.
+    origin: Annotated[str, StringConstraints(max_length=64)] | None = None
+
+
+class SaveOut(BaseModel):
+    version: int
+    # How many of the elements sent were newer than the saved ones.
+    accepted: int
+
+
+class FileOut(BaseModel):
+    file_id: str
+    content_type: str
+
+
+class VersionOut(BaseModel):
+    id: int
+    author_id: uuid.UUID | None
+    created_at: datetime
+
+
+class VersionScene(VersionOut):
+    elements: list[dict[str, Any]]
+
+
 # --- Helpers --------------------------------------------------------------------
 
 
@@ -86,6 +140,74 @@ async def cleanup(session: AsyncSession, workspace_ids: list[uuid.UUID]) -> list
     for model in (WhiteboardSnapshot, WhiteboardFile, WhiteboardBoard):
         await session.execute(delete(model).where(model.workspace_id.in_(workspace_ids)))
     return keys
+
+
+def _size(element: dict[str, Any]) -> int:
+    return len(json.dumps(element, separators=(",", ":"), ensure_ascii=False).encode())
+
+
+def _scene_bytes(elements: dict[str, dict[str, Any]]) -> int:
+    return sum(_size(e) for e in elements.values())
+
+
+def _wins(incoming: dict[str, Any], current: dict[str, Any] | None) -> bool:
+    """Excalidraw's own rule, so every app and the server agree: the higher version wins, and on
+    a tie the lower versionNonce."""
+    if current is None:
+        return True
+    if incoming["version"] != current["version"]:
+        return incoming["version"] > current["version"]
+    return incoming["versionNonce"] < current["versionNonce"]
+
+
+def _keep_version(session: AsyncSession, board: WhiteboardBoard) -> None:
+    """Saves the board as it is now as a version (see _prune_versions for the old ones)."""
+    session.add(
+        WhiteboardSnapshot(
+            board_id=board.id,
+            workspace_id=board.workspace_id,
+            elements=board.elements,
+            background=board.background,
+            author_id=board.updated_by,
+        )
+    )
+    board.snapshot_at = datetime.now(UTC)
+
+
+async def _prune_versions(session: AsyncSession, board_id: uuid.UUID) -> None:
+    keep = (
+        select(WhiteboardSnapshot.id)
+        .where(WhiteboardSnapshot.board_id == board_id)
+        .order_by(WhiteboardSnapshot.id.desc())
+        .limit(MAX_SNAPSHOTS)
+    )
+    await session.execute(
+        delete(WhiteboardSnapshot).where(WhiteboardSnapshot.board_id == board_id, WhiteboardSnapshot.id.not_in(keep))
+    )
+
+
+async def _read_image(upload: UploadFile, limit: int, label: str) -> tuple[bytes, str, str]:
+    data = await upload.read(limit + 1)
+    if len(data) > limit:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"{label} must be at most {limit // 1024} KB")
+    detected = storage.sniff_image(data)
+    if detected is None:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Use PNG, JPG, GIF or WebP")
+    return data, *detected
+
+
+def _stored(stored: storage.StoredFile | None) -> Response:
+    if stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return Response(
+        stored.data,
+        media_type=stored.content_type,
+        headers={
+            # Per user (it's behind a token), but the file itself never changes.
+            "Cache-Control": "private, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 def _summary(board: WhiteboardBoard) -> BoardSummary:
@@ -203,6 +325,204 @@ async def duplicate_board(channel_id: uuid.UUID, board_id: uuid.UUID, user: Curr
         updated_by=user.id,
     )
     return await _created(session, ctx, copy)
+
+
+# --- Scene ----------------------------------------------------------------------
+
+
+@router.put("/channels/{channel_id}/boards/{board_id}/elements", response_model=SaveOut)
+async def save_elements(
+    channel_id: uuid.UUID, board_id: uuid.UUID, body: ElementsSave, user: CurrentUser, session: SessionDep
+) -> SaveOut:
+    """Saves the elements that changed (new, edited or deleted), merged one by one with what's
+    saved: an older copy of an element never overwrites a newer one, so two people drawing at
+    once don't lose each other's strokes. The accepted ones go live to whoever has the board
+    open."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id, "edit")
+    for element in body.elements:
+        if element.type not in ELEMENT_TYPES:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Unsupported element: {element.type}")
+    board = await _board(session, ctx, board_id, lock=True)
+    current: dict[str, dict[str, Any]] = board.elements
+    accepted = [e for e in (e.model_dump(mode="json") for e in body.elements) if _wins(e, current.get(e["id"]))]
+    if not accepted:
+        return SaveOut(version=board.version, accepted=0)
+    size = board.scene_bytes + sum(_size(e) - (_size(current[e["id"]]) if e["id"] in current else 0) for e in accepted)
+    if size > MAX_SCENE_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="The board is full (5 MB)")
+    now = datetime.now(UTC)
+    if current and (board.snapshot_at is None or now - board.snapshot_at >= SNAPSHOT_EVERY):
+        # The board as it was before this stretch of editing.
+        _keep_version(session, board)
+        await session.flush()
+        await _prune_versions(session, board.id)
+    board.elements = {**current, **{e["id"]: e for e in accepted}}
+    board.scene_bytes = size
+    board.version += 1
+    board.updated_at, board.updated_by = now, user.id
+    await session.commit()
+    await ctx.publish_room(
+        board.id, "elements", {"board_id": str(board.id), "version": board.version, "elements": accepted, "origin": body.origin}
+    )
+    await ctx.publish("board.updated", _summary(board).model_dump(mode="json"))
+    return SaveOut(version=board.version, accepted=len(accepted))
+
+
+# --- Images ---------------------------------------------------------------------
+
+
+@router.post("/channels/{channel_id}/files", response_model=FileOut, status_code=status.HTTP_201_CREATED)
+async def upload_file(
+    channel_id: uuid.UUID,
+    file_id: Annotated[str, Form(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")],
+    file: Annotated[UploadFile, File(description="PNG, JPG, GIF or WebP, up to 10 MB")],
+    user: CurrentUser,
+    session: SessionDep,
+) -> FileOut:
+    """Stores an image placed on a board, under the id Excalidraw gave it (a hash of the
+    content). Sending one the channel already has is a no-op."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id, "edit")
+    existing = await session.get(WhiteboardFile, (ctx.workspace_id, file_id))
+    if existing is not None:
+        return FileOut(file_id=file_id, content_type=existing.content_type)
+    data, content_type, ext = await _read_image(file, MAX_IMAGE_BYTES, "Images")
+    key = f"{workspace_prefix(ctx.workspace_id)}files/{uuid.uuid4().hex}.{ext}"
+    await storage.put(key, data, content_type)
+    session.add(
+        WhiteboardFile(
+            workspace_id=ctx.workspace_id,
+            file_id=file_id,
+            key=key,
+            content_type=content_type,
+            size=len(data),
+            uploaded_by=user.id,
+        )
+    )
+    try:
+        await session.commit()
+    except BaseException:
+        await storage.delete(key)
+        raise
+    return FileOut(file_id=file_id, content_type=content_type)
+
+
+@router.get("/channels/{channel_id}/files/{file_id}")
+async def get_file(channel_id: uuid.UUID, file_id: str, user: CurrentUser, session: SessionDep) -> Response:
+    ctx = await addon_channel(session, manifest, channel_id, user.id)
+    row = await session.get(WhiteboardFile, (ctx.workspace_id, file_id))
+    return _stored(await storage.get(row.key) if row else None)
+
+
+@router.put("/channels/{channel_id}/boards/{board_id}/thumbnail", response_model=BoardSummary)
+async def set_thumbnail(
+    channel_id: uuid.UUID,
+    board_id: uuid.UUID,
+    file: Annotated[UploadFile, File(description="A small PNG or WebP of the scene")],
+    user: CurrentUser,
+    session: SessionDep,
+) -> BoardSummary:
+    """The app renders the picture for the list and the overview after editing."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id, "edit")
+    data, content_type, ext = await _read_image(file, MAX_THUMBNAIL_BYTES, "Thumbnails")
+    board = await _board(session, ctx, board_id, lock=True)
+    old = board.thumbnail_key
+    board.thumbnail_key = f"{workspace_prefix(ctx.workspace_id)}thumbs/{secrets.token_hex(8)}.{ext}"
+    await storage.put(board.thumbnail_key, data, content_type)
+    try:
+        await session.commit()
+    except BaseException:
+        await storage.delete(board.thumbnail_key)
+        raise
+    if old:
+        await storage.delete(old)
+    out = _summary(board)
+    await ctx.publish("board.updated", out.model_dump(mode="json"))
+    return out
+
+
+@router.get("/channels/{channel_id}/boards/{board_id}/thumbnail")
+async def get_thumbnail(channel_id: uuid.UUID, board_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
+    ctx = await addon_channel(session, manifest, channel_id, user.id)
+    board = await _board(session, ctx, board_id)
+    return _stored(await storage.get(board.thumbnail_key) if board.thumbnail_key else None)
+
+
+# --- Versions -------------------------------------------------------------------
+
+
+@router.get("/channels/{channel_id}/boards/{board_id}/versions", response_model=list[VersionOut])
+async def list_versions(channel_id: uuid.UUID, board_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[VersionOut]:
+    """Newest first."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id)
+    board = await _board(session, ctx, board_id)
+    rows = await session.execute(
+        select(WhiteboardSnapshot.id, WhiteboardSnapshot.author_id, WhiteboardSnapshot.created_at)
+        .where(WhiteboardSnapshot.board_id == board.id)
+        .order_by(WhiteboardSnapshot.id.desc())
+    )
+    return [VersionOut(id=i, author_id=a, created_at=c) for i, a, c in rows]
+
+
+async def _version(session: AsyncSession, board: WhiteboardBoard, version_id: int) -> WhiteboardSnapshot:
+    snapshot = await session.get(WhiteboardSnapshot, version_id)
+    if snapshot is None or snapshot.board_id != board.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Version not found")
+    return snapshot
+
+
+@router.get("/channels/{channel_id}/boards/{board_id}/versions/{version_id}", response_model=VersionScene)
+async def get_version(
+    channel_id: uuid.UUID, board_id: uuid.UUID, version_id: int, user: CurrentUser, session: SessionDep
+) -> VersionScene:
+    """A version's drawing, to preview before restoring it."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id)
+    snapshot = await _version(session, await _board(session, ctx, board_id), version_id)
+    return VersionScene(
+        id=snapshot.id,
+        author_id=snapshot.author_id,
+        created_at=snapshot.created_at,
+        elements=[e for e in snapshot.elements.values() if not e.get("isDeleted")],
+    )
+
+
+@router.post("/channels/{channel_id}/boards/{board_id}/versions/{version_id}/restore", response_model=BoardOut)
+async def restore_version(
+    channel_id: uuid.UUID, board_id: uuid.UUID, version_id: int, user: CurrentUser, session: SessionDep
+) -> BoardOut:
+    """Puts the board back as it was in that version. The board as it is now is kept as a
+    version first, so restoring can be undone. Every element gets a version above the current
+    one, so apps with the board open take the restored scene over their own."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id, "edit")
+    board = await _board(session, ctx, board_id, lock=True)
+    snapshot = await _version(session, board, version_id)
+    current: dict[str, dict[str, Any]] = board.elements
+    _keep_version(session, board)
+    stamp = int(time.time() * 1000)
+
+    def bumped(element: dict[str, Any], base: dict[str, Any] | None, **changes: Any) -> dict[str, Any]:
+        version = max(element["version"], base["version"] if base else 0) + 1
+        return {**element, **changes, "version": version, "versionNonce": secrets.randbelow(2**31), "updated": stamp}
+
+    restored = {k: bumped(e, current.get(k)) for k, e in snapshot.elements.items()}
+    # Drawn after that version: deleted, as tombstones like any other deletion.
+    for k, e in current.items():
+        if k not in restored and not e.get("isDeleted"):
+            restored[k] = bumped(e, e, isDeleted=True)
+    board.elements = restored
+    board.background = snapshot.background
+    board.scene_bytes = _scene_bytes(restored)
+    board.version += 1
+    board.updated_at, board.updated_by = datetime.now(UTC), user.id
+    await session.flush()
+    await _prune_versions(session, board.id)
+    await session.commit()
+    elements = list(restored.values())
+    await ctx.publish_room(
+        board.id, "elements", {"board_id": str(board.id), "version": board.version, "elements": elements, "origin": None}
+    )
+    summary = _summary(board)
+    await ctx.publish("board.updated", summary.model_dump(mode="json"))
+    return BoardOut(**summary.model_dump(), elements=elements, can_edit=True)
 
 
 manifest = AddonManifest(

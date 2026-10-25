@@ -133,6 +133,15 @@ class AddonChannel:
         payload = {"channel_id": str(self.channel.id), "server_id": str(self.channel.server_id), **data}
         await broker.publish(f"addon.{self.manifest.key}.{event}", payload, await channel_viewers(self.session, self.channel))
 
+    async def publish_room(self, room: uuid.UUID, event: str, data: dict[str, Any]) -> None:
+        """Sends `addon.<key>.<event>` only to the connections that joined `room` (an id the addon
+        picks, like a whiteboard's) through the socket, among those who can still see the
+        channel. For heavy events that only matter to whoever has that thing open."""
+        payload = {"channel_id": str(self.channel.id), "server_id": str(self.channel.server_id), **data}
+        await broker.publish_to_watchers(
+            f"addon.{self.manifest.key}.{event}", payload, room, await channel_viewers(self.session, self.channel)
+        )
+
     async def announce(self, text: str, *, group: str) -> None:
         """Posts a system line by the current user ("moveu “X” para Feito") to the text channel
         picked in the channel's settings, if any. Lines of the same `group` merge (see

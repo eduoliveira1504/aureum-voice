@@ -4,9 +4,10 @@ Every event is published to Redis together with the ids of the users who should 
 it. Each API process subscribes to the channel and forwards events to the WebSockets it
 holds locally, so any number of API processes can run side by side.
 
-A few high-volume events (screen-share thumbnails) go to connections instead of users:
-only those currently watching a server (and, when given, only of some users). A connection
-watches from two places at once: the server overview on screen, and the Home hub's live cards.
+A few high-volume events go to connections instead of users: only those currently watching
+a topic (and, when given, only of some users). A topic is an id: a server, for screen-share
+thumbnails, watched from the overview on screen and from the Home hub's live cards; or
+something an addon picks, like a whiteboard open on screen (its "rooms").
 """
 
 import asyncio
@@ -42,8 +43,8 @@ class Broker:
         self._owners: dict[WebSocket, uuid.UUID] = {}
         # The session epoch of each connection's token (see end_sessions).
         self._epochs: dict[WebSocket, int] = {}
-        # Connections watching a server, by server id, and what each connection watches from
-        # where ("overview", "home").
+        # Connections watching a topic, by topic id, and what each connection watches from
+        # where ("overview", "home", "addon:<key>").
         self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
         self._watching: dict[WebSocket, dict[str, set[uuid.UUID]]] = {}
 
@@ -66,11 +67,11 @@ class Broker:
             log.exception("Failed to publish %s event", type_)
 
     async def publish_to_watchers(
-        self, type_: str, data: Any, server_id: uuid.UUID, user_ids: Iterable[uuid.UUID] | None = None
+        self, type_: str, data: Any, topic: uuid.UUID, user_ids: Iterable[uuid.UUID] | None = None
     ) -> None:
-        """Sends an event only to connections watching the server's overview, optionally only
-        those of some users (e.g. who can see the channel it's about)."""
-        message: dict[str, Any] = {"type": type_, "data": data, "watchers": str(server_id)}
+        """Sends an event only to connections watching the topic, optionally only those of some
+        users (e.g. who can see the channel it's about)."""
+        message: dict[str, Any] = {"type": type_, "data": data, "watchers": str(topic)}
         if user_ids is not None:
             message["user_ids"] = [str(u) for u in set(user_ids)]
         payload = json.dumps(message, default=str)
@@ -152,19 +153,19 @@ class Broker:
             if not sockets:
                 del self._sockets[user_id]
 
-    def watch(self, ws: WebSocket, place: str, server_ids: Iterable[uuid.UUID]) -> None:
-        """Sets the servers a connection watches from one place (empty: none from there); it
-        gets the events of every server any of its places watches, once."""
+    def watch(self, ws: WebSocket, place: str, topics: Iterable[uuid.UUID]) -> None:
+        """Sets the topics a connection watches from one place (empty: none from there); it
+        gets the events of every topic any of its places watches, once."""
         places = self._watching.setdefault(ws, {})
         before = set().union(*places.values())
-        places[place] = set(server_ids)
+        places[place] = set(topics)
         after = set().union(*places.values())
-        for sid in before - after:
-            self._watchers[sid].discard(ws)
-            if not self._watchers[sid]:
-                del self._watchers[sid]
-        for sid in after - before:
-            self._watchers[sid].add(ws)
+        for topic in before - after:
+            self._watchers[topic].discard(ws)
+            if not self._watchers[topic]:
+                del self._watchers[topic]
+        for topic in after - before:
+            self._watchers[topic].add(ws)
         if not after:
             del self._watching[ws]
 
