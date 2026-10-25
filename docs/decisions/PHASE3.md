@@ -15,10 +15,10 @@ Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
 desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
 0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
-backups/aureum-2026-10-21b.dump). 3.6 pronto em 25/10 (só app, sem API nem migração), ainda não
-publicado. Testes manuais pendentes listados no 3.1, no 3.2, no 3.4, no 3.5 e no 3.6.
-Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
-Próximo: 3.7 (Áudio e controles dentro da call).
+backups/aureum-2026-10-21b.dump). 3.6 e 3.7 prontos em 25/10 (só app, sem API nem migração),
+ainda não publicados. Testes manuais pendentes listados no 3.1, no 3.2, no 3.4, no 3.5, no 3.6 e
+no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
+Próximo: 3.8 (Insígnias).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -119,7 +119,10 @@ Teste manual pendente: os testes listados abaixo nas duas partes.
 - Teste: 3 pessoas na call; uma transmite; as outras NÃO recebem vídeo nem áudio da tela
   até clicar em Assistir (conferir as inscrições no LiveKit); parar de assistir corta tudo.
 
-## 3.7 Áudio e controles dentro da call
+## 3.7 Áudio e controles dentro da call ✅ concluído (teste manual pendente)
+Ver docs/decisions/0025-call-controls-and-devices.md. Popovers em components/CallDeviceMenus.tsx;
+volumes do microfone e da chamada (0–200%); store/devices.ts acompanha devicechange.
+Teste manual pendente: os testes listados abaixo.
 - Barra de controles DENTRO da tela da call (embaixo, centralizada; em tela cheia some
   quando o mouse fica parado): microfone, fone, câmera, compartilhar tela, painel de sons
   (quando existir) e sair.
@@ -502,7 +505,7 @@ Funnel e do LiveKit Cloud.
 - ✅ Início abre no hub: ao vivo, servidores, pendências, minhas tarefas, amigos e novidades.
 - ✅ Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
 - ✅ (teste pendente) Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
-- Trocar microfone, saída e câmera dentro da call, pela barra de controles.
+- ✅ (teste pendente) Trocar microfone, saída e câmera dentro da call, pela barra de controles.
 - 20 Pioneiros no máximo; todos os testers com Beta Tester.
 - Quadro branco, Enquetes, Eventos e Calendário (juntando Kanban e Eventos) funcionando.
 - Perfil editado direto do cartão, com recorte de avatar e banner (inclusive GIF).
