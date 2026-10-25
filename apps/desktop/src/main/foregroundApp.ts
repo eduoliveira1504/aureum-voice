@@ -1,24 +1,21 @@
 /**
  * The executable name of the window in front ("vivaldi", "league of legends"), so the overlay
- * can stay out of browsers and other non-game apps.
+ * shows only over games.
  *
  * Privacy rule (docs/decisions/0012-in-game-overlay.md): only the program's file name is read —
  * never the window title or anything inside the program — and it is only compared, in this
- * process, against the exception lists. It never goes to the server, to the app's window or to
- * a log. Asked at most once a second, only while in a call with the overlay on (see overlay.ts).
+ * process, against the game and exception lists. It never goes to the server, to the app's window
+ * or to a log. Asked at most once a second, only while in a call with the overlay on (see overlay.ts).
  */
-import { basename } from 'node:path'
-
 import type koffiModule from 'koffi'
+
+import { appKey } from '../shared/overlayRule'
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 const MAX_PATH_CHARS = 1024
 
 type Reader = () => string | null
 let reader: Reader | null | undefined
-
-/** "C:\\Games\\Riot\\League of Legends.exe" -> "league of legends" */
-export const appName = (file: string): string => basename(file.replace(/\\/g, '/')).replace(/\.exe$/i, '').trim().toLowerCase()
 
 /** GetForegroundWindow → its process id → the process image path, through koffi (Windows only). */
 function load(): Reader | null {
@@ -47,11 +44,11 @@ function load(): Reader | null {
       getWindowThreadProcessId(hwnd, pid)
       if (!pid[0]) return null
       const handle = openProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0])
-      if (!handle) return null // e.g. an elevated program: unknown, treated as a game
+      if (!handle) return null // e.g. a protected program: unknown (see overGame)
       try {
         const size = [MAX_PATH_CHARS]
         if (!queryImageName(handle, 0, buffer, size)) return null
-        return appName(buffer.toString('utf16le', 0, size[0] * 2))
+        return appKey(buffer.toString('utf16le', 0, size[0] * 2))
       } finally {
         closeHandle(handle)
       }

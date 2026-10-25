@@ -104,9 +104,8 @@ function HiddenApps({ hidden, onChange }: { hidden: string[]; onChange(next: str
     <section>
       <span className={labelClass}>Ocultar overlay neste app</span>
       <p className="mb-2 text-xs text-fg-subtle">
-        O overlay já não aparece sobre navegadores, o Explorador de Arquivos, Discord, Spotify e VS Code. Para isso o
-        Aureum confere só o nome do programa em primeiro plano, uma vez por segundo durante a chamada; o nome não sai do
-        seu PC.
+        O overlay só aparece sobre jogos. Para isso o Aureum confere só o nome do programa em primeiro plano, uma vez por
+        segundo durante a chamada; o nome não sai do seu PC.
       </p>
       {hidden.length > 0 && (
         <ul className="mb-2 flex flex-wrap gap-2">
@@ -156,7 +155,7 @@ export function OverlaySettings(): ReactNode {
     <div className="max-w-[480px] space-y-4">
       <ToggleRow
         title="Mostrar overlay em jogos"
-        description="Durante uma chamada, mostra quem está nela por cima do jogo. Some quando o Aureum, um navegador ou um app da lista abaixo está em primeiro plano."
+        description="Durante uma chamada, mostra quem está nela por cima do jogo. Aparece só quando um jogo está em primeiro plano; nunca em navegadores, launchers ou outros apps."
         checked={prefs.enabled}
         onChange={(enabled) => set({ enabled })}
       />

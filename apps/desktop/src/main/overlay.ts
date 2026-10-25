@@ -12,11 +12,13 @@ import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
 
-import type { OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
-import { appName, foregroundApp } from './foregroundApp'
+import { appKey, gameApps, overGame } from '../shared/overlayRule'
+import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
+import { foregroundApp } from './foregroundApp'
 import { watchCombos } from './keyWatch'
-// Programs that are never games (browsers, the file explorer, chat and music apps): the overlay
-// stays hidden while one of them is in front. Edit the JSON to change the list.
+// Programs that are never games (browsers, chat and music apps, launchers and game clients): the
+// overlay never shows over them, even if one is added as a game by mistake. Edit the JSON to
+// change the list.
 import overlayExceptions from './overlayExceptions.json'
 
 /** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
@@ -56,7 +58,7 @@ const DEFAULT_PREFS: OverlayPrefs = {
 const FOREGROUND_POLL_MS = 1000
 const MAX_HIDDEN_APPS = 100
 /** The bundled exceptions plus the app itself ("aureum voice" installed, "electron" in dev). */
-const NEVER_OVER = new Set([...overlayExceptions.map(appName), appName(process.execPath)])
+const NEVER_OVER = new Set([...overlayExceptions.map(appKey), appKey(process.execPath)])
 
 const MARGIN = 16
 const DEFAULT_SIZE = { width: 260, height: 360 }
@@ -81,8 +83,12 @@ let hidden = false
 let stopWatch: (() => void) | null = null
 /** Polls the program in front (see foregroundApp.ts); null while it isn't running. */
 let foregroundTimer: NodeJS.Timeout | null = null
-/** The program in front is a browser or another app the overlay stays out of. */
-let exceptionInFront = false
+/** The program in front is a game (see shared/overlayRule.ts). */
+let gameInFront = false
+/** The known games (bundled + the user's) and the one game detection found, from games.ts. */
+let knownGames: KnownGame[] = []
+let detectedGame: string | null = null
+let games = new Set<string>()
 const lastFired = new Map<string, number>()
 let saveTimer: NodeJS.Timeout | null = null
 let notify: (state: OverlayState) => void = () => {}
@@ -142,7 +148,7 @@ function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPref
           ...new Set(
             raw.hiddenApps
               .filter((v): v is string => typeof v === 'string' && /^[^\\/:*?"<>|]{1,128}$/.test(v))
-              .map(appName)
+              .map(appKey)
               .filter(Boolean)
           )
         ].slice(0, MAX_HIDDEN_APPS)
@@ -271,7 +277,7 @@ function syncKeyWatch(): void {
 
 /**
  * Asks once a second, only in a call with the overlay on, which program is in front (its file
- * name only), and hides the overlay over the exceptions. The name is compared here and dropped.
+ * name only), and shows the overlay only over games. The name is compared here and dropped.
  */
 function syncForegroundWatch(): void {
   const wanted = active && prefs.enabled
@@ -281,18 +287,26 @@ function syncForegroundWatch(): void {
   } else if (!wanted && foregroundTimer) {
     clearInterval(foregroundTimer)
     foregroundTimer = null
-    exceptionInFront = false
+    gameInFront = false
   }
 }
 
-/** Updates exceptionInFront; returns whether it changed. Unknown programs count as games. */
+/** Updates gameInFront; returns whether it changed. */
 function checkForeground(): boolean {
-  const name = foregroundApp()
-  const excluded = name !== null && (NEVER_OVER.has(name) || prefs.hiddenApps.includes(name))
-  if (excluded === exceptionInFront) return false
-  exceptionInFront = excluded
+  const app = foregroundApp()
+  const game = overGame({ app, games, exceptions: NEVER_OVER, hidden: prefs.hiddenApps, gameRunning: detectedGame !== null })
+  if (game === gameInFront) return false
+  gameInFront = game
   apply()
   return true
+}
+
+/** games.ts tells the known games (the list or the user's changed) and the game it detects. */
+export function setGames(known: KnownGame[], detected: string | null): void {
+  knownGames = known
+  detectedGame = detected
+  games = gameApps(knownGames, detectedGame, [])
+  if (foregroundTimer) checkForeground()
 }
 
 const NOTICE_MS = 2200
@@ -363,10 +377,9 @@ function placed(bounds: OverlayBounds | null): OverlayBounds {
 /** Shows, hides and switches the window between click-through and edit mode. */
 function apply(): void {
   if (!win || win.isDestroyed()) return
-  // Hidden while the app itself is in front: it's for when you're in another window (the game),
-  // and not a browser or another app from the exceptions.
+  // Over a game only: hidden while the app itself, a browser, a launcher or any other app is in front.
   const show =
-    prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden && !exceptionInFront))
+    prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden && gameInFront))
   if (!show) {
     if (win.isVisible()) win.hide()
     return
@@ -454,7 +467,7 @@ export function setMainFocused(focused: boolean): void {
   mainFocused = focused
   // Clicking back into the app ends edit mode, like pressing Concluir.
   if (focused && editing) setEditing(false)
-  // Leaving the app for a browser must not flash the overlay until the next poll.
+  // Leaving the app for a game shows the overlay right away, not on the next poll.
   else if (focused || !foregroundTimer || !checkForeground()) apply()
 }
 

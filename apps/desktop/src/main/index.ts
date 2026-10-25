@@ -160,12 +160,17 @@ handle('system:idle-seconds', () => powerMonitor.getSystemIdleTime())
 
 // "Jogando X": the renderer forwards only the detected game's name to the server.
 handle('games:get-prefs', getPrefs)
-handle('games:set-prefs', (patch: Partial<GamePrefs>) => setPrefs(patch))
+handle('games:set-prefs', async (patch: Partial<GamePrefs>) => {
+  const prefs = await setPrefs(patch)
+  void syncOverlayGames()
+  return prefs
+})
 handle('games:known', knownGames)
 handle('games:running', runningApps)
 handle('games:current', currentGame)
 
-// In-game overlay (see overlay.ts).
+// In-game overlay (see overlay.ts). It shows only over games: the known ones and the detected one.
+const syncOverlayGames = async (): Promise<void> => overlay.setGames(await knownGames(), currentGame())
 const CORNERS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
 handle('overlay:get-state', overlay.getState)
 handle('overlay:set-prefs', (patch: Partial<OverlayPrefs>) => overlay.setPrefs(patch))
@@ -364,7 +369,10 @@ if (!app.requestSingleInstanceLock()) {
       command: (command: TrayCommand) => mainWindow?.webContents.send('tray:command', command)
     })
     void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
-    void startGameDetection((game) => mainWindow?.webContents.send('games:changed', game))
+    void startGameDetection((game) => {
+      mainWindow?.webContents.send('games:changed', game)
+      void syncOverlayGames()
+    }).then(syncOverlayGames)
     startUpdater((state) => mainWindow?.webContents.send('updates:ready', state))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
