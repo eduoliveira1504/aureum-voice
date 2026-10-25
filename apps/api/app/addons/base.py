@@ -89,6 +89,24 @@ class DatedItem(BaseModel):
     mine: bool = False
 
 
+class AgendaItem(DatedItem):
+    """A dated item as the host lists it, with where it lives (GET /users/me/agenda, calendars)."""
+
+    addon_key: str
+    server_id: uuid.UUID
+    server_name: str
+    channel_id: uuid.UUID
+    channel_name: str
+
+
+class AgendaSource(BaseModel):
+    """An addon channel whose things have dates (a calendar's filters list them)."""
+
+    channel_id: uuid.UUID
+    channel_name: str
+    addon_key: str
+
+
 # What has a date between `start` and `end` (all-day items: whose date falls on a day the range
 # touches) in these workspaces, with `mine` for this user. The host passes only workspaces the
 # user can see; the addon never checks permissions itself.
@@ -217,6 +235,16 @@ class AddonChannel:
         overwrites = (await channel_overwrites(self.session, [room.id]))[room.id]
         perms = self.access.ctx.in_channel(self.access.user_id, overwrites, voice=True)
         return room if perms & Perm.VIEW_CHANNEL else None
+
+    async def agenda(self, start: datetime, end: datetime) -> tuple[list[AgendaItem], list[AgendaSource]]:
+        """What has a date in the other addon channels of this server, as the user may see it
+        (each item only from channels they can see), and those channels: for a calendar."""
+        from app import home
+
+        assert self.channel.server_id is not None
+        items = await home.agenda(self.session, self.access.user_id, start, end, server_id=self.channel.server_id)
+        sources = await home.agenda_sources(self.session, self.access.user_id, self.channel.server_id)
+        return items, sources
 
     async def member_ids(self) -> set[uuid.UUID]:
         """Who can see the channel: the people the addon may assign things to."""

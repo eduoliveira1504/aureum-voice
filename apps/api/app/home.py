@@ -19,7 +19,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import reads
-from app.addons.base import AddonManifest, AssignedItem, DatedItem
+from app.addons.base import AddonManifest, AgendaItem, AgendaSource, AssignedItem
 from app.addons.registry import get_addon
 from app.models import Channel, ChannelMember, ChannelRead, ChannelType, Message, Server, ServerMember, User, UserSettings
 from app.permissions import Perm, ServerAccess, channel_overwrites, load_context
@@ -47,14 +47,6 @@ class HomeDm(BaseModel):
 
 
 class HomeTask(AssignedItem):
-    addon_key: str
-    server_id: uuid.UUID
-    server_name: str
-    channel_id: uuid.UUID
-    channel_name: str
-
-
-class AgendaItem(DatedItem):
     addon_key: str
     server_id: uuid.UUID
     server_name: str
@@ -267,6 +259,20 @@ async def agenda(
                 )
             )
     return sorted(out, key=_agenda_order)
+
+
+async def agenda_sources(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID) -> list[AgendaSource]:
+    """The addon channels of a server the user can see whose addon lists dated items."""
+    servers = [s for s in await _servers(session, user_id) if s.server.id == server_id]
+    places, by_addon = _addon_channels(servers, lambda a: a.dated_items is not None)
+    return sorted(
+        (
+            AgendaSource(channel_id=channel.id, channel_name=channel.name or "", addon_key=key)
+            for key, ids in by_addon.items()
+            for channel in (places[i][1] for i in ids)
+        ),
+        key=lambda s: (s.addon_key, s.channel_name.lower()),
+    )
 
 
 async def server_activity(session: AsyncSession, servers: list[_Server]) -> list[HomeServer]:

@@ -10,12 +10,13 @@ from fastapi import WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.addons.base import AddonManifest, AddonSocket, SocketError
+from app.addons.calendar import manifest as calendar
 from app.addons.events import manifest as events
 from app.addons.kanban import manifest as kanban
 from app.addons.polls import manifest as polls
 from app.addons.whiteboard import manifest as whiteboard
 
-ADDONS: dict[str, AddonManifest] = {a.key: a for a in (kanban, whiteboard, events, polls)}
+ADDONS: dict[str, AddonManifest] = {a.key: a for a in (kanban, whiteboard, events, calendar, polls)}
 
 log = logging.getLogger(__name__)
 
