@@ -367,8 +367,68 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
   inventário completo; conta sem escolha usa o automático; insígnia nova não entra no
   destaque sozinha; não dá pra destacar insígnia que não tem (inclusive via API).
 
-## 3.11 Chat: emojis, reações, figurinhas, visto e preview de links
-### Emojis
+## 3.11 Chat: ações da mensagem, emojis, reações, GIFs, figurinhas, visto e preview de links
+Bloco grande: fazer em 3 partes, cada uma numa conversa (A → B → C). Todas as partes valem
+em canais de servidor, DMs e grupos, salvo onde dito.
+
+### Parte A: ações da mensagem, responder, encaminhar, emojis e reações
+
+### Correções antes da parte A (entram na mesma release)
+- Imagem no chat com faixa cinza do lado: em components/Attachments.tsx (ImageThumb), o
+  <button> que envolve a imagem é "block" e ocupa a largura toda da mensagem, mostrando o
+  bg-elevated ao lado da imagem (máx 360px). A caixa deve ter o tamanho da imagem
+  (inline-block / w-fit). Usar largura e altura salvas do anexo (se existirem) pra
+  reservar o espaço certo enquanto carrega, sem pulo de layout. Conferir também vídeo,
+  GIF e figurinha com o mesmo problema.
+- Enquete não cria ("Coloque pelo menos 2 opções" com opções preenchidas): no
+  CreatePollModal, o inputClass tem w-full e anula o w-14 do campo de emoji; o campo de
+  EMOJI fica largo e o de TEXTO vira um quadradinho, então a pessoa digita no campo errado.
+  Corrigir: campo de texto primeiro e largo (flex-1); emoji vira um botão quadrado pequeno
+  à direita que abre o seletor de emojis da parte A (até lá, campo de 1 emoji com
+  largura fixa garantida, sem conflito de classes). Ajustar o inputClass/composição pra
+  classes de largura não brigarem (ex: tailwind-merge ou largura fora do inputClass) e
+  revisar outros lugares que usam inputClass com largura própria.
+  Teste de componente: preencher 2 opções pelo campo de texto cria a enquete; o campo
+  de emoji não aceita texto comum.
+
+#### Barra de ações da mensagem
+- Ao passar o mouse numa mensagem, aparece uma barrinha flutuante no canto direito:
+  Reagir (carinha), Responder, Encaminhar e "…" (mais opções).
+- "…" abre o menu: Editar e Apagar (só nas minhas; Apagar também pra quem tem
+  MANAGE_MESSAGES), Copiar texto, Copiar link da mensagem, Marcar como não lida.
+  Mesmas opções no botão direito da mensagem.
+- Atalhos com a mensagem em foco: R responde, E edita (minha), Del apaga (com confirmação).
+- Tudo respeita permissões; o que a pessoa não pode fazer não aparece.
+
+#### Responder
+- "Responder" mostra acima do campo de mensagem uma faixa "Respondendo a @fulano" com o
+  começo da mensagem original e X pra cancelar; Esc também cancela.
+- A resposta aparece com uma citação compacta em cima (avatar pequeno, nome e começo do
+  texto, ou "imagem"/"GIF"/"figurinha"/"mensagem de voz"). Clicar na citação rola até a
+  original e destaca ela por 2s (carrega o histórico se precisar).
+- Na faixa, botão "@ Mencionar" (ligado por padrão): notifica o autor da original.
+  Desligado: responde sem notificar.
+- Original apagada: a citação vira "Mensagem original apagada". Responder em mensagem de
+  outro canal não existe (só no mesmo canal/DM).
+- messages.reply_to_id (nullable, mesmo canal). A API devolve o resumo da original junto,
+  respeitando permissões.
+
+#### Encaminhar
+- "Encaminhar" abre um seletor de destino com busca: DMs, grupos e canais de texto em que
+  a pessoa pode enviar mensagens (SEND_MESSAGES; com anexo, ATTACH_FILES). Pode escolher
+  até 5 destinos de uma vez e escrever um comentário opcional.
+- No destino, a mensagem aparece como "Encaminhada" (ícone de seta), com o conteúdo
+  original (texto, anexos, GIF, figurinha) e "de #canal · servidor" ou "de uma conversa
+  privada", sem link pra origem se o destinatário não tiver acesso a ela.
+- Anexos encaminhados ganham referência própria na mensagem nova (mesmo arquivo no MinIO,
+  checagem de permissão pelo canal de DESTINO), pra quem recebe conseguir abrir.
+- Figurinha exclusiva de servidor não pode ser encaminhada pra fora dele (opção desabilitada
+  com aviso). Mensagens da DM oficial da @aureum podem ser encaminhadas.
+- messages.forwarded_from (snapshot do conteúdo + origem), não referência viva: se a
+  original for apagada depois, a encaminhada continua.
+- Rate limit pra não virar spam (ex: no máx 5 destinos por vez, 20 encaminhamentos por minuto).
+
+#### Emojis
 - Botão de carinha no campo de mensagem abre o seletor: busca em português, categorias,
   recentes/frequentes e tom de pele (lembrado por usuário).
 - Autocompletar ao digitar ":" + 2 letras (ex: ":fogo" sugere 🔥); Enter/Tab insere.
@@ -377,9 +437,9 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
 - Mensagem só com 1 a 3 emojis aparece grande.
 - A regra do 2.1 continua: emoji nunca como ícone da interface, só no conteúdo.
 
-### Reações
-- Passar o mouse numa mensagem mostra uma barra com 6 reações rápidas (👍 ❤️ 😂 😮 😢 🔥)
-  e "+" para o seletor completo. Também pelo botão direito › Reagir.
+#### Reações
+- Na barra de ações, "Reagir" mostra 6 reações rápidas (👍 ❤️ 😂 😮 😢 🔥) e "+" para o
+  seletor completo. Também pelo botão direito › Reagir.
 - Chips embaixo da mensagem com emoji e contagem; clicar adiciona/remove a minha (a minha
   fica destacada na cor accent); passar o mouse mostra quem reagiu.
 - Vale em canais, DMs e grupos (a DM oficial da @aureum também aceita reação). Em
@@ -388,18 +448,14 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
 - Máx 20 emojis diferentes por mensagem. Tabela message_reactions (message_id, user_id,
   emoji), única por trio. Tempo real via WebSocket. Reação não gera notificação.
 
-### Figurinhas do servidor (depois de emojis e reações)
-- Cada servidor tem figurinhas próprias: PNG, WebP, APNG ou GIF animado, máx 512 KB e
-  320×320, até 30 por servidor; nome + emoji relacionado (pra busca).
-- Permissões novas: MANAGE_EXPRESSIONS (gerenciar figurinhas) e USE_STICKERS (padrão:
-  permitido ao @everyone).
-- Aba "Figurinhas" no seletor, agrupadas por servidor. Exclusivas: só podem ser enviadas
-  no servidor delas (nem em DM nem em outro servidor).
-- Enviada como mensagem própria, exibida em 160px; animadas respeitam
-  prefers-reduced-motion. No MinIO, servidas com checagem de permissão.
-- Configurações do servidor › Figurinhas: enviar, renomear e remover.
+#### Testes da parte A
+Responder (com e sem menção; original apagada; pular até a original); encaminhar pra vários
+destinos, só onde pode enviar (inclusive via API), anexo abre no destino, figurinha de
+servidor bloqueada fora dele, rate limit; barra de ações respeita permissões; seletor e
+autocompletar de emojis; reagir/desfazer em tempo real; permissões de reação; limite de 20.
 
-### Visto nas mensagens privadas (só DM 1:1)
+### Parte B: visto nas DMs e preview de links
+#### Visto nas mensagens privadas (só DM 1:1)
 - Não vale em servidor nem em grupo (por enquanto).
 - Minhas mensagens mostram ✓ Enviada e ✓✓ Vista (na cor accent), só na última mensagem
   vista e na última enviada, pra não poluir.
@@ -409,7 +465,7 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
   outro não vê se eu li e eu também não vejo se ele leu (igual WhatsApp).
 - A DM oficial da @aureum não mostra visto.
 
-### Preview de links
+#### Preview de links
 - Mensagem com link mostra um card: site, título, descrição e imagem (OpenGraph).
   YouTube: miniatura grande, título, canal e play que abre no navegador (sem tocar dentro
   do app por enquanto). Até 3 previews por mensagem.
@@ -419,13 +475,57 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
   tempo limite 5s, máx 1 MB lido, até 3 redirects, cache de 24h por URL. Imagem do
   preview passa pelo /api/media (proxy com cache).
 - Quem enviou pode remover o preview da própria mensagem (X no card). Link entre < > não
-  gera preview.
+  gera preview. Mensagem encaminhada mantém o preview.
 
-### Testes
-Seletor e autocompletar; reagir/desfazer em tempo real; permissões de reação; limite de 20;
-figurinha só no próprio servidor (inclusive via API); limites de arquivo; visto em tempo
-real e respeitando a opção desligada nos dois sentidos (inclusive via API); preview
-OpenGraph e YouTube; link para IP interno recusado; timeout; cache.
+#### Testes da parte B
+Visto em tempo real e respeitando a opção desligada nos dois sentidos (inclusive via API);
+preview OpenGraph e YouTube; link para IP interno recusado (inclusive via redirect e DNS);
+timeout; cache; remover preview.
+
+### Parte C: figurinhas e GIFs
+#### Figurinhas do Aureum e do servidor
+- Por enquanto só figurinhas ESTÁTICAS (PNG/WebP), sem animação.
+- Figurinhas do Aureum (genéricas): pacotes do próprio app que todo mundo pode usar em
+  qualquer lugar (DMs, grupos e qualquer servidor).
+  - Pacote inicial "Aureum básico" com ~16 figurinhas desenhadas em SVG próprio no visual
+    da marca (reações comuns: "bom dia", "kkkk", "gg", "bora?", "valeu", "triste",
+    "brabo", "dormindo" etc., em pt-BR), exportadas em PNG 320×320. Mostrar ao Eduardo
+    antes de fechar. Pacote do mascote entra depois (3.17).
+  - Pacotes novos entram por CLI de admin (stickers pack-add / sticker-add), sem release.
+    Tabelas sticker_packs (id, nome, global bool, server_id nullable) e stickers.
+- Figurinhas do servidor: cada servidor tem as próprias, PNG ou WebP estáticos, máx
+  512 KB e 320×320, até 30 por servidor; nome + emoji relacionado (pra busca). Exclusivas:
+  só podem ser enviadas no servidor delas (nem em DM nem em outro servidor).
+- Permissões novas: MANAGE_EXPRESSIONS (gerenciar figurinhas do servidor) e USE_STICKERS
+  (padrão: permitido ao @everyone; vale pras do Aureum e pras do servidor).
+- Aba "Figurinhas" no seletor: "Aureum" primeiro, depois as do servidor atual (as de outros
+  servidores aparecem bloqueadas com "só no servidor X"); recentes no topo; busca por
+  nome/emoji.
+- Enviada como mensagem própria, exibida em 160px. No MinIO, servidas com checagem de
+  permissão. Configurações do servidor › Figurinhas: enviar, renomear e remover.
+
+#### GIFs
+- Botão "GIF" no campo de mensagem (ao lado da carinha) abre um seletor com busca em
+  português, em alta (trending) e favoritos do usuário. Clicar envia como mensagem.
+- Provedor: a Tenor API foi encerrada em 30/06/2026; usar Klipy ou GIPHY. Antes de
+  implementar, conferir os termos atuais de cada um (custo, limite de requisições,
+  atribuição obrigatória, uso comercial) e perguntar ao Eduardo qual usar.
+- Camada de provedor (app/gifs/providers/), pra trocar sem mexer no resto. Chave só no
+  .env. O app NUNCA chama o provedor direto: busca e trending passam pela nossa API
+  (rate limit por usuário, cache de 10 min das buscas e de 1h do trending).
+- Classificação de conteúdo no filtro mais seguro do provedor (equivalente a "pg-13"),
+  idioma pt-BR. Atribuição exigida pelo provedor no seletor.
+- O GIF não é baixado pro MinIO: a mensagem guarda provedor, id, URL do arquivo (MP4/WebP
+  preferido, menor que GIF) e dimensões. Exibe em loop sem som, pausa quando sai da tela,
+  respeita prefers-reduced-motion (só toca ao passar o mouse).
+- Favoritos: estrela no GIF (no seletor ou na mensagem), salvo no servidor por usuário.
+- Em servidor precisa de SEND_MESSAGES e ATTACH_FILES.
+
+#### Testes da parte C
+Figurinha do Aureum em DM, grupo e qualquer servidor; figurinha de servidor só nele
+(inclusive via API); limites de arquivo; permissões novas; CLI de pacotes; busca de GIF
+passa pela API (chave nunca chega ao app); cache; rate limit; provedor fora do ar mostra
+erro amigável sem quebrar o chat; favoritos.
 
 ## 3.12 Categorias de canais
 - Quem tem MANAGE_CHANNELS cria categorias livres (ex: "Administração", "Jogos",
