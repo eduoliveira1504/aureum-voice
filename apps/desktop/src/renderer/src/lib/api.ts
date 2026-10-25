@@ -383,6 +383,9 @@ export interface Message {
   system?: MessageSystem | null
   /** Posted by @aureum. Only counts with an official author (author.is_official). */
   official?: { category: string; badge?: string } | null
+  /** Carries something of an addon that lives in chats (a poll); apps that know the addon show
+   * it instead of the content, a fallback for those that don't. */
+  embed?: { addon_key: string; id: string } | null
 }
 
 /** GET /users/me/home: what the Home hub needs beyond what the app already holds. */
@@ -422,6 +425,10 @@ export interface MessageSystem {
   source_channel_id: string
   /** Several quick actions by the same person go into one message, one line each. */
   lines: string[]
+  /** A line that stands on its own ("Enquete encerrada: X venceu"): no author name before it. */
+  standalone?: boolean
+  /** The message it's about (the poll), in the same chat. */
+  message_id?: number
 }
 
 interface TokenPair {

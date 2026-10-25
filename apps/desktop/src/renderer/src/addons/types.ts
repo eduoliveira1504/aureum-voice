@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 
-import type { Channel, Me, ServerDetail } from '../lib/api'
+import type { Channel, Me, Message, ServerDetail, User } from '../lib/api'
 import type { PermName } from '../lib/permissions'
 import type { ServerEvent } from '../lib/realtime'
 
@@ -51,6 +51,34 @@ export interface AddonModule {
     /** Shown before picking a channel that people who can't see the addon channel can see. */
     warning: string
   }
+  /** Its `addon.<key>.*` events from the WebSocket, plus 'ready' after every (re)connection. */
+  onEvent?(event: ServerEvent): void
+}
+
+/** What a chat hands the message of a chat addon (a poll). */
+export interface ChatEmbedProps {
+  message: Message
+  channel: Channel
+  me: Me
+  /** Can manage messages here (MANAGE_MESSAGES in a server; nobody in DMs). */
+  canModerate: boolean
+  /** Someone in the conversation, by id (to list who voted). */
+  userOf(userId: string): User | undefined
+  /** Their name here (server nickname or display name). */
+  nameOf(userId: string): string
+}
+
+/**
+ * The desktop half of an addon that lives in chats instead of a channel (polls): its things are
+ * messages (Message.embed), created from the "+" of the message box.
+ */
+export interface ChatAddonModule {
+  /** Same key as the API's manifest. */
+  key: string
+  /** Shows the message that carries the addon's thing. */
+  Embed: ComponentType<ChatEmbedProps>
+  /** An entry in the message box's "+" menu, opening this dialog. */
+  composer?: { label: string; icon: LucideIcon; Dialog: ComponentType<{ channel: Channel; onClose(): void }> }
   /** Its `addon.<key>.*` events from the WebSocket, plus 'ready' after every (re)connection. */
   onEvent?(event: ServerEvent): void
 }

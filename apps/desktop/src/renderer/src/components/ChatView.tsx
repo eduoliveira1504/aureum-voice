@@ -13,7 +13,7 @@ import {
   type ReactNode
 } from 'react'
 
-import { addonIcon } from '../addons/registry'
+import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
 import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import type { Recording } from '../lib/voiceRecorder'
@@ -25,6 +25,7 @@ import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
 import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
 import { badgeTitle } from '../store/badges'
+import { Item, openMenuAt, showDialog } from './ContextMenu'
 import { ConfirmModal } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -214,6 +215,12 @@ export function ChatView({
     () => new Map([...(serverMembers ?? []), ...(dmMembers ?? [])].map(({ user }) => [user.username.toLowerCase(), user])),
     [serverMembers, dmMembers]
   )
+  const byId = useMemo(
+    () => new Map([...(serverMembers ?? []), ...(dmMembers ?? [])].map(({ user }) => [user.id, user])),
+    [serverMembers, dmMembers]
+  )
+  const userOf = (id: string): User | undefined => byId.get(id)
+  const displayName = (id: string): string => nameOf?.(id) ?? byId.get(id)?.display_name ?? 'Alguém'
   const mentionFor =
     (own: boolean) =>
     (username: string): ReactNode => {
@@ -228,6 +235,13 @@ export function ChatView({
         />
       )
     }
+  // A message that carries a chat addon's thing (a poll), when this app knows the addon; else
+  // its content, the API's fallback text, shows as usual.
+  const embedOf = (message: Message): ReactNode => {
+    const addon = chatAddon(message.embed?.addon_key)
+    if (!addon) return undefined
+    return <addon.Embed message={message} channel={channel} me={me} canModerate={canModerate} userOf={userOf} nameOf={displayName} />
+  }
   const acceptsFiles = canSend && canAttach
   const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
 
@@ -380,6 +394,7 @@ export function ChatView({
               ) : message.system ? (
                 <SystemLine
                   message={message}
+                  channelId={channel.id}
                   serverId={channel.server_id}
                   authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : 'Alguém'}
                   onDelete={message.author?.id === me.id || canModerate ? () => setDeleting(message) : undefined}
@@ -390,7 +405,7 @@ export function ChatView({
                   own={message.author?.id === me.id}
                   grouped={grouped}
                   editing={editingId === message.id}
-                  canEdit={message.author?.id === me.id && !!message.content}
+                  canEdit={message.author?.id === me.id && !!message.content && !message.embed}
                   canDelete={message.author?.id === me.id || canModerate}
                   onEdit={() => setEditingId(message.id)}
                   onStopEditing={() => setEditingId(null)}
@@ -400,6 +415,7 @@ export function ChatView({
                   mention={mentionFor(message.author?.id === me.id)}
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                   authorName={message.author ? nameOf?.(message.author.id) : null}
+                  body={embedOf(message)}
                   extra={
                     isOfficialMessage(message) && message.official?.badge ? (
                       <OfficialBadge badgeKey={message.official.badge} me={me} />
@@ -490,11 +506,13 @@ function CallLine({ message, meId }: { message: Message; meId: string }): ReactN
  * of actions by the same person come as one message with several lines. */
 function SystemLine({
   message,
+  channelId,
   serverId,
   authorName,
   onDelete
 }: {
   message: Message
+  channelId: string
   serverId: string | null
   authorName: string
   onDelete?: () => void
@@ -504,7 +522,9 @@ function SystemLine({
   const openTab = useNav((s) => s.openTab)
   const Icon = addonIcon(system.addon_key)
   const [first, ...rest] = system.lines
-  const where = source && serverId && (
+  const focusMessage = useChat((s) => s.focusMessage)
+  // A line about this same chat (a poll's result) doesn't say where it came from.
+  const where = source && serverId && source.id !== channelId && (
     <>
       {' · em '}
       <button type="button" onClick={() => openTab(serverId, channelTab(source.id))} className="font-medium text-fg hover:underline">
@@ -519,9 +539,24 @@ function SystemLine({
       </span>
       <div className="min-w-0 flex-1 pt-2 text-fg-muted">
         <p>
-          <span className="font-semibold text-fg">{authorName}</span>
-          {rest.length === 0 && ` ${first}`}
+          {system.standalone ? (
+            rest.length === 0 && first
+          ) : (
+            <>
+              <span className="font-semibold text-fg">{authorName}</span>
+              {rest.length === 0 && ` ${first}`}
+            </>
+          )}
           {where}
+          {system.message_id !== undefined && (
+            <button
+              type="button"
+              onClick={() => focusMessage(channelId, system.message_id!)}
+              className="ml-2 font-medium text-accent-text hover:underline"
+            >
+              Ver
+            </button>
+          )}
           <span className="ml-2 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
         </p>
         {rest.length > 0 && (
@@ -561,9 +596,12 @@ function MessageRow({
   mention,
   nameColor: roleNameColor,
   authorName,
+  body,
   extra
 }: {
   message: Message
+  /** Shown instead of the text (a chat addon's thing, like a poll). */
+  body?: ReactNode
   /** Shown under the text (the badge of an official badge notice). */
   extra?: ReactNode
   /** Written by the signed-in user: shown on the right, mirrored, with their avatar but no name. */
@@ -623,6 +661,8 @@ function MessageRow({
         )}
         {editing ? (
           <EditBox message={message} onDone={onStopEditing} />
+        ) : body ? (
+          body
         ) : (
           message.content && (
             <div
@@ -728,6 +768,8 @@ function Composer({
   placeholder: string
 }): ReactNode {
   const sendMessage = useChat((s) => s.sendMessage)
+  // What chat addons add to the "+" menu (Criar enquete).
+  const extras = chatComposerAddons()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [files, setFiles] = useState<PendingFile[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -855,13 +897,23 @@ function Composer({
       {error && <p className="mb-1 text-xs text-danger">{error}</p>}
       <PendingFiles files={files} onRemove={removeFile} />
       <div className="flex items-end gap-2">
-        {canAttach && (
+        {(canAttach || extras.length > 0) && (
           <>
             <button
               type="button"
-              title="Anexar arquivos"
-              aria-label="Anexar arquivos"
-              onClick={() => picker.current?.click()}
+              title={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
+              aria-label={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
+              onClick={(e) => {
+                if (!extras.length) return picker.current?.click()
+                openMenuAt(e.currentTarget, () => (
+                  <>
+                    {canAttach && <Item icon={Paperclip} label="Anexar arquivos" onClick={() => picker.current?.click()} />}
+                    {extras.map(({ key, composer: { icon, label, Dialog } }) => (
+                      <Item key={key} icon={icon} label={label} onClick={() => showDialog((close) => <Dialog channel={channel} onClose={close} />)} />
+                    ))}
+                  </>
+                ))
+              }}
               className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-fg-muted hover:bg-accent hover:text-on-accent"
             >
               <Plus size={20} />
