@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     aureum_owner_username: str | None = None
     # While true, accounts that confirm their e-mail get the numbered beta badge.
     aureum_beta: bool = False
+    # The Pioneiro badge goes to this many accounts at most (reserved numbers count). Numbers
+    # already handed out never change.
+    aureum_pioneer_limit: int = 20
     # While true, signing up needs an account invite (a separate switch from AUREUM_BETA).
     aureum_invite_only: bool = True
     # The official bot's account (app/bot). It must be an official bot account (CLI --oficial).

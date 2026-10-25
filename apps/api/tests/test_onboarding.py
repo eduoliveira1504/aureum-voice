@@ -413,3 +413,28 @@ async def test_invite_page_is_public_and_locked_down(client: AsyncClient) -> Non
     assert (await client.get("/api/app/latest-release")).json()["version"] == "1.0.0"
     assert (await client.get("/static/email/logo.png")).status_code == 200
     assert (await client.get("/static/email/pioneiro.png")).status_code == 200
+
+
+async def test_pioneer_numbers_stop_at_the_limit(client: AsyncClient, beta, monkeypatch, capsys) -> None:  # noqa: ANN001
+    monkeypatch.setattr(get_settings(), "aureum_pioneer_limit", 3)
+    assert await cli.create_invites(None, None, None, 4) == 1  # past the limit: can't be reserved
+    assert "go up to 3" in capsys.readouterr().err
+    assert await cli.create_invites(None, None, None, 3) == 0  # reserved numbers count
+    reserved_code = capsys.readouterr().out.split("/convite/")[1].split()[0]
+
+    first = await sign_up(client, "first")
+    assert (await verify(client, first)).json()["pioneer_number"] == 1
+    # Two people confirming at once for the last free number: only one gets it.
+    racers = [await sign_up(client, f"racer{i}") for i in range(2)]
+    codes = [await last_code(a["email"]) for a in racers]
+    results = await asyncio.gather(*(verify(client, a, c) for a, c in zip(racers, codes, strict=True)))
+    assert all(r.status_code == 200 for r in results)
+    assert sorted(r.json()["pioneer_number"] or 0 for r in results) == [0, 2]
+    # The reserved number is still handed out; past the limit nobody else gets the badge.
+    holder = await sign_up(client, "holder", reserved_code)
+    assert (await verify(client, holder)).json()["pioneer_number"] == 3
+    late = await sign_up(client, "late")
+    body = (await verify(client, late)).json()
+    assert body["pioneer_number"] is None and body["invites"] == 3
+    assert await cli.badges("grant", "late", "pioneer") == 1
+    assert "No Pioneiro numbers left" in capsys.readouterr().err

@@ -6,7 +6,9 @@ Who gets what:
 - founder: the account named in AUREUM_OWNER_USERNAME (at sign-up, or at startup if it exists).
 - pioneer (numbered): accounts that confirm their e-mail while AUREUM_BETA=true, except official
   ones (app/onboarding.py). Numbers come from a Postgres sequence and a ledger (PioneerNumber):
-  unique, never reused, and some can be reserved ahead (CLI --pioneiro N).
+  unique, never reused, and some can be reserved ahead (CLI --pioneiro N). Only numbers up to
+  AUREUM_PIONEER_LIMIT exist: past it nobody else gets the badge, beta or not, and the ones
+  handed out stay.
 - bug_hunter: the author of a bug report the owner marks as resolved.
 Mythic badges are beta-only (exclusive_beta): once AUREUM_BETA is off they're never granted again.
 Next to a name the app shows the two rarest; `priority` breaks ties (Fundador before Pioneiro).
@@ -95,10 +97,16 @@ class NumberTaken(Exception):
     """A Pioneiro number that is already reserved or was handed out (maybe to a deleted account)."""
 
 
+class PastPioneerLimit(Exception):
+    """A Pioneiro number above AUREUM_PIONEER_LIMIT."""
+
+
 async def reserve_pioneer_number(
     session: AsyncSession, number: int, *, user_id: uuid.UUID | None = None, invite_code: str | None = None
 ) -> None:
     """Keeps `number` for that user or for whoever signs up with that invite (not committed)."""
+    if not 1 <= number <= get_settings().aureum_pioneer_limit:
+        raise PastPioneerLimit(number)
     inserted = await session.scalar(
         text(
             "INSERT INTO pioneer_numbers (number, user_id, invite_code) VALUES (:n, :u, :c) "
@@ -110,10 +118,11 @@ async def reserve_pioneer_number(
         raise NumberTaken(number)
 
 
-async def _pioneer_number(session: AsyncSession, user: User) -> int:
+async def _pioneer_number(session: AsyncSession, user: User) -> int | None:
     """The number reserved for the user (directly or through their invite), else the next free
-    one from the sequence. nextval never hands out a value twice, even across transactions that
-    roll back, and the ledger insert skips numbers someone reserved ahead."""
+    one from the sequence, or None once that passes AUREUM_PIONEER_LIMIT. nextval never hands out a
+    value twice, even across transactions that roll back, and the ledger insert skips numbers
+    someone reserved ahead: two people confirming at once can't both get the last number."""
     mine = await session.scalar(select(PioneerNumber.number).where(PioneerNumber.user_id == user.id))
     if mine is not None:
         return mine
@@ -127,8 +136,11 @@ async def _pioneer_number(session: AsyncSession, user: User) -> int:
         )
         if claimed is not None:
             return claimed
+    limit = get_settings().aureum_pioneer_limit
     while True:
         number = await session.scalar(text("SELECT nextval('pioneer_number_seq')"))
+        if number > limit:
+            return None
         taken = await session.scalar(
             text("INSERT INTO pioneer_numbers (number, user_id) VALUES (:n, :u) ON CONFLICT DO NOTHING RETURNING number"),
             {"n": number, "u": user.id},
@@ -150,8 +162,9 @@ async def sync_badges(session: AsyncSession) -> None:
 
 
 async def grant(session: AsyncSession, user: User, key: str, granted_by: uuid.UUID | None = None) -> UserBadge | None:
-    """Gives `user` the badge (not committed). None if they already hold it; raises BadgeClosed
-    for a beta-only badge once the beta is over, and KeyError for an unknown badge."""
+    """Gives `user` the badge (not committed). None if they already hold it or the Pioneiro
+    numbers ran out; raises BadgeClosed for a beta-only badge once the beta is over, and KeyError
+    for an unknown badge."""
     badge = await session.scalar(select(Badge).where(Badge.key == key))
     if badge is None:
         raise KeyError(key)
@@ -163,6 +176,8 @@ async def grant(session: AsyncSession, user: User, key: str, granted_by: uuid.UU
     if key == PIONEER:
         await session.flush()  # the user row must exist for the ledger
         number = await _pioneer_number(session, user)
+        if number is None:
+            return None
     elif badge.numbered:
         await session.execute(text("SELECT pg_advisory_xact_lock(:lock)"), {"lock": _NUMBER_LOCK})
         last = await session.scalar(select(func.max(UserBadge.number)).where(UserBadge.badge_id == badge.id))

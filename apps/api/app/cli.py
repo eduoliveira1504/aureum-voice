@@ -71,10 +71,14 @@ async def badges(action: str, username: str, badge: str | None) -> int:
         if action == "grant":
             owner_name = get_settings().owner_username
             owner = await session.scalar(select(User).where(User.username == owner_name)) if owner_name else None
+            had = any(g.badge.key == badge for g in user.badge_grants)
             try:
                 changed = await badge_rules.grant(session, user, badge, granted_by=owner.id if owner else None) is not None
             except badge_rules.BadgeClosed:
                 print(f"{badge!r} is beta-only and the beta is over (AUREUM_BETA)", file=sys.stderr)
+                return 1
+            if not changed and not had:
+                print(f"No Pioneiro numbers left (AUREUM_PIONEER_LIMIT={get_settings().aureum_pioneer_limit})", file=sys.stderr)
                 return 1
         elif action == "revoke":
             changed = await badge_rules.revoke(session, user, badge)
@@ -140,6 +144,9 @@ async def create_user(
                 await badge_rules.reserve_pioneer_number(session, pioneer, user_id=user.id)
             except badge_rules.NumberTaken:
                 print(f"Pioneiro nº {pioneer} is already reserved or taken", file=sys.stderr)
+                return 1
+            except badge_rules.PastPioneerLimit:
+                print(f"Pioneiro numbers go up to {get_settings().aureum_pioneer_limit} (AUREUM_PIONEER_LIMIT)", file=sys.stderr)
                 return 1
         # The owner's account gets Founder while the beta runs.
         if username == get_settings().owner_username:
@@ -220,6 +227,9 @@ async def create_invites(count: int | None, uses: int | None, days: int | None, 
                 await badge_rules.reserve_pioneer_number(session, pioneer, invite_code=made[0].code)
             except badge_rules.NumberTaken:
                 print(f"Pioneiro nº {pioneer} is already reserved or taken", file=sys.stderr)
+                return 1
+            except badge_rules.PastPioneerLimit:
+                print(f"Pioneiro numbers go up to {get_settings().aureum_pioneer_limit} (AUREUM_PIONEER_LIMIT)", file=sys.stderr)
                 return 1
         await session.commit()
         for invite in made:
