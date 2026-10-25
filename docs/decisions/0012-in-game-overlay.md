@@ -99,6 +99,8 @@ later:
    active input mode in a call. It also stops while Settings records a new shortcut.
 
 **Not over browsers and other apps (Phase 3, block 3.1)**
+Replaced in block 3.6 by "only over games" (0024): the exceptions moved to
+`src/shared/overlayExceptions.json` and unknown programs no longer count as games.
 - The first version showed the overlay over any window but the app's own, browsers included. Now it
   also stays hidden while the program in front is an exception: the bundled list in
   `src/main/overlayExceptions.json` (browsers, the file explorer, Discord, Spotify, VS Code, plus the

@@ -15,9 +15,10 @@ Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
 desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
 0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
-backups/aureum-2026-10-21b.dump). Testes manuais pendentes listados no 3.1, no 3.2, no 3.4 e
-no 3.5. Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
-Próximo: 3.6 (Correções do beta: overlay e transmissão).
+backups/aureum-2026-10-21b.dump). 3.6 pronto em 25/10 (só app, sem API nem migração), ainda não
+publicado. Testes manuais pendentes listados no 3.1, no 3.2, no 3.4, no 3.5 e no 3.6.
+Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
+Próximo: 3.7 (Áudio e controles dentro da call).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -74,7 +75,10 @@ Rotas /users/me/home, /users/me/tasks e mark-all-read; dados ao vivo vêm dos st
 Arrastar canais dentro de cada seção ou "Mover para cima/baixo"; rota de reordenação em
 lote por seção; evento channels.reordered em tempo real. (O 3.12 estende para categorias.)
 
-## 3.6 Correções do beta: overlay e transmissão
+## 3.6 Correções do beta: overlay e transmissão ✅ concluído (teste manual pendente)
+Ver docs/decisions/0024-overlay-games-and-watching.md. Regra em src/shared/overlayRule.ts; prévia
+do card e contador "N assistindo" por mensagens de dados do LiveKit (sem mudança na API).
+Teste manual pendente: os testes listados abaixo nas duas partes.
 ### Overlay só em jogos (qualquer jogo, nunca em apps)
 - Problema: hoje o overlay aparece em qualquer programa fora das exceções, então surge em
   clients/launchers (ex: client do LoL) e em apps que não são jogo.
@@ -497,7 +501,7 @@ Funnel e do LiveKit Cloud.
 - ✅ @aureum dá boas-vindas, avisa bug resolvido e manda DMs oficiais.
 - ✅ Início abre no hub: ao vivo, servidores, pendências, minhas tarefas, amigos e novidades.
 - ✅ Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
-- Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
+- ✅ (teste pendente) Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
 - Trocar microfone, saída e câmera dentro da call, pela barra de controles.
 - 20 Pioneiros no máximo; todos os testers com Beta Tester.
 - Quadro branco, Enquetes, Eventos e Calendário (juntando Kanban e Eventos) funcionando.
