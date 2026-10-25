@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, forwarding, media, reactions, reads, social, voice
+from app import attachments, calls, dms, forwarding, media, reactions, reads, receipts, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -240,6 +240,7 @@ async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDe
     out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=0)
     # The user's other devices clear their badges too.
     await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": _server_id(channel)}, [user.id])
+    await receipts.announce(session, channel, user.id)
     return out
 
 

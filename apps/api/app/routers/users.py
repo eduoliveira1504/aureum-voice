@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, Response, Upl
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, bot, codes, images, mail, presence, ratelimit, storage
+from app import account_invites, bot, codes, images, mail, presence, ratelimit, receipts, storage
 from app.access import audience_ids, get_channel_access
 from app.deps import CurrentUser, SessionDep, SignedInUser
 from app.mail.render import mask
@@ -80,6 +80,7 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
     if row is None:
         row = UserSettings(user_id=user.id)
         session.add(row)
+    receipts_before = row.read_receipts is not False
     for field, value in body.model_dump(mode="json", exclude_unset=True).items():
         if value is None:  # every setting has a value; an explicit null means "unchanged"
             continue
@@ -94,6 +95,8 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
     if body.status is not None:
         await presence.set_chosen(user.id, row.status)
         await presence.announce(user.id)
+    if row.read_receipts != receipts_before:
+        await receipts.announce_setting(session, user.id)
     # Other signed-in devices of the same user switch theme live.
     await broker.publish("settings.updated", SettingsOut.model_validate(row).model_dump(mode="json"), [user.id])
     return row

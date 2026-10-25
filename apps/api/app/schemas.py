@@ -396,6 +396,7 @@ class SettingsOut(BaseModel):
     news_dismissed: str | None = None
     emoji_tone: int = 0
     recent_emojis: list[str] = []
+    read_receipts: bool = True
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -428,6 +429,7 @@ class SettingsUpdate(BaseModel):
     emoji_tone: Annotated[int, Field(ge=0, le=5)] | None = None
     # Newest first; the app keeps the list short.
     recent_emojis: Annotated[list[Annotated[str, StringConstraints(min_length=1, max_length=32)]], Field(max_length=MAX_RECENT_EMOJIS)] | None = None
+    read_receipts: bool | None = None
 
 
 # --- Friends --------------------------------------------------------------
@@ -704,6 +706,9 @@ class DmOut(BaseModel):
     # The call in progress, and who is in it right now.
     call: CallOut | None = None
     voice_states: list[VoiceState] = []
+    # 1:1 DMs: the last message the other person read, when both have "Confirmação de leitura"
+    # on (app/receipts.py); null otherwise. Changes come as "dm.read".
+    peer_read_message_id: int | None = None
 
 
 class DmCreate(BaseModel):

@@ -10,7 +10,7 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import presence, reads, voice
+from app import presence, reads, receipts, voice
 from app.models import Channel, ChannelMember, ChannelType, Message
 from app.realtime import broker
 from app.schemas import CallOut, DmMemberOut, DmOut, ReadStateOut, UserPublic
@@ -37,6 +37,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
     latest = {channel_id: last for channel_id, last in rows}
     states = await reads.channel_states(session, viewer, ids)
     active = await calls.current_calls(session, ids)
+    seen = await receipts.peer_reads(session, viewer, channels)
     out = []
     for channel in channels:
         _, last_read, unread, mentions = states[channel.id]
@@ -57,6 +58,7 @@ async def _build(session: AsyncSession, channels: list[Channel], viewer: uuid.UU
                 read=ReadStateOut(channel_id=channel.id, last_read_message_id=last_read, unread_count=unread, mention_count=mentions),
                 call=CallOut.model_validate(call) if call else None,
                 voice_states=await voice.get_states(voice.dm_scope(channel.id)) if call else [],
+                peer_read_message_id=seen.get(channel.id),
             )
         )
     return out

@@ -6,8 +6,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app import home, reads
+from app import home, reads, receipts
 from app.deps import CurrentUser, SessionDep
+from app.models import Channel
 from app.realtime import broker
 from app.schemas import ReadStateOut
 
@@ -60,4 +61,6 @@ async def mark_home_read(user: CurrentUser, session: SessionDep) -> list[ReadSta
         server_id = channels[state.channel_id]
         data = {**state.model_dump(mode="json"), "server_id": str(server_id) if server_id else None}
         await broker.publish("read.updated", data, [user.id])
+        if server_id is None and (channel := await session.get(Channel, state.channel_id)) is not None:
+            await receipts.announce(session, channel, user.id)
     return states
