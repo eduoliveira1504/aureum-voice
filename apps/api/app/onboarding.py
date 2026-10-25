@@ -2,7 +2,7 @@
 --confirmado). All in the caller's transaction:
 
 - the invite it signed up with counts one use (even if it ran out meanwhile);
-- the numbered beta badge, while AUREUM_BETA=true;
+- the beta badges, while AUREUM_BETA=true: Pioneiro (numbered, while numbers last) and Beta Tester;
 - 3 single-use account invites;
 - it joins every official server it isn't banned from;
 - the welcome e-mail, with its Pioneiro number and invites.
@@ -25,8 +25,8 @@ from app.models import AccountInvite, AccountInviteUse, EmailCodePurpose, Server
 @dataclass
 class Confirmed:
     pioneer_number: int | None = None
-    # The Pioneiro badge was handed out just now (not on an earlier confirmation).
-    pioneer_granted: bool = False
+    # Badges handed out just now (not on an earlier confirmation), e.g. Pioneiro and Beta Tester.
+    granted: list[str] = field(default_factory=list)
     invites: int = 0
     joined: list[ServerMember] = field(default_factory=list)
     # Whose invite the account signed up with, if it was someone's (not a CLI invite).
@@ -66,10 +66,13 @@ async def confirm(session: AsyncSession, user: User) -> Confirmed:
     if not user.is_official:
         if get_settings().aureum_beta:
             held = await badges.grant(session, user, badges.PIONEER)
-            result.pioneer_granted = held is not None
+            if held is not None:
+                result.granted.append(badges.PIONEER)
             result.pioneer_number = held.number if held else next(
                 (g.number for g in user.badge_grants if g.badge.key == badges.PIONEER), None
             )
+            if await badges.grant(session, user, badges.BETA_TESTER) is not None:
+                result.granted.append(badges.BETA_TESTER)
         for _ in range(account_invites.PER_USER):
             account_invites.create(session, owner_id=user.id)
         result.invites = account_invites.PER_USER
@@ -93,9 +96,9 @@ async def announce(session: AsyncSession, user: User, result: Confirmed) -> None
 
     for member in result.joined:
         await announce_member_joined(session, member)
-    if result.pioneer_number is not None:
+    if result.granted:
         await badges.announce(session, user)
-    if result.pioneer_granted:
-        await bot.badge_granted(user.id, badges.PIONEER)
+    for key in result.granted:
+        await bot.badge_granted(user.id, key)
     if result.inviter_id is not None:
         await bot.invite_used(result.inviter_id, user.id)

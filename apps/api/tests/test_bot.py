@@ -226,6 +226,21 @@ async def test_badge_dm_and_a_category_turned_off(client: AsyncClient, aureum, c
     assert (await zeca.patch("/users/me/settings", {"official_dm": {"seguranca": False}})).status_code == 422
 
 
+async def test_confirming_during_the_beta_dms_each_badge_once(client: AsyncClient, aureum, beta) -> None:  # noqa: ANN001
+    await switch("dm-insignias")
+    tokens = await sign_up(client, "lia")
+    confirmed = await verify(client, tokens)
+    assert confirmed.status_code == 200
+    lia = ApiUser(client, tokens["access_token"], confirmed.json()["user"])
+    assert sorted(await dm_texts(lia)) == [
+        "Você ganhou a insígnia **Beta Tester**!",
+        "Você ganhou a insígnia **Pioneiro**!",
+    ]
+    # Granting again by hand changes nothing and sends nothing new.
+    assert await cli.badges("grant", "lia", "beta_tester") == 0
+    assert len(await dm_texts(lia)) == 2
+
+
 async def test_security_notices_always_arrive(client: AsyncClient, aureum) -> None:  # noqa: ANN001
     await switch("dm-seguranca")
     mari = await make_user(client, "mari")

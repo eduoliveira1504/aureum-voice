@@ -32,10 +32,15 @@ async def me(client: AsyncClient, tokens: dict) -> dict:
 async def test_catalog(client: AsyncClient) -> None:
     alice = await make_user(client, "alice")
     catalog = {b["key"]: b for b in (await alice.get("/badges")).json()}
-    assert set(catalog) == {"founder", "pioneer", "bug_hunter"}
+    assert set(catalog) == {"founder", "pioneer", "beta_tester", "bug_hunter"}
     assert (catalog["founder"]["name"], catalog["founder"]["rarity"]) == ("Fundador", "mitica")
     assert catalog["pioneer"]["numbered"] is True
     assert (catalog["pioneer"]["exclusive_beta"], catalog["bug_hunter"]["exclusive_beta"]) == (True, False)
+    beta_tester = catalog["beta_tester"]
+    assert (beta_tester["name"], beta_tester["rarity"], beta_tester["numbered"], beta_tester["exclusive_beta"]) == (
+        "Beta Tester", "lendaria", False, True,
+    )
+    assert catalog["pioneer"]["description"] == "Um dos 20 primeiros a chegar no Aureum."
     assert catalog["bug_hunter"]["rarity"] == "rara"
     # Ties within a rarity next to a name: Fundador before Pioneiro.
     assert catalog["founder"]["priority"] < catalog["pioneer"]["priority"] < catalog["bug_hunter"]["priority"]
@@ -64,7 +69,7 @@ async def test_beta_badge_comes_numbered_with_the_confirmed_e_mail(client: Async
     assert held(await me(client, edu_tokens)) == [("founder", None)]  # Founder at sign-up, no number yet
     ana_tokens = await signed_up(client, "ana")
     ana = await me(client, ana_tokens)
-    assert held(ana) == [("pioneer", 1)]
+    assert held(ana) == [("pioneer", 1), ("beta_tester", None)]
     assert ana["badges"][0]["granted_at"]
 
     # Others see it too, e.g. in a server's member list.
@@ -74,15 +79,16 @@ async def test_beta_badge_comes_numbered_with_the_confirmed_e_mail(client: Async
     auth = {"Authorization": f"Bearer {ana_tokens['access_token']}"}
     assert (await client.post(f"/api/invites/{code}/join", headers=auth)).status_code == 200
     members = {m["user"]["username"]: m["user"] for m in (await owner.get(f"/servers/{server['id']}")).json()["members"]}
-    assert held(members["ana"]) == [("pioneer", 1)]
+    assert held(members["ana"]) == [("pioneer", 1), ("beta_tester", None)]
 
 
 async def test_no_beta_badges_after_the_beta(client: AsyncClient, beta) -> None:  # noqa: ANN001
     beta(on=False)
     tokens = await signed_up(client, "edu")
     assert held(await me(client, tokens)) == []
-    # Not even by hand: mythic badges are beta-only.
+    # Not even by hand: mythic badges and Beta Tester are beta-only.
     assert await cli.badges("grant", "edu", "founder") == 1
+    assert await cli.badges("grant", "edu", "beta_tester") == 1
     assert await cli.badges("grant", "edu", "bug_hunter") == 0
 
 

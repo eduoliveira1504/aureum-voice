@@ -9,12 +9,17 @@ Who gets what:
   unique, never reused, and some can be reserved ahead (CLI --pioneiro N). Only numbers up to
   AUREUM_PIONEER_LIMIT exist: past it nobody else gets the badge, beta or not, and the ones
   handed out stay.
+- beta_tester: every account (official ones aside) that confirms its e-mail while AUREUM_BETA=true,
+  Pioneiros included; the ones from before it existed got it with `cli badges grant-all`.
 - bug_hunter: the author of a bug report the owner marks as resolved.
-Mythic badges are beta-only (exclusive_beta): once AUREUM_BETA is off they're never granted again.
+Beta-only badges (exclusive_beta: the mythic ones and Beta Tester) are never granted again once
+AUREUM_BETA is off.
 Next to a name the app shows the two rarest; `priority` breaks ties (Fundador before Pioneiro).
 
-Planned (structure ready, added here once their art exists): Veterano (rara, per year of
-account), Construtor (comum, a server with 5+ members), Aureum+ (lendaria, future plan).
+Planned (structure ready, added here once their art exists), with their descriptions:
+- Veterano (rara, per year of account): "Faz parte do Aureum há mais de um ano."
+- Construtor (comum, a server with 5+ members): "Criou um servidor com 5 ou mais membros."
+- Aureum+ (lendaria, future plan): "Apoia o Aureum com o plano Aureum+."
 """
 
 import uuid
@@ -46,6 +51,7 @@ class BadgeDefinition:
 
 FOUNDER = "founder"
 PIONEER = "pioneer"
+BETA_TESTER = "beta_tester"
 BUG_HUNTER = "bug_hunter"
 
 BADGES: dict[str, BadgeDefinition] = {
@@ -54,7 +60,7 @@ BADGES: dict[str, BadgeDefinition] = {
         BadgeDefinition(
             key=FOUNDER,
             name="Fundador",
-            description="Criou o Aureum.",
+            description="Criou o Aureum. Tudo começou aqui.",
             rarity=BadgeRarity.mitica,
             exclusive_beta=True,
             priority=0,
@@ -65,7 +71,7 @@ BADGES: dict[str, BadgeDefinition] = {
             # Name and art are placeholders while the testers vote; swapping them keeps the numbers.
             key=PIONEER,
             name="Pioneiro",
-            description="Entrou no Aureum durante o beta.",
+            description="Um dos 20 primeiros a chegar no Aureum.",
             rarity=BadgeRarity.mitica,
             numbered=True,
             exclusive_beta=True,
@@ -74,9 +80,20 @@ BADGES: dict[str, BadgeDefinition] = {
             icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M48 20 L54 42 L76 48 L54 54 L48 76 L42 54 L20 48 L42 42 Z" fill="#E8B531"/></svg>',
         ),
         BadgeDefinition(
+            # Placeholder art (a lab flask) until the final one.
+            key=BETA_TESTER,
+            name="Beta Tester",
+            description="Testou o Aureum no beta e ajudou a moldar o app.",
+            rarity=BadgeRarity.lendaria,
+            exclusive_beta=True,
+            priority=3,
+            icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M36.6 55 H59.4 L65.6 65.6 Q67 68.5 63.6 68.5 H32.4 Q29 68.5 30.4 65.6 Z" fill="#E8B531"/><path d="M44 25 V42 L29.4 65.8 Q27.4 70.5 32.6 70.5 H63.4 Q68.6 70.5 66.6 65.8 L52 42 V25" fill="none" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M40.5 24 H55.5" stroke="#E8B531" stroke-width="3.5" stroke-linecap="round"/><circle cx="45" cy="49" r="2.2" fill="#F4CF6A"/><circle cx="51.5" cy="44" r="1.6" fill="#F4CF6A"/></svg>',
+            icon_svg_small='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M40 21 H56 V25 H53 V41 L68.5 66 Q71 72 64.5 72 H31.5 Q25 72 27.5 66 L43 41 V25 H40 Z" fill="#E8B531"/></svg>',
+        ),
+        BadgeDefinition(
             key=BUG_HUNTER,
             name="Caçador de bugs",
-            description="Reportou um problema que foi resolvido.",
+            description="Encontrou um bug de verdade e ajudou a corrigir.",
             rarity=BadgeRarity.rara,
             priority=2,
             icon_svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#1C2228" stroke="#C9D1DA" stroke-width="3" stroke-linejoin="round"/><ellipse cx="48" cy="52" rx="12" ry="15" fill="#C9D1DA"/><circle cx="48" cy="35" r="7" fill="#C9D1DA"/><path d="M48 40 V67" stroke="#1C2228" stroke-width="2"/><g stroke="#C9D1DA" stroke-width="2.6" stroke-linecap="round"><path d="M36 46 L27 42"/><path d="M36 54 L26 54"/><path d="M37 62 L28 67"/><path d="M60 46 L69 42"/><path d="M60 54 L70 54"/><path d="M59 62 L68 67"/><path d="M44 29 L40 23"/><path d="M52 29 L56 23"/></g></svg>',
