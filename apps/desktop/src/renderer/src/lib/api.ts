@@ -410,6 +410,18 @@ export interface Message {
   /** Carries something of an addon that lives in chats (a poll); apps that know the addon show
    * it instead of the content, a fallback for those that don't. */
   embed?: { addon_key: string; id: string } | null
+  /** A reply: the original's id, and its quote while it exists (deleted: id only). */
+  reply_to_id?: number | null
+  reply_to?: ReplyRef | null
+}
+
+/** The original a reply quotes: its author and first 200 characters, or what it carries when it
+ * has no text. */
+export interface ReplyRef {
+  id: number
+  author: User | null
+  content: string
+  media: 'image' | 'gif' | 'video' | 'voice' | 'file' | 'poll' | 'embed' | null
 }
 
 /** The event an official "eventos" notice is about (a reminder, a change...). */

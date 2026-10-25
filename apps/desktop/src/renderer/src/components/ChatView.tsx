@@ -10,7 +10,8 @@ import {
   type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
-  type ReactNode
+  type ReactNode,
+  type RefObject
 } from 'react'
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
@@ -28,6 +29,7 @@ import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
 import { badgeTitle, saveFeatured, withFeatured } from '../store/badges'
 import { contextMenu, Item, openMenuAt, showDialog, toast } from './ContextMenu'
 import { MESSAGE_LINK, MessageActionBar, messageKeys, MessageMenu, openMessageLink, type MessageActions } from './MessageActions'
+import { ReplyBar, ReplyQuote } from './MessageReply'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -287,6 +289,8 @@ export function ChatView({
   const deleteMessage = useChat((s) => s.deleteMessage)
   const items = entry?.items
   const [editingId, setEditingId] = useState<number | null>(null)
+  // The message being answered from the message box, and whether its author gets notified.
+  const [replying, setReplying] = useState<{ message: Message; mention: boolean } | null>(null)
   const [deleting, setDeleting] = useState<Message | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [dropping, setDropping] = useState(false)
@@ -329,6 +333,7 @@ export function ChatView({
   const actionsFor = (message: Message): MessageActions => {
     const own = message.author?.id === me.id
     return {
+      onReply: canSend ? () => setReplying({ message, mention: true }) : undefined,
       onEdit: own && message.content && !message.embed ? () => setEditingId(message.id) : undefined,
       onDelete: own || canModerate ? () => setDeleting(message) : undefined
     }
@@ -343,6 +348,7 @@ export function ChatView({
   useEffect(() => {
     atBottom.current = true
     setEditingId(null)
+    setReplying(null)
   }, [channel.id])
 
   // On screen: new messages here are read as they arrive.
@@ -465,6 +471,7 @@ export function ChatView({
             !prev.call &&
             !prev.system &&
             !message.system &&
+            !message.reply_to_id &&
             prev.author?.id === message.author?.id &&
             date.getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS
           return (
@@ -504,6 +511,11 @@ export function ChatView({
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                   authorName={message.author ? nameOf?.(message.author.id) : null}
                   body={embedOf(message)}
+                  quote={
+                    message.reply_to_id ? (
+                      <ReplyQuote message={message} nameOf={(id) => nameOf?.(id)} onJump={(id) => useChat.getState().focusMessage(channel.id, id)} />
+                    ) : undefined
+                  }
                   extra={
                     isOfficialMessage(message) && message.official?.badge ? (
                       <OfficialBadge badgeKey={message.official.badge} me={me} />
@@ -521,6 +533,19 @@ export function ChatView({
       {canSend ? (
         <Composer
           channel={channel}
+          reply={
+            replying && (
+              <ReplyBar
+                target={replying.message}
+                name={replying.message.author?.username ?? 'alguém'}
+                mention={channel.server_id && replying.message.author?.id !== me.id ? replying.mention : null}
+                onToggleMention={() => setReplying((r) => r && { ...r, mention: !r.mention })}
+                onCancel={() => setReplying(null)}
+              />
+            )
+          }
+          replyTo={replying && { id: replying.message.id, mention: replying.mention }}
+          onReplied={() => setReplying(null)}
           canAttach={canAttach}
           addFilesRef={addFiles}
           placeholder={placeholder ?? `Conversar em #${channel.name}`}
@@ -684,11 +709,14 @@ function MessageRow({
   nameColor: roleNameColor,
   authorName,
   body,
+  quote,
   extra
 }: {
   message: Message
   /** Shown instead of the text (a chat addon's thing, like a poll). */
   body?: ReactNode
+  /** Shown above it (the quote of the message it answers). */
+  quote?: ReactNode
   /** Shown under the text (the badge of an official badge notice). */
   extra?: ReactNode
   /** Written by the signed-in user: shown on the right, mirrored, with their avatar but no name. */
@@ -749,6 +777,7 @@ function MessageRow({
             <span className="shrink-0 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
           </div>
         )}
+        {quote}
         {editing ? (
           <EditBox message={message} onDone={onStopEditing} />
         ) : body ? (
@@ -830,11 +859,19 @@ function pastedName(file: File): string {
 
 function Composer({
   channel,
+  reply,
+  replyTo,
+  onReplied,
   canAttach,
   addFilesRef,
   placeholder
 }: {
   channel: Channel
+  /** The bar of the message being answered, shown above the box. */
+  reply: ReactNode
+  /** What the next message answers; Esc or sending clears it (onReplied). */
+  replyTo: { id: number; mention: boolean } | null
+  onReplied(): void
   canAttach: boolean
   /** Set here so the whole conversation can take dropped files. */
   addFilesRef: { current: (files: File[]) => void }
@@ -851,6 +888,12 @@ function Composer({
   const setValue = (v: string): void => setDrafts((d) => ({ ...d, [channel.id]: v }))
   const filesRef = useRef(files)
   filesRef.current = files
+  const input = useRef<HTMLTextAreaElement>(null)
+
+  // Picking "Responder" puts the cursor in the box.
+  useEffect(() => {
+    if (replyTo) input.current?.focus()
+  }, [replyTo?.id])
 
   const patchFile = (key: string, change: Partial<PendingFile>): void =>
     setFiles((list) => list.map((f) => (f.key === key ? { ...f, ...change } : f)))
@@ -910,8 +953,10 @@ function Composer({
       await sendMessage(
         channel.id,
         content,
-        pending.map((f) => f.attachment!.id)
+        pending.map((f) => f.attachment!.id),
+        replyTo ?? undefined
       )
+      onReplied()
       for (const f of pending) {
         seedAttachment(f.attachment!, f.file)
         if (f.preview) URL.revokeObjectURL(f.preview)
@@ -939,7 +984,8 @@ function Composer({
         waveform: recording.waveform.join(',')
       })
       const attachment = await upload.done
-      await sendMessage(channel.id, '', [attachment.id])
+      await sendMessage(channel.id, '', [attachment.id], replyTo ?? undefined)
+      onReplied()
       seedAttachment(attachment, recording.blob)
     } catch (err) {
       setError(
@@ -955,6 +1001,9 @@ function Composer({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       void send()
+    } else if (e.key === 'Escape' && replyTo) {
+      e.preventDefault()
+      onReplied()
     }
   }
 
@@ -968,6 +1017,7 @@ function Composer({
   return (
     <div className="shrink-0 px-4 pb-6">
       {error && <p className="mb-1 text-xs text-danger">{error}</p>}
+      {reply}
       <PendingFiles files={files} onRemove={removeFile} />
       <div className="flex items-end gap-2">
         {(canAttach || extras.length > 0) && (
@@ -1006,6 +1056,7 @@ function Composer({
         <div className="relative min-w-0 flex-1">
           <AutoTextarea
             key={channel.id}
+            inputRef={input}
             autoFocus
             value={value}
             onChange={setValue}
@@ -1032,8 +1083,10 @@ function AutoTextarea({
   onKeyDown,
   onPaste,
   placeholder,
-  autoFocus
+  autoFocus,
+  inputRef
 }: {
+  inputRef?: RefObject<HTMLTextAreaElement | null>
   value: string
   onChange(v: string): void
   onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void
@@ -1041,7 +1094,8 @@ function AutoTextarea({
   placeholder?: string
   autoFocus?: boolean
 }): ReactNode {
-  const ref = useRef<HTMLTextAreaElement>(null)
+  const ownRef = useRef<HTMLTextAreaElement>(null)
+  const ref = inputRef ?? ownRef
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return

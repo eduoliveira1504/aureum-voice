@@ -66,8 +66,9 @@ interface ChatState {
   setStatus(status: ConnectionStatus): void
   loadServers(): Promise<void>
   loadMessages(channelId: string, older?: boolean): Promise<void>
-  /** Text and/or files uploaded beforehand (POST /channels/{id}/attachments); returns the message. */
-  sendMessage(channelId: string, content: string, attachmentIds?: string[]): Promise<Message>
+  /** Text and/or files uploaded beforehand (POST /channels/{id}/attachments); returns the message.
+   * `reply` answers a message of the channel, notifying its author when `mention`. */
+  sendMessage(channelId: string, content: string, attachmentIds?: string[], reply?: { id: number; mention: boolean }): Promise<Message>
   editMessage(id: number, content: string): Promise<void>
   deleteMessage(id: number): Promise<void>
   /**
@@ -101,6 +102,11 @@ function mergeMessages(...lists: Message[][]): Message[] {
   const map = new Map<number, Message>()
   for (const list of lists) for (const m of list) map.set(m.id, m)
   return [...map.values()].sort((a, b) => a.id - b.id)
+}
+
+/** Drops a deleted message; replies to it keep its id but lose the quote ("Mensagem original apagada"). */
+function withoutMessage(items: Message[], id: number): Message[] {
+  return items.filter((m) => m.id !== id).map((m) => (m.reply_to?.id === id ? { ...m, reply_to: null } : m))
 }
 
 const initial = {
@@ -207,10 +213,10 @@ export const useChat = create<ChatState>()((set, get) => {
       }
     },
 
-    sendMessage: async (channelId, content, attachmentIds = []) => {
+    sendMessage: async (channelId, content, attachmentIds = [], reply) => {
       const message = await api<Message>(`/channels/${channelId}/messages`, {
         method: 'POST',
-        body: { content, attachment_ids: attachmentIds }
+        body: { content, attachment_ids: attachmentIds, ...(reply && { reply_to_id: reply.id, mention_reply: reply.mention }) }
       })
       patchMessages(channelId, (items) => mergeMessages(items, [message]))
       return message
@@ -223,9 +229,7 @@ export const useChat = create<ChatState>()((set, get) => {
 
     deleteMessage: async (id) => {
       await api(`/messages/${id}`, { method: 'DELETE' })
-      for (const channelId of Object.keys(get().messages)) {
-        patchMessages(channelId, (items) => items.filter((m) => m.id !== id))
-      }
+      for (const channelId of Object.keys(get().messages)) patchMessages(channelId, (items) => withoutMessage(items, id))
     },
 
     markRead: (channelId, force = false) => {
@@ -345,7 +349,7 @@ export const useChat = create<ChatState>()((set, get) => {
           break
         }
         case 'message.deleted':
-          patchMessages(data.channel_id, (items) => items.filter((m) => m.id !== data.id))
+          patchMessages(data.channel_id, (items) => withoutMessage(items, data.id))
           break
 
         case 'channel.created':

@@ -11,7 +11,7 @@ from app.access import channel_audience, channel_member_ids, get_channel_access,
 from app.addons import registry as addons
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
-from app.messages import chat_channel, post_message, require_dm_friends
+from app.messages import chat_channel, post_message, reply_target, require_dm_friends
 from app.models import Channel, ChannelOverride, ChannelRead, ChannelType, Message, OverrideTarget, Role, ServerMember
 from app.permissions import CHANNEL_PERMS, Perm, ServerAccess, channel_overwrites, channel_viewers
 from app.realtime import broker
@@ -217,7 +217,16 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
         access.require_in(channel, Perm.SEND_MESSAGES)
     if body.attachment_ids and access is not None:
         access.require_in(channel, Perm.ATTACH_FILES)
-    return await post_message(session, channel, user.id, body.content, attachment_ids=body.attachment_ids)
+    reply_to = await reply_target(session, channel, body.reply_to_id)
+    return await post_message(
+        session,
+        channel,
+        user.id,
+        body.content,
+        attachment_ids=body.attachment_ids,
+        reply_to=reply_to,
+        mention_reply=body.mention_reply,
+    )
 
 
 @router.post("/channels/{channel_id}/read", response_model=ReadStateOut)

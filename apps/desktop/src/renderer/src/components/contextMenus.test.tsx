@@ -3,7 +3,7 @@
  * signed-in user may use; conversations in the DM list add their own items.
  */
 
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -318,5 +318,47 @@ describe('message actions', () => {
     expect(useChat.getState().focus).toBeNull()
     openMessageLink(TEXT.id, 1)
     expect(useChat.getState().focus).toEqual({ channelId: TEXT.id, messageId: 1 })
+  })
+})
+
+describe('replies', () => {
+  const rowOf = (id: number): HTMLElement => document.querySelector(`[data-message-id="${id}"] [tabindex="-1"]`) as HTMLElement
+
+  it('answers with R: the bar, the mention switch, Esc to cancel, and the reply sent', async () => {
+    const sendMessage = vi.fn(async () => message(9, ME, 'x'))
+    useChat.setState({ sendMessage })
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.keyDown(rowOf(1), { key: 'r' })
+    expect(screen.getByText('@ana')).toBeTruthy()
+    const box = screen.getByPlaceholderText('Conversar em #geral')
+    expect(document.activeElement).toBe(box)
+    fireEvent.keyDown(box, { key: 'Escape' })
+    expect(screen.queryByText('@ana')).toBeNull()
+
+    fireEvent.click(within(rowOf(1)).getByLabelText('Responder'))
+    fireEvent.click(screen.getByRole('button', { name: /Mencionar/ }))
+    expect(screen.getByRole('button', { name: /Sem mencionar/ }).getAttribute('aria-pressed')).toBe('false')
+    fireEvent.change(box, { target: { value: 'bora sim' } })
+    await act(async () => fireEvent.keyDown(box, { key: 'Enter' }))
+    expect(sendMessage).toHaveBeenCalledWith(TEXT.id, 'bora sim', [], { id: 1, mention: false })
+    expect(screen.queryByText('@ana')).toBeNull()
+  })
+
+  it('has no mention switch when answering myself', () => {
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.keyDown(rowOf(2), { key: 'r' })
+    expect(screen.getByText('Respondendo a', { exact: false }).textContent).toContain('@eduardo')
+    expect(screen.queryByRole('button', { name: /Mencionar/ })).toBeNull()
+  })
+
+  it('quotes the original, jumps to it, and says when it was deleted', () => {
+    const reply = { ...message(3, ME, 'sim'), reply_to_id: 1, reply_to: { id: 1, author: ANA, content: 'oi @eduardo, bora?', media: null } }
+    useChat.setState((s) => ({ messages: { ...s.messages, [TEXT.id]: { ...s.messages[TEXT.id], items: [...s.messages[TEXT.id].items, reply] } } }))
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.click(screen.getByTitle('Ir para a mensagem original'))
+    // Scrolled to and flashed.
+    expect(document.querySelector('[data-message-id="1"]')?.className).toContain('bg-accent/10')
+    act(() => useChat.getState().applyEvent({ type: 'message.deleted', data: { id: 1, channel_id: TEXT.id } } as never))
+    expect(screen.getByText('Mensagem original apagada')).toBeTruthy()
   })
 })

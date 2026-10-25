@@ -59,14 +59,17 @@ async def forget_server(session: AsyncSession, user_id: uuid.UUID, server_id: uu
     )
 
 
-async def record_mentions(session: AsyncSession, message: Message, viewers: list[uuid.UUID]) -> list[uuid.UUID]:
+async def record_mentions(
+    session: AsyncSession, message: Message, viewers: list[uuid.UUID], also: uuid.UUID | None = None
+) -> list[uuid.UUID]:
     """Counts the message's @username mentions of people who can see the channel (not
-    committed). Returns who was mentioned."""
+    committed), plus `also` (the author of the message a reply mentions). Returns who was
+    mentioned."""
     names = mentioned_usernames(message.content)
-    if not names:
-        return []
-    rows = await session.scalars(select(User.id).where(User.id.in_(viewers), User.username.in_(names)))
-    mentioned = [u for u in rows if u != message.author_id]
+    found = set(await session.scalars(select(User.id).where(User.id.in_(viewers), User.username.in_(names)))) if names else set()
+    if also is not None and also in viewers:
+        found.add(also)
+    mentioned = [u for u in found if u != message.author_id]
     for user_id in mentioned:
         await session.execute(
             insert(ChannelRead)

@@ -761,6 +761,9 @@ class MessageCreate(BaseModel):
     content: Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)] = ""
     # Files uploaded to the channel beforehand (POST /channels/{id}/attachments), in order.
     attachment_ids: Annotated[list[uuid.UUID], Field(max_length=10)] = []
+    # Answers this message of the same channel; `mention_reply` notifies its author ("@ Mencionar").
+    reply_to_id: Annotated[int, Field(ge=1)] | None = None
+    mention_reply: bool = True
 
     @model_validator(mode="after")
     def _not_empty(self) -> "MessageCreate":
@@ -798,6 +801,33 @@ class MarkUnread(BaseModel):
     message_id: Annotated[int, Field(ge=1)]
 
 
+# How much of the original a reply's quote carries.
+REPLY_SNIPPET = 200
+
+
+class ReplyOut(BaseModel):
+    """The original a reply quotes: who wrote it and how it starts, or what it carries when it
+    has no text (`media`: image, gif, video, voice, file or poll)."""
+
+    id: int
+    author: UserPublic | None
+    content: str
+    media: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_message(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return value
+        first = value.attachments[0] if value.attachments else None
+        media = None
+        if value.embed:
+            media = "poll" if value.embed.get("addon_key") == "polls" else "embed"
+        elif first:
+            media = "gif" if first.get("content_type") == "image/gif" else first.get("kind")
+        return {"id": value.id, "author": value.author, "content": value.content[:REPLY_SNIPPET], "media": media}
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -818,6 +848,9 @@ class MessageOut(BaseModel):
     # Carries something of an addon that lives in chats (a poll): {"addon_key", "id"}. Apps
     # that know the addon show it instead of the content, which is a fallback for those that don't.
     embed: dict[str, Any] | None = None
+    # A reply: the original's id, and its quote while it exists (deleted: id only).
+    reply_to_id: int | None = None
+    reply_to: ReplyOut | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

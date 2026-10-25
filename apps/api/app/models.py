@@ -505,9 +505,16 @@ class Message(Base):
     # Set on a message that carries something of an addon that lives in chats (a poll):
     # {"addon_key", "id"}. Its content is a plain fallback for apps that don't know the addon.
     embed: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # The message this one answers, in the same channel. No foreign key: once the original is
+    # deleted the id stays, and the app shows "Mensagem original apagada".
+    reply_to_id: Mapped[int | None] = mapped_column(BigInteger)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
+    # Loaded with the message (one level: the original's own reply isn't), for its summary.
+    reply_to: Mapped["Message | None"] = relationship(
+        primaryjoin="foreign(Message.reply_to_id) == remote(Message.id)", viewonly=True, lazy="joined", join_depth=1
+    )
 
     __table_args__ = (
         # Covers "latest messages of a channel" and "messages before id X".

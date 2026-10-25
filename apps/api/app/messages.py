@@ -41,6 +41,17 @@ async def require_dm_friends(session: AsyncSession, channel: Channel, user_id: u
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only message your friends")
 
 
+async def reply_target(session: AsyncSession, channel: Channel, message_id: int | None) -> Message | None:
+    """The message a new one answers: one of this channel's people messages (not a call line or
+    an addon's line)."""
+    if message_id is None:
+        return None
+    original = await session.get(Message, message_id)
+    if original is None or original.channel_id != channel.id or original.call_id is not None or original.system is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="You can only reply to a message of this conversation")
+    return original
+
+
 async def post_message(
     session: AsyncSession,
     channel: Channel,
@@ -50,15 +61,26 @@ async def post_message(
     attachment_ids: Sequence[uuid.UUID] = (),
     embed: dict[str, Any] | None = None,
     system: dict[str, Any] | None = None,
+    reply_to: Message | None = None,
+    mention_reply: bool = False,
     on_saved: Callable[[Message], None] | None = None,
 ) -> MessageOut:
-    """Saves the message, commits and sends it live. Permissions are the caller's job.
+    """Saves the message, commits and sends it live. Permissions are the caller's job, and so is
+    checking `reply_to` (see reply_target). `mention_reply` counts as a mention of its author.
     `on_saved` runs once the message has its id, before the commit (an addon links its row)."""
     if channel.server_id is None:
         # Reopens the DM for whoever closed it, before the message exists: their read state
         # then doesn't count it yet, and message.created counts it once.
         await dms.reveal(session, channel)
-    message = Message(channel_id=channel.id, author_id=author_id, content=content, attachments=[], embed=embed, system=system)
+    message = Message(
+        channel_id=channel.id,
+        author_id=author_id,
+        content=content,
+        attachments=[],
+        embed=embed,
+        system=system,
+        reply_to_id=reply_to.id if reply_to else None,
+    )
     session.add(message)
     await session.flush()
     if attachment_ids:
@@ -68,9 +90,10 @@ async def post_message(
         on_saved(message)
     audience = await channel_audience(session, channel)
     # In DMs every message is for everyone in it; @mentions only matter in servers.
-    mentioned = await reads.record_mentions(session, message, audience) if channel.server_id and system is None else []
+    also = reply_to.author_id if reply_to is not None and mention_reply else None
+    mentioned = await reads.record_mentions(session, message, audience, also) if channel.server_id and system is None else []
     await session.commit()
-    await session.refresh(message, ["author"])
+    await session.refresh(message, ["author", "reply_to"])
     out = MessageOut.model_validate(message)
     # `mentions` rides along in the event only, so clients can bump their mention badges live.
     event = {
