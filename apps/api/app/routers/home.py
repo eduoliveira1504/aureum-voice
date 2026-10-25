@@ -1,6 +1,10 @@
 """Home hub (Início): one request for what the app doesn't already hold (see app/home.py)."""
 
-from fastapi import APIRouter
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app import home, reads
 from app.deps import CurrentUser, SessionDep
@@ -19,6 +23,27 @@ async def get_home(user: CurrentUser, session: SessionDep) -> home.HomeOut:
 async def get_tasks(user: CurrentUser, session: SessionDep) -> list[home.HomeTask]:
     """All of "Minhas tarefas" (Home shows the first few)."""
     return await home.my_tasks(session, user.id)
+
+
+AGENDA_MAX_DAYS = 62
+
+
+@router.get("/agenda", response_model=list[home.AgendaItem])
+async def get_agenda(
+    user: CurrentUser,
+    session: SessionDep,
+    start: datetime,
+    end: datetime,
+    server_id: uuid.UUID | None = None,
+    mine: Annotated[bool, Query()] = False,
+) -> list[home.AgendaItem]:
+    """What has a date in the addons the user can see (events, cards' due dates), from `start` to
+    `end` (up to AGENDA_MAX_DAYS apart; without a zone they're UTC). The app asks with its own
+    day boundaries, so "today" is the user's today."""
+    start, end = (d if d.tzinfo else d.replace(tzinfo=UTC) for d in (start, end))
+    if not start < end <= start + timedelta(days=AGENDA_MAX_DAYS):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"The range must be positive and up to {AGENDA_MAX_DAYS} days")
+    return await home.agenda(session, user.id, start, end, server_id=server_id, mine=mine)
 
 
 @router.post("/home/read", response_model=list[ReadStateOut])

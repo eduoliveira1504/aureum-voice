@@ -3,21 +3,23 @@
 The app keeps every server (visible channels, voice states, members), DM, friend request and
 missed call live from their own routes and events, and builds "Ao vivo agora", "Amigos
 ativos" and "Seus servidores" from them. What needs the database is here: unread mentions and
-unread DMs with a preview, the user's tasks from addons, and each server's latest activity.
+unread DMs with a preview, the user's tasks from addons, and each server's latest activity. The
+agenda (what has a date in addons: events, due dates) is here too, for Home and calendars.
 Every server channel goes through the user's permissions first (see
 docs/decisions/0022-home-hub.md).
 """
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import reads
-from app.addons.base import AssignedItem
+from app.addons.base import AddonManifest, AssignedItem, DatedItem
 from app.addons.registry import get_addon
 from app.models import Channel, ChannelMember, ChannelRead, ChannelType, Message, Server, ServerMember, User, UserSettings
 from app.permissions import Perm, ServerAccess, channel_overwrites, load_context
@@ -45,6 +47,14 @@ class HomeDm(BaseModel):
 
 
 class HomeTask(AssignedItem):
+    addon_key: str
+    server_id: uuid.UUID
+    server_name: str
+    channel_id: uuid.UUID
+    channel_name: str
+
+
+class AgendaItem(DatedItem):
     addon_key: str
     server_id: uuid.UUID
     server_name: str
@@ -176,18 +186,27 @@ def _task_order(task: HomeTask) -> tuple[bool, date, float]:
     return (task.due_date is None, task.due_date or date.max, -task.updated_at.timestamp())
 
 
-async def tasks(session: AsyncSession, user_id: uuid.UUID, servers: list[_Server]) -> list[HomeTask]:
-    """Unfinished addon items assigned to the user, in every addon channel they can see. Each
-    addon gets only the workspaces (channels) the user may view; it never checks access itself."""
+def _addon_channels(
+    servers: list[_Server], has_hook: Callable[[AddonManifest], bool]
+) -> tuple[dict[uuid.UUID, tuple[Server, Channel]], dict[str, list[uuid.UUID]]]:
+    """The addon channels the user can see whose addon has the hook: where each one is, and the
+    channel ids per addon key."""
     places: dict[uuid.UUID, tuple[Server, Channel]] = {}
     by_addon: dict[str, list[uuid.UUID]] = {}
     for s in servers:
         for channel in s.channels_with(Perm.VIEW_CHANNEL, ChannelType.addon):
             addon = get_addon(channel.addon_key)
-            if addon is None or addon.assigned is None:
+            if addon is None or not has_hook(addon):
                 continue
             places[channel.id] = (s.server, channel)
             by_addon.setdefault(addon.key, []).append(channel.id)
+    return places, by_addon
+
+
+async def tasks(session: AsyncSession, user_id: uuid.UUID, servers: list[_Server]) -> list[HomeTask]:
+    """Unfinished addon items assigned to the user, in every addon channel they can see. Each
+    addon gets only the workspaces (channels) the user may view; it never checks access itself."""
+    places, by_addon = _addon_channels(servers, lambda a: a.assigned is not None)
     out = []
     for key, workspace_ids in by_addon.items():
         addon = get_addon(key)
@@ -205,6 +224,49 @@ async def tasks(session: AsyncSession, user_id: uuid.UUID, servers: list[_Server
                 )
             )
     return sorted(out, key=_task_order)[:TASKS_LIMIT]
+
+
+def _agenda_order(item: AgendaItem) -> datetime:
+    if item.starts_at is not None:
+        return item.starts_at
+    assert item.day is not None
+    return datetime.combine(item.day, time.min, UTC)
+
+
+async def agenda(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    start: datetime,
+    end: datetime,
+    *,
+    server_id: uuid.UUID | None = None,
+    mine: bool = False,
+) -> list[AgendaItem]:
+    """What has a date between `start` and `end` in the addon channels the user can see (in one
+    server, or all of them), soonest first. `mine` keeps only the user's own items."""
+    servers = await _servers(session, user_id)
+    if server_id is not None:
+        servers = [s for s in servers if s.server.id == server_id]
+    places, by_addon = _addon_channels(servers, lambda a: a.dated_items is not None)
+    out = []
+    for key, workspace_ids in by_addon.items():
+        addon = get_addon(key)
+        assert addon is not None and addon.dated_items is not None
+        for item in await addon.dated_items(session, workspace_ids, start, end, user_id):
+            if mine and not item.mine:
+                continue
+            server, channel = places[item.workspace_id]
+            out.append(
+                AgendaItem(
+                    **item.model_dump(),
+                    addon_key=key,
+                    server_id=server.id,
+                    server_name=server.name,
+                    channel_id=channel.id,
+                    channel_name=channel.name or "",
+                )
+            )
+    return sorted(out, key=_agenda_order)
 
 
 async def server_activity(session: AsyncSession, servers: list[_Server]) -> list[HomeServer]:

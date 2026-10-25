@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.addons.base import AddonChannel, AddonManifest, AssignedItem, ItemLabel, addon_channel
+from app.addons.base import AddonChannel, AddonManifest, AssignedItem, DatedItem, ItemLabel, addon_channel
 from app.addons.kanban.models import KanbanCard, KanbanColumn, KanbanEvent, KanbanLabel
 from app.deps import CurrentUser, SessionDep
 from app.permissions import Perm
@@ -174,6 +174,46 @@ async def assigned(session: AsyncSession, workspace_ids: list[uuid.UUID], user_i
             updated_at=card.updated_at,
         )
         for card, column_name in rows
+    ]
+
+
+async def dated_items(
+    session: AsyncSession, workspace_ids: list[uuid.UUID], start: datetime, end: datetime, user_id: uuid.UUID
+) -> list[DatedItem]:
+    """Cards with a due date in the range, done or not (done ones marked). A due date has no
+    time or zone, so the range is widened by a day on each side; clients place it by its day."""
+    if not workspace_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(KanbanCard, KanbanColumn.stage)
+            .join(KanbanColumn, KanbanColumn.id == KanbanCard.column_id)
+            .where(
+                KanbanCard.workspace_id.in_(workspace_ids),
+                KanbanCard.due_date.is_not(None),
+                KanbanCard.due_date >= start.date() - timedelta(days=1),
+                KanbanCard.due_date <= end.date() + timedelta(days=1),
+            )
+        )
+    ).all()
+    label_ids = {card.label_ids[0] for card, _ in rows if card.label_ids}
+    colors: dict[uuid.UUID, str] = {}
+    if label_ids:
+        colors = {label.id: label.color for label in await session.scalars(select(KanbanLabel).where(KanbanLabel.id.in_(label_ids)))}
+    return [
+        DatedItem(
+            id=str(card.id),
+            workspace_id=card.workspace_id,
+            item_id=card.id,
+            title=card.title,
+            kind="card",
+            all_day=True,
+            day=card.due_date,
+            color=colors.get(card.label_ids[0]) if card.label_ids else None,
+            done=stage == "done",
+            mine=card.assignee_id == user_id,
+        )
+        for card, stage in rows
     ]
 
 
@@ -547,5 +587,6 @@ manifest = AddonManifest(
     permissions={"edit": Perm.SEND_MESSAGES, "manage": Perm.MANAGE_ADDONS},
     on_cleanup=cleanup,
     assigned=assigned,
+    dated_items=dated_items,
     announces=True,
 )

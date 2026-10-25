@@ -63,6 +63,38 @@ class AssignedItem(BaseModel):
 AssignedHook = Callable[[AsyncSession, list[uuid.UUID], uuid.UUID], Awaitable[list[AssignedItem]]]
 
 
+class DatedItem(BaseModel):
+    """Something in an addon that happens or is due on a date (an event, a card's due date), as
+    calendars and the Home hub list it. Addon-agnostic: the host adds where it lives."""
+
+    # Unique within the addon; an event's weekly occurrences each get their own.
+    id: str
+    workspace_id: uuid.UUID
+    # What the addon opens when the item is picked (AddonViewProps.openItem on the desktop).
+    item_id: uuid.UUID
+    title: str
+    # The addon's own word for it ("event", "card"), for filters and icons.
+    kind: str
+    # All-day items (a due date) have only `day`; timed ones `starts_at` and maybe `ends_at`.
+    all_day: bool
+    day: date | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    # A label token name (--label-<color>), never a raw color; None leaves it to the client.
+    color: str | None = None
+    # Finished (a card in a done column) or called off (a cancelled event): shown apart.
+    done: bool = False
+    cancelled: bool = False
+    # The user's own: assigned to them, or an event they said they're going to (or maybe).
+    mine: bool = False
+
+
+# What has a date between `start` and `end` (all-day items: whose date falls on a day the range
+# touches) in these workspaces, with `mine` for this user. The host passes only workspaces the
+# user can see; the addon never checks permissions itself.
+DatedHook = Callable[[AsyncSession, list[uuid.UUID], datetime, datetime, uuid.UUID], Awaitable[list[DatedItem]]]
+
+
 class SocketError(Exception):
     """Raised by a socket handler to answer the client with an error message."""
 
@@ -118,6 +150,8 @@ class AddonManifest:
     # Lists what's assigned to a user, for "Minhas tarefas" in Home; None if the addon has no
     # such thing.
     assigned: AssignedHook | None = None
+    # Lists what has a date, for calendars and the Home hub; None if the addon has no such thing.
+    dated_items: DatedHook | None = None
     # Whether it posts system lines (AddonChannel.announce) to a text channel picked in the
     # channel's settings.
     announces: bool = False
