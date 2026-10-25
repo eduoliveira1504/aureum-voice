@@ -97,6 +97,31 @@ async def test_read_marker_never_moves_back(client: AsyncClient) -> None:
     assert res.json()["last_read_message_id"] == third["id"]
 
 
+async def test_mark_unread_moves_the_marker_back(client: AsyncClient) -> None:
+    alice, bob, outsider = [await make_user(client, n) for n in ("alice", "bob", "outsider")]
+    server = await make_server(alice, bob)
+    cid = text_channel(server)
+    first = await say(alice, cid, "one")
+    second = await say(alice, cid, "two @bob")
+    await say(bob, cid, "mine")
+    await say(alice, cid, "three")
+    assert (await bob.post(f"/channels/{cid}/read", {})).status_code == 200
+
+    res = await bob.post(f"/channels/{cid}/unread", {"message_id": second["id"]})
+    assert res.status_code == 200, res.text
+    # From "two" on, others' messages: "two" and "three" (not bob's own).
+    assert (res.json()["last_read_message_id"], res.json()["unread_count"]) == (first["id"], 2)
+    assert (await read_state(bob, server, cid))["unread_count"] == 2
+    # The first message: everything unread.
+    res = await bob.post(f"/channels/{cid}/unread", {"message_id": first["id"]})
+    assert (res.json()["last_read_message_id"], res.json()["unread_count"]) == (0, 3)
+
+    other = text_channel(await make_server(alice))
+    elsewhere = await say(alice, other, "x")
+    assert (await bob.post(f"/channels/{cid}/unread", {"message_id": elsewhere["id"]})).status_code == 404
+    assert (await outsider.post(f"/channels/{cid}/unread", {"message_id": first["id"]})).status_code == 404
+
+
 async def test_mark_read_needs_membership_and_a_text_channel(client: AsyncClient) -> None:
     alice, outsider = await make_user(client, "alice"), await make_user(client, "outsider")
     server = await make_server(alice)

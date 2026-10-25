@@ -14,6 +14,7 @@ import { useSocial } from '../store/social'
 import { ChatView } from './ChatView'
 import { closeContextMenu, ContextMenuHost } from './ContextMenu'
 import { DmView } from './DmView'
+import { openMessageLink } from './MessageActions'
 import { MemberList } from './MemberList'
 import { ProfileView } from './ProfileCard'
 import { ServerOverview } from './ServerOverview'
@@ -264,5 +265,58 @@ describe('conversations in the DM list', () => {
     expect(items).not.toContain('Ver perfil')
     // Nothing unread there.
     expect(items).not.toContain('Marcar como lida')
+  })
+})
+
+describe('message actions', () => {
+  const rowOf = (id: number): HTMLElement => document.querySelector(`[data-message-id="${id}"] [tabindex="-1"]`) as HTMLElement
+
+  it("offers copy, link and unread on someone else's message, but not edit or delete", () => {
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    const items = rightClick(screen.getByText('bora?', { exact: false }))
+    expect(items).toEqual(expect.arrayContaining(['Copiar texto', 'Copiar link da mensagem', 'Marcar como não lida']))
+    expect(items.join()).not.toMatch(/Editar|Apagar/)
+  })
+
+  it('lets me edit and delete my own, and a moderator delete anyone', () => {
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    expect(rightClick(screen.getByText('bora'))).toEqual(expect.arrayContaining(['EditarE', 'ApagarDel']))
+    closeContextMenu()
+    expect(rightClick(screen.getByText('bora?', { exact: false })).join()).not.toContain('Apagar')
+  })
+
+  it('shows the same menu from the bar\'s "…"', () => {
+    show(<ChatView channel={TEXT} me={ME} canModerate />)
+    const bar = within(rowOf(1)).getByRole('toolbar', { hidden: true })
+    fireEvent.click(within(bar).getByLabelText('Mais opções'))
+    const items = [...screen.getByRole('menu').querySelectorAll('button')].map((b) => b.textContent)
+    expect(items).toContain('ApagarDel')
+  })
+
+  it('edits with E and asks before deleting with Del', () => {
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    const mine = rowOf(2)
+    fireEvent.keyDown(mine, { key: 'Delete' })
+    expect(screen.getByText('Excluir mensagem')).toBeTruthy()
+    fireEvent.click(screen.getByText('Cancelar'))
+    fireEvent.keyDown(mine, { key: 'e' })
+    expect((screen.getByDisplayValue('bora') as HTMLTextAreaElement).tagName).toBe('TEXTAREA')
+    // Not on someone else's message.
+    fireEvent.keyDown(rowOf(1), { key: 'Delete' })
+    expect(screen.queryByText('Excluir mensagem')).toBeNull()
+  })
+
+  it('turns a copied message link into a way to open it', () => {
+    const elsewhere = '0b7f3c52-5f1e-4c47-9d55-3d6c1c2a9e10'
+    useChat.setState((s) => ({
+      messages: { ...s.messages, [TEXT.id]: { ...s.messages[TEXT.id], items: [message(3, ANA, `olha aureum://mensagem/${elsewhere}/1`)] } }
+    }))
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    // A channel the user can't see: no name, and opening it says so.
+    fireEvent.click(screen.getByRole('button', { name: 'Mensagem' }))
+    expect(screen.getByRole('status').textContent).toBe('Você não tem acesso a essa mensagem.')
+    expect(useChat.getState().focus).toBeNull()
+    openMessageLink(TEXT.id, 1)
+    expect(useChat.getState().focus).toEqual({ channelId: TEXT.id, messageId: 1 })
   })
 })

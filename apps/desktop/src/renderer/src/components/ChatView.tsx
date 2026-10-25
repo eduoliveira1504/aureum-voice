@@ -1,4 +1,4 @@
-import { Hash, Paperclip, Pencil, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
+import { Hash, Paperclip, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
 import {
   Fragment,
   useEffect,
@@ -26,7 +26,8 @@ import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
 import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
 import { badgeTitle, saveFeatured, withFeatured } from '../store/badges'
-import { Item, openMenuAt, showDialog, toast } from './ContextMenu'
+import { contextMenu, Item, openMenuAt, showDialog, toast } from './ContextMenu'
+import { MESSAGE_LINK, MessageActionBar, messageKeys, MessageMenu, openMessageLink, type MessageActions } from './MessageActions'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -96,6 +97,27 @@ function ChannelMention({ id }: { id: string }): ReactNode {
   )
 }
 
+/** A message link (Copiar link da mensagem): where it is, and opens it there. */
+function MessageLinkMention({ channelId, messageId }: { channelId: string; messageId: number }): ReactNode {
+  const name = useChat((s) => {
+    for (const server of Object.values(s.servers)) {
+      const channel = server.channels.find((c) => c.id === channelId)
+      if (channel) return `#${channel.name}`
+    }
+    return null
+  })
+  const inDm = useSocial((s) => !!s.dms[channelId])
+  return (
+    <button
+      type="button"
+      onClick={() => openMessageLink(channelId, messageId)}
+      className="rounded-sm bg-accent/15 px-0.5 font-medium text-accent-text hover:underline"
+    >
+      {name ? `${name} › mensagem` : inDm ? 'Mensagem da conversa' : 'Mensagem'}
+    </button>
+  )
+}
+
 const CHANNEL_MENTION = /<#([0-9a-f-]{36})>/g
 // Simple markdown, only in @aureum's messages: **bold**, *italic* and `code`.
 const MARKDOWN = /(\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*|`[^`\n]+`)/g
@@ -122,13 +144,15 @@ function Linkified({
   rich?: boolean
   mention?: (username: string) => ReactNode
 }): ReactNode {
-  const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g)
+  const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]|aureum:\/\/mensagem\/[0-9a-f-]{36}\/\d+)/g)
   const plain = (part: string): ReactNode[] =>
     part.split(CHANNEL_MENTION).map((piece, j) =>
       j % 2 === 1 ? <ChannelMention key={j} id={piece} /> : <Fragment key={j}>{withMentions(piece, mention)}</Fragment>
     )
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
+  return parts.map((part, i) => {
+    const messageLink = i % 2 === 1 && part.match(MESSAGE_LINK)
+    if (messageLink) return <MessageLinkMention key={i} channelId={messageLink[1]} messageId={Number(messageLink[2])} />
+    return i % 2 === 1 ? (
       // On the accent-tinted bubble the accent text color can lack contrast: underline instead.
       <a key={i} href={part} target="_blank" rel="noreferrer" className={own ? 'underline' : 'text-accent-text hover:underline'}>
         {part}
@@ -136,7 +160,7 @@ function Linkified({
     ) : (
       <Fragment key={i}>{rich ? withMarkdown(part, plain) : plain(part)}</Fragment>
     )
-  )
+  })
 }
 
 /** Posted by @aureum: the official look needs both the message's mark and an official author,
@@ -301,6 +325,14 @@ export function ChatView({
     if (!addon) return undefined
     return <addon.Embed message={message} channel={channel} me={me} canModerate={canModerate} userOf={userOf} nameOf={displayName} />
   }
+  // What the user may do to a message (the bar, its menu, right click, shortcuts).
+  const actionsFor = (message: Message): MessageActions => {
+    const own = message.author?.id === me.id
+    return {
+      onEdit: own && message.content && !message.embed ? () => setEditingId(message.id) : undefined,
+      onDelete: own || canModerate ? () => setDeleting(message) : undefined
+    }
+  }
   const acceptsFiles = canSend && canAttach
   const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
 
@@ -464,11 +496,8 @@ export function ChatView({
                   own={message.author?.id === me.id}
                   grouped={grouped}
                   editing={editingId === message.id}
-                  canEdit={message.author?.id === me.id && !!message.content && !message.embed}
-                  canDelete={message.author?.id === me.id || canModerate}
-                  onEdit={() => setEditingId(message.id)}
+                  actions={actionsFor(message)}
                   onStopEditing={() => setEditingId(null)}
-                  onDelete={() => setDeleting(message)}
                   onOpenProfile={profile.open}
                   onAuthorMenu={message.author ? userContextMenu(message.author, me.id, channel.server_id) : undefined}
                   mention={mentionFor(message.author?.id === me.id)}
@@ -647,11 +676,8 @@ function MessageRow({
   own,
   grouped,
   editing,
-  canEdit,
-  canDelete,
-  onEdit,
+  actions,
   onStopEditing,
-  onDelete,
   onOpenProfile,
   onAuthorMenu,
   mention,
@@ -669,11 +695,8 @@ function MessageRow({
   own: boolean
   grouped: boolean
   editing: boolean
-  canEdit: boolean
-  canDelete: boolean
-  onEdit(): void
+  actions: MessageActions
   onStopEditing(): void
-  onDelete(): void
   onOpenProfile(user: User, target: Element): void
   /** Right click on the author: their menu. */
   onAuthorMenu?: (e: MouseEvent) => void
@@ -690,7 +713,13 @@ function MessageRow({
   }
 
   return (
-    <div className={`group relative flex gap-2.5 px-4 ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}>
+    // Focusable (click or the shortcuts' R / E / Del) but not a tab stop for every message.
+    <div
+      tabIndex={-1}
+      onKeyDown={editing ? undefined : messageKeys(actions)}
+      onContextMenu={editing ? undefined : contextMenu(() => <MessageMenu message={message} actions={actions} />)}
+      className={`group relative flex gap-2.5 px-4 outline-none ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}
+    >
       {/* Own messages too: the row is mirrored, so the avatar ends up on the right. */}
       <div className="w-9 shrink-0">
         {!grouped && (
@@ -739,25 +768,8 @@ function MessageRow({
         )}
         {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
-        {!editing && (canEdit || canDelete) && (
-          <div
-            className={`absolute bottom-0 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-hover:flex ${
-              own ? 'right-full mr-2' : 'left-full ml-2'
-            }`}
-          >
-            {canEdit && (
-              <button type="button" title="Editar" aria-label="Editar" onClick={onEdit} className="px-2 py-1.5 hover:bg-elevated hover:text-fg">
-                <Pencil size={16} />
-              </button>
-            )}
-            {canDelete && (
-              <button type="button" title="Excluir" aria-label="Excluir" onClick={onDelete} className="px-2 py-1.5 hover:bg-elevated hover:text-danger">
-                <Trash2 size={16} />
-              </button>
-            )}
-          </div>
-        )}
       </div>
+      {!editing && <MessageActionBar message={message} actions={actions} />}
     </div>
   )
 }

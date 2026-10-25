@@ -12,7 +12,7 @@ from app.addons import registry as addons
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
 from app.messages import chat_channel, post_message, require_dm_friends
-from app.models import Channel, ChannelOverride, ChannelType, Message, OverrideTarget, Role, ServerMember
+from app.models import Channel, ChannelOverride, ChannelRead, ChannelType, Message, OverrideTarget, Role, ServerMember
 from app.permissions import CHANNEL_PERMS, Perm, ServerAccess, channel_overwrites, channel_viewers
 from app.realtime import broker
 from app.routers.servers import channel_out, normalize_channel_name, permissions_changed
@@ -21,6 +21,7 @@ from app.schemas import (
     AttachmentOut,
     ChannelUpdate,
     MarkRead,
+    MarkUnread,
     MessageCreate,
     MessageEdit,
     MessageOut,
@@ -226,6 +227,23 @@ async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDe
     await session.commit()
     out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=0)
     # The user's other devices clear their badges too.
+    await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": _server_id(channel)}, [user.id])
+    return out
+
+
+@router.post("/channels/{channel_id}/unread", response_model=ReadStateOut)
+async def mark_unread(channel_id: uuid.UUID, body: MarkUnread, user: CurrentUser, session: SessionDep) -> ReadStateOut:
+    """"Marcar como não lida" on a message: it and what came after count as unread again."""
+    channel, _ = await chat_channel(session, channel_id, user.id)
+    message = await session.get(Message, body.message_id)
+    if message is None or message.channel_id != channel_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Message not found")
+    last_read, unread = await reads.mark_unread(session, user.id, channel_id, body.message_id)
+    await session.commit()
+    mentions = await session.scalar(
+        select(ChannelRead.mention_count).where(ChannelRead.user_id == user.id, ChannelRead.channel_id == channel_id)
+    )
+    out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=mentions or 0)
     await broker.publish("read.updated", {**out.model_dump(mode="json"), "server_id": _server_id(channel)}, [user.id])
     return out
 

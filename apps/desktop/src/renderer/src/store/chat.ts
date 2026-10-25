@@ -75,6 +75,8 @@ interface ChatState {
    * already zero, unless `force` (a message just arrived in a channel on screen).
    */
   markRead(channelId: string, force?: boolean): void
+  /** "Marcar como não lida": the message and what came after count as unread again. */
+  markUnread(channelId: string, messageId: number): Promise<void>
   addServer(server: ServerDetail): void
   /** Saves a sidebar section's order (MANAGE_CHANNELS): applied right away, then as the API says. */
   reorderChannels(serverId: string, section: Section, ids: string[]): Promise<void>
@@ -231,6 +233,10 @@ export const useChat = create<ChatState>()((set, get) => {
       if (!force && cur && cur.unread_count === 0 && cur.mention_count === 0) return
       if (cur) setRead({ ...cur, unread_count: 0, mention_count: 0 })
       api<ReadState>(`/channels/${channelId}/read`, { method: 'POST' }).then(setRead, () => {})
+    },
+
+    markUnread: async (channelId, messageId) => {
+      setRead(await api<ReadState>(`/channels/${channelId}/unread`, { method: 'POST', body: { message_id: messageId } }))
     },
 
     addServer: (server) => {

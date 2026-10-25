@@ -793,6 +793,11 @@ class MarkRead(BaseModel):
     message_id: Annotated[int, Field(ge=0)] | None = None
 
 
+class MarkUnread(BaseModel):
+    # Unread from this message on.
+    message_id: Annotated[int, Field(ge=1)]
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

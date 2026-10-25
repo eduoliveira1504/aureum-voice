@@ -166,3 +166,31 @@ async def mark_read(
         )
     )
     return last_read, unread or 0
+
+
+async def mark_unread(session: AsyncSession, user_id: uuid.UUID, channel_id: uuid.UUID, message_id: int) -> tuple[int, int]:
+    """"Marcar como não lida": moves the read marker back to just before the message (the only
+    way it goes back). Mentions stay as they are. Returns (last_read_message_id, unread_count).
+    Not committed."""
+    target = (
+        await session.scalar(
+            select(func.max(Message.id)).where(Message.channel_id == channel_id, Message.id < message_id)
+        )
+        or 0
+    )
+    await session.execute(
+        insert(ChannelRead)
+        .values(user_id=user_id, channel_id=channel_id, last_read_message_id=target)
+        .on_conflict_do_update(
+            index_elements=[ChannelRead.user_id, ChannelRead.channel_id],
+            set_={"last_read_message_id": target},
+        )
+    )
+    unread = await session.scalar(
+        select(func.count(Message.id)).where(
+            Message.channel_id == channel_id,
+            Message.id > target,
+            or_(Message.author_id.is_(None), Message.author_id != user_id),
+        )
+    )
+    return target, unread or 0
