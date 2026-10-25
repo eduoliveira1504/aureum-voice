@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
+import { AboutSettings } from './AboutSettings'
 import { AccountSettings, InvitesSettings } from './AccountSettings'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
@@ -28,6 +29,7 @@ type Tab =
   | 'overlay'
   | 'windows'
   | 'reports'
+  | 'about'
 
 export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): void; initialTab?: Tab }): ReactNode {
   const { state, logout } = useAuth()
@@ -49,7 +51,8 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['notifications', 'Notificações'],
             ['overlay', 'Overlay'],
             ['windows', 'Windows'],
-            ...(isOwner ? ([['reports', 'Problemas']] as const) : [])
+            ...(isOwner ? ([['reports', 'Problemas']] as const) : []),
+            ['about', 'Sobre']
           ] as const
         }
         isCurrent={(key) => tab === key || (key === 'profile' && tab === 'badges')}
@@ -69,6 +72,7 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
         {tab === 'reports' && isOwner && <BugReports />}
+        {tab === 'about' && <AboutSettings />}
       </ModalBody>
 
       <div className="mt-5 shrink-0 border-t border-line pt-4">
