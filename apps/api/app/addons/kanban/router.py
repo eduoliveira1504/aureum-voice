@@ -540,7 +540,7 @@ async def delete_label(channel_id: uuid.UUID, label_id: uuid.UUID, user: Current
 
 manifest = AddonManifest(
     key="kanban",
-    name="Quadro",
+    name="Kanban",
     description="Colunas e cards para organizar o que o grupo está fazendo.",
     icon="square-kanban",
     router=router,

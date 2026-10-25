@@ -9,7 +9,7 @@ import { KanbanSummary } from './Summary'
  * alone one day: it only talks to its own API routes and keeps its own state. */
 const kanban: AddonModule = {
   key: 'kanban',
-  name: 'Quadro',
+  name: 'Kanban',
   description: 'Colunas e cards para organizar o que o grupo está fazendo.',
   icon: SquareKanban,
   Panel: KanbanPanel,
