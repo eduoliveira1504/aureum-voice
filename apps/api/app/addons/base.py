@@ -125,6 +125,8 @@ class AddonManifest:
     socket: Mapping[str, SocketHandler] = field(default_factory=dict)
     # Called when a connection that sent this addon messages closes.
     on_socket_close: SocketCloseHook | None = None
+    # Runs for the life of the API process (deadlines, reminders); it must never return.
+    worker: Callable[[], Awaitable[None]] | None = None
     # False for an addon that lives in chats (its things are messages, see AddonChat) and can't
     # be added as a channel.
     in_channel: bool = True
@@ -251,7 +253,8 @@ class AddonChat:
     # The user's permissions in the server; None in DMs and groups.
     access: ServerAccess | None
     session: AsyncSession
-    user_id: uuid.UUID
+    # None when the API acts by itself (an addon's worker): it can only publish and post lines.
+    user_id: uuid.UUID | None
 
     @property
     def workspace_id(self) -> uuid.UUID:
@@ -265,6 +268,7 @@ class AddonChat:
     async def require_send(self) -> None:
         """What sending a message here takes: SEND_MESSAGES in a server, friendship in a 1:1 DM
         (never in the official DM)."""
+        assert self.user_id is not None
         await require_dm_friends(self.session, self.channel, self.user_id)
         if self.access is not None:
             self.access.require_in(self.channel, Perm.SEND_MESSAGES)
@@ -278,15 +282,18 @@ class AddonChat:
             audience = [u for u in audience if u in wanted]
         await broker.publish(f"addon.{self.manifest.key}.{event}", payload, audience)
 
-    async def post(self, item_id: uuid.UUID, fallback: str) -> MessageOut:
+    async def post(self, item_id: uuid.UUID, fallback: str, on_saved: Callable[[Message], None] | None = None) -> MessageOut:
         """Posts the message that shows the addon's thing (`item_id`), by the current user.
-        `fallback` is its content, what apps that don't know the addon show. Commits."""
+        `fallback` is its content, what apps that don't know the addon show. `on_saved` gets the
+        message before the commit, to link the addon's row to it. Commits."""
+        assert self.user_id is not None
         embed = {"addon_key": self.manifest.key, "id": str(item_id)}
-        return await post_message(self.session, self.channel, self.user_id, fallback, embed=embed)
+        return await post_message(self.session, self.channel, self.user_id, fallback, embed=embed, on_saved=on_saved)
 
     async def system_line(self, text: str, *, author_id: uuid.UUID | None, message_id: int | None = None) -> None:
         """Posts a system line here, standing on its own ("Enquete encerrada: X venceu"); apps
-        don't put the author's name before it. `message_id` is the message it's about. Commits.
+        don't put the author's name before it (who did it, or whose thing it is; None for nobody).
+        `message_id` is the message it's about. Commits.
         A failure is logged and doesn't undo what came before."""
         system: dict[str, Any] = {
             "addon_key": self.manifest.key,
@@ -299,7 +306,7 @@ class AddonChat:
         if message_id is not None:
             system["message_id"] = message_id
         try:
-            await post_message(self.session, self.channel, author_id or self.user_id, "", system=system)
+            await post_message(self.session, self.channel, author_id, "", system=system)
         except Exception:
             await self.session.rollback()
             log.exception("Could not post the %s addon's system line", self.manifest.key)

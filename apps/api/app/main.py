@@ -33,6 +33,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         asyncio.create_task(mail.run_worker()),
         asyncio.create_task(broadcast.run_worker()),
         asyncio.create_task(releases.run_worker()),
+        *(asyncio.create_task(a.worker()) for a in ADDONS.values() if a.worker),
     ]
     yield
     for worker in workers:

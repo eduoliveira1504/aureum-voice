@@ -2,7 +2,7 @@
 (polls) share."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -44,14 +44,16 @@ async def require_dm_friends(session: AsyncSession, channel: Channel, user_id: u
 async def post_message(
     session: AsyncSession,
     channel: Channel,
-    author_id: uuid.UUID,
+    author_id: uuid.UUID | None,
     content: str,
     *,
     attachment_ids: Sequence[uuid.UUID] = (),
     embed: dict[str, Any] | None = None,
     system: dict[str, Any] | None = None,
+    on_saved: Callable[[Message], None] | None = None,
 ) -> MessageOut:
-    """Saves the message, commits and sends it live. Permissions are the caller's job."""
+    """Saves the message, commits and sends it live. Permissions are the caller's job.
+    `on_saved` runs once the message has its id, before the commit (an addon links its row)."""
     if channel.server_id is None:
         # Reopens the DM for whoever closed it, before the message exists: their read state
         # then doesn't count it yet, and message.created counts it once.
@@ -59,7 +61,11 @@ async def post_message(
     message = Message(channel_id=channel.id, author_id=author_id, content=content, attachments=[], embed=embed, system=system)
     session.add(message)
     await session.flush()
-    await attachments.attach(session, message, list(attachment_ids), author_id)
+    if attachment_ids:
+        assert author_id is not None
+        await attachments.attach(session, message, list(attachment_ids), author_id)
+    if on_saved is not None:
+        on_saved(message)
     audience = await channel_audience(session, channel)
     # In DMs every message is for everyone in it; @mentions only matter in servers.
     mentioned = await reads.record_mentions(session, message, audience) if channel.server_id and system is None else []
