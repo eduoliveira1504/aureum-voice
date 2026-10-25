@@ -464,7 +464,7 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
     if type_ == ChannelType.addon:
         access.require(Perm.MANAGE_ADDONS)
         addon = addons.get_addon(body.addon_key)
-        if addon is None:
+        if addon is None or not addon.in_channel:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown addon")
         config = addon.parse_config(body.config)
     last = await session.scalar(select(func.max(Channel.position)).where(Channel.server_id == server_id))

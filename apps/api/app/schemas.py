@@ -774,6 +774,9 @@ class MessageOut(BaseModel):
     # Posted by @aureum (app/bot): {"category", "badge"?}. The official look also needs the
     # author's is_official; this never comes from what a message says.
     official: dict[str, Any] | None = None
+    # Carries something of an addon that lives in chats (a poll): {"addon_key", "id"}. Apps
+    # that know the addon show it instead of the content, which is a fallback for those that don't.
+    embed: dict[str, Any] | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

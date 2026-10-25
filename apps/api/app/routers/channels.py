@@ -11,6 +11,7 @@ from app.access import channel_audience, channel_member_ids, get_channel_access,
 from app.addons import registry as addons
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
+from app.messages import chat_channel, post_message, require_dm_friends
 from app.models import Channel, ChannelOverride, ChannelType, Message, OverrideTarget, Role, ServerMember
 from app.permissions import CHANNEL_PERMS, Perm, ServerAccess, channel_overwrites, channel_viewers
 from app.realtime import broker
@@ -165,32 +166,6 @@ def _server_id(channel: Channel) -> str | None:
     return str(channel.server_id) if channel.server_id else None
 
 
-async def _text_channel(
-    session: AsyncSession, channel_id: uuid.UUID, user_id: uuid.UUID
-) -> tuple[Channel, ServerAccess | None]:
-    """A channel that holds messages: a server text channel, a DM or a group."""
-    channel, access = await get_channel_access(session, channel_id, user_id)
-    if channel.type not in (ChannelType.text, *dms.DM_TYPES):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Not a text channel")
-    return channel, access
-
-
-# Older apps show this text as it comes, so it says what to do.
-READ_ONLY = "Esta conversa é só de leitura. Atualize o app."
-
-
-async def _require_dm_friends(session: AsyncSession, channel: Channel, user_id: uuid.UUID) -> None:
-    """A 1:1 DM stays readable after an unfriend or a block, but only friends can write. The
-    official DM (app/bot) is read-only for everyone."""
-    if channel.is_official:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=READ_ONLY)
-    if channel.type != ChannelType.dm:
-        return
-    other = next(u for u in await channel_member_ids(session, channel.id) if u != user_id)
-    if not await social.are_friends(session, user_id, other):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only message your friends")
-
-
 @router.post("/channels/{channel_id}/attachments", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
 async def upload_attachment(
     channel_id: uuid.UUID,
@@ -203,8 +178,8 @@ async def upload_attachment(
 ) -> dict:
     """Uploads a file for a message about to be sent here (attachment_ids of the message).
     `voice` marks a voice message recorded in the app, with its duration and waveform."""
-    channel, access = await _text_channel(session, channel_id, user.id)
-    await _require_dm_friends(session, channel, user.id)
+    channel, access = await chat_channel(session, channel_id, user.id)
+    await require_dm_friends(session, channel, user.id)
     if access is not None:
         needed = Perm.SEND_MESSAGES | Perm.ATTACH_FILES
         if access.channel(channel) & needed != needed:
@@ -223,7 +198,7 @@ async def list_messages(
 ) -> list[Message]:
     """Newest page first; messages inside the page are in chronological order. Without
     READ_HISTORY the page is empty: only messages that arrive live are seen."""
-    channel, access = await _text_channel(session, channel_id, user.id)
+    channel, access = await chat_channel(session, channel_id, user.id)
     if access is not None and not access.channel(channel) & Perm.READ_HISTORY:
         return []
     query = select(Message).where(Message.channel_id == channel_id)
@@ -235,35 +210,18 @@ async def list_messages(
 
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: CurrentUser, session: SessionDep) -> MessageOut:
-    channel, access = await _text_channel(session, channel_id, user.id)
-    await _require_dm_friends(session, channel, user.id)
+    channel, access = await chat_channel(session, channel_id, user.id)
+    await require_dm_friends(session, channel, user.id)
     if access is not None:
         access.require_in(channel, Perm.SEND_MESSAGES)
-    if channel.server_id is None:
-        # Reopens the DM for whoever closed it, before the message exists: their read state
-        # then doesn't count it yet, and message.created counts it once.
-        await dms.reveal(session, channel)
     if body.attachment_ids and access is not None:
         access.require_in(channel, Perm.ATTACH_FILES)
-    message = Message(channel_id=channel_id, author_id=user.id, content=body.content, attachments=[])
-    session.add(message)
-    await session.flush()
-    await attachments.attach(session, message, body.attachment_ids, user.id)
-    audience = await channel_audience(session, channel)
-    # In DMs every message is for everyone in it; @mentions only matter in servers.
-    mentioned = await reads.record_mentions(session, message, audience) if channel.server_id else []
-    await session.commit()
-    await session.refresh(message, ["author"])
-    out = MessageOut.model_validate(message)
-    # `mentions` rides along in the event only, so clients can bump their mention badges live.
-    event = {**out.model_dump(mode="json"), "server_id": _server_id(channel), "mentions": [str(u) for u in mentioned]}
-    await broker.publish("message.created", event, audience)
-    return out
+    return await post_message(session, channel, user.id, body.content, attachment_ids=body.attachment_ids)
 
 
 @router.post("/channels/{channel_id}/read", response_model=ReadStateOut)
 async def mark_read(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep, body: MarkRead | None = None) -> ReadStateOut:
-    channel, _ = await _text_channel(session, channel_id, user.id)
+    channel, _ = await chat_channel(session, channel_id, user.id)
     last_read, unread = await reads.mark_read(session, user.id, channel_id, body.message_id if body else None)
     await session.commit()
     out = ReadStateOut(channel_id=channel_id, last_read_message_id=last_read, unread_count=unread, mention_count=0)
@@ -289,6 +247,8 @@ async def edit_message(message_id: int, body: MessageEdit, user: CurrentUser, se
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only edit your own messages")
     if message.call_id is not None or message.system is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="System lines can't be edited")
+    if message.embed is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This message is edited in its addon")
     message.content = body.content
     message.edited_at = func.now()
     await session.commit()

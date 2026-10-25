@@ -4,6 +4,7 @@ An addon is a self-contained package in app/addons/<key>/ (see
 docs/decisions/0013-addon-framework.md). It never checks permissions or loads channels by
 itself: its routes call `addon_channel`, which hands back the channel's id as a generic
 `workspace_id`, so the addon's own tables don't need to know what a server or a channel is.
+Addons that live in chats instead (polls, ADR 0028) call `addon_chat` the same way.
 """
 
 import logging
@@ -18,7 +19,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.access import get_channel_for_member
+from app.access import channel_audience, get_channel_for_member
+from app.messages import chat_channel, post_message, require_dm_friends
 from app.models import Channel, ChannelType, Message
 from app.permissions import Perm, ServerAccess, channel_viewers
 from app.realtime import broker
@@ -123,6 +125,9 @@ class AddonManifest:
     socket: Mapping[str, SocketHandler] = field(default_factory=dict)
     # Called when a connection that sent this addon messages closes.
     on_socket_close: SocketCloseHook | None = None
+    # False for an addon that lives in chats (its things are messages, see AddonChat) and can't
+    # be added as a channel.
+    in_channel: bool = True
 
     def action_perm(self, action: str) -> Perm:
         if action == "view":
@@ -234,6 +239,77 @@ class AddonChannel:
         if event == "message.created":
             payload["mentions"] = []
         await broker.publish(event, payload, await channel_viewers(self.session, target))
+
+
+@dataclass
+class AddonChat:
+    """A chat (a server text channel, a DM or a group) as an addon that lives in chats sees it:
+    each of its things is a message there (a poll). The workspace is the chat."""
+
+    manifest: AddonManifest
+    channel: Channel
+    # The user's permissions in the server; None in DMs and groups.
+    access: ServerAccess | None
+    session: AsyncSession
+    user_id: uuid.UUID
+
+    @property
+    def workspace_id(self) -> uuid.UUID:
+        return self.channel.id
+
+    @property
+    def can_moderate(self) -> bool:
+        """MANAGE_MESSAGES in a server channel. In DMs and groups nobody moderates."""
+        return self.access is not None and bool(self.access.channel(self.channel) & Perm.MANAGE_MESSAGES)
+
+    async def require_send(self) -> None:
+        """What sending a message here takes: SEND_MESSAGES in a server, friendship in a 1:1 DM
+        (never in the official DM)."""
+        await require_dm_friends(self.session, self.channel, self.user_id)
+        if self.access is not None:
+            self.access.require_in(self.channel, Perm.SEND_MESSAGES)
+
+    async def publish(self, event: str, data: dict[str, Any], user_ids: Iterable[uuid.UUID] | None = None) -> None:
+        """Sends `addon.<key>.<event>` to everyone in the chat, or only to `user_ids` among them."""
+        payload = {"channel_id": str(self.channel.id), "server_id": str(self.channel.server_id) if self.channel.server_id else None, **data}
+        audience = await channel_audience(self.session, self.channel)
+        if user_ids is not None:
+            wanted = set(user_ids)
+            audience = [u for u in audience if u in wanted]
+        await broker.publish(f"addon.{self.manifest.key}.{event}", payload, audience)
+
+    async def post(self, item_id: uuid.UUID, fallback: str) -> MessageOut:
+        """Posts the message that shows the addon's thing (`item_id`), by the current user.
+        `fallback` is its content, what apps that don't know the addon show. Commits."""
+        embed = {"addon_key": self.manifest.key, "id": str(item_id)}
+        return await post_message(self.session, self.channel, self.user_id, fallback, embed=embed)
+
+    async def system_line(self, text: str, *, author_id: uuid.UUID | None, message_id: int | None = None) -> None:
+        """Posts a system line here, standing on its own ("Enquete encerrada: X venceu"); apps
+        don't put the author's name before it. `message_id` is the message it's about. Commits.
+        A failure is logged and doesn't undo what came before."""
+        system: dict[str, Any] = {
+            "addon_key": self.manifest.key,
+            "source_channel_id": str(self.channel.id),
+            "group": "line",
+            "lines": [text],
+            "last_at": datetime.now(UTC).isoformat(),
+            "standalone": True,
+        }
+        if message_id is not None:
+            system["message_id"] = message_id
+        try:
+            await post_message(self.session, self.channel, author_id or self.user_id, "", system=system)
+        except Exception:
+            await self.session.rollback()
+            log.exception("Could not post the %s addon's system line", self.manifest.key)
+
+
+async def addon_chat(session: AsyncSession, manifest: AddonManifest, channel_id: uuid.UUID, user_id: uuid.UUID) -> AddonChat:
+    """The chat, if the user is in it (a channel they can see, a DM or group they're in). Others,
+    and channels that hold no messages, are 404/400 like the message routes."""
+    channel, access = await chat_channel(session, channel_id, user_id)
+    return AddonChat(manifest, channel, access, session, user_id)
 
 
 async def addon_channel(

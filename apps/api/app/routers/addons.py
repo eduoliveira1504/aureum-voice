@@ -9,7 +9,7 @@ router = APIRouter(tags=["addons"])
 
 @router.get("/addons", response_model=list[AddonOut])
 async def list_addons(_: CurrentUser) -> list[AddonOut]:
-    """The addons this server runs, so clients know what can be added to a channel."""
+    """The addons that can be added as a channel. Those that live in chats (polls) aren't here."""
     return [
         AddonOut(
             key=a.key,
@@ -21,4 +21,5 @@ async def list_addons(_: CurrentUser) -> list[AddonOut]:
             announces=a.announces,
         )
         for a in ADDONS.values()
+        if a.in_channel
     ]

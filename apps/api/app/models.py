@@ -476,6 +476,9 @@ class Message(Base):
     # Set on what @aureum posts (app/bot): {"category", "badge"?}. Kept apart from `system`,
     # which older apps read as an addon line.
     official: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Set on a message that carries something of an addon that lives in chats (a poll):
+    # {"addon_key", "id"}. Its content is a plain fallback for apps that don't know the addon.
+    embed: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
