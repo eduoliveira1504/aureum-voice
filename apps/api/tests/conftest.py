@@ -22,7 +22,7 @@ import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app import badges, livekit_admin, releases, storage  # noqa: E402
+from app import badges, link_previews, livekit_admin, releases, safe_fetch, storage  # noqa: E402
 from app.mail.providers import get_provider  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import SessionLocal, engine  # noqa: E402
@@ -95,6 +95,23 @@ def no_github(monkeypatch: pytest.MonkeyPatch) -> None:
         return releases.Release(url="https://github.com/x/y/releases/download/v1/Aureum-Setup.exe", version="1.0.0", size_bytes=90_000_000)
 
     monkeypatch.setattr(releases, "latest", fake_latest)
+
+
+@pytest.fixture(autouse=True)
+async def offline_web(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[None]:
+    """Links in messages never reach the real web: no name resolves and nothing answers.
+    tests/test_link_previews.py brings its own sites."""
+    import socket
+
+    import httpx
+
+    async def no_dns(host: str, port: int) -> list:
+        raise socket.gaierror("offline in tests")
+
+    monkeypatch.setattr(safe_fetch, "getaddrinfo", no_dns)
+    monkeypatch.setattr(safe_fetch, "transport_factory", lambda: httpx.MockTransport(lambda _: httpx.Response(503)))
+    yield
+    await link_previews.settle()
 
 
 @pytest.fixture(autouse=True)

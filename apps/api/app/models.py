@@ -519,6 +519,10 @@ class Message(Base):
     # A forward: snapshot of the original, {"content", "created_at", "source"} (see app/forwarding.py).
     # Its `content` is the comment added when forwarding.
     forwarded_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Cards of the links in it (app/link_previews.py), filled after it's sent; removed by the
+    # author with `previews_removed`, which keeps edits from bringing them back.
+    link_previews: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    previews_removed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")

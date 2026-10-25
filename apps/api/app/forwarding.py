@@ -102,5 +102,9 @@ async def forward(
             session.add_all(copies)
             message.attachments = [attachments.out(c) for c in copies]
 
-        sent.append(await post_message(session, channel, user_id, comment, forwarded_from=carried, on_saved=copy_files))
+        sent.append(
+            await post_message(
+                session, channel, user_id, comment, forwarded_from=carried, previews=original.link_previews, on_saved=copy_files
+            )
+        )
     return sent

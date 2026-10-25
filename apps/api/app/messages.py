@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, dms, reads, social
+from app import attachments, dms, link_previews, reads, social
 from app.access import channel_audience, channel_member_ids, get_channel_access
 from app.models import Channel, ChannelType, Message
 from app.permissions import ServerAccess
@@ -64,11 +64,14 @@ async def post_message(
     reply_to: Message | None = None,
     mention_reply: bool = False,
     forwarded_from: dict[str, Any] | None = None,
+    previews: list[dict[str, Any]] | None = None,
     on_saved: Callable[[Message], None] | None = None,
 ) -> MessageOut:
     """Saves the message, commits and sends it live. Permissions are the caller's job, and so is
     checking `reply_to` (see reply_target). `mention_reply` counts as a mention of its author.
-    `on_saved` runs once the message has its id, before the commit (an addon links its row)."""
+    `on_saved` runs once the message has its id, before the commit (an addon links its row).
+    People's messages get their links' cards a moment later (app/link_previews.py), unless
+    `previews` gives them (a forward carries the original's)."""
     if channel.server_id is None:
         # Reopens the DM for whoever closed it, before the message exists: their read state
         # then doesn't count it yet, and message.created counts it once.
@@ -82,6 +85,7 @@ async def post_message(
         system=system,
         reply_to_id=reply_to.id if reply_to else None,
         forwarded_from=forwarded_from,
+        link_previews=previews or [],
     )
     session.add(message)
     await session.flush()
@@ -104,4 +108,6 @@ async def post_message(
         "mentions": [str(u) for u in mentioned],
     }
     await broker.publish("message.created", event, audience)
+    if author_id is not None and system is None and embed is None and previews is None:
+        link_previews.schedule(message.id, content)
     return out

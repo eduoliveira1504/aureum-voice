@@ -856,6 +856,22 @@ class ReplyOut(BaseModel):
         return {"id": value.id, "author": value.author, "content": content[:REPLY_SNIPPET], "media": media}
 
 
+class LinkPreviewOut(BaseModel):
+    """A link's card (app/link_previews.py). `image` is a /api/media path."""
+
+    url: str
+    kind: Literal["link", "youtube"]
+    site: str | None = None
+    title: str | None = None
+    description: str | None = None
+    image: str | None = None
+    image_width: int | None = None
+    image_height: int | None = None
+    # YouTube only.
+    channel: str | None = None
+    video_id: str | None = None
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -885,6 +901,8 @@ class MessageOut(BaseModel):
     # Sent with the history and edits; null means "not included here" (keep what you have).
     # Changes come as "message.reactions".
     reactions: list[ReactionOut] | None = None
+    # Cards of its links, filled a moment after it's sent (they come as "message.updated").
+    link_previews: list[LinkPreviewOut] = []
 
 
 # --- Bug reports --------------------------------------------------------------

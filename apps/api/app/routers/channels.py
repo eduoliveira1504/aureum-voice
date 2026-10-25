@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, forwarding, media, reactions, reads, receipts, social, voice
+from app import attachments, calls, dms, forwarding, link_previews, media, reactions, reads, receipts, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -286,8 +286,30 @@ async def edit_message(message_id: int, body: MessageEdit, user: CurrentUser, se
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="System lines can't be edited")
     if message.embed is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This message is edited in its addon")
+    links_changed = link_previews.links(message.content) != link_previews.links(body.content)
     message.content = body.content
     message.edited_at = func.now()
+    if links_changed and not message.forwarded_from:
+        # The new links' cards come a moment later; the old ones go now.
+        message.link_previews = []
+    out = await _publish_update(session, message, channel)
+    if links_changed and not message.forwarded_from and not message.previews_removed:
+        link_previews.schedule(message.id, message.content)
+    return out
+
+
+@router.delete("/messages/{message_id}/previews", response_model=MessageOut)
+async def remove_previews(message_id: int, user: CurrentUser, session: SessionDep) -> MessageOut:
+    """The X on a link's card: takes the message's cards away, also after later edits."""
+    message, channel, _ = await _message_for_member(session, message_id, user.id)
+    if message.author_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can only change your own messages")
+    message.link_previews = []
+    message.previews_removed = True
+    return await _publish_update(session, message, channel)
+
+
+async def _publish_update(session: AsyncSession, message: Message, channel: Channel) -> MessageOut:
     await session.commit()
     await session.refresh(message)
     summary = (await reactions.summaries(session, [message.id])).get(message.id, [])

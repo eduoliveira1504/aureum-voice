@@ -19,7 +19,7 @@ from app.schemas import ImageCrop
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 # Key prefixes served by /api/media.
-PUBLIC_PREFIXES = ("avatars/", "banners/", "servers/", "roles/", "groups/")
+PUBLIC_PREFIXES = ("avatars/", "banners/", "servers/", "roles/", "groups/", "previews/")
 # Cropped originals; private (see original()).
 ORIGINALS = "originals/"
 # The largest a cropped image is kept (scaled down to fit, never up), by kind.
