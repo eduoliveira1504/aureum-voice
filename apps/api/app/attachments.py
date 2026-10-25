@@ -6,6 +6,7 @@ caller can see the channel: unlike avatars, these are never public. See
 docs/decisions/0015-attachments-and-background.md.
 """
 
+import io
 import re
 import unicodedata
 import uuid
@@ -14,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,6 +68,23 @@ def sniff(data: bytes) -> tuple[AttachmentKind, str]:
     return AttachmentKind.file, "application/octet-stream"
 
 
+# EXIF orientations that turn the picture a quarter: the app shows it with width and height swapped.
+_QUARTER_TURNS = {5, 6, 7, 8}
+
+
+def image_size(data: bytes) -> dict[str, int] | None:
+    """{"width", "height"} as the app shows the image (after its EXIF turn), so it can save the
+    room before the image loads. Only reads the header; None when Pillow can't tell."""
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            width, height = im.size
+            if im.getexif().get(0x0112) in _QUARTER_TURNS:
+                width, height = height, width
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError, ValueError):
+        return None
+    return {"width": width, "height": height} if width > 0 and height > 0 else None
+
+
 def voice_meta(duration_ms: int | None, waveform: str | None) -> dict[str, Any]:
     """Checks what the app measured while recording a voice message. The waveform comes as
     comma-separated bar heights (0-100)."""
@@ -93,6 +112,9 @@ def out(attachment: Attachment) -> dict[str, Any]:
     if attachment.kind == AttachmentKind.voice and attachment.meta:
         fields["duration_ms"] = attachment.meta["duration_ms"]
         fields["waveform"] = attachment.meta["waveform"]
+    if attachment.kind == AttachmentKind.image and attachment.meta:
+        fields["width"] = attachment.meta["width"]
+        fields["height"] = attachment.meta["height"]
     return fields
 
 
@@ -134,6 +156,7 @@ async def upload(
         if content_type != "video/webm":  # any WebM: what the app's recorder makes
             raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Voice messages must be Opus/WebM")
         kind, content_type, filename = AttachmentKind.voice, "audio/webm", "mensagem-de-voz.webm"
+    meta = voice if voice is not None else image_size(data) if kind == AttachmentKind.image else None
     attachment = Attachment(
         id=uuid.uuid4(),
         channel_id=channel.id,
@@ -142,7 +165,7 @@ async def upload(
         kind=kind,
         content_type=content_type,
         size=len(data),
-        meta=voice,
+        meta=meta,
     )
     attachment.key = f"attachments/{channel.id}/{attachment.id}"
     await storage.put(attachment.key, data, content_type)

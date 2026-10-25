@@ -783,6 +783,9 @@ class AttachmentOut(BaseModel):
     # Voice messages only.
     duration_ms: int | None = None
     waveform: list[int] | None = None
+    # Images only, when the API could read them (files sent before 3.11 have none).
+    width: int | None = None
+    height: int | None = None
 
 
 class MarkRead(BaseModel):

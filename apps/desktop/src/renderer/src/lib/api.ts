@@ -388,6 +388,9 @@ export interface Attachment {
   /** Voice messages: length and bar heights (0-100), measured while recording. */
   duration_ms?: number | null
   waveform?: number[] | null
+  /** Images: size as shown, to save their room while they load (absent on older files). */
+  width?: number | null
+  height?: number | null
 }
 
 export interface Message {

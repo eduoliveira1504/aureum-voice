@@ -548,6 +548,7 @@ class Attachment(Base):
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     # Voice messages: {"duration_ms", "waveform"} as measured by the app while recording.
+    # Images: {"width", "height"} as shown (see attachments.image_size).
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _created_at()
 

@@ -36,21 +36,53 @@ export function MessageAttachments({ attachments, own }: { attachments: Attachme
   )
 }
 
+// A single image shows at most this big; the box takes the image's own size, never the row's.
+const IMAGE_MAX = { width: 360, height: 320 }
+
+/** The size a lone image shows at: its own, scaled down (never up) to fit IMAGE_MAX. */
+export function fitImage(width: number, height: number): { width: number; height: number } {
+  const scale = Math.min(1, IMAGE_MAX.width / width, IMAGE_MAX.height / height)
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
+}
+
 function ImageThumb({ attachment, single, onOpen }: { attachment: Attachment; single: boolean; onOpen(): void }): ReactNode {
   const { url, failed } = useAttachmentUrl(attachment)
-  const box = single ? 'max-h-80 max-w-[min(100%,360px)]' : 'aspect-square w-full object-cover'
+  // Files sent before the API measured images: their size once loaded.
+  const [loaded, setLoaded] = useState<{ width: number; height: number } | null>(null)
+  const natural = attachment.width && attachment.height ? { width: attachment.width, height: attachment.height } : loaded
   if (failed) return <Unavailable attachment={attachment} />
+  if (!single) {
+    return (
+      <button type="button" onClick={onOpen} title={attachment.filename} className="block aspect-square overflow-hidden rounded-control border border-line bg-elevated">
+        {url ? (
+          <img src={url} alt={attachment.filename} className="block aspect-square w-full object-cover" draggable={false} />
+        ) : (
+          <span className="block aspect-square w-full animate-pulse bg-elevated" />
+        )}
+      </button>
+    )
+  }
+  const size = natural && fitImage(natural.width, natural.height)
   return (
     <button
       type="button"
       onClick={onOpen}
       title={attachment.filename}
-      className={`block overflow-hidden rounded-control border border-line bg-elevated ${single ? '' : 'aspect-square'}`}
+      // Width and ratio from the image itself (max-w-full on narrow chats): the box never runs
+      // past the picture, and the room is saved before it loads.
+      style={size ? { width: size.width, aspectRatio: `${size.width} / ${size.height}` } : undefined}
+      className={`block max-w-full overflow-hidden rounded-control border border-line bg-elevated ${size ? '' : 'w-fit'}`}
     >
       {url ? (
-        <img src={url} alt={attachment.filename} className={`block ${box}`} draggable={false} />
+        <img
+          src={url}
+          alt={attachment.filename}
+          draggable={false}
+          onLoad={(e) => !natural && setLoaded({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
+          className={size ? 'block h-full w-full object-cover' : 'block max-h-80 max-w-[360px]'}
+        />
       ) : (
-        <span className={`block animate-pulse bg-elevated ${single ? 'h-48 w-72' : 'aspect-square w-full'}`} />
+        !size && <span className="block h-48 w-72 max-w-full animate-pulse bg-elevated" />
       )}
     </button>
   )
@@ -59,12 +91,13 @@ function ImageThumb({ attachment, single, onOpen }: { attachment: Attachment; si
 function VideoPlayer({ attachment }: { attachment: Attachment }): ReactNode {
   const { url, failed } = useAttachmentUrl(attachment)
   if (failed) return <Unavailable attachment={attachment} />
+  // w-fit: a portrait clip gets a narrow box, not black bands across the row.
   return (
-    <div className="w-full max-w-[420px] overflow-hidden rounded-control border border-line bg-black">
+    <div className="w-fit max-w-full overflow-hidden rounded-control border border-line bg-black">
       {url ? (
-        <video src={url} controls preload="metadata" className="block max-h-80 w-full" />
+        <video src={url} controls preload="metadata" className="block max-h-80 max-w-[420px]" />
       ) : (
-        <span className="block aspect-video w-full animate-pulse bg-elevated" />
+        <span className="block aspect-video w-[420px] max-w-full animate-pulse bg-elevated" />
       )}
     </div>
   )

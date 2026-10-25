@@ -1,10 +1,12 @@
 """Files in conversations: upload, send, download with permission checks, limits and cleanup."""
 
+import io
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
 from httpx_ws import aconnect_ws
+from PIL import Image
 
 from app import storage
 from app.config import get_settings
@@ -103,6 +105,32 @@ async def test_files_follow_channel_permissions(client: AsyncClient) -> None:
     assert (await owner.post(f"/channels/{cid}/messages", {"attachment_ids": [elsewhere["id"]]})).status_code == 422
     # A message needs text or a file.
     assert (await owner.post(f"/channels/{cid}/messages", {"content": "  "})).status_code == 422
+
+
+def encoded(fmt: str, size: tuple[int, int], orientation: int | None = None) -> bytes:
+    buf = io.BytesIO()
+    exif = Image.Exif()
+    if orientation:
+        exif[0x0112] = orientation
+    Image.new("RGB", size, (200, 40, 40)).save(buf, fmt, exif=exif)
+    return buf.getvalue()
+
+
+async def test_images_carry_their_size(client: AsyncClient) -> None:
+    """So the app saves the room an image takes before it loads."""
+    owner = await make_user(client, "owner")
+    cid = text_channel(await make_server(owner))
+    wide = await uploaded(owner, cid, "larga.png", encoded("PNG", (640, 200)))
+    assert (wide["width"], wide["height"]) == (640, 200)
+    # A phone photo saved sideways with an EXIF turn: the size as it's shown.
+    photo = await uploaded(owner, cid, "foto.jpg", encoded("JPEG", (400, 300), orientation=6))
+    assert (photo["width"], photo["height"]) == (300, 400)
+    message = (await owner.post(f"/channels/{cid}/messages", {"attachment_ids": [wide["id"], photo["id"]]})).json()
+    assert [(a["width"], a["height"]) for a in message["attachments"]] == [(640, 200), (300, 400)]
+    # Something that only looks like an image, and anything that isn't one, has no size.
+    fake = await uploaded(owner, cid, "falsa.png", PNG)
+    clip = await uploaded(owner, cid, "clipe.mp4", MP4)
+    assert fake["width"] is None and clip["width"] is None
 
 
 async def test_size_limit(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
