@@ -815,6 +815,13 @@ class MarkUnread(BaseModel):
     message_id: Annotated[int, Field(ge=1)]
 
 
+class ReactionOut(BaseModel):
+    emoji: str
+    count: int
+    # Who reacted, in order (the app shows names on hover and highlights its own).
+    user_ids: list[uuid.UUID]
+
+
 # How much of the original a reply's quote carries.
 REPLY_SNIPPET = 200
 
@@ -870,6 +877,9 @@ class MessageOut(BaseModel):
     # A forward: the original's snapshot, {"content", "created_at", "source"}; source is
     # {"kind": "dm"} or {"kind": "server", server_id/name, channel_id/name, message_id}.
     forwarded_from: dict[str, Any] | None = None
+    # Sent with the history and edits; null means "not included here" (keep what you have).
+    # Changes come as "message.reactions".
+    reactions: list[ReactionOut] | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

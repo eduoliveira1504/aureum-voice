@@ -6,6 +6,7 @@ import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { useSocial } from '../store/social'
 import { copy, Item, openMenuAt, Separator, toast } from './ContextMenu'
+import { QuickReactions } from './MessageReactions'
 
 /**
  * What can be done to a message, in three places that offer the same things: the bar that shows
@@ -13,7 +14,8 @@ import { copy, Item, openMenuAt, Separator, toast } from './ContextMenu'
  * isn't allowed here, and it doesn't show.
  */
 export interface MessageActions {
-  onReact?: (anchor: Element) => void
+  /** Reacts with the emoji (or takes mine back, if I had reacted with it). */
+  onReact?: (emoji: string) => void
   onReply?: () => void
   onForward?: () => void
   onEdit?: () => void
@@ -37,9 +39,15 @@ export function openMessageLink(channelId: string, messageId: number): void {
 
 /** The menu's items, for "…" and for a right click. */
 export function MessageMenu({ message, actions }: { message: Message; actions: MessageActions }): ReactNode {
-  const { onReply, onForward, onEdit, onDelete } = actions
+  const { onReact, onReply, onForward, onEdit, onDelete } = actions
   return (
     <>
+      {onReact && (
+        <>
+          <QuickReactions onPick={onReact} />
+          <Separator />
+        </>
+      )}
       {onReply && <Item icon={Reply} label="Responder" hint="R" onClick={onReply} />}
       {onForward && <Item icon={Forward} label="Encaminhar" onClick={onForward} />}
       {onEdit && <Item icon={Pencil} label="Editar" hint="E" onClick={onEdit} />}
@@ -79,7 +87,7 @@ export function MessageActionBar({ message, actions }: { message: Message; actio
       aria-label="Ações da mensagem"
       className="absolute -top-4 right-4 z-10 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-focus-within:flex group-hover:flex"
     >
-      {onReact && <BarButton icon={SmilePlus} label="Reagir" onClick={onReact} />}
+      {onReact && <BarButton icon={SmilePlus} label="Reagir" onClick={(target) => openMenuAt(target, () => <QuickReactions onPick={onReact} />)} />}
       {onReply && <BarButton icon={Reply} label="Responder" onClick={onReply} />}
       {onForward && <BarButton icon={Forward} label="Encaminhar" onClick={onForward} />}
       <BarButton icon={EllipsisVertical} label="Mais opções" onClick={(target) => openMenuAt(target, () => <MessageMenu message={message} actions={actions} />)} />

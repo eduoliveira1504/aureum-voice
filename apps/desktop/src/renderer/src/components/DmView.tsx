@@ -73,6 +73,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
       me={me}
       canModerate={false}
       canSend={!official}
+      canReact={official || !peer || isFriend}
       readOnlyNote={OFFICIAL_READ_ONLY}
       intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
       placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}

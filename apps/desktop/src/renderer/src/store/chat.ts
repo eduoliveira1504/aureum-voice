@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { api, type Channel, type Member, type Message, type ReadState, type Server, type ServerDetail } from '../lib/api'
+import { api, type Channel, type Member, type Message, type Reaction, type ReadState, type Server, type ServerDetail } from '../lib/api'
 import { stepId, withSectionOrder, type Section } from '../lib/channelOrder'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
@@ -70,6 +70,10 @@ interface ChatState {
    * `reply` answers a message of the channel, notifying its author when `mention`. */
   sendMessage(channelId: string, content: string, attachmentIds?: string[], reply?: { id: number; mention: boolean }): Promise<Message>
   editMessage(id: number, content: string): Promise<void>
+  /** Adds (on) or takes back my reaction; shown right away, then as the API says. */
+  react(message: Message, emoji: string, on: boolean): Promise<void>
+  /** Takes away someone else's reaction (MANAGE_MESSAGES). */
+  removeReaction(message: Message, emoji: string, userId: string): Promise<void>
   /** Sends a copy of the message to up to 5 conversations, with an optional comment. */
   forwardMessage(id: number, channelIds: string[], comment: string): Promise<void>
   deleteMessage(id: number): Promise<void>
@@ -102,8 +106,29 @@ function withSortedChannels(server: ServerDetail): ServerDetail {
 
 function mergeMessages(...lists: Message[][]): Message[] {
   const map = new Map<number, Message>()
-  for (const list of lists) for (const m of list) map.set(m.id, m)
+  for (const list of lists) {
+    for (const m of list) {
+      // Messages that come without reactions (new ones, addon updates) keep the ones we have.
+      const known = map.get(m.id)
+      map.set(m.id, m.reactions == null && known?.reactions ? { ...m, reactions: known.reactions } : m)
+    }
+  }
   return [...map.values()].sort((a, b) => a.id - b.id)
+}
+
+/** My reaction added (on) or taken back, before the API answers. */
+export function toggleReaction(reactions: Reaction[], emoji: string, userId: string, on: boolean): Reaction[] {
+  const existing = reactions.find((r) => r.emoji === emoji)
+  if (on) {
+    if (existing?.user_ids.includes(userId)) return reactions
+    return existing
+      ? reactions.map((r) => (r === existing ? { ...r, count: r.count + 1, user_ids: [...r.user_ids, userId] } : r))
+      : [...reactions, { emoji, count: 1, user_ids: [userId] }]
+  }
+  if (!existing?.user_ids.includes(userId)) return reactions
+  return reactions
+    .map((r) => (r === existing ? { ...r, count: r.count - 1, user_ids: r.user_ids.filter((u) => u !== userId) } : r))
+    .filter((r) => r.count > 0)
 }
 
 /** Drops a deleted message; replies to it keep its id but lose the quote ("Mensagem original apagada"). */
@@ -229,6 +254,27 @@ export const useChat = create<ChatState>()((set, get) => {
       patchMessages(message.channel_id, (items) => mergeMessages(items, [message]))
     },
 
+    react: async (message, emoji, on) => {
+      const { meId } = get()
+      if (!meId) return
+      const setReactions = (reactions: Reaction[]): void =>
+        patchMessages(message.channel_id, (items) => items.map((m) => (m.id === message.id ? { ...m, reactions } : m)))
+      const current = get().messages[message.channel_id]?.items.find((m) => m.id === message.id)?.reactions ?? []
+      setReactions(toggleReaction(current, emoji, meId, on))
+      const path = `/messages/${message.id}/reactions/${encodeURIComponent(emoji)}`
+      try {
+        setReactions(await api<Reaction[]>(path, { method: on ? 'PUT' : 'DELETE' }))
+      } catch (err) {
+        setReactions(current)
+        throw err
+      }
+    },
+
+    removeReaction: async (message, emoji, userId) => {
+      const reactions = await api<Reaction[]>(`/messages/${message.id}/reactions/${encodeURIComponent(emoji)}/${userId}`, { method: 'DELETE' })
+      patchMessages(message.channel_id, (items) => items.map((m) => (m.id === message.id ? { ...m, reactions } : m)))
+    },
+
     forwardMessage: async (id, channelIds, comment) => {
       const sent = await api<Message[]>(`/messages/${id}/forward`, { method: 'POST', body: { channel_ids: channelIds, comment } })
       for (const message of sent) {
@@ -351,6 +397,9 @@ export const useChat = create<ChatState>()((set, get) => {
         }
         case 'message.updated':
           patchMessages(data.channel_id, (items) => mergeMessages(items, [data]))
+          break
+        case 'message.reactions':
+          patchMessages(data.channel_id, (items) => items.map((m) => (m.id === data.message_id ? { ...m, reactions: data.reactions } : m)))
           break
         case 'read.updated': {
           const { server_id: _, ...state } = data

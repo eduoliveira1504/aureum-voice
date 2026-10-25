@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, forwarding, media, reads, social, voice
+from app import attachments, calls, dms, forwarding, media, reactions, reads, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -27,6 +27,7 @@ from app.schemas import (
     MessageEdit,
     MessageOut,
     OverrideSet,
+    ReactionOut,
     ReadStateOut,
     VoiceTokenOut,
 )
@@ -197,17 +198,18 @@ async def list_messages(
     session: SessionDep,
     before: Annotated[int | None, Query(ge=1)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
-) -> list[Message]:
-    """Newest page first; messages inside the page are in chronological order. Without
-    READ_HISTORY the page is empty: only messages that arrive live are seen."""
+) -> list[MessageOut]:
+    """Newest page first; messages inside the page are in chronological order, with their
+    reactions. Without READ_HISTORY the page is empty: only messages that arrive live are seen."""
     channel, access = await chat_channel(session, channel_id, user.id)
     if access is not None and not access.channel(channel) & Perm.READ_HISTORY:
         return []
     query = select(Message).where(Message.channel_id == channel_id)
     if before is not None:
         query = query.where(Message.id < before)
-    rows = await session.scalars(query.order_by(Message.id.desc()).limit(limit))
-    return list(reversed(list(rows)))
+    rows = list(reversed(list(await session.scalars(query.order_by(Message.id.desc()).limit(limit)))))
+    summary = await reactions.summaries(session, [m.id for m in rows])
+    return [MessageOut.model_validate(m).model_copy(update={"reactions": summary.get(m.id, [])}) for m in rows]
 
 
 @router.post("/channels/{channel_id}/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
@@ -287,9 +289,29 @@ async def edit_message(message_id: int, body: MessageEdit, user: CurrentUser, se
     message.edited_at = func.now()
     await session.commit()
     await session.refresh(message)
-    out = MessageOut.model_validate(message)
+    summary = (await reactions.summaries(session, [message.id])).get(message.id, [])
+    out = MessageOut.model_validate(message).model_copy(update={"reactions": summary})
     await broker.publish("message.updated", out.model_dump(mode="json"), await channel_audience(session, channel))
     return out
+
+
+@router.put("/messages/{message_id}/reactions/{emoji}", response_model=list[ReactionOut])
+async def add_reaction(message_id: int, emoji: str, user: CurrentUser, session: SessionDep) -> list[ReactionOut]:
+    """Reacts with `emoji` (URL-encoded); returns the message's reactions."""
+    return await reactions.add(session, message_id, user.id, emoji)
+
+
+@router.delete("/messages/{message_id}/reactions/{emoji}", response_model=list[ReactionOut])
+async def remove_reaction(message_id: int, emoji: str, user: CurrentUser, session: SessionDep) -> list[ReactionOut]:
+    return await reactions.remove(session, message_id, user.id, emoji)
+
+
+@router.delete("/messages/{message_id}/reactions/{emoji}/{user_id}", response_model=list[ReactionOut])
+async def remove_someones_reaction(
+    message_id: int, emoji: str, user_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> list[ReactionOut]:
+    """Takes away someone else's reaction (MANAGE_MESSAGES)."""
+    return await reactions.remove(session, message_id, user.id, emoji, whose=user_id)
 
 
 @router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)

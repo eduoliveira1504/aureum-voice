@@ -30,6 +30,7 @@ import { badgeTitle, saveFeatured, withFeatured } from '../store/badges'
 import { contextMenu, Item, openMenuAt, showDialog, toast } from './ContextMenu'
 import { MESSAGE_LINK, MessageActionBar, messageKeys, MessageMenu, openMessageLink, type MessageActions } from './MessageActions'
 import { ReplyBar, ReplyQuote } from './MessageReply'
+import { ReactionChips } from './MessageReactions'
 import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
 import { isEmojiOnly } from '../lib/emoji'
@@ -269,6 +270,7 @@ export function ChatView({
   canModerate,
   canSend = true,
   canAttach = true,
+  canReact = true,
   nameColorOf,
   nameOf,
   intro,
@@ -284,6 +286,8 @@ export function ChatView({
   canSend?: boolean
   /** Can send files (ATTACH_FILES in servers). */
   canAttach?: boolean
+  /** Can react (ADD_REACTIONS in servers: without it, only adding to reactions already there). */
+  canReact?: boolean
   /** Color for an author's name (their strongest colored role); their profile color otherwise. */
   nameColorOf?: (userId: string) => string | null
   /** Name to show for an author (their server nickname); their display name otherwise. */
@@ -341,12 +345,20 @@ export function ChatView({
   // What the user may do to a message (the bar, its menu, right click, shortcuts).
   const actionsFor = (message: Message): MessageActions => {
     const own = message.author?.id === me.id
+    const mine = (emoji: string): boolean => !!message.reactions?.find((r) => r.emoji === emoji)?.user_ids.includes(me.id)
     return {
+      onReact: canReact ? (emoji) => react(message, emoji, !mine(emoji)) : undefined,
       onReply: canSend ? () => setReplying({ message, mention: true }) : undefined,
       onForward: () => showDialog((close) => <ForwardModal message={message} meId={me.id} onClose={close} />),
       onEdit: own && message.content && !message.embed ? () => setEditingId(message.id) : undefined,
       onDelete: own || canModerate ? () => setDeleting(message) : undefined
     }
+  }
+  const react = (message: Message, emoji: string, on: boolean): void => {
+    useChat
+      .getState()
+      .react(message, emoji, on)
+      .catch((err) => toast(err instanceof ApiError && err.status === 422 ? 'Essa mensagem já tem reações demais.' : 'Não foi possível reagir.'))
   }
   const acceptsFiles = canSend && canAttach
   const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
@@ -521,6 +533,22 @@ export function ChatView({
                   nameColor={message.author ? nameColorOf?.(message.author.id) : null}
                   authorName={message.author ? nameOf?.(message.author.id) : null}
                   body={embedOf(message)}
+                  reactions={
+                    <ReactionChips
+                      message={message}
+                      meId={me.id}
+                      canAdd={canReact}
+                      // In a server, joining a reaction needs no ADD_REACTIONS; in a DM, the same as writing.
+                      canJoin={canReact || !!channel.server_id}
+                      nameOf={displayName}
+                      onReact={(emoji, on) => react(message, emoji, on)}
+                      onRemove={
+                        canModerate
+                          ? (emoji, userId) => void useChat.getState().removeReaction(message, emoji, userId).catch(() => toast('Não foi possível remover.'))
+                          : undefined
+                      }
+                    />
+                  }
                   quote={
                     message.reply_to_id ? (
                       <ReplyQuote message={message} nameOf={(id) => nameOf?.(id)} onJump={(id) => useChat.getState().focusMessage(channel.id, id)} />
@@ -720,8 +748,11 @@ function MessageRow({
   authorName,
   body,
   quote,
+  reactions,
   extra
 }: {
+  /** The reaction chips under it. */
+  reactions?: ReactNode
   message: Message
   /** Shown instead of the text (a chat addon's thing, like a poll). */
   body?: ReactNode
@@ -815,6 +846,7 @@ function MessageRow({
         {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
         {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
+        {reactions}
       </div>
       {!editing && <MessageActionBar message={message} actions={actions} />}
     </div>

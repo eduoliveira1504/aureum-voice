@@ -450,3 +450,71 @@ describe('emojis in the chat', () => {
     expect(big[0].style.width).toBe('44px')
   })
 })
+
+describe('reactions', () => {
+  const rowOf = (id: number): HTMLElement => document.querySelector(`[data-message-id="${id}"] [tabindex="-1"]`) as HTMLElement
+  const withReactions = (): void =>
+    useChat.setState((s) => ({
+      messages: {
+        ...s.messages,
+        [TEXT.id]: {
+          ...s.messages[TEXT.id],
+          items: [{ ...message(1, ANA, 'bora?'), reactions: [{ emoji: '🔥', count: 2, user_ids: [ANA.id, ME.id] }, { emoji: '👍', count: 1, user_ids: [ANA.id] }] }]
+        }
+      }
+    }))
+
+  it('shows chips with counts and who, mine highlighted, and toggles mine', () => {
+    const react = vi.fn(async () => {})
+    useChat.setState({ react })
+    withReactions()
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    const fire = screen.getByRole('button', { name: '🔥 2' })
+    expect(fire.getAttribute('aria-pressed')).toBe('true')
+    expect(fire.title).toBe('Ana e você reagiram')
+    expect(screen.getByRole('button', { name: '👍 1' }).title).toBe('Ana reagiu')
+    fireEvent.click(fire)
+    expect(react).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), '🔥', false)
+    fireEvent.click(screen.getByRole('button', { name: '👍 1' }))
+    expect(react).toHaveBeenLastCalledWith(expect.objectContaining({ id: 1 }), '👍', true)
+  })
+
+  it('reacts from the bar and from the right click, with the quick reactions', () => {
+    const react = vi.fn(async () => {})
+    useChat.setState({ react })
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.click(within(rowOf(1)).getByLabelText('Reagir'))
+    fireEvent.click(screen.getByRole('button', { name: 'Reagir com 🔥' }))
+    expect(react).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), '🔥', true)
+    fireEvent.contextMenu(screen.getByText('bora?', { exact: false }))
+    expect(within(screen.getByRole('menu')).getByRole('button', { name: 'Reagir com 😂' })).toBeTruthy()
+  })
+
+  it('without Add reactions: no new ones, but joining existing ones', () => {
+    withReactions()
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} canReact={false} />)
+    expect(within(rowOf(1)).queryByLabelText('Reagir')).toBeNull()
+    expect(screen.queryByLabelText('Adicionar reação')).toBeNull()
+    expect((screen.getByRole('button', { name: '👍 1' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it("lets a moderator take away someone's reaction", () => {
+    const removeReaction = vi.fn(async () => {})
+    useChat.setState({ removeReaction })
+    withReactions()
+    show(<ChatView channel={TEXT} me={ME} canModerate />)
+    fireEvent.contextMenu(screen.getByRole('button', { name: '👍 1' }))
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('button', { name: 'Ana' }))
+    expect(removeReaction).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), '👍', ANA.id)
+  })
+
+  it('applies live changes and keeps reactions when a message comes without them', () => {
+    withReactions()
+    const { applyEvent } = useChat.getState()
+    applyEvent({ type: 'message.reactions', data: { message_id: 1, channel_id: TEXT.id, reactions: [{ emoji: '😮', count: 1, user_ids: [BIA.id] }] } } as never)
+    applyEvent({ type: 'message.updated', data: { ...message(1, ANA, 'bora!'), reactions: null } } as never)
+    const [updated] = useChat.getState().messages[TEXT.id].items
+    expect(updated.content).toBe('bora!')
+    expect(updated.reactions).toEqual([{ emoji: '😮', count: 1, user_ids: [BIA.id] }])
+  })
+})

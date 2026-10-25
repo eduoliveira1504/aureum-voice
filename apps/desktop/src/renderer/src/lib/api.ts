@@ -418,6 +418,15 @@ export interface Message {
   reply_to?: ReplyRef | null
   /** A forward: a snapshot of the original; `content` is then the comment added to it. */
   forwarded_from?: ForwardedFrom | null
+  /** Sent with the history and edits; null/absent means "not included" (keep what you have). */
+  reactions?: Reaction[] | null
+}
+
+export interface Reaction {
+  emoji: string
+  count: number
+  /** Who reacted, in order. */
+  user_ids: string[]
 }
 
 export interface ForwardedFrom {

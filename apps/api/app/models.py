@@ -530,6 +530,17 @@ class Message(Base):
     )
 
 
+class MessageReaction(Base):
+    """One person's emoji under a message. Unique per (message, user, emoji)."""
+
+    __tablename__ = "message_reactions"
+
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    emoji: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class AttachmentKind(str, enum.Enum):
     image = "image"
     video = "video"
