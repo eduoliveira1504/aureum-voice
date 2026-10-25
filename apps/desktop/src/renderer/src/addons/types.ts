@@ -53,6 +53,8 @@ export interface AddonModule {
   }
   /** Its `addon.<key>.*` events from the WebSocket, plus 'ready' after every (re)connection. */
   onEvent?(event: ServerEvent): void
+  /** Other addons' `addon.*` events, for an addon that shows their things (the calendar). */
+  onOtherEvent?(event: ServerEvent): void
 }
 
 /** What a chat hands the message of a chat addon (a poll). */
