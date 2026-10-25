@@ -178,20 +178,24 @@ pode virar release sozinha.
 ### Produção pendente do 3.9 (acumulado; tudo com OK do Eduardo, na ordem)
 O Eduardo vai publicar o 3.6 ao 3.9 de uma vez. A API roda `alembic upgrade heads` sozinha ao
 subir (Dockerfile), então reconstruir a API aplica as migrações: o backup vem ANTES.
-1. Backup do banco (sem ele, nada segue):
-   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > backups/aureum-AAAA-MM-DD.dump`
-   Conferir que o arquivo não está vazio (`ls -l backups/`). Restauração, se precisar:
-   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < backups/aureum-AAAA-MM-DD.dump`
+1. Backup do banco (sem ele, nada segue). O dump é feito dentro do contêiner e copiado com
+   `docker compose cp`: redirecionar com `>` no PowerShell 5.1 grava em UTF-16 e estraga o arquivo.
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc -f /tmp/aureum-AAAA-MM-DD.dump "$POSTGRES_DB"'`
+   `docker compose --env-file .env -f infra/docker-compose.yml cp postgres:/tmp/aureum-AAAA-MM-DD.dump backups/aureum-AAAA-MM-DD.dump`
+   Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_restore -l /tmp/aureum-AAAA-MM-DD.dump` lista as tabelas.
+   Restauração, se precisar:
+   `docker compose --env-file .env -f infra/docker-compose.yml cp backups/aureum-AAAA-MM-DD.dump postgres:/tmp/restore.dump`
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists /tmp/restore.dump'`
 2. Reconstruir e reiniciar a API (aplica as migrações):
    `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
    Migrações que entram: core a7c3e1f5b902 (EDIT_WHITEBOARD ao @everyone, 3.9A) e core
    b8d4f2a6c731 (messages.embed, 3.9B); branches whiteboard (c2d8f4a6e310), polls
    (d5a9e3c7f164) e events (e9b3d7f1a428). A permissão nova MANAGE_EVENTS (3.9C) e o
-   Calendário (3.9D, sem tabelas) não precisam de migração. Conferir: `... exec api alembic current` mostra uma linha por branch.
-3. Do 3.8: `docker compose ... exec api python -m app.cli badges grant-all beta_tester`
+   Calendário (3.9D, sem tabelas) não precisam de migração. Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current` mostra uma linha por branch.
+3. Do 3.8: `docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli badges grant-all beta_tester`
    (mostra quantas contas e pergunta).
 4. Do 3.9C: ligar os lembretes de eventos da @aureum:
-   `docker compose ... exec api python -m app.cli bot enable --acao dm-eventos`
+   `docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli bot enable --acao dm-eventos`
    (os workers de prazo das enquetes e de lembretes dos eventos sobem sozinhos com a API).
 5. Conferir a API no ar: `curl -s https://<endereço do Funnel>/api/health` e o app atual
    (beta.5.5) abrindo normalmente.
