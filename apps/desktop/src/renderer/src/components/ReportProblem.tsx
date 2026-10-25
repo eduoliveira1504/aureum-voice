@@ -6,7 +6,7 @@ import type { AppInfo } from '../../../shared/types'
 import { closeContextMenu, showDialog, toast } from './ContextMenu'
 import { FormError, Modal, SecondaryButton } from './Modal'
 import { errorText } from './modals'
-import { inputClass, labelClass, PrimaryButton } from './ui'
+import { cn, inputClass, labelClass, PrimaryButton } from './ui'
 
 const MAX_DESCRIPTION = 2000
 
@@ -85,7 +85,7 @@ export function ReportProblemModal({ snapshot, onClose }: { snapshot: Snapshot; 
             maxLength={MAX_DESCRIPTION}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className={`${inputClass} resize-none`}
+            className={cn(inputClass, 'resize-none')}
           />
         </label>
 

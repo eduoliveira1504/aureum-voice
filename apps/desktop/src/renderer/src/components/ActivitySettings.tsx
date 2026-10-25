@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import type { GamePrefs, KnownGame, RunningApp } from '../../../shared/types'
 import { setManualActivity } from '../lib/gameActivity'
-import { inputClass, labelClass, ToggleRow } from './ui'
+import { cn, inputClass, labelClass, ToggleRow } from './ui'
 
 const games = window.aureum.games
 
@@ -79,7 +79,7 @@ export function ActivitySettings(): ReactNode {
             onChange={(e) => setManual(e.target.value)}
             placeholder="ex: Tibia (aparece como “Jogando Tibia”)"
             aria-label="Atividade manual"
-            className={`${inputClass} min-w-0`}
+            className={cn(inputClass, 'min-w-0')}
           />
           <button type="submit" disabled={(manual.trim() || null) === prefs.manual} className="shrink-0 rounded-control bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-50">
             Salvar
@@ -199,8 +199,8 @@ function AddGame({ onAdd }: { onAdd(game: KnownGame): Promise<void> }): ReactNod
         </div>
       )}
       <form onSubmit={submit} className="flex gap-2">
-        <input maxLength={64} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do jogo" aria-label="Nome do jogo" className={`${inputClass} min-w-0`} />
-        <input maxLength={132} value={exe} onChange={(e) => setExe(e.target.value)} placeholder="jogo.exe" aria-label="Executável" className={`${inputClass} shrink-0 grow-0 basis-44`} />
+        <input maxLength={64} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do jogo" aria-label="Nome do jogo" className={cn(inputClass, 'min-w-0')} />
+        <input maxLength={132} value={exe} onChange={(e) => setExe(e.target.value)} placeholder="jogo.exe" aria-label="Executável" className={cn(inputClass, 'shrink-0 grow-0 basis-44')} />
         <button type="submit" disabled={!name.trim() || !exeValid} title="Adicionar" aria-label="Adicionar jogo" className="shrink-0 rounded-control bg-accent px-3 text-on-accent hover:bg-accent-hover disabled:opacity-50">
           <Plus size={18} />
         </button>

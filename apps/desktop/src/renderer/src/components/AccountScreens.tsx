@@ -6,7 +6,7 @@ import { accountMessage, codeDigits } from '../lib/accountErrors'
 import { ApiError, changePassword, changePendingEmail, resendCode, verifyEmail, type Confirmation, type Me } from '../lib/api'
 import { BadgeIcon, useShownBadges } from './Badge'
 import { FormError, SecondaryButton } from './Modal'
-import { Field, inputClass, labelClass, PrimaryButton } from './ui'
+import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
 
 const RESEND_SECONDS = 60
 
@@ -36,7 +36,7 @@ export function CodeInput({ value, onChange, autoFocus }: { value: string; onCha
         autoFocus={autoFocus}
         placeholder="000000"
         aria-label="Código de 6 dígitos"
-        className={`${inputClass} text-center font-display text-2xl tracking-[0.4em]`}
+        className={cn(inputClass, 'text-center font-display text-2xl tracking-[0.4em]')}
       />
     </label>
   )

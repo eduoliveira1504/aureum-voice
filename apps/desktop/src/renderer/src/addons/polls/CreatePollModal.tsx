@@ -2,8 +2,9 @@ import { Plus, X } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { FormError, Modal } from '../../components/Modal'
-import { inputClass, labelClass, PrimaryButton, ToggleRow } from '../../components/ui'
+import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from '../../components/ui'
 import { ApiError, type Channel } from '../../lib/api'
+import { lastEmoji } from '../../lib/emoji'
 import { DURATIONS, MAX_OPTIONS, MIN_OPTIONS, usePolls, type Duration } from './store'
 
 interface OptionRow {
@@ -84,20 +85,21 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
             {rows.map((row, i) => (
               <li key={row.key} className="flex items-center gap-2">
                 <input
-                  value={row.emoji}
-                  maxLength={16}
-                  onChange={(e) => patch(row.key, { emoji: e.target.value })}
-                  aria-label={`Emoji da opção ${i + 1}`}
-                  placeholder="🙂"
-                  className={`${inputClass} w-14 shrink-0 text-center`}
-                />
-                <input
                   value={row.text}
                   maxLength={80}
                   onChange={(e) => patch(row.key, { text: e.target.value })}
                   aria-label={`Opção ${i + 1}`}
                   placeholder={`Opção ${i + 1}`}
-                  className={inputClass}
+                  className={cn(inputClass, 'min-w-0 flex-1')}
+                />
+                {/* Only takes an emoji: text typed here would leave the option empty. */}
+                <input
+                  value={row.emoji}
+                  onChange={(e) => patch(row.key, { emoji: lastEmoji(e.target.value) })}
+                  aria-label={`Emoji da opção ${i + 1}`}
+                  title="Emoji (opcional)"
+                  placeholder="🙂"
+                  className={cn(inputClass, 'w-11 shrink-0 px-0 text-center')}
                 />
                 <button
                   type="button"

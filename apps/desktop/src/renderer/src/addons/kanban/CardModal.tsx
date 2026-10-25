@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 
 import { ConfirmModal } from '../../components/modals'
 import { FormError, Modal, SecondaryButton } from '../../components/Modal'
-import { inputClass, labelClass, PrimaryButton } from '../../components/ui'
+import { cn, inputClass, labelClass, PrimaryButton } from '../../components/ui'
 import { ApiError, type Channel, type ServerDetail } from '../../lib/api'
 import { memberName } from '../../lib/members'
 import { boardMembers, labelStyle } from './bits'
@@ -88,7 +88,7 @@ export function CardModal({
                 rows={6}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Detalhes, links, o que falta…"
-                className={`${inputClass} resize-y`}
+                className={cn(inputClass, 'resize-y')}
               />
             ) : (
               <p className="whitespace-pre-wrap text-sm text-fg-muted">{card.description || 'Sem descrição.'}</p>

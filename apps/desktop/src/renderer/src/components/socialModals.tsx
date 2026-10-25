@@ -5,7 +5,7 @@ import { ApiError } from '../lib/api'
 import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { FormError, Modal } from './Modal'
-import { Field, GroupAvatar, inputClass, PresenceAvatar, PrimaryButton } from './ui'
+import { cn, Field, GroupAvatar, inputClass, PresenceAvatar, PrimaryButton } from './ui'
 
 const MAX_GROUP = 10
 
@@ -86,7 +86,7 @@ export function PickFriendsModal({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar amigos"
             aria-label="Buscar amigos"
-            className={`${inputClass} pl-9`}
+            className={cn(inputClass, 'pl-9')}
           />
         </label>
         <div className="max-h-72 space-y-0.5 overflow-y-auto">
@@ -295,7 +295,7 @@ export function StartCallModal({ meId, onClose }: { meId: string; onClose(): voi
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar amigos e grupos"
             aria-label="Buscar amigos e grupos"
-            className={`${inputClass} pl-9`}
+            className={cn(inputClass, 'pl-9')}
           />
         </label>
         <div className="max-h-80 space-y-0.5 overflow-y-auto">

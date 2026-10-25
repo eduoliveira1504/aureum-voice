@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type Channel, type Me, type Message } from '../../lib/api'
+import { lastEmoji } from '../../lib/emoji'
 import { CreatePollModal } from './CreatePollModal'
 import { PollCard, timeLeft } from './PollCard'
 import { isClosed, leaders, nextVotes, percent, usePolls, type Poll } from './store'
@@ -170,5 +171,37 @@ describe('create poll', () => {
       }
     })
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('puts the wide text field first, so two typed options create the poll', async () => {
+    render(<CreatePollModal channel={channel} onClose={vi.fn()} />)
+    const [first] = screen.getAllByRole('listitem')
+    const fields = first.querySelectorAll('input')
+    expect(fields[0].getAttribute('aria-label')).toBe('Opção 1')
+    expect(fields[0].classList.contains('flex-1')).toBe(true)
+    // The emoji box keeps its own width: inputClass's w-full doesn't win over it.
+    expect(fields[1].classList.contains('w-11')).toBe(true)
+    expect(fields[1].classList.contains('w-full')).toBe(false)
+
+    fireEvent.change(screen.getByPlaceholderText('O que vocês acham?'), { target: { value: 'Jantar?' } })
+    fireEvent.change(screen.getByLabelText('Opção 1'), { target: { value: 'Pizza' } })
+    fireEvent.change(screen.getByLabelText('Opção 2'), { target: { value: 'Sushi' } })
+    vi.mocked(api).mockResolvedValueOnce(poll())
+    await act(async () => {
+      fireEvent.click(screen.getByText('Criar enquete', { selector: 'button' }))
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(api).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes only an emoji in the emoji box', () => {
+    render(<CreatePollModal channel={channel} onClose={vi.fn()} />)
+    const emoji = screen.getByLabelText('Emoji da opção 1') as HTMLInputElement
+    fireEvent.change(emoji, { target: { value: 'Pizza' } })
+    expect(emoji.value).toBe('')
+    fireEvent.change(emoji, { target: { value: 'a🍕b' } })
+    expect(emoji.value).toBe('🍕')
+    expect(lastEmoji('🇧🇷')).toBe('🇧🇷')
+    expect(lastEmoji('👍🏽')).toBe('👍🏽')
   })
 })

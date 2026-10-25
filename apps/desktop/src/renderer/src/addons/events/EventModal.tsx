@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { FormError, Modal } from '../../components/Modal'
-import { inputClass, labelClass, PrimaryButton, Segmented } from '../../components/ui'
+import { cn, inputClass, labelClass, PrimaryButton, Segmented } from '../../components/ui'
 import { ApiError, type ServerDetail } from '../../lib/api'
 import { localZone, useEvents, type EventFields, type EventItem, type Repeat } from './store'
 
@@ -145,7 +145,7 @@ export function EventModal({
           />
           {place === 'room' &&
             (rooms.length ? (
-              <select aria-label="Sala de voz" value={roomId} onChange={(e) => setRoomId(e.target.value)} className={`${inputClass} mt-2`}>
+              <select aria-label="Sala de voz" value={roomId} onChange={(e) => setRoomId(e.target.value)} className={cn(inputClass, 'mt-2')}>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -162,7 +162,7 @@ export function EventModal({
               maxLength={200}
               onChange={(e) => setPlaceText(e.target.value)}
               placeholder="Casa da Ana, link, endereço…"
-              className={`${inputClass} mt-2`}
+              className={cn(inputClass, 'mt-2')}
             />
           )}
         </div>
@@ -174,7 +174,7 @@ export function EventModal({
             rows={3}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="O que vai rolar, o que levar…"
-            className={`${inputClass} resize-none`}
+            className={cn(inputClass, 'resize-none')}
           />
         </label>
         <label className="block">

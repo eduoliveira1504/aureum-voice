@@ -1,7 +1,7 @@
 import { CalendarDays, ChevronLeft, ChevronRight, History, MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react'
 
-import { Avatar, inputClass, MenuItem, menuClass, useDismiss } from '../../components/ui'
+import { Avatar, cn, inputClass, menuClass, MenuItem, useDismiss } from '../../components/ui'
 import { api, ApiError } from '../../lib/api'
 import { memberName } from '../../lib/members'
 import type { AddonViewProps } from '../types'
@@ -389,7 +389,7 @@ function ColumnHeader({
                 setRenaming(false)
               }
             }}
-            className={`${inputClass} py-1.5 text-sm`}
+            className={cn(inputClass, 'py-1.5 text-sm')}
           />
         </form>
       ) : (
@@ -501,7 +501,7 @@ function NewCard({ channelId, columnId, onError }: { channelId: string; columnId
             setOpen(false)
           }
         }}
-        className={`${inputClass} py-2 text-sm`}
+        className={cn(inputClass, 'py-2 text-sm')}
       />
       <p className="mt-1 px-1 text-[11px] text-fg-subtle">Enter cria · Esc cancela</p>
     </form>
@@ -547,7 +547,7 @@ function NewColumn({ channelId, onError }: { channelId: string; onError(err: unk
         onChange={(e) => setName(e.target.value)}
         onBlur={() => !name.trim() && setOpen(false)}
         onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
-        className={`${inputClass} text-sm`}
+        className={cn(inputClass, 'text-sm')}
       />
     </form>
   )

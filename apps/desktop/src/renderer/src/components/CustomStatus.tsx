@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { api, type CustomStatus, type Me } from '../lib/api'
 import { FormError, Modal } from './Modal'
 import { errorText } from './modals'
-import { inputClass, labelClass, PrimaryButton } from './ui'
+import { cn, inputClass, labelClass, PrimaryButton } from './ui'
 
 const EMOJIS = ['😀', '😎', '🥱', '😴', '🤒', '🎮', '🎧', '📚', '💻', '🍕', '☕', '🏃', '✈️', '🎬', '🔥', '❤️', '🛠️', '🎉', '🤫', '👀']
 
@@ -80,7 +80,7 @@ export function CustomStatusEditor({
           onChange={(e) => onChange({ ...draft, text: e.target.value })}
           placeholder="Como você está?"
           aria-label="Texto do status"
-          className={`${inputClass} min-w-0`}
+          className={cn(inputClass, 'min-w-0')}
         />
         {(draft.text || draft.emoji) && (
           <button

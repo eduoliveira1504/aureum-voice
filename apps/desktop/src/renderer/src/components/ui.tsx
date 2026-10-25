@@ -1,5 +1,6 @@
 import { Users, type LucideIcon } from 'lucide-react'
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type RefObject } from 'react'
+import { twMerge } from 'tailwind-merge'
 
 import { mediaUrl, type Presence } from '../lib/api'
 
@@ -21,7 +22,11 @@ export function Field({
   )
 }
 
-/** Shared look of text inputs, textareas and selects. */
+/** Joins class lists; a later class wins over an earlier one of the same kind (w-14 over w-full),
+ * whatever order Tailwind writes them in. Use it to adjust inputClass. */
+export const cn = (...classes: (string | false | null | undefined)[]): string => twMerge(classes)
+
+/** Shared look of text inputs, textareas and selects. Adjust it with cn(inputClass, '...'). */
 export const inputClass =
   'w-full rounded-control border border-line bg-main px-3 py-2.5 text-[15px] text-fg outline-none transition-colors placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/25'
 

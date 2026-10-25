@@ -12,7 +12,7 @@ import { FormError } from './Modal'
 import { errorText } from './modals'
 import { ProfileView } from './ProfileCard'
 import { FRAME_PRESETS } from './profileBits'
-import { Field, inputClass, labelClass, PrimaryButton } from './ui'
+import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
 
 const MAX_LINKS = 5
 
@@ -183,7 +183,7 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
             value={form.bio}
             onChange={(e) => patch({ bio: e.target.value })}
             placeholder="Conte um pouco sobre você"
-            className={`${inputClass} resize-none`}
+            className={cn(inputClass, 'resize-none')}
           />
         </label>
 
@@ -244,7 +244,7 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
           <div className="grid grid-cols-2 gap-2">
             <input maxLength={100} aria-label="Título da música" placeholder="Título" value={form.song.title} onChange={(e) => setSong({ title: e.target.value })} className={inputClass} />
             <input maxLength={100} aria-label="Artista" placeholder="Artista" value={form.song.artist} onChange={(e) => setSong({ artist: e.target.value })} className={inputClass} />
-            <input maxLength={512} aria-label="Link da música" placeholder="Link (opcional, https://…)" value={form.song.url} onChange={(e) => setSong({ url: e.target.value })} className={`${inputClass} col-span-2`} />
+            <input maxLength={512} aria-label="Link da música" placeholder="Link (opcional, https://…)" value={form.song.url} onChange={(e) => setSong({ url: e.target.value })} className={cn(inputClass, 'col-span-2')} />
           </div>
         </div>
 
@@ -255,8 +255,8 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
           <div className="space-y-2">
             {form.links.map((link, i) => (
               <div key={i} className="flex gap-2">
-                <input maxLength={32} aria-label="Nome do link" placeholder="Nome" value={link.label} onChange={(e) => setLink(i, { label: e.target.value })} className={`${inputClass} shrink-0 grow-0 basis-36`} />
-                <input maxLength={512} aria-label="Endereço do link" placeholder="https://…" value={link.url} onChange={(e) => setLink(i, { url: e.target.value })} className={`${inputClass} min-w-0 flex-1`} />
+                <input maxLength={32} aria-label="Nome do link" placeholder="Nome" value={link.label} onChange={(e) => setLink(i, { label: e.target.value })} className={cn(inputClass, 'shrink-0 grow-0 basis-36')} />
+                <input maxLength={512} aria-label="Endereço do link" placeholder="https://…" value={link.url} onChange={(e) => setLink(i, { url: e.target.value })} className={cn(inputClass, 'min-w-0 flex-1')} />
                 <button
                   type="button"
                   title="Remover link"

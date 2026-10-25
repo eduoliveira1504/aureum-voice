@@ -9,7 +9,7 @@ import { CroppedImageRow, imageForm, ImageRow, uploadError } from './ImageCroppe
 import { ConfirmModal } from './modals'
 import { FormError, Modal, ModalBody, ModalTabs } from './Modal'
 import { ServerBannerLayer } from './ServerBanner'
-import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
+import { Avatar, cn, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
 
 function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError && err.status === 403) return 'Você não tem permissão para isso.'
@@ -398,7 +398,7 @@ function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): R
           onClose={() => setAction(null)}
         >
           {action.kind === 'ban' && (
-            <input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Motivo (opcional)" className={`${inputClass} mt-4`} />
+            <input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Motivo (opcional)" className={cn(inputClass, 'mt-4')} />
           )}
         </ConfirmModal>
       )}

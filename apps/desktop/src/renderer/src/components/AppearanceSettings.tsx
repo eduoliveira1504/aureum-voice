@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { Theme } from '../lib/api'
 import { ACCENT_PRESETS, endAccentPreview, previewAccent, useAppearance } from '../store/appearance'
-import { inputClass, labelClass, Segmented } from './ui'
+import { cn, inputClass, labelClass, Segmented } from './ui'
 
 const HEX_RE = /^#[0-9a-f]{6}$/i
 
@@ -87,7 +87,7 @@ export function AppearanceSettings(): ReactNode {
                 if (HEX_RE.test(value)) update({ accent_color: value.toUpperCase() })
               }}
               onBlur={() => setHex(accent)}
-              className={`${inputClass} font-mono uppercase`}
+              className={cn(inputClass, 'font-mono uppercase')}
             />
           </label>
           <p className="mt-2 text-xs text-fg-subtle">
