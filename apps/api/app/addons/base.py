@@ -8,12 +8,12 @@ itself: its routes call `addon_channel`, which hands back the channel's id as a 
 
 import logging
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, WebSocket, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,6 +61,44 @@ class AssignedItem(BaseModel):
 AssignedHook = Callable[[AsyncSession, list[uuid.UUID], uuid.UUID], Awaitable[list[AssignedItem]]]
 
 
+class SocketError(Exception):
+    """Raised by a socket handler to answer the client with an error message."""
+
+
+@dataclass
+class AddonSocket:
+    """A client's WebSocket connection, as an addon's socket handlers see it. For live things
+    that aren't worth a request or a database row, like cursors."""
+
+    manifest: "AddonManifest"
+    websocket: WebSocket
+    user_id: uuid.UUID
+    # What the addon keeps about this connection between messages; dropped when it closes.
+    state: dict[str, Any]
+
+    async def channel(self, session: AsyncSession, channel_id: uuid.UUID, action: str = "view") -> "AddonChannel":
+        """Like `addon_channel`, but a refusal becomes a SocketError."""
+        try:
+            return await addon_channel(session, self.manifest, channel_id, self.user_id, action)
+        except HTTPException as e:
+            raise SocketError(str(e.detail)) from None
+
+    def join(self, rooms: Iterable[uuid.UUID]) -> None:
+        """Sets the rooms (ids the addon picks) this connection is in; empty leaves them all. A
+        connection gets the room's events from AddonChannel.publish_room and `relay`."""
+        broker.watch(self.websocket, f"addon:{self.manifest.key}", rooms)
+
+    async def relay(self, room: uuid.UUID, event: str, data: dict[str, Any], user_ids: Iterable[uuid.UUID]) -> None:
+        """Sends `addon.<key>.<event>` to the other connections in the room, among `user_ids` (who
+        can see it, which the addon keeps track of)."""
+        await broker.publish_to_watchers(f"addon.{self.manifest.key}.{event}", data, room, user_ids, skip=self.websocket)
+
+
+# Handles `addon.<key>.<name>` messages from clients; `data` is whatever the client sent.
+SocketHandler = Callable[[AddonSocket, Any], Awaitable[None]]
+SocketCloseHook = Callable[[AddonSocket], Awaitable[None]]
+
+
 @dataclass(frozen=True)
 class AddonManifest:
     key: str
@@ -81,6 +119,10 @@ class AddonManifest:
     # Whether it posts system lines (AddonChannel.announce) to a text channel picked in the
     # channel's settings.
     announces: bool = False
+    # Handlers for `addon.<key>.<name>` messages on the WebSocket, by name.
+    socket: Mapping[str, SocketHandler] = field(default_factory=dict)
+    # Called when a connection that sent this addon messages closes.
+    on_socket_close: SocketCloseHook | None = None
 
     def action_perm(self, action: str) -> Perm:
         if action == "view":

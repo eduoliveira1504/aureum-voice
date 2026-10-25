@@ -9,6 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models import Base
 
 BACKGROUNDS = ("plain", "grid")
+# What can be drawn. Leaves out Excalidraw's embeds (they load other sites) and its AI frames.
+ELEMENT_TYPES = frozenset({"rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "image", "frame"})
 
 # Every table hangs off `workspace_id` with no foreign key on purpose: the whiteboard doesn't depend
 # on what hosts it (today an addon channel). The registry's cleanup removes a workspace's rows.

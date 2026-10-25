@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from app import calls, presence, voice
+from app.addons import registry as addons
 from app.access import audience_ids, channel_member_ids, server_member_ids
 from app.permissions import Perm, channel_viewers, server_access, visible_channel_ids
 from app.config import get_settings
@@ -241,9 +242,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
                 await presence.announce(user_id)
             elif message.get("type") == "activity.set":
                 await _handle_activity(user_id, connection_id, message.get("data"))
+            elif isinstance(message.get("type"), str) and message["type"].startswith("addon."):
+                if error := await addons.handle_socket(websocket, user_id, message["type"], message.get("data")):
+                    await _send_error(websocket, error)
     except WebSocketDisconnect:
         pass
     finally:
+        await addons.socket_closed(websocket)
         broker.unregister(user_id, websocket)
         await presence.forget_connection(user_id, connection_id)
         if await broker.disconnect(user_id, connection_id):

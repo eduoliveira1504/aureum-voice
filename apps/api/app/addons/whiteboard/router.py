@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import storage
 from app.addons.base import AddonChannel, AddonManifest, addon_channel
-from app.addons.whiteboard.models import WhiteboardBoard, WhiteboardFile, WhiteboardSnapshot
+from app.addons.whiteboard import live
+from app.addons.whiteboard.models import ELEMENT_TYPES, WhiteboardBoard, WhiteboardFile, WhiteboardSnapshot
 from app.deps import CurrentUser, SessionDep
 from app.permissions import Perm
 
@@ -26,8 +27,6 @@ MAX_THUMBNAIL_BYTES = 512 * 1024
 # A version is kept when someone edits after this long without one, then the last MAX_SNAPSHOTS.
 SNAPSHOT_EVERY = timedelta(minutes=10)
 MAX_SNAPSHOTS = 50
-# What can be drawn. Leaves out Excalidraw's embeds (they load other sites) and its AI frames.
-ELEMENT_TYPES = frozenset({"rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "image", "frame"})
 
 router = APIRouter()
 
@@ -534,4 +533,6 @@ manifest = AddonManifest(
     permissions={"edit": Perm.EDIT_WHITEBOARD},
     on_cleanup=cleanup,
     announces=True,
+    socket=live.HANDLERS,
+    on_socket_close=live.closed,
 )

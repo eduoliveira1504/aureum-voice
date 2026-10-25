@@ -13,7 +13,7 @@ from app.db import SessionLocal
 from app.permissions import DEFAULT_EVERYONE, Perm
 from tests.helpers import ApiUser, make_server, make_user, ws_client
 from tests.test_profile import GIF, PNG
-from tests.test_ws import next_event, ws_url
+from tests.test_ws import next_event, no_event, ws_url
 
 
 async def whiteboard_channel(owner: ApiUser, server_id: str, name: str = "Quadro branco") -> str:
@@ -334,3 +334,90 @@ async def test_only_the_last_versions_are_kept(client: AsyncClient, monkeypatch:
         await save(owner, cid, bid, element("a", v))
     versions = (await owner.get(url(cid, f"/boards/{bid}/versions"))).json()
     assert len(versions) == 3
+
+
+async def send(ws: Any, name: str, **data: Any) -> None:
+    await ws.send_json({"type": f"addon.whiteboard.{name}", "data": data})
+
+
+async def test_live_drawing_and_cursors(client: AsyncClient) -> None:
+    ana, bia, leo = [await make_user(client, n) for n in ("ana", "bia", "leo")]
+    sid = (await make_server(ana, bia, leo))["id"]
+    cid = await whiteboard_channel(ana, sid)
+    bid = (await new_board(ana, cid))["id"]
+    other = (await new_board(ana, cid, "Outro"))["id"]
+    # Leo only looks.
+    await ana.put(f"/channels/{cid}/overrides/member/{leo.id}", {"deny": int(Perm.EDIT_WHITEBOARD)})
+
+    async with (
+        ws_client() as wsc,
+        aconnect_ws(ws_url(ana), wsc) as a,
+        aconnect_ws(ws_url(bia), wsc) as b,
+        aconnect_ws(ws_url(leo), wsc) as c,
+    ):
+        for ws in (a, b, c):
+            await next_event(ws, "ready")
+        await send(a, "join", channel_id=cid, board_id=bid, origin="A")
+        await send(b, "join", channel_id=cid, board_id=bid, origin="B")
+        joined = await next_event(a, "addon.whiteboard.peer.joined")
+        assert (joined["user_id"], joined["origin"], joined["board_id"]) == (bia.id, "B", bid)
+        await send(c, "join", channel_id=cid, board_id=other, origin="C")
+
+        # A stroke while it's drawn: to the others on the board only.
+        await send(a, "update", board_id=bid, elements=[element("s1", type="freedraw")], origin="A")
+        live = await next_event(b, "addon.whiteboard.live")
+        assert (live["user_id"], live["origin"], [e["id"] for e in live["elements"]]) == (ana.id, "A", ["s1"])
+        await no_event(c, "addon.whiteboard.live")
+
+        # Cursors, with what the sender sees (for following them).
+        viewport = {"x": 10, "y": 20, "width": 800, "height": 600, "zoom": 1.5}
+        await send(b, "pointer", board_id=bid, x=1.5, y=2, button="down", viewport=viewport, selected=["s1"], origin="B")
+        cursor = await next_event(a, "addon.whiteboard.pointer")
+        assert (cursor["user_id"], cursor["x"], cursor["button"], cursor["selected"]) == (bia.id, 1.5, "down", ["s1"])
+        assert cursor["viewport"] == viewport
+
+        # Saves reach the board's room too, for whoever missed the live strokes.
+        await save(ana, cid, bid, element("s1", 2))
+        saved = await next_event(b, "addon.whiteboard.elements")
+        assert saved["origin"] == "test" and saved["elements"][0]["version"] == 2
+        await no_event(c, "addon.whiteboard.elements")
+
+        # Someone who can only look moves the cursor, but their strokes aren't relayed.
+        await send(c, "join", channel_id=cid, board_id=bid, origin="C")
+        await next_event(a, "addon.whiteboard.peer.joined")
+        await send(c, "update", board_id=bid, elements=[element("x1")], origin="C")
+        await no_event(a, "addon.whiteboard.live")
+        await send(c, "pointer", board_id=bid, x=0, y=0, origin="C")
+        assert (await next_event(a, "addon.whiteboard.pointer"))["user_id"] == leo.id
+
+        # Closing the board, or the connection, tells the others.
+        await send(b, "join", channel_id=cid, board_id=None)
+        assert (await next_event(a, "addon.whiteboard.peer.left"))["origin"] == "B"
+    async with ws_client() as wsc, aconnect_ws(ws_url(ana), wsc) as a:
+        await next_event(a, "ready")
+        await send(a, "join", channel_id=cid, board_id=bid, origin="A")
+        async with aconnect_ws(ws_url(bia), wsc) as b:
+            await next_event(b, "ready")
+            await send(b, "join", channel_id=cid, board_id=bid, origin="B")
+            await next_event(a, "addon.whiteboard.peer.joined")
+        assert (await next_event(a, "addon.whiteboard.peer.left"))["user_id"] == bia.id
+
+
+async def test_live_needs_access(client: AsyncClient) -> None:
+    owner, outsider = await make_user(client, "owner"), await make_user(client, "outsider")
+    sid = (await make_server(owner))["id"]
+    cid = await whiteboard_channel(owner, sid)
+    bid = (await new_board(owner, cid))["id"]
+
+    async with ws_client() as wsc, aconnect_ws(ws_url(outsider), wsc) as ws:
+        await next_event(ws, "ready")
+        await send(ws, "join", channel_id=cid, board_id=bid, origin="X")
+        assert (await next_event(ws, "error"))["message"] == "Channel not found"
+        await send(ws, "join", channel_id=cid, board_id="nope")
+        assert (await next_event(ws, "error"))["message"] == "Invalid whiteboard message"
+        await send(ws, "dance")
+        assert (await next_event(ws, "error"))["message"] == "Unknown message: addon.whiteboard.dance"
+        # Not joined: drawing and pointing go nowhere.
+        await send(ws, "update", board_id=bid, elements=[element("x1")])
+        await send(ws, "pointer", board_id=bid, x=0, y=0)
+        await no_event(ws, "addon.whiteboard.live")

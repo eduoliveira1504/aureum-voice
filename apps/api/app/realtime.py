@@ -47,6 +47,9 @@ class Broker:
         # where ("overview", "home", "addon:<key>").
         self._watchers: dict[uuid.UUID, set[WebSocket]] = defaultdict(set)
         self._watching: dict[WebSocket, dict[str, set[uuid.UUID]]] = {}
+        # A random id per connection, so an event can leave out the one that caused it even
+        # when it's delivered by another API process.
+        self._connection_ids: dict[WebSocket, str] = {}
 
     @property
     def redis(self) -> Redis:
@@ -67,13 +70,21 @@ class Broker:
             log.exception("Failed to publish %s event", type_)
 
     async def publish_to_watchers(
-        self, type_: str, data: Any, topic: uuid.UUID, user_ids: Iterable[uuid.UUID] | None = None
+        self,
+        type_: str,
+        data: Any,
+        topic: uuid.UUID,
+        user_ids: Iterable[uuid.UUID] | None = None,
+        *,
+        skip: WebSocket | None = None,
     ) -> None:
         """Sends an event only to connections watching the topic, optionally only those of some
-        users (e.g. who can see the channel it's about)."""
+        users (e.g. who can see the channel it's about) and leaving out `skip` (its sender)."""
         message: dict[str, Any] = {"type": type_, "data": data, "watchers": str(topic)}
         if user_ids is not None:
             message["user_ids"] = [str(u) for u in set(user_ids)]
+        if skip is not None:
+            message["skip"] = self._connection_ids.setdefault(skip, uuid.uuid4().hex)
         payload = json.dumps(message, default=str)
         try:
             await self.redis.publish(self._channel, payload)
@@ -117,6 +128,8 @@ class Broker:
             for ws in list(watchers):
                 if allowed is not None and self._owners.get(ws) not in allowed:
                     continue
+                if "skip" in payload and self._connection_ids.get(ws) == payload["skip"]:
+                    continue
                 try:
                     await ws.send_json(event)
                 except Exception:
@@ -146,6 +159,7 @@ class Broker:
     def unregister(self, user_id: uuid.UUID, ws: WebSocket) -> None:
         self.unwatch(ws)
         self._owners.pop(ws, None)
+        self._connection_ids.pop(ws, None)
         self._epochs.pop(ws, None)
         sockets = self._sockets.get(user_id)
         if sockets is not None:
