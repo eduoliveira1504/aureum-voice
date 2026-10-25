@@ -260,21 +260,30 @@ pode virar release sozinha.
 - Testes: recorte estático e animado (animação preservada), zoom/posição salvos, reajuste
   a partir do original.
 
-### Insígnias em destaque
-- No modal "Editar perfil", seção "Insígnias": a pessoa escolhe quais aparecem ao lado do
-  nome (0 a 3) e em que ordem (arrastar). Padrão continua automático: as 2 mais raras
-  (regra do 2.11), até a pessoa mexer.
-- Opção "Ocultar do perfil" por insígnia: some do cartão e do lado do nome, mas continua
-  sendo dela (pode reexibir quando quiser). Nada é perdido.
-- Cartão de perfil: as em destaque primeiro, depois as outras pela regra de raridade.
-- Prévia ao vivo do nome com as insígnias escolhidas (chat, lista de membros, call).
-- Salvo no servidor (user_badges: featured_position nullable, hidden bool), vale pra
-  todo mundo que vê o perfil. Só a própria pessoa altera.
-- Com 3 insígnias ao lado do nome, manter a regra do 2.11: o nome encolhe com
-  reticências, os ícones nunca.
-- Testes: escolher e ordenar; ocultar some pra outros usuários (inclusive via API);
-  conta sem escolha usa o automático; insígnia nova concedida não entra no destaque
-  sozinha.
+### Insígnias: destaque e inventário
+- Inventário: todas as insígnias da pessoa ficam SEMPRE visíveis pra quem abrir o perfil
+  dela (nada é oculto). No cartão/perfil, aba ou seção "Insígnias" com a grade completa:
+  - As que ela tem: coloridas, com nome, raridade, descrição, número (se numerada) e data.
+  - As que ela ainda não tem: em cinza com cadeado e como conseguir (ex: "Construtor:
+    crie um servidor com 5+ membros"). Insígnias exclusivas do beta que não dá mais pra
+    ganhar aparecem como "Não disponível mais", sem incentivar o impossível.
+  - Ordenadas: as que tem primeiro (mais rara → mais comum), depois as que não tem.
+- Destaque: a pessoa escolhe até 3 insígnias do inventário pra aparecer ao lado do nome
+  (chat, lista de membros, call, servidores, menções) e no topo do cartão de perfil, na
+  ordem que quiser (arrastar). As outras continuam no inventário, só não ficam em destaque.
+- Onde escolher: no modal "Editar perfil" (3.10), seção "Insígnias": grade do inventário
+  com "Destacar" em cada uma e a fileira de destaque reordenável, com prévia ao vivo do
+  nome. Também pelo próprio inventário: botão "Destacar" ao passar o mouse (só no seu).
+- Padrão: sem escolha, o destaque é automático (as 2 mais raras, regra do 2.11).
+  Insígnia nova concedida não entra no destaque sozinha; a DM da @aureum avisa e oferece
+  "Destacar no perfil".
+- Salvo no servidor (user_badges.featured_position nullable), vale pra todo mundo que vê
+  o perfil. Só a própria pessoa altera.
+- Com 3 ao lado do nome, mantém a regra do 2.11: o nome encolhe com reticências, os
+  ícones nunca.
+- Testes: escolher e reordenar o destaque; outro usuário vê o destaque escolhido e o
+  inventário completo; conta sem escolha usa o automático; insígnia nova não entra no
+  destaque sozinha; não dá pra destacar insígnia que não tem (inclusive via API).
 
 ## 3.11 Chat: emojis, reações, figurinhas, visto e preview de links
 ### Emojis
