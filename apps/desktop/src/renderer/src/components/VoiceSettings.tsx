@@ -4,31 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { GATE_RANGE, gateOf, inputGainOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { MicProcessor } from '../lib/micProcessor'
+import { useDevices, watchDevices } from '../store/devices'
 import { micCapture, useVoice } from '../store/voice'
 import { InputModeSettings } from './InputModeSettings'
 import { inputClass, labelClass, Segmented, ToggleRow } from './ui'
-
-interface Devices {
-  audioinput: MediaDeviceInfo[]
-  audiooutput: MediaDeviceInfo[]
-  videoinput: MediaDeviceInfo[]
-}
-
-async function listDevices(): Promise<Devices> {
-  let all = await navigator.mediaDevices.enumerateDevices()
-  // Device names are hidden until media access is granted once.
-  if (all.some((d) => d.kind === 'audioinput' && !d.label)) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach((t) => t.stop())
-      all = await navigator.mediaDevices.enumerateDevices()
-    } catch {
-      // No permission or no mic: list whatever we have.
-    }
-  }
-  const of = (kind: MediaDeviceKind): MediaDeviceInfo[] => all.filter((d) => d.kind === kind && d.deviceId !== 'communications')
-  return { audioinput: of('audioinput'), audiooutput: of('audiooutput'), videoinput: of('videoinput') }
-}
 
 /** The meter's scale, in dBFS. */
 const METER_FLOOR = -70
@@ -108,18 +87,13 @@ function useLoopback(track: MediaStreamTrack | null, outputId: string): void {
 export function VoiceSettings(): ReactNode {
   const { applyDevicePrefs, applyMicProcessing } = useVoice.getState()
   const [prefs, setPrefs] = useState<MediaPrefs>(loadMediaPrefs)
-  const [devices, setDevices] = useState<Devices | null>(null)
+  const devices = useDevices((s) => s.devices)
   const [testing, setTesting] = useState(false)
   const [hearing, setHearing] = useState(false)
   const test = useMicTest(testing, prefs)
   useLoopback(testing && hearing ? test.output : null, prefs.audioOutput)
 
-  useEffect(() => {
-    void listDevices().then(setDevices)
-    const onChange = (): void => void listDevices().then(setDevices)
-    navigator.mediaDevices.addEventListener('devicechange', onChange)
-    return () => navigator.mediaDevices.removeEventListener('devicechange', onChange)
-  }, [])
+  useEffect(watchDevices, [])
 
   /** `reopen`: the change needs the mic device reopened in a call (device, echo, gain). */
   function update(patch: Partial<MediaPrefs>, reopen = true): void {

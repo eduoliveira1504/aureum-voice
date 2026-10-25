@@ -10,7 +10,7 @@ import {
   Video,
   VideoOff
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import type { User, VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
@@ -18,6 +18,7 @@ import { useChat } from '../store/chat'
 import { useCallOnScreen, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
+import { toast } from './ContextMenu'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
 import { userContextMenu } from './UserMenu'
@@ -159,6 +160,11 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
   const minimized = useNav((s) => s.pipMinimized)
   const setMinimized = useNav((s) => s.setPipMinimized)
   const onScreen = useCallOnScreen()
+  // "Headset desconectado. Usando o padrão do Windows." and the like (see store/voice.ts).
+  const notice = useVoice((s) => s.notice)
+  useEffect(() => {
+    if (notice) toast(notice.text)
+  }, [notice])
   if (!info || phase === 'idle') return null
 
   // The floating window is optional: shown or hidden from here (it hides itself while the call

@@ -27,6 +27,7 @@ import {
   type ScreenMode
 } from '../lib/mediaTier'
 import { useAppearance } from './appearance'
+import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
 import { sendRealtime } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
@@ -147,9 +148,40 @@ const DEVICE_PREF: Record<DeviceKind, 'audioInput' | 'audioOutput' | 'videoInput
   videoinput: 'videoInput'
 }
 
+const DEVICE_KINDS = Object.keys(DEVICE_PREF) as DeviceKind[]
+const DEVICE_NAME: Record<DeviceKind, string> = { audioinput: 'Microfone', audiooutput: 'Saída de áudio', videoinput: 'Câmera' }
+
 function savePref(patch: Partial<MediaPrefs>): void {
   saveMediaPrefs({ ...loadMediaPrefs(), ...patch })
 }
+
+/**
+ * Moves the call to a device ('' = the system default). The mic is restarted with the whole
+ * capture (one channel picked, 48 kHz, the browser's own noise suppression off), never just a
+ * device id: LiveKit restarts a mic that went away with only `deviceId: 'default'`, which would
+ * turn the browser's processing back on under RNNoise.
+ */
+async function moveToDevice(r: Room, kind: DeviceKind, deviceId: string): Promise<void> {
+  if (kind !== 'audioinput') {
+    await r.switchActiveDevice(kind, deviceId || 'default')
+    return
+  }
+  const capture = { ...micCapture({ ...loadMediaPrefs(), audioInput: deviceId }), deviceId: deviceId || 'default' }
+  r.options.audioCaptureDefaults = capture
+  const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
+  if (track) await track.restartTrack(capture)
+  await syncMicProcessor(r)
+}
+
+/** The mic track lost the capture settings (LiveKit restarted it on its own). */
+function micLostSettings(r: Room): boolean {
+  const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+  return !!track && track.mediaStreamTrack.readyState === 'live' && track.mediaStreamTrack.getConstraints().noiseSuppression !== false
+}
+
+// Kinds whose chosen device went away during the call: on the system default until it's back.
+const onDefault = new Set<DeviceKind>()
+let stopDeviceWatch: () => void = () => {}
 
 interface VoiceStore {
   phase: Phase
@@ -175,6 +207,8 @@ interface VoiceStore {
   media: MediaTier
   /** The push-to-talk key is held (only in that input mode). */
   pttHeld: boolean
+  /** A short note about the call's devices ("Headset desconectado…"), shown as a toast. */
+  notice: { text: string; id: number } | null
   /** Whose screen shares we receive. Nobody's until "Assistir": the call only subscribes to
    * microphones and cameras on its own (bandwidth, and nobody gets a stream they didn't ask for). */
   watching: string[]
@@ -328,8 +362,50 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     return !muted && !deafened && allowed.mic && (!pushToTalkOn() || pttHeld)
   }
 
+  const notify = (text: string): void => set((s) => ({ notice: { text, id: (s.notice?.id ?? 0) + 1 } }))
+
+  /**
+   * A device came or went during the call. If the chosen one went away, the call moves to the
+   * system default and says so; when it comes back, the call moves back to it.
+   */
+  async function onDevicesChanged(devices: Devices, before: Devices | null): Promise<void> {
+    const r = room
+    if (!r || get().phase === 'idle') return
+    const prefs = loadMediaPrefs()
+    for (const kind of DEVICE_KINDS) {
+      const chosen = prefs[DEVICE_PREF[kind]]
+      if (!chosen) continue
+      // A camera that's off has nothing to move: turning it on reads the preference.
+      const live = kind !== 'videoinput' || get().camera
+      const present = devices[kind].some((d) => d.deviceId === chosen)
+      try {
+        if (!present && !onDefault.has(kind)) {
+          onDefault.add(kind)
+          notify(`${deviceLabel(before?.[kind], chosen) ?? DEVICE_NAME[kind]} desconectado. Usando o padrão do Windows.`)
+          if (live) await moveToDevice(r, kind, '')
+        } else if (present && onDefault.has(kind)) {
+          onDefault.delete(kind)
+          notify(`Usando ${deviceLabel(devices[kind], chosen)} de novo.`)
+          if (live) await moveToDevice(r, kind, chosen)
+        }
+      } catch {
+        // The next device change tries again.
+      }
+    }
+    // The system default mic went away and LiveKit restarted it bare: put the capture back.
+    if (room === r && micLostSettings(r)) {
+      await moveToDevice(r, 'audioinput', onDefault.has('audioinput') ? '' : prefs.audioInput).catch(() => {})
+    }
+  }
+
+  useDevices.subscribe((s, prev) => {
+    if (s.devices && s.devices !== prev.devices) void onDevicesChanged(s.devices, prev.devices)
+  })
+
   const reset = (error: string | null = null): void => {
     room = null
+    stopDeviceWatch()
+    onDefault.clear()
     audioSink.replaceChildren()
     stopThumbnails()
     shareTracks.forEach((t) => t.stop())
@@ -481,6 +557,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     serverDeafened: false,
     media: FREE_TIER,
     pttHeld: false,
+    notice: null,
     watching: [],
     screenPreviews: {},
     watchers: [],
@@ -533,6 +610,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
 
       set({ phase: 'connected' })
+      // Devices plugged in or out during the call (see onDevicesChanged).
+      stopDeviceWatch = watchDevices()
       playSound('call-join')
       announce()
       // With webAudioMix the output device is set on the room's AudioContext.
@@ -750,11 +829,9 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       if (r) {
         // The camera only when it's on: turning it on reads the preference.
         const live = kind !== 'videoinput' || get().camera
+        onDefault.delete(kind)
         try {
-          // The capture keeps its constraints (one channel picked, 48 kHz); only the device
-          // changes, and the mic processor restarts on the new track.
-          if (live) await r.switchActiveDevice(kind, deviceId || 'default')
-          if (kind === 'audioinput') await syncMicProcessor(r)
+          if (live) await moveToDevice(r, kind, deviceId)
         } catch {
           set({
             error:
