@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Badge } from '../lib/api'
 import { useBadges } from '../store/badges'
-import { BadgeList, BadgeSummary, NameMarks } from './Badge'
-import { BadgesPage } from './BadgesPage'
+import { BadgeList, NameMarks } from './Badge'
+import { BadgeInventory } from './BadgeInventory'
 
 const badge = (key: string, name: string, rarity: Badge['rarity']): Badge => ({
   key,
@@ -17,7 +17,12 @@ const badge = (key: string, name: string, rarity: Badge['rarity']): Badge => ({
   icon_svg_small: `<svg data-art="small-${key}"/>`
 })
 
-const held = (key: string, number: number | null = null) => ({ key, number, granted_at: '2026-10-18T12:00:00Z' })
+const held = (key: string, number: number | null = null, featured_position: number | null = null) => ({
+  key,
+  number,
+  granted_at: '2026-10-18T12:00:00Z',
+  featured_position
+})
 
 beforeEach(() => {
   useBadges.setState({
@@ -45,12 +50,18 @@ describe('badges', () => {
     expect(tooltip.textContent).toContain('18 de outubro de 2026')
   })
 
-  it('shows "+N" past five badges', () => {
+  it('the card shows the featured ones, then "+N" opens the inventory', () => {
     const many = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`b${i}`, badge(`b${i}`, `B${i}`, 'comum')]))
     useBadges.setState({ catalog: many })
-    render(<BadgeList badges={Object.keys(many).map((k) => held(k))} />)
-    expect(screen.getAllByLabelText(/^B\d$/)).toHaveLength(5)
-    expect(screen.getByText('+2')).toBeTruthy()
+    const onMore = vi.fn()
+    render(<BadgeList badges={Object.keys(many).map((k) => held(k))} onMore={onMore} />)
+    expect(screen.getAllByLabelText(/^B\d$/)).toHaveLength(2) // no choice: the two rarest
+    fireEvent.click(screen.getByText('+5'))
+    expect(onMore).toHaveBeenCalled()
+    cleanup()
+    render(<BadgeList badges={[held('b6', null, 1), held('b1'), held('b3', null, 0), held('b5', null, 2)]} />)
+    expect(screen.getAllByLabelText(/^B\d$/).map((el) => el.getAttribute('aria-label'))).toEqual(['B3', 'B6', 'B5'])
+    expect(screen.getByText('+1')).toBeTruthy()
   })
 
   it('lists use the small art and shine only on hover', () => {
@@ -60,34 +71,40 @@ describe('badges', () => {
     expect(container.querySelector('.badge-shine-hover')).not.toBeNull()
   })
 
-  it('the summary in Meu perfil counts them and opens the page', () => {
-    const onOpen = vi.fn()
-    render(<BadgeSummary badges={[held('bug_hunter'), held('pioneer', 1)]} onOpen={onOpen} />)
-    fireEvent.click(screen.getByText('2 insígnias'))
-    expect(onOpen).toHaveBeenCalled()
-    cleanup()
-    render(<BadgeSummary badges={[]} onOpen={onOpen} />)
-    expect(screen.getByText('Nenhuma insígnia ainda')).toBeTruthy()
-  })
-
-  it('the page shows every badge: the ones you have first, the others locked', () => {
+  it('the inventory shows every badge: yours first, the others locked with how to get them', () => {
     useBadges.setState({
       catalog: {
-        pioneer: { ...badge('pioneer', 'Pioneiro', 'mitica'), exclusive_beta: true },
-        founder: { ...badge('founder', 'Fundador', 'mitica'), exclusive_beta: true },
+        pioneer: { ...badge('pioneer', 'Pioneiro', 'mitica'), exclusive_beta: true, available: false },
+        founder: { ...badge('founder', 'Fundador', 'mitica'), exclusive_beta: true, available: false },
+        builder: { ...badge('builder', 'Construtor', 'comum'), how_to_get: 'Crie um servidor com 5+ membros.' },
         bug_hunter: badge('bug_hunter', 'Caçador de bugs', 'rara')
       }
     })
-    render(<BadgesPage badges={[held('bug_hunter')]} onBack={() => {}} />)
+    render(<BadgeInventory badges={[held('bug_hunter')]} />)
     const cards = screen.getAllByRole('listitem')
+    // Ones you can still earn before the ones nobody can anymore.
     expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual([
       'Caçador de bugs',
-      'Pioneiro (você não tem)',
-      'Fundador (você não tem)'
+      'Construtor (não tem)',
+      'Pioneiro (não tem)',
+      'Fundador (não tem)'
     ])
     expect(cards[0].textContent).toContain('Recebida em 18 de outubro de 2026')
-    expect(cards[1].textContent).toContain('Só durante o beta')
-    expect(screen.getByText(/Você tem 1 de 3/)).toBeTruthy()
+    expect(cards[1].textContent).toContain('Crie um servidor com 5+ membros.')
+    expect(cards[2].textContent).toContain('Não disponível mais')
+    // Someone else's inventory has nothing to click.
+    expect(screen.queryByRole('button', { name: 'Destacar' })).toBeNull()
+  })
+
+  it('your own inventory can feature what you have', () => {
+    const onFeature = vi.fn()
+    render(<BadgeInventory badges={[held('bug_hunter'), held('pioneer', 3)]} featured={['pioneer']} onFeature={onFeature} />)
+    // Pioneiro is featured already; only Caçador de bugs offers it.
+    const buttons = screen.getAllByRole('button', { name: 'Destacar' })
+    expect(buttons).toHaveLength(1)
+    fireEvent.click(buttons[0])
+    expect(onFeature).toHaveBeenCalledWith('bug_hunter')
+    expect(screen.getByLabelText('Em destaque')).toBeTruthy()
   })
 })
 
@@ -124,6 +141,13 @@ describe('next to a name', () => {
     expect(order(container)).toEqual(['Pioneiro #2'])
     cleanup()
     expect(render(<NameMarks user={{ badges: [] }} />).container.innerHTML).toBe('')
+  })
+
+  it('shows the featured ones in the chosen order, up to three, even common ones', () => {
+    const { container } = render(
+      <NameMarks user={{ badges: [held('founder'), held('builder', null, 0), held('bug_hunter', null, 1), held('pioneer', 1)] }} />
+    )
+    expect(order(container)).toEqual(['Construtor', 'Caçador de bugs'])
   })
 
   it('shows only the two rarest badges, Fundador before Pioneiro, after the check and the tag', () => {

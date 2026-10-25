@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Badge } from '../lib/api'
-import { badgeTitle, sortBadges } from './badges'
+import { badgeTitle, featuredBadges, sortBadges } from './badges'
 
 const badge = (key: string, rarity: Badge['rarity'], numbered = false): Badge => ({
   key,
@@ -54,5 +54,19 @@ describe('sortBadges', () => {
       catalog
     )
     expect(shown.map((s) => s.key)).toEqual(['founder', 'pioneer', 'hunter'])
+  })
+})
+
+describe('featuredBadges', () => {
+  const held = (key: string, featured_position: number | null = null) => ({ key, number: null, granted_at: '2026-01-01T00:00:00Z', featured_position })
+
+  it('without a choice shows the two rarest', () => {
+    const shown = sortBadges([held('builder'), held('hunter'), held('founder')], CATALOG)
+    expect(featuredBadges(shown).map((s) => s.key)).toEqual(['founder', 'hunter'])
+  })
+
+  it('with a choice shows those, in the chosen order, even the common ones', () => {
+    const shown = sortBadges([held('builder', 0), held('hunter'), held('founder', 1)], CATALOG)
+    expect(featuredBadges(shown).map((s) => s.key)).toEqual(['builder', 'founder'])
   })
 })

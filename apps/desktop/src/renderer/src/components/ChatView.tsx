@@ -14,6 +14,7 @@ import {
 } from 'react'
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
+import { useAuth } from '../auth/AuthProvider'
 import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type OfficialEventRef, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import type { Recording } from '../lib/voiceRecorder'
@@ -24,9 +25,9 @@ import { useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { MessageAttachments, PendingFiles, type PendingFile } from './Attachments'
 import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
-import { badgeTitle } from '../store/badges'
-import { Item, openMenuAt, showDialog } from './ContextMenu'
-import { ConfirmModal } from './modals'
+import { badgeTitle, saveFeatured, withFeatured } from '../store/badges'
+import { Item, openMenuAt, showDialog, toast } from './ContextMenu'
+import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
@@ -143,13 +144,35 @@ function Linkified({
 export const isOfficialMessage = (message: Message): boolean => !!message.official && !!message.author?.is_official
 
 /** The badge an official "you got a badge" notice is about, shown big under it. */
-function OfficialBadge({ badgeKey, me }: { badgeKey: string; me: Me }): ReactNode {
-  const [shown] = useShownBadges(me.badges.filter((b) => b.key === badgeKey))
+/** The badge an official "insignias" notice is about, with "Destacar no perfil" (new badges
+ * never join the ones next to the name by themselves). */
+export function OfficialBadge({ badgeKey, me }: { badgeKey: string; me: Me }): ReactNode {
+  const { setUser } = useAuth()
+  const all = useShownBadges(me.badges)
+  const shown = all.find((s) => s.key === badgeKey)
   if (!shown) return null
+  const featured = shown.featured_position != null
+  const feature = (): void => {
+    const keys = withFeatured(all, badgeKey)
+    // Three featured already: the editor, to pick which one gives way.
+    if (!keys) return useNav.getState().setProfileEditor(true)
+    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, 'Não foi possível destacar.')))
+  }
   return (
     <div className="mt-2 flex items-center gap-3 rounded-control border border-line bg-elevated px-3 py-2">
       <BadgeIcon shown={shown} size={72} shine="always" />
-      <span className="font-display text-lg font-semibold">{badgeTitle(shown)}</span>
+      <span className="min-w-0 flex-1 font-display text-lg font-semibold">{badgeTitle(shown)}</span>
+      {featured ? (
+        <span className="text-xs font-medium text-fg-muted">Em destaque no perfil</span>
+      ) : (
+        <button
+          type="button"
+          onClick={feature}
+          className="shrink-0 rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+        >
+          Destacar no perfil
+        </button>
+      )}
     </div>
   )
 }

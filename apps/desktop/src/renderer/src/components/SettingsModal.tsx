@@ -5,7 +5,6 @@ import { AboutSettings } from './AboutSettings'
 import { AccountSettings, InvitesSettings } from './AccountSettings'
 import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
-import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
 import { useUnsavedGuard } from './EditProfileModal'
 import { Modal, ModalBody, ModalTabs } from './Modal'
@@ -16,10 +15,8 @@ import { SoundSettings } from './SoundSettings'
 import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
 
-// 'badges' has no tab of its own: it opens from Meu perfil.
 type Tab =
   | 'profile'
-  | 'badges'
   | 'account'
   | 'invites'
   | 'activity'
@@ -59,13 +56,12 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
             ['about', 'Sobre']
           ] as const
         }
-        isCurrent={(key) => tab === key || (key === 'profile' && tab === 'badges')}
+        isCurrent={(key) => tab === key}
         onSelect={(next) => guard(() => setTab(next))}
       />
 
       <ModalBody>
-        {tab === 'profile' && state.status === 'signedIn' && <ProfileEditor user={state.user} onOpenBadges={() => guard(() => setTab('badges'))} onDirtyChange={setDirty} />}
-        {tab === 'badges' && state.status === 'signedIn' && <BadgesPage badges={state.user.badges} onBack={() => setTab('profile')} />}
+        {tab === 'profile' && state.status === 'signedIn' && <ProfileEditor user={state.user} onDirtyChange={setDirty} />}
         {tab === 'account' && state.status === 'signedIn' && <AccountSettings user={state.user} />}
         {tab === 'invites' && state.status === 'signedIn' && <InvitesSettings user={state.user} />}
         {tab === 'activity' && <ActivitySettings />}

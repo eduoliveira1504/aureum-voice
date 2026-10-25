@@ -5,10 +5,12 @@ import { useAuth } from '../auth/AuthProvider'
 import { mediaUrl, type Presence, type User } from '../lib/api'
 import { useUserActivity } from '../store/activity'
 import { useAppearance, useReadableColor } from '../store/appearance'
+import { featuredBadges, saveFeatured, withFeatured } from '../store/badges'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { useSocial } from '../store/social'
-import { BadgeList, NameMarks } from './Badge'
+import { BadgeList, NameMarks, useShownBadges } from './Badge'
+import { BadgeInventory } from './BadgeInventory'
 import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
 import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
@@ -127,19 +129,52 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
   )
 }
 
+type CardTab = 'profile' | 'badges'
+
+/** "Perfil" and "Insígnias": the whole inventory is open to anyone who sees the card. */
+function CardTabs({ tab, count, onSelect }: { tab: CardTab; count: number; onSelect(tab: CardTab): void }): ReactNode {
+  const item = (key: CardTab, label: string): ReactNode => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={tab === key}
+      onClick={() => onSelect(key)}
+      className={`flex-1 rounded-item px-2 py-1 text-xs font-semibold ${tab === key ? 'bg-elevated text-fg' : 'text-fg-muted hover:text-fg'}`}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div role="tablist" aria-label="Seções do perfil" className="flex gap-1 rounded-control border border-line p-0.5">
+      {item('profile', 'Perfil')}
+      {item('badges', count ? `Insígnias (${count})` : 'Insígnias')}
+    </div>
+  )
+}
+
 /**
  * Profile card: banner, framed avatar with presence and status bubble, badges, names, about me,
- * what they're doing now, roles in the server on screen, links and member since. With `onClose`
+ * what they're doing now, roles in the server on screen, links and member since; or, in the other
+ * tab, the whole badge inventory. With `onClose`
  * (the popover) it also shows the actions (on your own: "Editar perfil"); the editor's preview doesn't.
  */
 export function ProfileView({ user, onClose }: { user: User; onClose?: () => void }): ReactNode {
-  const { state } = useAuth()
+  const { state, setUser } = useAuth()
   const meId = state.status === 'signedIn' ? state.user.id : undefined
   const banner = mediaUrl(user.banner_url)
   const nameColor = useReadableColor(user.accent_color)
   const status = usePresence(user.id, meId)
   const roles = useServerRoles(user.id)
   const place = useNav((s) => s.place)
+  const [tab, setTab] = useState<CardTab>('profile')
+  const own = !!meId && user.id === meId
+  const shownBadges = useShownBadges(user.badges)
+  // From your own card: straight next to your name, or to the editor when three are there.
+  const feature = (key: string): void => {
+    const keys = withFeatured(shownBadges, key)
+    if (!keys) return toast('Você já destaca 3 insígnias. Troque em Editar perfil.')
+    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, 'Não foi possível destacar.')))
+  }
 
   return (
     <div
@@ -161,7 +196,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
           </div>
         </div>
         <div className="absolute right-4 top-3">
-          <BadgeList badges={user.badges} />
+          <BadgeList badges={user.badges} onMore={() => setTab('badges')} />
         </div>
 
         <div className="mt-3 space-y-3 rounded-control bg-main p-3">
@@ -183,54 +218,68 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
             </div>
           </div>
 
-          {user.bio && (
+          <CardTabs tab={tab} count={user.badges.length} onSelect={setTab} />
+
+          {tab === 'profile' ? (
+            <>
+            {user.bio && (
+              <section>
+                <Heading>Sobre mim</Heading>
+                <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
+              </section>
+            )}
+
+            <NowBlock user={user} />
+
+            {roles.length > 0 && (
+              <section>
+                <Heading>Cargos</Heading>
+                <div className="flex flex-wrap gap-1.5">
+                  {roles.map((r) => (
+                    <span key={r.id} className="flex items-center gap-1.5 rounded-item bg-elevated px-2 py-0.5 text-xs font-medium">
+                      <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle" style={r.color ? { background: r.color } : undefined} />
+                      {r.name}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {user.links.length > 0 && (
+              <section>
+                <Heading>Links</Heading>
+                <div className="space-y-1">
+                  {user.links.map((link) => (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={link.url}
+                      className="flex items-center gap-2 rounded-item px-1 py-0.5 text-sm hover:bg-elevated"
+                    >
+                      <Link2 size={14} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
+                      <span className="truncate text-accent-text">{link.label}</span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section>
-              <Heading>Sobre mim</Heading>
-              <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
+              <Heading>Membro desde</Heading>
+              <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
             </section>
+
+            </>
+          ) : (
+            <BadgeInventory
+              badges={user.badges}
+              compact
+              featured={own ? featuredBadges(shownBadges).map((s) => s.key) : undefined}
+              onFeature={own && onClose ? feature : undefined}
+            />
           )}
-
-          <NowBlock user={user} />
-
-          {roles.length > 0 && (
-            <section>
-              <Heading>Cargos</Heading>
-              <div className="flex flex-wrap gap-1.5">
-                {roles.map((r) => (
-                  <span key={r.id} className="flex items-center gap-1.5 rounded-item bg-elevated px-2 py-0.5 text-xs font-medium">
-                    <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle" style={r.color ? { background: r.color } : undefined} />
-                    {r.name}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {user.links.length > 0 && (
-            <section>
-              <Heading>Links</Heading>
-              <div className="space-y-1">
-                {user.links.map((link) => (
-                  <a
-                    key={link.url}
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={link.url}
-                    className="flex items-center gap-2 rounded-item px-1 py-0.5 text-sm hover:bg-elevated"
-                  >
-                    <Link2 size={14} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
-                    <span className="truncate text-accent-text">{link.label}</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section>
-            <Heading>Membro desde</Heading>
-            <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
-          </section>
 
           {onClose && meId && user.id !== meId && <Actions user={user} meId={meId} onDone={onClose} />}
           {onClose && user.id === meId && (

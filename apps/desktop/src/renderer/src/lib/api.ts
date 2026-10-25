@@ -52,6 +52,8 @@ export interface HeldBadge {
   /** Numbered badges: the holder's place, e.g. Pioneiro #7. */
   number: number | null
   granted_at: string
+  /** Next to the name, in this order (0 first); null: not featured. None featured: the rarest. */
+  featured_position?: number | null
 }
 
 export type BadgeRarity = 'comum' | 'rara' | 'lendaria' | 'mitica'
@@ -61,6 +63,10 @@ export interface Badge {
   key: string
   name: string
   description: string
+  /** What earns it, shown to those who don't have it (older APIs: missing). */
+  how_to_get?: string
+  /** False: nobody can earn it anymore (beta over, numbers ran out, one of a kind). */
+  available?: boolean
   rarity: BadgeRarity
   numbered: boolean
   /** Only granted while the beta runs. */

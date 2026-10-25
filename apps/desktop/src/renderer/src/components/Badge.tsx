@@ -1,12 +1,10 @@
-import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { BadgeRarity, HeldBadge, User } from '../lib/api'
-import { badgeTitle, RARITY_LABEL, sortBadges, useBadges, type ShownBadge } from '../store/badges'
+import { badgeTitle, featuredBadges, RARITY_LABEL, sortBadges, useBadges, type ShownBadge } from '../store/badges'
 
 const SMALL_MAX = 32
-const PROFILE_VISIBLE = 5
 export const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })
 
 /** The rarity's name in its metal's color. */
@@ -107,63 +105,45 @@ function BadgeTooltip({ shown, anchor }: { shown: ShownBadge; anchor: DOMRect })
   )
 }
 
-/** Profile card: up to 5 badges, rarest first, then "+N" (the rest in its tooltip). */
-export function BadgeList({ badges }: { badges: HeldBadge[] }): ReactNode {
+/**
+ * Top of the profile card: the featured badges (or the two rarest), then "+N" for the rest,
+ * which are all in the card's Insígnias tab (`onMore` opens it).
+ */
+export function BadgeList({ badges, onMore }: { badges: HeldBadge[]; onMore?: () => void }): ReactNode {
   const shown = useShownBadges(badges)
   if (!shown.length) return null
-  const visible = shown.slice(0, PROFILE_VISIBLE)
-  const rest = shown.slice(PROFILE_VISIBLE)
+  const visible = featuredBadges(shown)
+  const rest = shown.length - visible.length
   return (
     <div className="flex items-center gap-1 rounded-item bg-main/80 px-1.5 py-1">
       {visible.map((s) => (
         <BadgeWithTooltip key={s.key} shown={s} size={24} shine="always" focusable />
       ))}
-      {rest.length > 0 && (
-        <span title={rest.map(badgeTitle).join(', ')} className="px-0.5 text-xs font-semibold text-fg-muted">
-          +{rest.length}
-        </span>
+      {rest > 0 && (
+        <button
+          type="button"
+          disabled={!onMore}
+          onClick={onMore}
+          title="Ver todas as insígnias"
+          className="rounded-item px-0.5 text-xs font-semibold text-fg-muted enabled:hover:text-fg"
+        >
+          +{rest}
+        </button>
       )}
     </div>
   )
 }
 
-/** Settings > Meu perfil: the badges the user holds at a glance; opens the badges page. */
-export function BadgeSummary({ badges, onOpen }: { badges: HeldBadge[]; onOpen(): void }): ReactNode {
-  const shown = useShownBadges(badges)
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex w-full items-center gap-3 rounded-control border border-line bg-main p-3 text-left hover:border-fg-subtle"
-    >
-      {shown.length ? (
-        <span className="flex -space-x-1">
-          {shown.slice(0, PROFILE_VISIBLE).map((s) => (
-            <BadgeIcon key={s.key} shown={s} size={32} shine="always" />
-          ))}
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">
-          {shown.length ? `${shown.length} ${shown.length === 1 ? 'insígnia' : 'insígnias'}` : 'Nenhuma insígnia ainda'}
-        </span>
-        <span className="block text-xs text-fg-muted">Ver todas as insígnias do Aureum</span>
-      </span>
-      <ChevronRight size={18} className="shrink-0 text-fg-subtle" />
-    </button>
-  )
-}
-
-/** How many badges go next to a name (the profile card shows them all). */
-export const NEXT_TO_NAME = 2
-
-/** Next to a name in lists (members, chat, call, mentions): the two rarest badges, shining on hover. */
+/**
+ * Next to a name in lists (members, chat, call, mentions): the featured badges in the person's
+ * order, or the two rarest without a choice; shining on hover.
+ */
 export function TopBadges({ badges, size = 16 }: { badges: HeldBadge[]; size?: number }): ReactNode {
   const shown = useShownBadges(badges)
   if (!shown.length) return null
   return (
     <>
-      {shown.slice(0, NEXT_TO_NAME).map((s) => (
+      {featuredBadges(shown).map((s) => (
         <BadgeWithTooltip key={s.key} shown={s} size={size} shine="hover" />
       ))}
     </>
@@ -229,7 +209,7 @@ export function BotTag(): ReactNode {
 }
 
 /**
- * Everything that follows a name: verified check, "BOT" tag, then the two rarest badges
+ * Everything that follows a name: verified check, "BOT" tag, then the featured badges
  * (`badges={false}` where the badges show elsewhere, like the profile card). It never shrinks:
  * the name before it is what gets cut with an ellipsis.
  */

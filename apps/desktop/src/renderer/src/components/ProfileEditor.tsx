@@ -4,8 +4,9 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { api, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
 import { ACCENT_PRESETS } from '../store/appearance'
-import { BadgeSummary } from './Badge'
+import { hasChosen, saveFeatured } from '../store/badges'
 import { CustomStatusEditor, draftOf, statusFromDraft, type StatusDraft } from './CustomStatus'
+import { FeaturedBadgesEditor, withPositions } from './FeaturedBadges'
 import { CroppedImageRow } from './ImageCropper'
 import { FormError } from './Modal'
 import { errorText } from './modals'
@@ -35,6 +36,8 @@ interface Form {
   song: { title: string; artist: string; url: string }
   links: LinkDraft[]
   status: StatusDraft
+  /** The badges next to the name, in order; null: the automatic pick. Saved on its own route. */
+  featured: string[] | null
 }
 
 function formOf(user: Me): Form {
@@ -47,7 +50,13 @@ function formOf(user: Me): Form {
     avatar_frame: user.avatar_frame,
     song: { title: song?.title ?? '', artist: song?.artist ?? '', url: song?.url ?? '' },
     links: user.links.map((l) => ({ ...l })),
-    status: draftOf(user.custom_status)
+    status: draftOf(user.custom_status),
+    featured: hasChosen(user.badges)
+      ? user.badges
+          .filter((b) => b.featured_position != null)
+          .sort((a, b) => a.featured_position! - b.featured_position!)
+          .map((b) => b.key)
+      : null
   }
 }
 
@@ -93,16 +102,7 @@ function bodyOf(form: Form, previous: CustomStatus | null): Partial<Me> {
  * the card) and in Configurações › Meu perfil. `onDirtyChange` lets the one hosting it ask before
  * closing with changes that weren't saved.
  */
-export function ProfileEditor({
-  user,
-  onOpenBadges,
-  onDirtyChange
-}: {
-  user: Me
-  /** Configurações: the badges page next to it. */
-  onOpenBadges?: () => void
-  onDirtyChange?: (dirty: boolean) => void
-}): ReactNode {
+export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange?: (dirty: boolean) => void }): ReactNode {
   const { setUser } = useAuth()
   const [form, setForm] = useState(() => formOf(user))
   const [error, setError] = useState<string | null>(null)
@@ -118,7 +118,12 @@ export function ProfileEditor({
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
   const invalid = problem(form)
   const body = bodyOf(form, user.custom_status)
-  const preview: Me = { ...user, ...body, display_name: body.display_name || user.display_name }
+  const preview: Me = {
+    ...user,
+    ...body,
+    display_name: body.display_name || user.display_name,
+    badges: withPositions(user.badges, form.featured)
+  }
 
   async function run(label: string, action: () => Promise<Me>): Promise<void> {
     setBusy(label)
@@ -138,7 +143,12 @@ export function ProfileEditor({
     }
   }
 
-  const save = (): Promise<void> => run('save', () => api<Me>('/users/me', { method: 'PATCH', body }))
+  const featuredChanged = JSON.stringify(form.featured) !== JSON.stringify(formOf(user).featured)
+  const save = (): Promise<void> =>
+    run('save', async () => {
+      const next = await api<Me>('/users/me', { method: 'PATCH', body })
+      return featuredChanged ? saveFeatured(form.featured ?? []) : next
+    })
   const setLink = (i: number, changes: Partial<LinkDraft>): void =>
     patch({ links: form.links.map((l, j) => (j === i ? { ...l, ...changes } : l)) })
   const setSong = (changes: Partial<Form['song']>): void => patch({ song: { ...form.song, ...changes } })
@@ -270,6 +280,8 @@ export function ProfileEditor({
           </div>
         </div>
 
+        <FeaturedBadgesEditor user={preview} featured={form.featured} onChange={(featured) => patch({ featured })} />
+
         <div className="flex items-center gap-3">
           <div className="w-40 shrink-0">
             <PrimaryButton type="button" disabled={!dirty || !!invalid || busy !== null} onClick={save}>
@@ -291,12 +303,6 @@ export function ProfileEditor({
         <span className={labelClass}>Prévia</span>
         <div className="sticky top-0">
           <ProfileView user={preview} />
-          {onOpenBadges && (
-            <div className="mt-5 w-[340px]">
-              <span className={labelClass}>Suas insígnias</span>
-              <BadgeSummary badges={user.badges} onOpen={onOpenBadges} />
-            </div>
-          )}
         </div>
       </div>
     </div>
