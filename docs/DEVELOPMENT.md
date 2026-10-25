@@ -101,9 +101,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   pronouns, an avatar frame, a profile song, up to 5 links and badges. The profile card also shows
   "Now", roles in the current server and Message / Call buttons, and Settings has a live preview
 - Badges: hexagons whose metal shows the rarity (common, rare, legendary, mythic), with a tooltip and a
-  number on numbered ones. Mythic ones glow and shine. Beta badges (Fundador, Pioneiro #N) are given
-  only while the beta runs, Caçador de bugs when a reported problem is resolved
-  ([ADR 0018](decisions/0018-pre-beta.md))
+  number on numbered ones. Mythic ones glow and shine. Beta badges (Fundador, Pioneiro #N for the
+  first 20, Beta Tester) are given only while the beta runs, Caçador de bugs when a reported problem
+  is resolved ([ADR 0018](decisions/0018-pre-beta.md), [ADR 0026](decisions/0026-beta-badges.md))
 - Voice messages: hold the mic button in the message field (or click it) to record up to 5 minutes of
   Opus/WebM. The player shows the waveform, the time and 1x/1.5x/2x speed
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
@@ -274,6 +274,7 @@ python -m app.cli invites create --usos 15 --dias 7       # one group invite
 python -m app.cli invites create --pioneiro 2             # single-use, reserves Pioneiro #2
 python -m app.cli servers set-official --server-id <id>   # everyone who confirms joins it
 python -m app.cli badges grant <username> bug_hunter
+python -m app.cli badges grant-all beta_tester            # says how many, then asks
 ```
 
 `users create` also makes accounts sign-up refuses (reserved names such as `aureum`, `admin` or
@@ -282,7 +283,8 @@ replace at the first sign-in. `--confirmado` confirms the e-mail right away; `--
 account (no beta badge, no invites) and shows a gold verified check and a "BOT" tag next to its name;
 `--verificado` and `--bot` set those two on their own. `AUREUM_OWNER_USERNAME` in `.env` names the
 owner's account, which reads the problems reported from the app (Settings > Problemas) and gets the
-Founder badge. `AUREUM_BETA=true` gives accounts that confirm their e-mail the numbered beta badge.
+Founder badge. `AUREUM_BETA=true` gives accounts that confirm their e-mail the Beta Tester badge and,
+while numbers last, the numbered Pioneiro (`AUREUM_PIONEER_LIMIT`, 20 by default; reserved numbers count).
 
 ### Building the Windows installer
 

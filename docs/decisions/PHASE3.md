@@ -16,9 +16,11 @@ o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_d
 desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
 0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
 backups/aureum-2026-10-21b.dump). 3.6 e 3.7 prontos em 25/10 (só app, sem API nem migração),
-ainda não publicados. Testes manuais pendentes listados no 3.1, no 3.2, no 3.4, no 3.5, no 3.6 e
-no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
-Próximo: 3.8 (Insígnias).
+ainda não publicados. 3.8 pronto em 25/10 (só API, sem migração), ainda não em produção: falta
+reiniciar a API e rodar o badges grant-all com OK do Eduardo. Testes manuais pendentes listados no
+3.1, no 3.2, no 3.4, no 3.5, no 3.6 e no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6
+renumerados.
+Próximo: 3.9 (Leva de addons), parte A (Quadro branco).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -136,7 +138,10 @@ Teste manual pendente: os testes listados abaixo.
 - A mesma barra aparece compacta na janelinha flutuante.
 - Testes: trocar entrada, saída e câmera em call; dispositivo removido no meio da call.
 
-## 3.8 Insígnias
+## 3.8 Insígnias ✅ concluído (falta subir em produção)
+Ver docs/decisions/0026-beta-badges.md. Sem migração (catálogo sincronizado no startup).
+Produção: reiniciar a API e rodar `python -m app.cli badges grant-all beta_tester` (mostra quantas
+contas e pergunta), com OK do Eduardo.
 - Pioneiro limitado aos 20 primeiros: AUREUM_PIONEER_LIMIT=20 no .env (números
   reservados contam). Atingido o limite, não concede mais, mesmo com AUREUM_BETA=true.
   Números já concedidos não mudam.
@@ -506,7 +511,7 @@ Funnel e do LiveKit Cloud.
 - ✅ Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
 - ✅ (teste pendente) Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
 - ✅ (teste pendente) Trocar microfone, saída e câmera dentro da call, pela barra de controles.
-- 20 Pioneiros no máximo; todos os testers com Beta Tester.
+- ✅ (falta produção) 20 Pioneiros no máximo; todos os testers com Beta Tester.
 - Quadro branco, Enquetes, Eventos e Calendário (juntando Kanban e Eventos) funcionando.
 - Perfil editado direto do cartão, com recorte de avatar e banner (inclusive GIF).
 - Reações, emojis, figurinhas, visto nas DMs e preview de links no chat.

@@ -35,7 +35,8 @@ O beta é fechado: só entra quem tem convite.
    seu e-mail. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura digital):
    clique em **Mais informações** e depois em **Executar assim mesmo**.
 
-Quem entra durante o beta ganha a insígnia **Pioneiro**, numerada na ordem de chegada.
+Os 20 primeiros a entrar ganham a insígnia **Pioneiro**, numerada na ordem de chegada, e quem testa
+durante o beta ganha a **Beta Tester**.
 
 O app se atualiza sozinho. Se o ícone antigo continuar aparecendo depois de uma atualização,
 reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão ficam no
