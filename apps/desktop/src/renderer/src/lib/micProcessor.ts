@@ -35,6 +35,7 @@ function wasmBinary(): ArrayBuffer {
  *     → channel picker (one channel, the louder; never a sum, see channelPicker.worklet.js)
  *     → RNNoise noise suppression, when on (free and open source, unlike LiveKit Cloud's Krisp)
  *     → voice gate (manual sensitivity; open when it's automatic, see voiceGate.worklet.js)
+ *     → volume (the mic volume setting; after the gate, so it doesn't move the threshold)
  *     → mono track
  *
  * Each node is pinned to its channel count ('explicit' + 'discrete'), so Web Audio never mixes
@@ -49,13 +50,22 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
   private picker?: AudioWorkletNode
   private rnnoise?: RnnoiseWorkletNode
   private gate?: AudioWorkletNode
+  private volume?: GainNode
   private listener: LevelListener | null = null
 
-  /** `gateDb`: the manual sensitivity threshold in dBFS, or null for automatic (no gate). */
+  /** `gateDb`: the manual sensitivity threshold in dBFS, or null for automatic (no gate);
+   * `gain`: the mic volume (1 = as captured). */
   constructor(
     readonly denoise: boolean,
-    private gateDb: number | null = null
+    private gateDb: number | null = null,
+    private gain = 1
   ) {}
+
+  /** Changes the mic volume live. */
+  setGain(gain: number): void {
+    this.gain = gain
+    if (this.volume) this.volume.gain.value = gain
+  }
 
   /** Changes the sensitivity live, without restarting the mic. */
   setGate(db: number | null): void {
@@ -107,7 +117,9 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
       })
       gate.port.onmessage = ({ data }: MessageEvent<{ level: number; open: boolean }>) =>
         this.listener?.(toDb(data.level), data.open)
-      last.connect(gate).connect(destination)
+      const volume = new GainNode(ctx, { gain: this.gain, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'discrete' })
+      last.connect(gate).connect(volume).connect(destination)
+      this.volume = volume
       this.source = source
       this.picker = picker
       this.gate = gate
@@ -131,8 +143,9 @@ export class MicProcessor implements TrackProcessor<Track.Kind.Audio, AudioProce
     this.picker?.disconnect()
     this.rnnoise?.destroy()
     this.gate?.disconnect()
+    this.volume?.disconnect()
     this.processedTrack?.stop()
     await this.ctx?.close().catch(() => {})
-    this.source = this.picker = this.rnnoise = this.gate = this.processedTrack = this.ctx = undefined
+    this.source = this.picker = this.rnnoise = this.gate = this.volume = this.processedTrack = this.ctx = undefined
   }
 }

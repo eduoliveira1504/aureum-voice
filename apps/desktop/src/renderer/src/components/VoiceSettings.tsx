@@ -2,7 +2,7 @@ import { Mic, Square } from 'lucide-react'
 import { Track, type AudioProcessorOptions } from 'livekit-client'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { GATE_RANGE, gateOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
+import { GATE_RANGE, gateOf, inputGainOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { MicProcessor } from '../lib/micProcessor'
 import { micCapture, useVoice } from '../store/voice'
 import { InputModeSettings } from './InputModeSettings'
@@ -62,7 +62,7 @@ function useMicTest(running: boolean, prefs: MediaPrefs): MicTest {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: micCapture(prefs) as MediaTrackConstraints })
         const [track] = stream.getAudioTracks()
-        current = new MicProcessor(prefs.noiseSuppression, gateOf(loadMediaPrefs()))
+        current = new MicProcessor(prefs.noiseSuppression, gateOf(loadMediaPrefs()), inputGainOf(loadMediaPrefs()))
         current.onLevel((level, open) => !cancelled && setTest((t) => ({ ...t, level, open })))
         await current.init({ kind: Track.Kind.Audio, track } as AudioProcessorOptions)
         if (cancelled) return

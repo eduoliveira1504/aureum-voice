@@ -16,7 +16,12 @@ export interface MediaPrefs {
   inputMode: 'voice' | 'ptt'
   /** The push-to-talk key (see lib/pushToTalk.ts); '' until one is picked. */
   pttKey: string
+  /** How loud the mic goes out, and how loud the call plays here (0-200 %). */
+  inputVolume: number
+  outputVolume: number
 }
+
+export const VOLUME_RANGE = { min: 0, max: 200 } as const
 
 export const GATE_RANGE = { min: -80, max: -10 } as const
 
@@ -31,7 +36,9 @@ const DEFAULTS: MediaPrefs = {
   sensitivity: 'auto',
   gateDb: -50,
   inputMode: 'voice',
-  pttKey: ''
+  pttKey: '',
+  inputVolume: 100,
+  outputVolume: 100
 }
 
 /** The voice gate's threshold for these prefs, or null when nothing should be cut (automatic
@@ -39,6 +46,9 @@ const DEFAULTS: MediaPrefs = {
 export function gateOf(prefs: MediaPrefs): number | null {
   return prefs.inputMode === 'voice' && prefs.sensitivity === 'manual' ? prefs.gateDb : null
 }
+
+/** The mic's gain (1 = as captured). */
+export const inputGainOf = (prefs: MediaPrefs): number => prefs.inputVolume / 100
 
 /** Bluetooth headsets drop to a phone-quality profile while their mic is in use; Windows names
  * that endpoint "Hands-Free" (in Portuguese, sometimes "Viva-voz"). */

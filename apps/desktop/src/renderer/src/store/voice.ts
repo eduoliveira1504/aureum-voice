@@ -15,7 +15,7 @@ import {
 import { create } from 'zustand'
 
 import { api } from '../lib/api'
-import { gateOf, loadMediaPrefs } from '../lib/mediaPrefs'
+import { gateOf, inputGainOf, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import {
   cameraPreset,
   FREE_TIER,
@@ -94,10 +94,11 @@ function syncMicProcessor(r: Room): Promise<void> {
     const current = track.getProcessor()
     if (current?.name === MIC_PROCESSOR && (current as MicProcessor).denoise === prefs.noiseSuppression) {
       ;(current as MicProcessor).setGate(gateOf(prefs))
+      ;(current as MicProcessor).setGain(inputGainOf(prefs))
       return
     }
     try {
-      await track.setProcessor(new MicProcessor(prefs.noiseSuppression, gateOf(prefs)))
+      await track.setProcessor(new MicProcessor(prefs.noiseSuppression, gateOf(prefs), inputGainOf(prefs)))
     } catch (err) {
       // The mic still works without it, as the device sends it.
       console.warn('Mic processor unavailable', err)
@@ -136,6 +137,18 @@ function publishableIn(token: string): Publishable {
   } catch {
     return ANYTHING
   }
+}
+
+export type DeviceKind = 'audioinput' | 'audiooutput' | 'videoinput'
+
+const DEVICE_PREF: Record<DeviceKind, 'audioInput' | 'audioOutput' | 'videoInput'> = {
+  audioinput: 'audioInput',
+  audiooutput: 'audioOutput',
+  videoinput: 'videoInput'
+}
+
+function savePref(patch: Partial<MediaPrefs>): void {
+  saveMediaPrefs({ ...loadMediaPrefs(), ...patch })
 }
 
 interface VoiceStore {
@@ -187,6 +200,11 @@ interface VoiceStore {
   /** A moderator changed our server mute / deafen (from our own voice state). */
   setModeration(muted: boolean, deafened: boolean): void
   applyDevicePrefs(): Promise<void>
+  /** Picks a device in the call, without leaving it, and keeps it as the preference ('' = the
+   * system default). */
+  switchDevice(kind: DeviceKind, deviceId: string): Promise<void>
+  /** The mic or output volume (0-200 %), live and saved. */
+  setVolume(which: 'inputVolume' | 'outputVolume', percent: number): void
   /** The push-to-talk key went down or up (from the main process). */
   setPushToTalk(held: boolean): void
   /** The input mode or the push-to-talk key changed in Settings. */
@@ -247,13 +265,15 @@ function syncSubscriptions(p: RemoteParticipant): void {
 }
 
 /** How loud a remote audio track plays: 0 while deafened (by us or the server), else the
- * screen-share volume for stream audio, or the person's volume (0-2) unless muted locally. */
+ * screen-share volume for stream audio, or the person's volume (0-2) unless muted locally,
+ * times the output volume (0-2). */
 function volumeFor(identity: string, source: Track.Source): number {
   const { deafened, serverDeafened, screenVolume } = useVoice.getState()
   if (deafened || serverDeafened) return 0
-  if (source === Track.Source.ScreenShareAudio) return screenVolume[identity] ?? 1
+  const output = loadMediaPrefs().outputVolume / 100
+  if (source === Track.Source.ScreenShareAudio) return (screenVolume[identity] ?? 1) * output
   const audio = useAppearance.getState().settings.user_audio[identity]
-  return audio?.muted ? 0 : (audio?.volume ?? 100) / 100
+  return audio?.muted ? 0 : ((audio?.volume ?? 100) / 100) * output
 }
 
 function applyVolumes(): void {
@@ -721,6 +741,38 @@ export const useVoice = create<VoiceStore>()((set, get) => {
           .catch(() => set({ error: 'Não foi possível usar esse microfone.' }))
       }
       await syncMicProcessor(r)
+      bump()
+    },
+
+    switchDevice: async (kind, deviceId) => {
+      savePref({ [DEVICE_PREF[kind]]: deviceId })
+      const r = room
+      if (r) {
+        // The camera only when it's on: turning it on reads the preference.
+        const live = kind !== 'videoinput' || get().camera
+        try {
+          // The capture keeps its constraints (one channel picked, 48 kHz); only the device
+          // changes, and the mic processor restarts on the new track.
+          if (live) await r.switchActiveDevice(kind, deviceId || 'default')
+          if (kind === 'audioinput') await syncMicProcessor(r)
+        } catch {
+          set({
+            error:
+              kind === 'audioinput'
+                ? 'Não foi possível usar esse microfone.'
+                : kind === 'videoinput'
+                  ? 'Não foi possível usar essa câmera.'
+                  : 'Não foi possível usar essa saída de áudio.'
+          })
+        }
+      }
+      bump()
+    },
+
+    setVolume: (which, percent) => {
+      savePref({ [which]: Math.round(Math.min(200, Math.max(0, percent))) })
+      if (which === 'outputVolume') applyVolumes()
+      else if (room) void syncMicProcessor(room)
       bump()
     },
 
