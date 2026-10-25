@@ -8,6 +8,7 @@ import {
   type AudioCaptureOptions,
   type LocalAudioTrack,
   type RemoteAudioTrack,
+  type RemoteParticipant,
   type RemoteTrack,
   type RemoteTrackPublication
 } from 'livekit-client'
@@ -161,6 +162,9 @@ interface VoiceStore {
   media: MediaTier
   /** The push-to-talk key is held (only in that input mode). */
   pttHeld: boolean
+  /** Whose screen shares we receive. Nobody's until "Assistir": the call only subscribes to
+   * microphones and cameras on its own (bandwidth, and nobody gets a stream they didn't ask for). */
+  watching: string[]
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -172,6 +176,10 @@ interface VoiceStore {
   startScreenShare(options: ScreenShareOptions): Promise<void>
   stopScreenShare(): Promise<void>
   setScreenVolume(identity: string, volume: number): void
+  /** "Assistir": receives this person's screen share (video and its audio). */
+  watchScreen(identity: string): void
+  /** "Parar de assistir": stops receiving it. */
+  stopWatching(identity: string): void
   /** A moderator changed our server mute / deafen (from our own voice state). */
   setModeration(muted: boolean, deafened: boolean): void
   applyDevicePrefs(): Promise<void>
@@ -205,6 +213,20 @@ export function getRoom(): Room | null {
 
 // What the room's token lets us publish; `allowed` also takes a server mute into account.
 let tokenAllowed: Publishable = ANYTHING
+
+const SCREEN_SOURCES: Track.Source[] = [Track.Source.ScreenShare, Track.Source.ScreenShareAudio]
+
+/** The call connects with autoSubscribe off: mic and camera are received right away, a screen
+ * share (and its audio) only while watching it. */
+export function wantsTrack(pub: Pick<RemoteTrackPublication, 'source'>, identity: string): boolean {
+  if (pub.source === Track.Source.Microphone || pub.source === Track.Source.Camera) return true
+  return SCREEN_SOURCES.includes(pub.source) && useVoice.getState().watching.includes(identity)
+}
+
+/** Asks the media server for what we want of this person (a no-op for what we already get). */
+function syncSubscriptions(p: RemoteParticipant): void {
+  for (const pub of p.trackPublications.values()) pub.setSubscribed(wantsTrack(pub, p.identity))
+}
 
 /** How loud a remote audio track plays: 0 while deafened (by us or the server), else the
  * screen-share volume for stream audio, or the person's volume (0-2) unless muted locally. */
@@ -286,6 +308,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       serverDeafened: false,
       speaking: [],
       screenVolume: {},
+      watching: [],
       error
     })
     syncPushToTalk()
@@ -310,8 +333,19 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       .on(RoomEvent.Reconnected, () => isCurrent() && set({ phase: 'connected' }))
       .on(RoomEvent.ParticipantConnected, () => isCurrent() && playSound('user-join', { fromOthers: true }))
       .on(RoomEvent.ParticipantDisconnected, () => isCurrent() && playSound('user-leave', { fromOthers: true }))
-      .on(RoomEvent.TrackPublished, (pub) => {
-        if (isCurrent() && pub.source === Track.Source.ScreenShare) playSound('screen-share', { fromOthers: true })
+      .on(RoomEvent.TrackPublished, (pub, participant) => {
+        if (!isCurrent()) return
+        if (wantsTrack(pub, participant.identity)) pub.setSubscribed(true)
+        if (pub.source === Track.Source.ScreenShare) playSound('screen-share', { fromOthers: true })
+      })
+      // The share ended: watching it again takes a new "Assistir".
+      .on(RoomEvent.TrackUnpublished, (pub, participant) => {
+        if (isCurrent() && pub.source === Track.Source.ScreenShare) get().stopWatching(participant.identity)
+      })
+      .on(RoomEvent.ParticipantDisconnected, (participant) => isCurrent() && get().stopWatching(participant.identity))
+      // A server deafen lifted: ask again for what we want to receive.
+      .on(RoomEvent.ParticipantPermissionsChanged, () => {
+        if (isCurrent()) for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
       })
       .on(RoomEvent.Disconnected, () => {
         if (!isCurrent()) return // we left on purpose
@@ -364,6 +398,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     serverDeafened: false,
     media: FREE_TIER,
     pttHeld: false,
+    watching: [],
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -400,7 +435,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         )
         tokenAllowed = publishableIn(token)
         set({ allowed: tokenAllowed, media: media ?? FREE_TIER })
-        await r.connect(url, token)
+        await r.connect(url, token, { autoSubscribe: false })
       } catch {
         if (room === r) {
           await r.disconnect()
@@ -409,6 +444,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         return
       }
       if (room !== r) return // left while connecting
+      // Whoever was already in the room: their mics and cameras.
+      for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
 
       set({ phase: 'connected' })
       playSound('call-join')
@@ -575,6 +612,22 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       applyVolumes()
     },
 
+    watchScreen: (identity) => {
+      if (get().watching.includes(identity)) return
+      set((s) => ({ watching: [...s.watching, identity] }))
+      const p = room?.remoteParticipants.get(identity)
+      if (p) syncSubscriptions(p)
+      bump()
+    },
+
+    stopWatching: (identity) => {
+      if (!get().watching.includes(identity)) return
+      set((s) => ({ watching: s.watching.filter((id) => id !== identity) }))
+      const p = room?.remoteParticipants.get(identity)
+      if (p) syncSubscriptions(p)
+      bump()
+    },
+
     setModeration: (serverMuted, serverDeafened) => {
       if (serverMuted === get().serverMuted && serverDeafened === get().serverDeafened) return
       set({ serverMuted, serverDeafened, allowed: { ...tokenAllowed, mic: tokenAllowed.mic && !serverMuted && !serverDeafened } })
@@ -650,7 +703,16 @@ export function cameraTrackOf(identity: string): Track | undefined {
   return pub && !pub.isMuted ? pub.track : undefined
 }
 
-/** Screen-share video of a participant, if they're sharing. */
+/** Whether a participant is sharing their screen right now, watched or not. */
+export function isSharing(identity: string): boolean {
+  const r = room
+  if (!r) return false
+  const p = identity === r.localParticipant.identity ? r.localParticipant : r.remoteParticipants.get(identity)
+  const pub = p?.getTrackPublication(Track.Source.ScreenShare)
+  return !!pub && !pub.isMuted
+}
+
+/** Screen-share video of a participant, if they're sharing and we're watching it (or it's ours). */
 export function screenTrackOf(identity: string): Track | undefined {
   const r = room
   if (!r) return undefined

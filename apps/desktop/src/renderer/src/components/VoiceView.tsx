@@ -1,6 +1,8 @@
 import type { Track } from 'livekit-client'
 import {
   Expand,
+  Eye,
+  EyeOff,
   Headphones,
   HeadphoneOff,
   LayoutGrid,
@@ -25,7 +27,7 @@ import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
 import { pttKeyLabel } from '../lib/pushToTalk'
 import { useNav } from '../store/nav'
-import { cameraTrackOf, getRoom, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { cameraTrackOf, getRoom, isSharing, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
@@ -51,7 +53,7 @@ function columns(n: number): number {
 
 /** Shared screens first (they're what people came to watch), then everyone in the call. */
 function callTiles(ids: string[]): Tile[] {
-  const screens = ids.filter((id) => screenTrackOf(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' }))
+  const screens = ids.filter((id) => isSharing(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' }))
   return [...screens, ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))]
 }
 
@@ -334,18 +336,68 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
   )
 }
 
-function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): ReactNode {
+/** Someone's shared screen: an invitation to watch it until "Assistir", then the stream. */
+function ScreenTile(props: TileProps): ReactNode {
+  const watching = useVoice((s) => s.watching.includes(props.identity))
+  return props.isLocal || watching ? <ScreenView {...props} /> : <ScreenInvite {...props} />
+}
+
+function LiveBadge(): ReactNode {
+  return <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+}
+
+/** "Fulano está transmitindo" with "Assistir": nothing of the stream is received before the click. */
+function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
+  const watchScreen = useVoice((s) => s.watchScreen)
+  const name = user?.display_name ?? 'Alguém'
+  const small = size === 'strip'
+  return (
+    <TileFrame size={size} label={`Tela de ${name}`} onClick={onClick} dark>
+      <div className="absolute left-2 top-2">
+        <LiveBadge />
+      </div>
+      <div className="flex max-w-full flex-col items-center gap-2 px-3 text-center text-on-scrim">
+        <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{name} está transmitindo</p>
+        <button
+          type="button"
+          onClick={(e) => {
+            // Watching also brings the stream into focus.
+            e.stopPropagation()
+            watchScreen(identity)
+            onClick?.()
+          }}
+          className={`flex items-center gap-2 rounded-control bg-accent font-semibold text-on-accent hover:bg-accent-hover ${
+            small ? 'px-2.5 py-1 text-xs' : 'px-4 py-2'
+          }`}
+        >
+          <Eye size={small ? 14 : 18} />
+          Assistir
+        </button>
+      </div>
+    </TileFrame>
+  )
+}
+
+function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   const track = screenTrackOf(identity)
   const audio = isLocal ? undefined : screenAudioOf(identity)
   const volume = useVoice((s) => s.screenVolume[identity] ?? 1)
   const setVolume = useVoice((s) => s.setScreenVolume)
+  const stopWatching = useVoice((s) => s.stopWatching)
   const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
 
   const fullscreen = useFullscreen(ref)
   const idle = useIdle(fullscreen, CONTROLS_IDLE_MS)
 
-  if (!track) return null
+  // Just clicked "Assistir": the stream is on its way.
+  if (!track) {
+    return (
+      <TileFrame size={size} label={name} onClick={onClick} dark>
+        <span className="text-sm text-on-scrim">Abrindo transmissão…</span>
+      </TileFrame>
+    )
+  }
   // Controls must not also put the tile in focus.
   const stop = (e: { stopPropagation(): void }): void => e.stopPropagation()
   const toggleFullscreen = (): void => {
@@ -368,7 +420,7 @@ function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): Reac
           <VideoTrackView track={track} mirror={false} fit="contain" />
         </div>
         <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
-          <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+          <LiveBadge />
           <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
         </div>
         {fullscreen && (
@@ -386,7 +438,7 @@ function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): Reac
             <Minimize2 size={18} />
           </button>
         )}
-        {size !== 'strip' && (audio || !fullscreen) && (
+        {size !== 'strip' && (audio || !fullscreen || !isLocal) && (
           <div
             onClick={stop}
             onKeyDown={stop}
@@ -418,6 +470,19 @@ function ScreenTile({ identity, user, isLocal, size, onClick }: TileProps): Reac
             {!fullscreen && (
               <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={toggleFullscreen}>
                 <Maximize2 size={18} />
+              </button>
+            )}
+            {!isLocal && (
+              <button
+                type="button"
+                aria-label="Parar de assistir"
+                title="Parar de assistir"
+                onClick={() => {
+                  if (fullscreen) void document.exitFullscreen()
+                  stopWatching(identity)
+                }}
+              >
+                <EyeOff size={18} />
               </button>
             )}
           </div>
