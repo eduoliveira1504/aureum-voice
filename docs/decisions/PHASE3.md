@@ -23,8 +23,10 @@ renumerados. 3.9 parte A (Quadro branco) pronta em 25/10 (API com 2 migrações:
 a7c3e1f5b902 e branch whiteboard; app com Excalidraw), ainda não em produção nem publicada; teste
 manual pendente listado na parte A. 3.9 parte B (Enquetes) pronta em 25/10 (API com migração
 core b8d4f2a6c731 e branch polls; app), ainda não em produção nem publicada; passos de produção
-acumulados no topo do 3.9.
-Próximo: 3.9 parte C (Eventos).
+acumulados no topo do 3.9. 3.9 parte C (Eventos) pronta em 25/10 (hook dated_items e agenda;
+API com branch events e permissão MANAGE_EVENTS sem migração; lembretes da @aureum dependem de
+`bot enable --acao dm-eventos`; app), ainda não em produção nem publicada.
+Próximo: 3.9 parte D (Calendário).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -180,14 +182,18 @@ subir (Dockerfile), então reconstruir a API aplica as migrações: o backup vem
 2. Reconstruir e reiniciar a API (aplica as migrações):
    `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
    Migrações que entram: core a7c3e1f5b902 (EDIT_WHITEBOARD ao @everyone, 3.9A) e core
-   b8d4f2a6c731 (messages.embed, 3.9B); branches whiteboard (c2d8f4a6e310) e polls
-   (d5a9e3c7f164). Conferir: `... exec api alembic current` mostra uma linha por branch.
+   b8d4f2a6c731 (messages.embed, 3.9B); branches whiteboard (c2d8f4a6e310), polls
+   (d5a9e3c7f164) e events (e9b3d7f1a428). A permissão nova MANAGE_EVENTS (3.9C) não precisa
+   de migração. Conferir: `... exec api alembic current` mostra uma linha por branch.
 3. Do 3.8: `docker compose ... exec api python -m app.cli badges grant-all beta_tester`
    (mostra quantas contas e pergunta).
-4. Release do app (`npm run release`, 0.2.0-beta.6) só depois da API no ar: apps antigos
+4. Do 3.9C: ligar os lembretes de eventos da @aureum:
+   `docker compose ... exec api python -m app.cli bot enable --acao dm-eventos`
+   (os workers de prazo das enquetes e de lembretes dos eventos sobem sozinhos com a API).
+5. Release do app (`npm run release`, 0.2.0-beta.6) só depois da API no ar: apps antigos
    continuam funcionando com a API nova (enquete aparece como texto "📊 Enquete: …").
 
-### Hook novo no framework (fazer antes da parte D; vai no começo da C)
+### Hook novo no framework (fazer antes da parte D; vai no começo da C) ✅ concluído
 - AddonManifest ganha o hook opcional dated_items(session, workspace_ids, inicio, fim):
   itens genéricos com data (id, workspace_id, título, início, fim opcional, dia inteiro,
   tipo, cor, link para abrir no addon). Mesmo padrão do hook "assigned" do 3.4.
@@ -241,7 +247,16 @@ texto "📊 Enquete: …".
 - Testes: voto único/múltiplo, mudar voto, prazo encerra sozinho, anônima não revela
   votos (inclusive via API), permissões.
 
-### C. Eventos (addon_key events)
+### C. Eventos (addon_key events) ✅ concluída (teste manual pendente)
+Ver docs/decisions/0029-events-and-dated-items.md. Produção: ver a lista acumulada acima
+(branch events e `bot enable --acao dm-eventos`).
+Teste manual: adicionar o addon Eventos; criar pelo botão e pelo menu do servidor ("Criar
+evento"); sala de voz e lugar em texto; capa; repetir toda semana; Vou/Talvez/Não vou em dois PCs
+(lista e contador ao vivo); card "Próximos eventos" na Visão geral; evento de hoje marcado aparece
+no "Pra você ver" do Início; cargo com "Gerenciar eventos" cria e um membro comum só responde;
+lembretes na DM da @aureum (criar um evento pra daqui a ~20 min e marcar Vou: chega o de 15 min e
+o "começou" com Entrar na sala; hora mostrada no fuso do PC); mudar o horário e cancelar avisam
+quem marcou; desligar "Eventos" em Notificações para de chegar.
 - Canal de addon "Eventos" no servidor + atalho "Criar evento" no menu do servidor.
 - Evento: título, descrição, data/hora de início e fim (fuso do usuário), local (uma
   sala de voz do servidor ou texto livre), capa opcional, repetição simples (nenhuma,

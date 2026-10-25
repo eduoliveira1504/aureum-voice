@@ -129,6 +129,10 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - Polls in any chat (server text channel, DM or group), from the "+" of the message box: single or
   multiple choice, optional deadline, anonymous or visible votes, live counts and a result line when
   they close ([ADR 0028](decisions/0028-polls-and-chat-addons.md))
+- An events add-on: time in the creator's zone, a voice room or a place, cover, weekly repeats, Vou /
+  Talvez / Não vou per occurrence, reminders from @aureum (a day and 15 minutes before, and at the
+  start) and its own permission. Add-ons can list what has a date (`dated_items`), gathered by
+  `GET /api/users/me/agenda` for Home and calendars ([ADR 0029](decisions/0029-events-and-dated-items.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](decisions/0003-design-tokens-and-themes.md))
 
