@@ -9,10 +9,12 @@ from sqlalchemy import func, select, update
 
 from app.addons.events import occurrences
 from app.addons.events.models import Event
+from app.addons.events.notices import send_reminders
 from app.db import SessionLocal
 from app.permissions import Perm
 from tests.helpers import ApiUser, make_server, make_user, text_channel
 from tests.test_profile import PNG
+from tests.test_bot import aureum, messages, official_dm, switch  # noqa: F401 (aureum is a fixture)
 from tests.test_roles import create_role, give
 
 ZONE = "America/Sao_Paulo"
@@ -239,3 +241,107 @@ async def test_cover_and_cleanup(client: AsyncClient) -> None:
     assert (await owner.delete(f"/channels/{cid}")).status_code == 204
     async with SessionLocal() as session:
         assert await session.scalar(select(func.count()).select_from(Event)) == 0
+
+
+# --- Reminders and notices (@aureum, category "eventos") --------------------------------------
+
+
+async def official_messages(user: ApiUser) -> list[dict[str, Any]]:
+    dm = await official_dm(user)
+    return await messages(user, dm["id"]) if dm else []
+
+
+async def test_reminders_go_to_who_is_going(client: AsyncClient, aureum) -> None:  # noqa: ANN001
+    await switch("dm-eventos")
+    owner, ana, bia, cai = [await make_user(client, n) for n in ("owner", "ana", "bia", "cai")]
+    server = await make_server(owner, ana, bia, cai)
+    cid = await events_channel(owner, server["id"])
+    room = next(c["id"] for c in server["channels"] if c["type"] == "voice")
+    event = await create(owner, cid, location_channel_id=room)
+    eid, start = event["id"], datetime.fromisoformat(event["starts_at"])
+    await answer(ana, cid, eid, "going")
+    await answer(bia, cid, eid, "no")
+    await answer(cai, cid, eid, "maybe")
+
+    # Nothing before its time.
+    assert await send_reminders(start - timedelta(days=1, minutes=5)) == 0
+    assert await send_reminders(start - timedelta(days=1) + timedelta(minutes=1)) == 1
+    # Twice the same tick: still once.
+    await send_reminders(start - timedelta(days=1) + timedelta(minutes=2))
+    [day] = await official_messages(ana)
+    assert day["content"] == f"📅 Falta 1 dia para **Noite de jogos** em <#{room}>."
+    assert day["official"]["category"] == "eventos"
+    assert day["official"]["event"] == {
+        "id": eid, "channel_id": cid, "server_id": server["id"], "room_id": room, "starts_at": start.isoformat(),
+    }
+    assert len(await official_messages(cai)) == 1
+    assert await official_messages(bia) == []
+
+    await send_reminders(start - timedelta(minutes=14))
+    await send_reminders(start + timedelta(minutes=1))
+    texts = [m["content"] for m in await official_messages(ana)]
+    assert texts[1:] == [
+        f"📅 **Noite de jogos** começa em 15 minutos em <#{room}>.",
+        f"📅 **Noite de jogos** começou em <#{room}>!",
+    ]
+    # Too late (the API was down): skipped.
+    late = await create(owner, cid, title="Tarde demais")
+    await answer(ana, cid, late["id"], "going")
+    late_start = datetime.fromisoformat(late["starts_at"])
+    assert await send_reminders(late_start - timedelta(days=1) + timedelta(minutes=11)) == 0
+
+
+async def test_reminders_respect_the_switches(client: AsyncClient, aureum) -> None:  # noqa: ANN001
+    owner, ana, bia = [await make_user(client, n) for n in ("owner", "ana", "bia")]
+    cid = await events_channel(owner, (await make_server(owner, ana, bia))["id"])
+    event = await create(owner, cid, location_text="Bar do Zé")
+    await answer(ana, cid, event["id"], "going")
+    await answer(bia, cid, event["id"], "going")
+    start = datetime.fromisoformat(event["starts_at"])
+    # Off until turned on with the CLI.
+    await send_reminders(start - timedelta(minutes=14))
+    assert await official_messages(ana) == []
+    await switch("dm-eventos")
+    assert (await bia.patch("/users/me/settings", {"official_dm": {"eventos": False}})).status_code == 200
+    await send_reminders(start + timedelta(minutes=1))
+    assert [m["content"] for m in await official_messages(ana)] == ["📅 **Noite de jogos** começou em Bar do Zé!"]
+    assert await official_messages(bia) == []
+
+
+async def test_weekly_reminders_follow_each_weeks_answers(client: AsyncClient, aureum) -> None:  # noqa: ANN001
+    await switch("dm-eventos")
+    owner, ana = await make_user(client, "owner"), await make_user(client, "ana")
+    cid = await events_channel(owner, (await make_server(owner, ana))["id"])
+    event = await create(owner, cid, repeat="weekly")
+    await answer(ana, cid, event["id"], "going")
+    first = datetime.fromisoformat(event["starts_at"])
+    await send_reminders(first + timedelta(minutes=1))
+    # Next week: ana didn't answer that one.
+    assert await send_reminders(first + timedelta(weeks=1, minutes=1)) == 1
+    assert len(await official_messages(ana)) == 1
+
+
+async def test_changes_and_cancellations_are_told(client: AsyncClient, aureum) -> None:  # noqa: ANN001
+    await switch("dm-eventos")
+    owner, ana, bia = [await make_user(client, n) for n in ("owner", "ana", "bia")]
+    cid = await events_channel(owner, (await make_server(owner, ana, bia))["id"])
+    event = await create(owner, cid)
+    eid = event["id"]
+    await answer(ana, cid, eid, "going")
+    await answer(bia, cid, eid, "no")
+    # A new title says nothing; a new time does.
+    await owner.patch(url(cid, f"/{eid}"), {"title": "Noite de truco"})
+    assert await official_messages(ana) == []
+    later = datetime.fromisoformat(event["starts_at"]) + timedelta(hours=1)
+    await owner.patch(url(cid, f"/{eid}"), {"starts_at": iso(later), "ends_at": iso(later + timedelta(hours=2))})
+    await owner.post(url(cid, f"/{eid}/cancel"))
+    assert [m["content"] for m in await official_messages(ana)] == [
+        "📅 **Noite de truco** mudou de horário. Confira no evento.",
+        "📅 **Noite de truco** foi cancelado.",
+    ]
+    assert await official_messages(bia) == []
+    # Deleting one still to come tells them too.
+    other = await create(owner, cid, title="Churrasco")
+    await answer(bia, cid, other["id"], "maybe")
+    await owner.delete(url(cid, f"/{other['id']}"))
+    assert [m["content"] for m in await official_messages(bia)] == ["📅 **Churrasco** foi cancelado."]

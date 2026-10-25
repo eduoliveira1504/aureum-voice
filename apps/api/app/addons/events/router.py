@@ -9,8 +9,8 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import storage
-from app.addons.base import AddonChannel, AddonManifest, DatedItem, addon_channel
-from app.addons.events import occurrences
+from app.addons.base import AddonChannel, AddonManifest, DatedItem, addon_channel, event_notice
+from app.addons.events import notices, occurrences
 from app.addons.events.models import Event, EventResponse
 from app.deps import CurrentUser, SessionDep
 from app.permissions import Perm
@@ -310,6 +310,7 @@ async def update_event(
 ) -> EventOut:
     ctx = await addon_channel(session, manifest, channel_id, user.id, "manage")
     event = await _event(session, ctx, event_id, lock=True)
+    when = (event.starts_at, event.ends_at, event.timezone, event.repeat)
     for field in body.model_fields_set:
         value = getattr(body, field)
         if value is None and field not in ("location_channel_id", "location_text"):
@@ -319,12 +320,16 @@ async def update_event(
     await session.commit()
     out = await _out(session, event)
     await ctx.publish("event.updated", out.model_dump(mode="json"))
+    if (event.starts_at, event.ends_at, event.timezone, event.repeat) != when and event.cancelled_at is None and not out.over:
+        occ, _ = shown_occurrence(event)
+        await notices.notify(session, event, occ, "evento_alterado", f"event:{event.id}:changed:{int(event.updated_at.timestamp())}")
     return out
 
 
 @router.post("/channels/{channel_id}/events/{event_id}/cancel", response_model=EventOut)
 async def cancel_event(channel_id: uuid.UUID, event_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> EventOut:
-    """Calls it off (every week, for a weekly one). It stays listed as cancelled."""
+    """Calls it off (every week, for a weekly one), telling who said Vou or Talvez. It stays
+    listed as cancelled."""
     ctx = await addon_channel(session, manifest, channel_id, user.id, "manage")
     event = await _event(session, ctx, event_id, lock=True)
     if event.cancelled_at is not None:
@@ -333,6 +338,9 @@ async def cancel_event(channel_id: uuid.UUID, event_id: uuid.UUID, user: Current
     await session.commit()
     out = await _out(session, event)
     await ctx.publish("event.updated", out.model_dump(mode="json"))
+    if not out.over:
+        occ, _ = shown_occurrence(event)
+        await notices.notify(session, event, occ, "evento_cancelado", f"event:{event.id}:cancelled")
     return out
 
 
@@ -341,11 +349,20 @@ async def delete_event(channel_id: uuid.UUID, event_id: uuid.UUID, user: Current
     ctx = await addon_channel(session, manifest, channel_id, user.id, "manage")
     event = await _event(session, ctx, event_id)
     cover = event.cover_key
+    # Deleting one still to come tells who was going, like cancelling it.
+    occ, over = shown_occurrence(event)
+    told = [] if over or event.cancelled_at is not None else await notices.attending(session, event.id, occ.index)
+    title, workspace_id, room, place = event.title, event.workspace_id, event.location_channel_id, event.location_text
     await session.delete(event)
     await session.commit()
     if cover:
         await storage.delete(cover)
     await ctx.publish("event.deleted", {"id": str(event_id)})
+    if told:
+        await event_notice(
+            session, workspace_id, told, "evento_cancelado", key=f"event:{event_id}:cancelled", title=title,
+            item_id=event_id, starts_at=occ.starts_at, room_id=room, place=place,
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -437,4 +454,5 @@ manifest = AddonManifest(
     on_cleanup=cleanup,
     dated_items=dated_items,
     announces=True,
+    worker=notices.run_worker,
 )

@@ -65,10 +65,12 @@ BUG_DMS = "bugs"
 INVITES = "convites"
 NEWS = "novidades"
 ANNOUNCEMENTS = "avisos"
-CATEGORIES = (SECURITY, BADGES, BUG_DMS, INVITES, NEWS, ANNOUNCEMENTS)
+# Reminders and changes of events the user said they're going to (the events addon).
+EVENTS = "eventos"
+CATEGORIES = (SECURITY, BADGES, BUG_DMS, INVITES, NEWS, ANNOUNCEMENTS, EVENTS)
 BROADCAST_CATEGORIES = (ANNOUNCEMENTS, NEWS)
 # DM actions switched with the CLI, one per category the bot sends by itself.
-DM_ACTIONS = {f"dm-{c}": c for c in (SECURITY, BADGES, BUG_DMS, INVITES)}
+DM_ACTIONS = {f"dm-{c}": c for c in (SECURITY, BADGES, BUG_DMS, INVITES, EVENTS)}
 ACTIONS = (*SERVER_ACTIONS, RELEASES, *DM_ACTIONS)
 
 TITLE_MAX = 60
@@ -212,11 +214,12 @@ async def accepts(session: AsyncSession, user: User, category: str) -> bool:
 
 async def send_dm(
     session: AsyncSession, user: User, category: str, content: str, *, key: str | None = None, badge: str | None = None,
-    also_delivers: tuple[str, ...] = (),
+    also_delivers: tuple[str, ...] = (), extra: dict[str, Any] | None = None,
 ) -> bool:
     """Sends an official DM if the user accepts the category and hasn't had this one (`key`)
     yet. `also_delivers` marks other keys as delivered with it (a bug DM that also announces the
-    badge). Commits. Returns whether it went out."""
+    badge). `extra` goes into the message's `official` (what the app shows with it, like an
+    event's buttons). Commits. Returns whether it went out."""
     bot = await bot_user(session)
     if bot is None or user.id == bot.id or user.is_official or not await accepts(session, user, category):
         return False
@@ -231,7 +234,7 @@ async def send_dm(
     bot_id, user_id = bot.id, user.id
     await session.commit()  # the delivery is claimed before posting: never twice, even on a retry
     channel = await official_dm(session, bot_id, user_id)
-    official: dict[str, Any] = {"category": category}
+    official: dict[str, Any] = {**(extra or {}), "category": category}
     if badge:
         official["badge"] = badge
     await post(session, bot_id, channel, content, official)
@@ -361,6 +364,21 @@ async def invite_used(inviter_id: uuid.UUID, newcomer_id: uuid.UUID) -> None:
         await send_dm(session, inviter, INVITES, text("dm", "convite", mencao=mention(newcomer)), key=f"invite:{newcomer_id}")
 
     await _run("invite notice", work)
+
+
+async def event_notice(user_ids: list[uuid.UUID], content: str, *, key: str, event: dict[str, Any]) -> None:
+    """An events addon notice (a reminder, a change, a cancellation) to each of these users, once
+    per `key`. `event` tells the app which event and room it's about."""
+
+    async def work(session: AsyncSession) -> None:
+        if not await enabled(session, f"dm-{EVENTS}"):
+            return
+        for user_id in user_ids:
+            user = await session.get(User, user_id)
+            if user is not None:
+                await send_dm(session, user, EVENTS, content, key=key, extra={"event": event})
+
+    await _run("event notice", work)
 
 
 async def security(user_id: uuid.UUID, kind: str, **values: str) -> None:

@@ -5,6 +5,8 @@
 # {canal_bugs}  o canal de bugs configurado (vira menção clicável)
 # {quando}      data e hora, horário de Brasília
 # {versao}      a versão nova do app (ex: 0.2.0-beta.4)
+# {titulo}      o nome do evento ou do bug
+# {local}       onde é o evento (" em #sala" ou " em Casa da Ana"; vazio se não tiver)
 # Markdown simples funciona nas mensagens da @aureum: **negrito**, *itálico* e `código`.
 
 [servidor]
@@ -27,3 +29,8 @@ bug_confirmado = "Confirmamos o bug \"{titulo}\" que você reportou. Já estamos
 bug_resolvido = "Seu bug \"{titulo}\" foi corrigido. Atualize o app e teste, por favor. Valeu!"
 bug_resolvido_insignia = "Seu bug \"{titulo}\" foi corrigido. Atualize o app e teste, por favor. Valeu! E você ganhou a insígnia **{insignia}**."
 convite = "{mencao} entrou com o seu convite!"
+evento_dia = "📅 Falta 1 dia para **{titulo}**{local}."
+evento_15min = "📅 **{titulo}** começa em 15 minutos{local}."
+evento_comecou = "📅 **{titulo}** começou{local}!"
+evento_alterado = "📅 **{titulo}** mudou de horário. Confira no evento."
+evento_cancelado = "📅 **{titulo}** foi cancelado."

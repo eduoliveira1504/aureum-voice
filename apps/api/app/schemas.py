@@ -367,7 +367,7 @@ class SettingsOut(BaseModel):
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
-OfficialDmCategory = Literal["insignias", "bugs", "convites", "novidades", "avisos"]
+OfficialDmCategory = Literal["insignias", "bugs", "convites", "novidades", "avisos", "eventos"]
 
 
 class SettingsUpdate(BaseModel):

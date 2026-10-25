@@ -364,6 +364,45 @@ async def addon_chat(session: AsyncSession, manifest: AddonManifest, channel_id:
     return AddonChat(manifest, channel, access, session, user_id)
 
 
+async def event_notice(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_ids: Iterable[uuid.UUID],
+    message: str,
+    *,
+    key: str,
+    title: str,
+    item_id: uuid.UUID,
+    starts_at: datetime,
+    room_id: uuid.UUID | None = None,
+    place: str | None = None,
+) -> None:
+    """An @aureum DM about an event to each of these users (category "eventos", which they can
+    turn off), once per `key`. `message` names a text in the [dm] section of app/bot/mensagens.toml.
+    The app shows the event's time in the user's own zone and, with `room_id`, a button to join
+    the room. Never raises."""
+    from app import bot
+
+    users = list(dict.fromkeys(user_ids))
+    channel = await session.get(Channel, workspace_id)
+    if channel is None or not users:
+        return
+    local = f" em {bot.channel_mention(room_id)}" if room_id else f" em {place}" if place else ""
+    try:
+        content = bot.text("dm", message, titulo=title, local=local)
+    except KeyError:
+        log.exception("Unknown official message %s", message)
+        return
+    event = {
+        "id": str(item_id),
+        "channel_id": str(channel.id),
+        "server_id": str(channel.server_id) if channel.server_id else None,
+        "room_id": str(room_id) if room_id else None,
+        "starts_at": starts_at.isoformat(),
+    }
+    await bot.event_notice(users, content, key=key, event=event)
+
+
 async def addon_channel(
     session: AsyncSession, manifest: AddonManifest, channel_id: uuid.UUID, user_id: uuid.UUID, action: str = "view"
 ) -> AddonChannel:
