@@ -12,6 +12,7 @@
     python -m app.cli badges list <username>
     python -m app.cli badges grant <username> <badge>
     python -m app.cli badges revoke <username> <badge>
+    python -m app.cli badges grant-all <badge> [--yes]    (every confirmed, non-official account)
     python -m app.cli bot status
     python -m app.cli bot enable|disable --acao <ação>   (ações: see app/bot; all start off)
     python -m app.cli bot set-channel --acao <boas-vindas|bugs|avisos> --canal <id>
@@ -88,6 +89,42 @@ async def badges(action: str, username: str, badge: str | None) -> int:
             if action == "grant":
                 await bot.badge_granted(user.id, badge)
         print(_describe(user))
+    await broker.close()
+    return 0
+
+
+async def grant_all(badge: str, yes: bool) -> int:
+    """Gives a badge to every account with a confirmed e-mail that lacks it, official ones aside
+    (e.g. Beta Tester to the testers from before it existed). Says how many first and asks."""
+    definition = badge_rules.BADGES.get(badge)
+    if definition is None or definition.numbered:
+        known = ", ".join(k for k, b in badge_rules.BADGES.items() if not b.numbered)
+        print(f"grant-all takes a badge without numbers: {known}", file=sys.stderr)
+        return 2
+    if definition.exclusive_beta and not get_settings().aureum_beta:
+        print(f"{badge!r} is beta-only and the beta is over (AUREUM_BETA)", file=sys.stderr)
+        return 1
+    async with SessionLocal() as session:
+        await badge_rules.sync_badges(session)
+        candidates = await session.scalars(
+            select(User).where(User.email_verified_at.is_not(None), User.is_official.is_(False)).order_by(User.created_at)
+        )
+        users = [u for u in candidates if all(g.badge.key != badge for g in u.badge_grants)]
+        print(f"{definition.name}: {len(users)} conta(s) ainda não têm esta insígnia.")
+        if not users:
+            return 0
+        if not yes and input("Conceder? [s/N] ").strip().lower() not in ("s", "sim", "y", "yes"):
+            print("Cancelado.")
+            return 1
+        owner_name = get_settings().owner_username
+        owner = await session.scalar(select(User).where(User.username == owner_name)) if owner_name else None
+        for user in users:
+            await badge_rules.grant(session, user, badge, granted_by=owner.id if owner else None)
+        await session.commit()
+        for user in users:
+            await badge_rules.announce(session, user)
+            await bot.badge_granted(user.id, badge)
+        print(f"Concedida a {len(users)} conta(s).")
     await broker.close()
     return 0
 
@@ -386,10 +423,11 @@ def main() -> int:
     servers_cmd.add_argument("--server-id", required=True)
     servers_cmd.add_argument("--off", action="store_true", help="stop being official")
 
-    badge_cmd = commands.add_parser("badges", help="list, grant or revoke a user's badges")
-    badge_cmd.add_argument("action", choices=("list", "grant", "revoke"))
-    badge_cmd.add_argument("username")
+    badge_cmd = commands.add_parser("badges", help="list, grant or revoke a user's badges, or grant one to everyone")
+    badge_cmd.add_argument("action", choices=("list", "grant", "revoke", "grant-all"))
+    badge_cmd.add_argument("username", help="the account (grant-all: the badge)")
     badge_cmd.add_argument("badge", nargs="?")
+    badge_cmd.add_argument("--yes", action="store_true", help="grant-all: don't ask for confirmation")
 
     bot_cmd = commands.add_parser("bot", help="the official bot @aureum (app/bot)")
     bot_cmd.add_argument("action", choices=("status", "enable", "disable", "set-channel", "say", "broadcast"))
@@ -439,6 +477,8 @@ def main() -> int:
         return asyncio.run(create_invites(args.count, args.usos, args.dias, args.pioneiro))
     if args.command == "servers":
         return asyncio.run(set_official(args.server_id, not args.off))
+    if args.action == "grant-all":
+        return asyncio.run(grant_all(args.username, args.yes))
     return asyncio.run(badges(args.action, args.username, args.badge))
 
 

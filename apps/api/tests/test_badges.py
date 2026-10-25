@@ -1,9 +1,11 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app import badges, cli
 from app.config import get_settings
 from app.db import SessionLocal
+from app.models import User
 from tests.helpers import last_code, make_server, make_user, text_channel
 from tests.test_auth import invited
 from tests.test_bug_reports import report
@@ -90,6 +92,32 @@ async def test_no_beta_badges_after_the_beta(client: AsyncClient, beta) -> None:
     assert await cli.badges("grant", "edu", "founder") == 1
     assert await cli.badges("grant", "edu", "beta_tester") == 1
     assert await cli.badges("grant", "edu", "bug_hunter") == 0
+
+
+async def test_beta_tester_for_everyone_from_before_it_existed(client: AsyncClient, beta, monkeypatch, capsys) -> None:  # noqa: ANN001
+    beta(on=False)
+    old = await signed_up(client, "veia")  # confirmed before the badge (beta off here)
+    unconfirmed = await signed_up(client, "novinha", confirm=False)
+    assert await cli.create_user("aureum", "oficial@aureum.app", official=True, confirmed=True) == 0
+    assert await cli.grant_all("beta_tester", yes=True) == 1  # beta-only
+    beta()
+    assert await cli.grant_all("pioneer", yes=True) == 2  # numbered badges are given one by one
+    capsys.readouterr()
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "n")
+    assert await cli.grant_all("beta_tester", yes=False) == 1
+    assert "1 conta(s) ainda não têm" in capsys.readouterr().out
+    assert held(await me(client, old)) == []
+
+    assert await cli.grant_all("beta_tester", yes=True) == 0
+    assert held(await me(client, old)) == [("beta_tester", None)]
+    assert held(await me(client, unconfirmed)) == []  # gets it when the e-mail is confirmed
+    async with SessionLocal() as session:
+        official = await session.scalar(select(User).where(User.username == "aureum"))
+        assert official is not None and official.badge_grants == []
+    capsys.readouterr()
+    assert await cli.grant_all("beta_tester", yes=True) == 0  # nobody left
+    assert "0 conta(s)" in capsys.readouterr().out
 
 
 async def test_founder_at_startup_when_the_owner_exists(client: AsyncClient, beta) -> None:  # noqa: ANN001
