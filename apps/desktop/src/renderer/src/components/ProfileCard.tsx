@@ -1,4 +1,4 @@
-import { ExternalLink, Gamepad2, Link2, MessageCircle, MoreHorizontal, Music, Phone, UserPlus } from 'lucide-react'
+import { ExternalLink, Gamepad2, Link2, MessageCircle, MoreHorizontal, Music, Pencil, Phone, UserPlus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -130,7 +130,7 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
 /**
  * Profile card: banner, framed avatar with presence and status bubble, badges, names, about me,
  * what they're doing now, roles in the server on screen, links and member since. With `onClose`
- * (the popover) it also shows the actions; the settings preview doesn't.
+ * (the popover) it also shows the actions (on your own: "Editar perfil"); the editor's preview doesn't.
  */
 export function ProfileView({ user, onClose }: { user: User; onClose?: () => void }): ReactNode {
   const { state } = useAuth()
@@ -233,6 +233,18 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
           </section>
 
           {onClose && meId && user.id !== meId && <Actions user={user} meId={meId} onDone={onClose} />}
+          {onClose && user.id === meId && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                useNav.getState().setProfileEditor(true)
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-control bg-accent px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              <Pencil size={16} strokeWidth={1.8} /> Editar perfil
+            </button>
+          )}
         </div>
       </div>
     </div>

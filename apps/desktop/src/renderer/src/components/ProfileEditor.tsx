@@ -1,5 +1,5 @@
 import { Pipette, Plus, Trash2 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { api, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
@@ -88,7 +88,21 @@ function bodyOf(form: Form, previous: CustomStatus | null): Partial<Me> {
   }
 }
 
-export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges(): void }): ReactNode {
+/**
+ * The profile editor with a live preview of the card, the same in "Editar perfil" (opened from
+ * the card) and in Configurações › Meu perfil. `onDirtyChange` lets the one hosting it ask before
+ * closing with changes that weren't saved.
+ */
+export function ProfileEditor({
+  user,
+  onOpenBadges,
+  onDirtyChange
+}: {
+  user: Me
+  /** Configurações: the badges page next to it. */
+  onOpenBadges?: () => void
+  onDirtyChange?: (dirty: boolean) => void
+}): ReactNode {
   const { setUser } = useAuth()
   const [form, setForm] = useState(() => formOf(user))
   const [error, setError] = useState<string | null>(null)
@@ -100,6 +114,8 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
   }
 
   const dirty = JSON.stringify(form) !== JSON.stringify(formOf(user))
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
   const invalid = problem(form)
   const body = bodyOf(form, user.custom_status)
   const preview: Me = { ...user, ...body, display_name: body.display_name || user.display_name }
@@ -261,6 +277,12 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
             </PrimaryButton>
           </div>
           {dirty && invalid && <span className="text-sm text-danger">{invalid}</span>}
+          {dirty && !invalid && <span className="text-sm text-fg-muted">Você tem alterações não salvas.</span>}
+          {dirty && (
+            <button type="button" onClick={() => setForm(formOf(user))} className="text-sm font-medium text-fg-muted hover:text-fg">
+              Desfazer
+            </button>
+          )}
           {saved && !dirty && <span className="text-sm text-success">Perfil salvo!</span>}
         </div>
       </div>
@@ -269,10 +291,12 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
         <span className={labelClass}>Prévia</span>
         <div className="sticky top-0">
           <ProfileView user={preview} />
-          <div className="mt-5 w-[340px]">
-            <span className={labelClass}>Suas insígnias</span>
-            <BadgeSummary badges={user.badges} onOpen={onOpenBadges} />
-          </div>
+          {onOpenBadges && (
+            <div className="mt-5 w-[340px]">
+              <span className={labelClass}>Suas insígnias</span>
+              <BadgeSummary badges={user.badges} onOpen={onOpenBadges} />
+            </div>
+          )}
         </div>
       </div>
     </div>

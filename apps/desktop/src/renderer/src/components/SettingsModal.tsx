@@ -7,10 +7,11 @@ import { ActivitySettings } from './ActivitySettings'
 import { AppearanceSettings } from './AppearanceSettings'
 import { BadgesPage } from './BadgesPage'
 import { BugReports } from './BugReports'
+import { useUnsavedGuard } from './EditProfileModal'
 import { Modal, ModalBody, ModalTabs } from './Modal'
 import { NotificationSettings } from './NotificationSettings'
 import { OverlaySettings } from './OverlaySettings'
-import { ProfileSettings } from './ProfileSettings'
+import { ProfileEditor } from './ProfileEditor'
 import { SoundSettings } from './SoundSettings'
 import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
@@ -35,9 +36,12 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
   const { state, logout } = useAuth()
   const [tab, setTab] = useState<Tab>(initialTab)
   const isOwner = state.status === 'signedIn' && state.user.is_app_owner
+  // Leaving Meu perfil (another tab, closing) with changes not saved asks first.
+  const { setDirty, guard, dialog } = useUnsavedGuard()
+  const close = (): void => guard(onClose)
 
   return (
-    <Modal title="Configurações" tall onClose={onClose}>
+    <Modal title="Configurações" tall onClose={close}>
       <ModalTabs<Tab>
         tabs={
           [
@@ -56,11 +60,11 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
           ] as const
         }
         isCurrent={(key) => tab === key || (key === 'profile' && tab === 'badges')}
-        onSelect={setTab}
+        onSelect={(next) => guard(() => setTab(next))}
       />
 
       <ModalBody>
-        {tab === 'profile' && state.status === 'signedIn' && <ProfileSettings user={state.user} onOpenBadges={() => setTab('badges')} />}
+        {tab === 'profile' && state.status === 'signedIn' && <ProfileEditor user={state.user} onOpenBadges={() => guard(() => setTab('badges'))} onDirtyChange={setDirty} />}
         {tab === 'badges' && state.status === 'signedIn' && <BadgesPage badges={state.user.badges} onBack={() => setTab('profile')} />}
         {tab === 'account' && state.status === 'signedIn' && <AccountSettings user={state.user} />}
         {tab === 'invites' && state.status === 'signedIn' && <InvitesSettings user={state.user} />}
@@ -76,10 +80,11 @@ export function SettingsModal({ onClose, initialTab = 'profile' }: { onClose(): 
       </ModalBody>
 
       <div className="mt-5 shrink-0 border-t border-line pt-4">
-        <button type="button" onClick={logout} className="rounded-control px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
+        <button type="button" onClick={() => guard(logout)} className="rounded-control px-4 py-2 text-sm font-medium text-danger hover:bg-danger/10">
           Sair da conta
         </button>
       </div>
+      {dialog}
     </Modal>
   )
 }

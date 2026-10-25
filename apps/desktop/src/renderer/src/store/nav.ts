@@ -106,6 +106,8 @@ interface NavState {
   narrow: boolean
   /** An item an addon channel should show when it opens (a Kanban card picked in Home). */
   addonItem: { channelId: string; itemId: string } | null
+  /** "Editar perfil" is open (from the profile card). */
+  profileEditor: boolean
 
   go(place: Place): void
   /** Goes to Home, on the hub, the friends list or a conversation. */
@@ -140,6 +142,7 @@ interface NavState {
   /** Opens an addon channel of a server on one of its items. */
   openAddonItem(serverId: string, channelId: string, itemId: string): void
   clearAddonItem(): void
+  setProfileEditor(open: boolean): void
 }
 
 const saveLayout = (serverId: string, layout: PanelLayout): void =>
@@ -168,6 +171,7 @@ export const useNav = create<NavState>()((set, get) => {
     pipMinimized: false,
     pipCorner: loadPip().corner,
     callFullscreen: false,
+    profileEditor: false,
     narrow: false,
     addonItem: null,
 
@@ -321,6 +325,8 @@ export const useNav = create<NavState>()((set, get) => {
     setCallFullscreen: (callFullscreen) => set({ callFullscreen }),
 
     setNarrow: (narrow) => set({ narrow }),
+
+    setProfileEditor: (profileEditor) => set({ profileEditor }),
 
     openAddonItem: (serverId, channelId, itemId) => {
       set({ addonItem: { channelId, itemId } })

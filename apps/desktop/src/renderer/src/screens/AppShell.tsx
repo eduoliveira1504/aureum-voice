@@ -4,6 +4,7 @@ import { dispatchAddonEvent } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
 import { ContextMenuHost } from '../components/ContextMenu'
+import { EditProfileHost } from '../components/EditProfileModal'
 import { IncomingCall, MissedCallNotice, useOutgoingCall } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
 import { MemberList } from '../components/MemberList'
@@ -133,6 +134,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <IncomingCall meId={user.id} />
       <MissedCallNotice meId={user.id} />
       <ContextMenuHost />
+      <EditProfileHost me={user} />
     </div>
   )
 }
