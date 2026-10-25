@@ -1,0 +1,50 @@
+/*
+ * Excalidraw dressed in the app's tokens (main.css): panels, text, borders and the accent follow
+ * the user's theme and accent color. Only its interface: the drawing keeps its own colors, and in
+ * the dark theme Excalidraw inverts the canvas itself, which stays transparent over bg-main.
+ */
+.aureum-whiteboard .excalidraw,
+.aureum-whiteboard .excalidraw.theme--dark {
+  --ui-font: var(--font-sans);
+  --color-primary: var(--accent);
+  --color-primary-darker: var(--color-accent-hover);
+  --color-primary-darkest: var(--color-accent-hover);
+  --color-primary-hover: var(--color-accent-hover);
+  --color-primary-light: color-mix(in oklab, var(--accent) 22%, var(--bg-elevated));
+  --color-primary-light-darker: color-mix(in oklab, var(--accent) 32%, var(--bg-elevated));
+  --color-brand-hover: var(--color-accent-hover);
+  --color-brand-active: var(--accent);
+  --color-selection: var(--accent);
+  --select-highlight-color: var(--accent);
+  --focus-highlight-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  --color-surface-lowest: var(--bg-main);
+  --color-surface-low: var(--bg-panel);
+  --color-surface-mid: var(--bg-panel);
+  --color-surface-high: var(--bg-elevated);
+  --color-on-surface: var(--text);
+  --text-primary-color: var(--text);
+  --icon-fill-color: var(--text);
+  --keybinding-color: var(--text-muted);
+  --island-bg-color: var(--bg-panel);
+  --popup-bg-color: var(--bg-panel);
+  --popup-secondary-bg-color: var(--bg-elevated);
+  --popup-text-color: var(--text);
+  --default-bg-color: var(--bg-main);
+  --input-bg-color: var(--bg-main);
+  --input-border-color: var(--border);
+  --input-hover-bg-color: var(--bg-elevated);
+  --input-label-color: var(--text-muted);
+  --dialog-border-color: var(--border);
+  --color-border-outline: var(--text-muted);
+  --color-border-outline-variant: var(--border);
+  --button-hover-bg: var(--bg-elevated);
+  --button-active-bg: var(--bg-elevated);
+  --overlay-bg-color: color-mix(in oklab, var(--scrim) 60%, transparent);
+  --color-danger: var(--danger);
+  --link-color: var(--accent-text);
+}
+
+/* Libraries live on Excalidraw's site; the app has none of its own. */
+.aureum-whiteboard .default-sidebar-trigger {
+  display: none;
+}

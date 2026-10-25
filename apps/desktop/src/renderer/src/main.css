@@ -257,3 +257,9 @@ textarea {
     display: none;
   }
 }
+
+/* Whiteboard pictures are drawn as in the light theme; the dark one inverts them, the way
+   Excalidraw shows the board itself. */
+:root[data-theme='dark'] .wb-picture {
+  filter: invert(93%) hue-rotate(180deg);
+}
