@@ -99,11 +99,18 @@ for real-time media. The whole stack is open source and designed to run at zero 
   tiles. Groundwork for a paid plan later ([ADR 0017](decisions/0017-media-tiers.md))
 - Profiles with animated avatars and banners (PNG / JPEG / GIF / WebP, up to 8 MB), bio, profile color,
   pronouns, an avatar frame, a profile song, up to 5 links and badges. The profile card also shows
-  "Now", roles in the current server and Message / Call buttons, and Settings has a live preview
+  "Now", roles in the current server and Message / Call buttons; on your own card, **Editar perfil**
+  opens the editor (the same one as Settings) with a live preview and a warning for unsaved changes
+- A crop editor for avatars, banners and server icons/banners (drag, zoom 1x–4x, turn 90°, live
+  previews). The API crops the original with Pillow, frame by frame for animated GIF/WebP, and keeps
+  it privately so **Ajustar posição** re-crops without another upload
+  ([ADR 0031](decisions/0031-profile-editor-crop-and-featured-badges.md))
 - Badges: hexagons whose metal shows the rarity (common, rare, legendary, mythic), with a tooltip and a
   number on numbered ones. Mythic ones glow and shine. Beta badges (Fundador, Pioneiro #N for the
   first 20, Beta Tester) are given only while the beta runs, Caçador de bugs when a reported problem
-  is resolved ([ADR 0018](decisions/0018-pre-beta.md), [ADR 0026](decisions/0026-beta-badges.md))
+  is resolved ([ADR 0018](decisions/0018-pre-beta.md), [ADR 0026](decisions/0026-beta-badges.md)).
+  Everyone sees a person's whole inventory (and how to earn the rest); each person picks up to 3 to
+  show next to their name, in their order (otherwise the two rarest)
 - Voice messages: hold the mic button in the message field (or click it) to record up to 5 minutes of
   Opus/WebM. The player shows the waveform, the time and 1x/1.5x/2x speed
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading

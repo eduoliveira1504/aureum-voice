@@ -23,7 +23,7 @@ amigos ou o seu time:
 - **Addons:** Kanban, quadro branco pra desenhar junto, enquetes no chat, eventos com lembretes e um
   calendário com os eventos e prazos do servidor.
 - **Overlay nos jogos:** veja quem está falando sem sair da partida.
-- **Do seu jeito:** avatar e banner animados, pronomes, insígnias e temas, tudo de graça.
+- **Do seu jeito:** avatar e banner animados (com recorte e zoom), pronomes, insígnias em destaque e temas, tudo de graça.
 
 Sem anúncio e sem IA dentro do app.
 

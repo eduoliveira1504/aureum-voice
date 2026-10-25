@@ -15,21 +15,14 @@ Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2
 o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
 desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
 0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
-backups/aureum-2026-10-21b.dump). 3.6 e 3.7 prontos em 25/10 (só app, sem API nem migração),
-ainda não publicados. 3.8 pronto em 25/10 (só API, sem migração), ainda não em produção: falta
-reiniciar a API e rodar o badges grant-all com OK do Eduardo. Testes manuais pendentes listados no
-3.1, no 3.2, no 3.4, no 3.5, no 3.6 e no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6
-renumerados. 3.9 parte A (Quadro branco) pronta em 25/10 (API com 2 migrações: core
-a7c3e1f5b902 e branch whiteboard; app com Excalidraw), ainda não em produção nem publicada; teste
-manual pendente listado na parte A. 3.9 parte B (Enquetes) pronta em 25/10 (API com migração
-core b8d4f2a6c731 e branch polls; app), ainda não em produção nem publicada; passos de produção
-acumulados no topo do 3.9. 3.9 parte C (Eventos) pronta em 25/10 (hook dated_items e agenda;
-API com branch events e permissão MANAGE_EVENTS sem migração; lembretes da @aureum dependem de
-`bot enable --acao dm-eventos`; app), ainda não em produção nem publicada. 3.9 parte D
-(Calendário) pronta em 25/10 (API sem migração; app). 3.9 ✅ inteiro em 25/10: falta a produção
-(lista acumulada no topo do 3.9, que também cobre o 3.8) e a release 0.2.0-beta.6 com o 3.6 ao
-3.9; testes manuais pendentes listados em cada parte.
-Próximo: 3.10 (Perfil: edição fora das Configurações e recorte de imagens), depois de publicar.
+backups/aureum-2026-10-21b.dump). Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
+3.6 ao 3.9 publicados na 0.2.0-beta.6 em 25/10, com a API em produção (migrações do 3.9, badges
+grant-all do 3.8 e `bot enable --acao dm-eventos` feitos). Depois da beta.6, a pedido do Eduardo:
+excluir quadros brancos (só API e app, sem migração), ainda não publicado. Testes manuais pendentes
+listados no 3.1, no 3.2, no 3.4, no 3.5, no 3.6, no 3.7 e em cada parte do 3.9.
+3.10 ✅ pronto em 25/10 (API com 2 migrações core, c6e1a9d4f357 e d7f2b4e8a913, e o Pillow novo no
+requirements; app), ainda não em produção nem publicado; passos de produção e teste manual no 3.10.
+Próximo: 3.11 (Chat: emojis, reações, figurinhas, visto e preview de links).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -43,7 +36,7 @@ Próximo: 3.10 (Perfil: edição fora das Configurações e recorte de imagens),
 - `npm run release` gera um RASCUNHO no GitHub, no mesmo canal do beta.2 (latest.yml
   padrão; NÃO criar canal "beta" separado). O Eduardo publica com o label "None", não
   "Pre-release".
-- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.6; nada de .5.5).
+- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.7; nada de .5.5).
   Antes do release: confirmar que um app da versão anterior instalado vai encontrar a nova.
 - CHANGELOG em linguagem simples (vai pra galera do beta).
 - Depois de publicar: passos para o Eduardo testar no PC dele, com a versão anterior
@@ -147,7 +140,7 @@ Teste manual pendente: os testes listados abaixo.
 - A mesma barra aparece compacta na janelinha flutuante.
 - Testes: trocar entrada, saída e câmera em call; dispositivo removido no meio da call.
 
-## 3.8 Insígnias ✅ concluído (falta subir em produção)
+## 3.8 Insígnias ✅ concluído (em produção desde 25/10)
 Ver docs/decisions/0026-beta-badges.md. Sem migração (catálogo sincronizado no startup).
 Produção: reiniciar a API e rodar `python -m app.cli badges grant-all beta_tester` (mostra quantas
 contas e pergunta), com OK do Eduardo.
@@ -170,12 +163,12 @@ contas e pergunta), com OK do Eduardo.
 - Testes: limite do Pioneiro (inclusive concorrência no nº 20), Beta Tester na
   confirmação e retroativa, conta oficial não recebe nenhuma das duas.
 
-## 3.9 Leva de addons: Quadro, Enquetes, Eventos e Calendário ✅ concluído (falta produção e teste manual)
+## 3.9 Leva de addons: Quadro, Enquetes, Eventos e Calendário ✅ concluído (em produção na 0.2.0-beta.6; teste manual pendente)
 Todos no framework do 2.8 (módulo isolado, tabelas addon_<key>_, workspace_id genérico,
 sem dependência direta de servidor dentro do módulo). Fazer na ordem A → D; cada parte
 pode virar release sozinha.
 
-### Produção pendente do 3.9 (acumulado; tudo com OK do Eduardo, na ordem)
+### Produção do 3.9 (acumulado; ✅ feito em 25/10, fica como referência dos passos)
 O Eduardo vai publicar o 3.6 ao 3.9 de uma vez. A API roda `alembic upgrade heads` sozinha ao
 subir (Dockerfile), então reconstruir a API aplica as migrações: o backup vem ANTES.
 1. Backup do banco (sem ele, nada segue). O dump é feito dentro do contêiner e copiado com
@@ -305,7 +298,29 @@ não vê os prazos dele; card "Calendário" na Visão geral.
 - Testes: agrega Kanban e Eventos; item de canal sem acesso não aparece (inclusive via
   API); filtros; abrir na origem; mudança de prazo no Kanban aparece em tempo real.
 
-## 3.10 Perfil: edição fora das Configurações e recorte de imagens
+## 3.10 Perfil: edição fora das Configurações e recorte de imagens ✅ concluído (falta produção e teste manual)
+Ver docs/decisions/0031-profile-editor-crop-and-featured-badges.md. A página "Insígnias" das
+Configurações saiu: o inventário e o destaque ficam no Editar perfil e na aba Insígnias do cartão.
+Produção (tudo com OK do Eduardo, na ordem; a API nova não quebra o app beta.6: upload sem recorte
+continua igual e o destaque é ignorado por ele):
+1. Backup do banco com os mesmos comandos do item 1 da produção do 3.9 (sem ele, nada segue).
+2. Reconstruir e reiniciar a API (instala o Pillow e aplica as migrações core c6e1a9d4f357, com as
+   colunas `*_source` de users/servers, e d7f2b4e8a913, com `user_badges.featured_position` e
+   `badges.how_to_get`; também sobe a exclusão de quadros feita depois da beta.6):
+   `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
+   Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current`.
+3. Conferir `curl -s https://<endereço do Funnel>/api/health` e o app beta.6 abrindo normalmente.
+4. Release do app (0.2.0-beta.7, seguindo o Ritual de release) só depois da API no ar.
+Teste manual: no seu cartão (Ver perfil), "Editar perfil" abre o modal; mudar algo e fechar (Esc,
+fora ou trocar de aba nas Configurações) pergunta antes; "Desfazer". Avatar PNG e GIF animado:
+arrastar, zoom pela roda e pelo controle, girar, prévias; depois de salvar, o GIF continua animado
+no cartão e na lista de membros; "Ajustar posição" abre o original e muda o recorte. Banner do
+perfil, ícone e banner do servidor do mesmo jeito. Esc no editor de recorte fecha só ele. Aba
+Insígnias no cartão de outra pessoa: todas as dela, as que faltam com cadeado e como ganhar, beta
+encerrado como "Não disponível mais". Destacar 3 e reordenar arrastando no Editar perfil, salvar e
+ver a ordem ao lado do nome noutro PC (chat, membros, call); "Voltar ao automático"; "Destacar" ao
+passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma insígnia nova
+(`cli badges grant`).
 ### Edição de perfil
 - Avatar no topo → "Ver perfil" abre o cartão de perfil (resumo); no próprio perfil,
   botão "Editar perfil".
@@ -603,10 +618,11 @@ Funnel e do LiveKit Cloud.
 - ✅ Dono reordena canais arrastando e todo mundo vê a nova ordem na hora.
 - ✅ (teste pendente) Overlay só em jogos; transmissão só abre pra quem clicar em Assistir.
 - ✅ (teste pendente) Trocar microfone, saída e câmera dentro da call, pela barra de controles.
-- ✅ (falta produção) 20 Pioneiros no máximo; todos os testers com Beta Tester.
-- ✅ (falta produção e teste manual) Quadro branco, Enquetes, Eventos e Calendário (juntando
+- ✅ 20 Pioneiros no máximo; todos os testers com Beta Tester.
+- ✅ (teste pendente) Quadro branco, Enquetes, Eventos e Calendário (juntando
   Kanban e Eventos) funcionando.
-- Perfil editado direto do cartão, com recorte de avatar e banner (inclusive GIF).
+- ✅ (falta produção e teste manual) Perfil editado direto do cartão, com recorte de avatar e banner
+  (inclusive GIF).
 - Reações, emojis, figurinhas, visto nas DMs e preview de links no chat.
 - Categorias livres com permissões, inclusive categoria só pra admins.
 - Até 4 painéis por servidor.
