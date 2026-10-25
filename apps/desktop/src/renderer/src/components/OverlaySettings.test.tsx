@@ -15,9 +15,10 @@ const PREFS: OverlayPrefs = {
   showCameras: true,
   onlySpeaking: false,
   hiddenApps: ['r5apex'],
-  games: ['myindiegame']
+  games: ['myindiegame'],
+  notGames: []
 }
-const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null })
+const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null, ask: null })
 
 const bridge = vi.hoisted(() => {
   const overlay = window.aureum.overlay as unknown as { getState: ReturnType<typeof vi.fn>; setPrefs: ReturnType<typeof vi.fn> }
@@ -62,10 +63,10 @@ describe('overlay games', () => {
     await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ games: ['myindiegame', 'unlisted'] }))
   })
 
-  it('removes a game added by hand', async () => {
+  it('removes a game added by hand, and never asks about it again', async () => {
     render(<OverlaySettings />)
     fireEvent.click(screen.getByLabelText('Remover myindiegame.exe dos jogos com overlay'))
-    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ games: [] }))
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ games: [], notGames: ['myindiegame'] }))
   })
 
   it('hides an open game, offering only games that are not hidden yet', async () => {

@@ -205,7 +205,8 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: Partial<
           apps={prefs.games}
           label={label}
           removeLabel={(name) => `Remover ${name} dos jogos com overlay`}
-          onRemove={(app) => set({ games: prefs.games.filter((g) => g !== app) })}
+          // Removed by hand: the overlay won't ask "Isso é um jogo?" about it again.
+          onRemove={(app) => set({ games: prefs.games.filter((g) => g !== app), notGames: [...new Set([...prefs.notGames, app])] })}
         />
         <OpenAppPicker
           label="Adicionar jogo"

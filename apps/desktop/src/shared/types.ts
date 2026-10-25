@@ -88,6 +88,8 @@ export interface OverlayPrefs {
   hiddenApps: string[]
   /** Programs the user added as games in Settings > Overlay, on top of the known games. */
   games: string[]
+  /** Programs the user said aren't games when asked ("Isso é um jogo?"): never asked again. */
+  notGames: string[]
 }
 
 /** What the main process tells the app's window about the overlay. */
@@ -99,6 +101,8 @@ export interface OverlayState {
   failedShortcuts: string[]
   /** A short message on the overlay after a shortcut (e.g. "Overlay escondido"), or null. */
   notice: string | null
+  /** An unknown program filling the screen during a call: the overlay asks if it's a game. */
+  ask: string | null
 }
 
 /** A downloaded update waiting for a restart. */
@@ -197,6 +201,10 @@ export interface AureumBridge {
     snap(corner: OverlayCorner): Promise<void>
     /** Pauses the global shortcuts (while Settings records a new one). */
     pauseShortcuts(paused: boolean): Promise<void>
+    /** Answers "Isso é um jogo?" about the program in OverlayState.ask. */
+    answer(isGame: boolean): Promise<void>
+    /** The pointer entered or left the question, so the overlay takes clicks there. */
+    setAskHovered(hovered: boolean): Promise<void>
     onState(listener: (state: OverlayState) => void): () => void
   }
 }

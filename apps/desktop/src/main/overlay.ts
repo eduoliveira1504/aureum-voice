@@ -14,7 +14,7 @@ import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstruct
 
 import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame } from '../shared/overlayRule'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
-import { foregroundApp } from './foregroundApp'
+import { foregroundApp, foregroundFillsMonitor } from './foregroundApp'
 import { watchCombos } from './keyWatch'
 
 /** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
@@ -49,7 +49,8 @@ const DEFAULT_PREFS: OverlayPrefs = {
   showCameras: true,
   onlySpeaking: false,
   hiddenApps: [],
-  games: []
+  games: [],
+  notGames: []
 }
 
 const FOREGROUND_POLL_MS = 1000
@@ -86,6 +87,13 @@ let gameInFront = false
 let knownGames: KnownGame[] = []
 let detectedGame: string | null = null
 let games = new Set<string>()
+/** The unknown program filling the screen that the overlay asks about ("Isso é um jogo?"). */
+let ask: string | null = null
+let askTimer: NodeJS.Timeout | null = null
+/** The pointer is over the question, so the overlay takes clicks for its buttons. */
+let askHovered = false
+/** Programs already asked about in this call; unanswered, they're asked again in the next one. */
+const askedInCall = new Set<string>()
 const lastFired = new Map<string, number>()
 let saveTimer: NodeJS.Timeout | null = null
 let notify: (state: OverlayState) => void = () => {}
@@ -154,7 +162,8 @@ function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPref
     showCameras: bool(raw.showCameras, base.showCameras),
     onlySpeaking: bool(raw.onlySpeaking, base.onlySpeaking),
     hiddenApps: cleanApps(raw.hiddenApps, base.hiddenApps),
-    games: cleanApps(raw.games, base.games)
+    games: cleanApps(raw.games, base.games),
+    notGames: cleanApps(raw.notGames, base.notGames)
   }
 }
 
@@ -180,7 +189,7 @@ function saveSoon(): void {
 }
 
 export function getState(): OverlayState {
-  return { prefs, editing, failedShortcuts, notice }
+  return { prefs, editing, failedShortcuts, notice, ask }
 }
 
 function changed(): void {
@@ -292,17 +301,73 @@ function syncForegroundWatch(): void {
     clearInterval(foregroundTimer)
     foregroundTimer = null
     gameInFront = false
+    stopAsking()
   }
 }
 
-/** Updates gameInFront; returns whether it changed. */
+/** Updates gameInFront (and the question about an unknown program); returns whether either changed. */
 function checkForeground(): boolean {
   const app = foregroundApp()
   const game = overGame({ app, games, exceptions: NEVER_OVER, hidden: prefs.hiddenApps, gameRunning: detectedGame !== null })
-  if (game === gameInFront) return false
+  const asked = ask
+  // The question goes away with the program it's about.
+  if (ask !== null && app !== ask) stopAsking()
+  if (!game && ask === null && mayAsk(app) && foregroundFillsMonitor()) startAsking(app)
+  if (game === gameInFront && ask === asked) return false
   gameInFront = game
   apply()
+  if (ask !== asked) changed()
   return true
+}
+
+/** An unknown program the user never answered about, in a call where the overlay could show. */
+function mayAsk(app: string | null): app is string {
+  return (
+    app !== null &&
+    active &&
+    !mainFocused &&
+    !hidden &&
+    !NEVER_OVER.has(app) &&
+    !prefs.hiddenApps.includes(app) &&
+    !prefs.notGames.includes(app) &&
+    !askedInCall.has(app)
+  )
+}
+
+const ASK_MS = 20_000
+
+/** Asks once, without turning anything on: unanswered, the question leaves after a while. */
+function startAsking(app: string): void {
+  ask = app
+  askedInCall.add(app)
+  askTimer = setTimeout(() => {
+    stopAsking()
+    apply()
+    changed()
+  }, ASK_MS)
+}
+
+function stopAsking(): void {
+  if (askTimer) clearTimeout(askTimer)
+  askTimer = null
+  ask = null
+  askHovered = false
+}
+
+/** "Mostrar" adds the program to the games with overlay; "Não é jogo" never asks about it again. */
+export async function answer(isGame: boolean): Promise<void> {
+  const app = ask
+  if (app === null) return
+  stopAsking()
+  await setPrefs(isGame ? { games: [...prefs.games, app] } : { notGames: [...prefs.notGames, app] })
+}
+
+/** The overlay window tells when the pointer is over the question's buttons. */
+export function setAskHovered(hovered: boolean): void {
+  const next = hovered && ask !== null
+  if (next === askHovered) return
+  askHovered = next
+  apply()
 }
 
 /** games.ts tells the known games (the list or the user's changed) and the game it detects. */
@@ -383,13 +448,15 @@ function apply(): void {
   if (!win || win.isDestroyed()) return
   // Over a game only: hidden while the app itself, a browser, a launcher or any other app is in front.
   const show =
-    prefs.enabled && (editing || notice !== null || (active && !mainFocused && !hidden && gameInFront))
+    prefs.enabled &&
+    (editing || notice !== null || (active && !mainFocused && !hidden && (gameInFront || ask !== null)))
   if (!show) {
     if (win.isVisible()) win.hide()
     return
   }
   win.setBounds(placed(prefs.bounds))
-  win.setIgnoreMouseEvents(!editing, { forward: true })
+  // Click-through, except in edit mode and over the question's buttons (taken without focus).
+  win.setIgnoreMouseEvents(!editing && !askHovered, { forward: true })
   win.setFocusable(editing)
   // 'screen-saver' is the highest level: above borderless games that set themselves topmost.
   win.setAlwaysOnTop(true, 'screen-saver')
@@ -415,7 +482,10 @@ export function setActive(next: boolean): void {
   if (next === active) return
   active = next
   // A new call starts with the overlay showing again.
-  if (!active) hidden = false
+  if (!active) {
+    hidden = false
+    askedInCall.clear()
+  }
   syncKeyWatch()
   apply()
 }

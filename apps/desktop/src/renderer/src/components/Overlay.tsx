@@ -30,6 +30,7 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
   const inCall = phase === 'connected' || phase === 'reconnecting'
   const editing = state?.editing ?? false
   const notice = state?.notice ?? null
+  const ask = state?.ask ?? null
   const wanted = !!state?.prefs.enabled && (inCall || editing || notice !== null)
   const [popup, setPopup] = useState<Window | null>(null)
   // Bumped when the window is closed from outside, to open a new one if it's still wanted.
@@ -65,7 +66,7 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
   if (!popup || !state) return null
   return createPortal(
     <LucideProvider strokeWidth={1.8}>
-      <OverlayView me={me} popup={popup} editing={editing} notice={notice} />
+      <OverlayView me={me} popup={popup} editing={editing} notice={notice} ask={ask} />
     </LucideProvider>,
     popup.document.body
   )
@@ -174,7 +175,19 @@ function anchorOf(popup: Window): { right: boolean; bottom: boolean } {
   }
 }
 
-function OverlayView({ me, popup, editing, notice }: { me: Me; popup: Window; editing: boolean; notice: string | null }): ReactNode {
+function OverlayView({
+  me,
+  popup,
+  editing,
+  notice,
+  ask
+}: {
+  me: Me
+  popup: Window
+  editing: boolean
+  notice: string | null
+  ask: string | null
+}): ReactNode {
   const prefs = useOverlay((s) => s.state!.prefs)
   const { people, preview } = usePeople(me, editing, prefs.onlySpeaking, prefs.showCameras)
   const [, setMoved] = useState(0)
@@ -261,6 +274,8 @@ function OverlayView({ me, popup, editing, notice }: { me: Me; popup: Window; ed
         </div>
       )}
 
+      {ask && !editing && <AskIfGame app={ask} />}
+
       <div className={`flex flex-col gap-1.5 ${anchor.right ? 'items-end' : 'items-start'}`} style={{ opacity: prefs.opacity / 100 }}>
         {people.map((p) => (p.camera ? <CameraCard key={p.id} person={p} mirror={p.id === me.id} scale={scale} /> : <PersonRow key={p.id} person={p} scale={scale} />))}
       </div>
@@ -275,6 +290,43 @@ function OverlayView({ me, popup, editing, notice }: { me: Me; popup: Window; ed
           <MoveDiagonal2 size={14} />
         </span>
       )}
+    </div>
+  )
+}
+
+/**
+ * "Isso é um jogo?" about an unknown program filling the screen. The overlay stays click-through
+ * except while the pointer is over this box, and never takes the focus from the game.
+ */
+function AskIfGame({ app }: { app: string }): ReactNode {
+  const hover = (hovered: boolean) => (): void => void window.aureum.overlay.setAskHovered(hovered)
+  useEffect(() => () => void window.aureum.overlay.setAskHovered(false), [])
+  return (
+    <div
+      role="alertdialog"
+      aria-label="Isso é um jogo?"
+      onMouseEnter={hover(true)}
+      onMouseLeave={hover(false)}
+      className="max-w-full rounded-control bg-panel/95 px-3 py-2 text-[0.85em] text-fg shadow-lg"
+    >
+      <p className="font-semibold">Isso é um jogo?</p>
+      <p className="truncate text-fg-muted">Mostrar o overlay em {app}.exe</p>
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => void window.aureum.overlay.answer(true)}
+          className="rounded-item bg-accent px-2.5 py-0.5 font-semibold text-on-accent"
+        >
+          Mostrar
+        </button>
+        <button
+          type="button"
+          onClick={() => void window.aureum.overlay.answer(false)}
+          className="rounded-item border border-line px-2.5 py-0.5 font-medium text-fg-muted hover:text-fg"
+        >
+          Não é jogo
+        </button>
+      </div>
     </div>
   )
 }

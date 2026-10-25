@@ -187,6 +187,8 @@ handle('ptt:watch', (key: unknown) => {
   return watchPushToTalk(key, (held) => mainWindow?.webContents.send('ptt:held', held))
 })
 handle('overlay:pause-shortcuts', (paused: unknown) => overlay.pauseShortcuts(paused === true))
+handle('overlay:answer', (isGame: unknown) => overlay.answer(isGame === true))
+handle('overlay:set-ask-hovered', (hovered: unknown) => overlay.setAskHovered(hovered === true))
 
 // ---------------------------------------------------------------------------
 // Screen sharing — the renderer shows its own picker, then calls getDisplayMedia,

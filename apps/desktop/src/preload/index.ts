@@ -82,6 +82,8 @@ const bridge: AureumBridge = {
     setBounds: (bounds) => ipcRenderer.invoke('overlay:set-bounds', bounds),
     snap: (corner) => ipcRenderer.invoke('overlay:snap', corner),
     pauseShortcuts: (paused) => ipcRenderer.invoke('overlay:pause-shortcuts', paused),
+    answer: (isGame) => ipcRenderer.invoke('overlay:answer', isGame),
+    setAskHovered: (hovered) => ipcRenderer.invoke('overlay:set-ask-hovered', hovered),
     onState: (listener) => {
       const wrapped = (_: unknown, state: OverlayState): void => listener(state)
       ipcRenderer.on('overlay:state', wrapped)

@@ -36,6 +36,8 @@ const bridge = {
     setBounds: async () => {},
     snap: async () => {},
     pauseShortcuts: async () => {},
+    answer: async () => {},
+    setAskHovered: async () => {},
     onState: unsubscribe
   }
 } satisfies AureumBridge
