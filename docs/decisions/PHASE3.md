@@ -25,7 +25,9 @@ requirements; app), ainda não em produção nem publicado; passos de produção
 3.11 parte A ✅ pronta em 26/10 (com as correções da imagem com faixa cinza e da enquete; API com 4
 migrações core, e3a9c5b1d742 a b6d2f8a4c975; app com Twemoji e emojibase), ainda não em produção
 nem publicada; passos de produção e teste manual no 3.11.
-Próximo: 3.11 parte B (visto nas DMs e preview de links).
+3.11 parte B ✅ pronta em 26/10 (visto nas DMs e preview de links; API com 2 migrações core,
+c7e3a9f5d186 e d8f4b0a6e297, sem dependência Python nova; app), ainda não em produção nem publicada.
+Próximo: 3.11 parte C (figurinhas e GIFs).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -373,26 +375,31 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
 ## 3.11 Chat: ações da mensagem, emojis, reações, GIFs, figurinhas, visto e preview de links
 Bloco grande: fazer em 3 partes, cada uma numa conversa (A → B → C). Todas as partes valem
 em canais de servidor, DMs e grupos, salvo onde dito.
-Parte A ✅ (com as correções antes dela) em 26/10; partes B e C pendentes. Decisões em
-docs/decisions/0032-message-actions-replies-forwards-emojis-reactions.md.
+Parte A ✅ (com as correções antes dela) e parte B ✅ em 26/10; parte C pendente. Decisões em
+docs/decisions/0032-message-actions-replies-forwards-emojis-reactions.md (A) e
+docs/decisions/0033-read-receipts-and-link-previews.md (B).
 
 ### Produção do 3.11 (acumulado; nada feito ainda)
 A produção do 3.10 também está pendente: dá pra fazer as duas juntas, com um backup só. Tudo com
-OK do Eduardo, na ordem. A API nova não quebra o app beta.6 (só campos e rotas novos; o beta.6
-ignora reações, respostas e encaminhadas, e mostra o texto delas normalmente).
+OK do Eduardo, na ordem. A API nova não quebra o app beta.6 (só campos, rotas e eventos novos; o
+beta.6 ignora reações, respostas, encaminhadas, visto e previews, e mostra o texto normalmente).
 1. Backup do banco com os mesmos comandos do item 1 da produção do 3.9 (sem ele, nada segue).
 2. Reconstruir e reiniciar a API. Sem dependência Python nova na parte A (o Pillow veio no 3.10).
    Aplica as migrações core da parte A, depois das do 3.10: e3a9c5b1d742 (messages.reply_to_id),
    f4b8d6c2e953 (messages.forwarded_from), a5c1e7f3b864 (user_settings.emoji_tone e
-   recent_emojis) e b6d2f8a4c975 (tabela message_reactions):
+   recent_emojis) e b6d2f8a4c975 (tabela message_reactions), e as da parte B: c7e3a9f5d186
+   (user_settings.read_receipts) e d8f4b0a6e297 (messages.link_previews e previews_removed). Sem
+   dependência Python nova na parte B (o httpx já estava):
    `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
    Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current`
-   mostra b6d2f8a4c975 (head).
+   mostra d8f4b0a6e297 (head).
 3. Conferir `curl -s https://<endereço do Funnel>/api/health` e o app beta.6 abrindo, mandando
-   mensagem, imagem e enquete normalmente.
+   mensagem, imagem e enquete normalmente. A partir da parte B a API faz requisições pra fora (só
+   pros previews, só pra endereços públicos): cada site linkado no chat vê o IP da sua conexão.
 4. Release do app (0.2.0-beta.7, seguindo o Ritual de release) só depois da API no ar. O
    instalador cresce uns MB com os desenhos do Twemoji. No CHANGELOG: responder, encaminhar,
-   reagir, emojis, imagem sem faixa cinza e enquete criando de novo.
+   reagir, emojis, imagem sem faixa cinza, enquete criando de novo, visto nas DMs (e a opção em
+   Privacidade) e prévia de links.
 
 ### Parte A: ações da mensagem, responder, encaminhar, emojis e reações ✅ concluída (teste manual pendente)
 Teste manual da parte A (dois PCs, ou duas contas, num servidor e numa DM):
@@ -501,7 +508,20 @@ destinos, só onde pode enviar (inclusive via API), anexo abre no destino, figur
 servidor bloqueada fora dele, rate limit; barra de ações respeita permissões; seletor e
 autocompletar de emojis; reagir/desfazer em tempo real; permissões de reação; limite de 20.
 
-### Parte B: visto nas DMs e preview de links
+### Parte B: visto nas DMs e preview de links ✅ concluída (teste manual pendente)
+Teste manual da parte B (dois PCs, ou duas contas, numa DM a dois):
+- Mandar 3 mensagens: a última mostra "✓ Enviada"; a outra pessoa abre a conversa e na hora vira
+  "✓✓ Vista" (cor accent) só na última; mandar outra: "Vista" fica na anterior e "Enviada" na nova.
+- Configurações › Privacidade › "Confirmação de leitura" desligada num dos lados: as marcas somem
+  na hora nos dois PCs e não voltam ao ler; religar: voltam. Grupo, canal de servidor e DM da
+  @aureum nunca mostram visto.
+- Link de notícia/blog: card com site, título, descrição e imagem um instante depois de enviar
+  (a mensagem sai na hora). Link do YouTube: miniatura grande, título, canal e play que abre o
+  navegador. Até 3 cards por mensagem; `<https://...>` não gera card.
+- X no card (só nas minhas): some pra todo mundo e não volta ao editar. Editar trocando o link
+  troca o card. Encaminhar mensagem com card: o card vai junto.
+- `http://localhost:8000/api/health` ou `http://192.168.0.1` no chat: sem card (e nada no log de
+  acesso da API além da própria mensagem).
 #### Visto nas mensagens privadas (só DM 1:1)
 - Não vale em servidor nem em grupo (por enquanto).
 - Minhas mensagens mostram ✓ Enviada e ✓✓ Vista (na cor accent), só na última mensagem

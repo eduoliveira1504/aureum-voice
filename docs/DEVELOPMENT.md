@@ -120,6 +120,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   look the same on every PC), a picker with Portuguese search from emojibase, skin tone and recents
   synced in the settings, and `:name` autocomplete
   ([ADR 0032](decisions/0032-message-actions-replies-forwards-emojis-reactions.md))
+- "Enviada" / "Vista" in 1:1 DMs, from the read state, with "Confirmação de leitura" in Settings ›
+  Privacidade (off hides it both ways). Link previews (OpenGraph, YouTube via oEmbed) fetched by the
+  API, never the app, through a guard that only reaches public addresses (checked on each redirect
+  and when the socket connects), with the image re-encoded and served from `/api/media`
+  ([ADR 0033](decisions/0033-read-receipts-and-link-previews.md))
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
   only that key and only during a call
 - Automatic updates from GitHub releases, and **Reportar problema** (profile menu or Ctrl+Shift+R): a
