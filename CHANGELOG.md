@@ -1,5 +1,32 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.6
+
+- **Addons novos:**
+  - **Quadro branco:** desenhe junto com o grupo, ao vivo, vendo o cursor de cada um (dá pra
+    "seguir" alguém). Formas, setas, texto, notas e imagens, vários quadros por canal, versões
+    anteriores pra restaurar e exportar como imagem ou colar no chat.
+  - **Enquetes:** no "+" do campo de mensagem, em qualquer canal, conversa ou grupo. Uma ou várias
+    respostas, prazo opcional, votos anônimos se quiser. Dá pra mudar o voto até encerrar, e o
+    resultado aparece no chat.
+  - **Eventos:** marque um encontro com data, hora, sala de voz ou lugar, capa e repetição toda
+    semana. Responda Vou, Talvez ou Não vou. A conta oficial do Aureum lembra 1 dia antes, 15
+    minutos antes e na hora, com o botão Entrar na sala (dá pra desligar em Configurações ›
+    Notificações). Os eventos de hoje aparecem no Início, e "Criar evento" fica no menu do servidor.
+  - **Calendário:** os eventos e os prazos dos cards do Kanban do servidor num lugar só, por mês,
+    semana ou lista, com filtros e "Só meus". Clicar abre o item onde ele está.
+- **Transmissão de tela:** você só recebe a tela de alguém quando clica em **Assistir**. Antes
+  aparece um card com uma prévia embaçada, e quem transmite vê quantas pessoas estão assistindo.
+- **Controles dentro da call:** microfone, fone, câmera, tela e sair numa barra na própria call. A
+  setinha ao lado de cada um troca o microfone, a saída ou a câmera sem sair da call, e ajusta o
+  volume. Se um fone for desconectado, o app volta pro padrão do Windows e avisa.
+- **Overlay só em jogos:** não aparece mais em launchers, navegador e outros apps. Num jogo que o
+  Aureum não conhece, ele pergunta uma vez se é jogo. Em Configurações › Overlay dá pra adicionar e
+  remover jogos.
+- **Insígnias:** nova insígnia **Beta Tester**, pra todo mundo que está testando o Aureum. A
+  Pioneiro fica com os 20 primeiros.
+- **Cargos:** novas permissões "Editar quadro branco" e "Gerenciar eventos".
+
 ## 0.2.0-beta.5.5
 
 - **Reordenar canais:** quem pode gerenciar canais arrasta salas, conversas e addons na barra
