@@ -260,6 +260,22 @@ pode virar release sozinha.
 - Testes: recorte estático e animado (animação preservada), zoom/posição salvos, reajuste
   a partir do original.
 
+### Insígnias em destaque
+- No modal "Editar perfil", seção "Insígnias": a pessoa escolhe quais aparecem ao lado do
+  nome (0 a 3) e em que ordem (arrastar). Padrão continua automático: as 2 mais raras
+  (regra do 2.11), até a pessoa mexer.
+- Opção "Ocultar do perfil" por insígnia: some do cartão e do lado do nome, mas continua
+  sendo dela (pode reexibir quando quiser). Nada é perdido.
+- Cartão de perfil: as em destaque primeiro, depois as outras pela regra de raridade.
+- Prévia ao vivo do nome com as insígnias escolhidas (chat, lista de membros, call).
+- Salvo no servidor (user_badges: featured_position nullable, hidden bool), vale pra
+  todo mundo que vê o perfil. Só a própria pessoa altera.
+- Com 3 insígnias ao lado do nome, manter a regra do 2.11: o nome encolhe com
+  reticências, os ícones nunca.
+- Testes: escolher e ordenar; ocultar some pra outros usuários (inclusive via API);
+  conta sem escolha usa o automático; insígnia nova concedida não entra no destaque
+  sozinha.
+
 ## 3.11 Chat: emojis, reações, figurinhas, visto e preview de links
 ### Emojis
 - Botão de carinha no campo de mensagem abre o seletor: busca em português, categorias,
