@@ -12,7 +12,6 @@ import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, useDis
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
 const TEXT: PermName[] = ['SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'MENTION_EVERYONE']
 const VOICE: PermName[] = ['CONNECT', 'SPEAK', 'VIDEO', 'STREAM', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS', 'MOVE_MEMBERS']
-const ADDON: PermName[] = ['SEND_MESSAGES', 'MANAGE_ADDONS']
 
 /** How a permission reads in an addon channel, where it's not about messages or rooms. */
 const ADDON_LABELS: Partial<Record<PermName, { label: string; description: string }>> = {
@@ -20,8 +19,16 @@ const ADDON_LABELS: Partial<Record<PermName, { label: string; description: strin
   MANAGE_ADDONS: { label: 'Gerenciar addon', description: 'Mudar as configurações do addon e, com Gerenciar canais, excluí-lo.' }
 }
 
-function permNames(channel: Channel): PermName[] {
-  return [...COMMON, ...(channel.type === 'voice' ? VOICE : channel.type === 'addon' ? ADDON : TEXT)]
+/** What an override can change in this channel, in titled sections. An addon channel shows its
+ * addon's own permissions (Participar for the ones that don't declare any). */
+function permSections(channel: Channel): { title: string; names: PermName[] }[] {
+  const own =
+    channel.type === 'voice'
+      ? { title: 'Salas de voz', names: VOICE }
+      : channel.type === 'addon'
+        ? { title: 'Addons', names: [...(addonModule(channel.addon_key)?.permissions ?? ['SEND_MESSAGES']), 'MANAGE_ADDONS'] as PermName[] }
+        : { title: 'Conversas', names: TEXT }
+  return [{ title: 'Canal', names: COMMON }, own]
 }
 
 function errorText(err: unknown): string {
@@ -355,7 +362,7 @@ function OverrideEditor({
   const myPerms = channelPermissions(server, channel, meId)
   const editable = target.id === server.id || outranks(server, meId, target.rank)
   const dirty = allow !== (override?.allow ?? 0) || deny !== (override?.deny ?? 0)
-  const names = permNames(channel)
+  const sections = permSections(channel)
 
   const stateOf = (bit: number): State => (has(allow, bit) ? 'allow' : has(deny, bit) ? 'deny' : 'inherit')
   const set = (bit: number, state: State): void => {
@@ -396,23 +403,28 @@ function OverrideEditor({
           </span>
         ))}
       </p>
-      <div className="space-y-1.5">
-        {names.map((name) => {
-          const bit = Perm[name]
-          const info = (channel.type === 'addon' && ADDON_LABELS[name]) || PERM_INFO[name]
-          // Nobody grants (or denies) a permission they don't have here.
-          const allowed = editable && has(myPerms, bit)
-          return (
-            <div key={name} className={`flex items-center justify-between gap-4 rounded-control border border-line bg-main px-3 py-2 ${allowed ? '' : 'opacity-60'}`}>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{name === 'MANAGE_ROLES' ? 'Gerenciar permissões' : info.label}</span>
-                {info.description && <span className="block text-xs text-fg-subtle">{info.description}</span>}
-              </span>
-              <TriState value={stateOf(bit)} disabled={!allowed} onChange={(s) => set(bit, s)} label={info.label} />
-            </div>
-          )
-        })}
-      </div>
+      {sections.map(({ title, names }) => (
+        <section key={title}>
+          <h3 className={labelClass}>{title}</h3>
+          <div className="space-y-1.5">
+            {names.map((name) => {
+              const bit = Perm[name]
+              const info = (channel.type === 'addon' && ADDON_LABELS[name]) || PERM_INFO[name]
+              // Nobody grants (or denies) a permission they don't have here.
+              const allowed = editable && has(myPerms, bit)
+              return (
+                <div key={name} className={`flex items-center justify-between gap-4 rounded-control border border-line bg-main px-3 py-2 ${allowed ? '' : 'opacity-60'}`}>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{name === 'MANAGE_ROLES' ? 'Gerenciar permissões' : info.label}</span>
+                    {info.description && <span className="block text-xs text-fg-subtle">{info.description}</span>}
+                  </span>
+                  <TriState value={stateOf(bit)} disabled={!allowed} onChange={(s) => set(bit, s)} label={info.label} />
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ))}
       {editable && (
         <div className="sticky bottom-0 flex items-center gap-3 bg-panel py-3">
           <div className="w-36">

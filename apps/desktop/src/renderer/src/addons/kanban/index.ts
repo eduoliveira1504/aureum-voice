@@ -12,6 +12,8 @@ const kanban: AddonModule = {
   name: 'Kanban',
   description: 'Colunas e cards para organizar o que o grupo está fazendo.',
   icon: SquareKanban,
+  // Cards; columns and labels need MANAGE_ADDONS.
+  permissions: ['SEND_MESSAGES'],
   Panel: KanbanPanel,
   Summary: KanbanSummary,
   announces: {

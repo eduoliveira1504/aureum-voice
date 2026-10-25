@@ -18,6 +18,7 @@ from pydantic import (
 from app.config import get_settings
 from app.models import DEFAULT_ACCENT, BadgeRarity, ChannelType, OverrideTarget, Theme, UserStatus
 from app.media import MediaTier
+from app.permissions import ALL
 from app.voice import VoiceState
 
 Username = Annotated[
@@ -448,8 +449,8 @@ class ServerOut(BaseModel):
     created_at: datetime
 
 
-# Bitfield of app.permissions.Perm (24 bits, so it's safe as a JSON number).
-Permissions = Annotated[int, Field(ge=0, lt=1 << 24)]
+# Bitfield of app.permissions.Perm (at most 31 bits: the desktop app does 32-bit math).
+Permissions = Annotated[int, Field(ge=0, le=int(ALL))]
 RoleColor = AccentColor
 
 

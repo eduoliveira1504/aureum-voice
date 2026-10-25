@@ -130,6 +130,9 @@ async def test_override_validation(client: AsyncClient) -> None:
     assert (await owner.delete(f"/channels/{cid}/overrides/role/{sid}")).status_code == 404
 
     assert (await owner.put(f"/channels/{cid}/overrides/role/{sid}", {"deny": view})).status_code == 200
+    # Addon permissions are channel permissions too.
+    addon = await owner.put(f"/channels/{cid}/overrides/role/{sid}", {"deny": view | int(Perm.EDIT_WHITEBOARD)})
+    assert addon.status_code == 200
     removed = await owner.delete(f"/channels/{cid}/overrides/role/{sid}")
     assert removed.status_code == 200 and removed.json()["overrides"] == []
 
@@ -148,6 +151,8 @@ async def test_role_crud_and_everyone(client: AsyncClient) -> None:
     assert updated.status_code == 200
     assert (updated.json()["name"], updated.json()["color"], updated.json()["mentionable"]) == ("Mods", None, True)
 
+    everyone = next(r for r in (await owner.get(f"/servers/{sid}")).json()["roles"] if r["id"] == sid)
+    assert everyone["permissions"] & Perm.EDIT_WHITEBOARD
     # @everyone: only its permissions change, and it can't be deleted.
     assert (await owner.patch(f"/roles/{sid}", {"name": "all"})).status_code == 400
     perms = int(DEFAULT_EVERYONE | Perm.CREATE_INVITE)

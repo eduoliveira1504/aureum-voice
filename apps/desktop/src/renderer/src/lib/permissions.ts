@@ -29,12 +29,14 @@ export const Perm = {
   MUTE_MEMBERS: 1 << 20,
   DEAFEN_MEMBERS: 1 << 21,
   MOVE_MEMBERS: 1 << 22,
-  MANAGE_ADDONS: 1 << 23
+  MANAGE_ADDONS: 1 << 23,
+  // Addon permissions. Bitwise math here is 32-bit: new bits stay at or below 1 << 30.
+  EDIT_WHITEBOARD: 1 << 24
 } as const
 
 export type PermName = keyof typeof Perm
 
-export const ALL = (1 << 24) - 1
+export const ALL = (1 << 25) - 1
 const VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
 
 /** Permissions a channel override can change (the rest are server-wide). */
@@ -51,7 +53,8 @@ export const CHANNEL_PERMS =
   Perm.READ_HISTORY |
   Perm.CONNECT |
   VOICE_ONLY |
-  Perm.MANAGE_ADDONS
+  Perm.MANAGE_ADDONS |
+  Perm.EDIT_WHITEBOARD
 
 const OWNER_RANK = 1 << 30
 
@@ -144,8 +147,7 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'BAN_MEMBERS', label: 'Banir membros', description: 'Expulsar e impedir de voltar.' },
       { perm: 'CREATE_INVITE', label: 'Criar convites', description: 'Convites também criam contas novas no Aureum.' },
       { perm: 'CHANGE_NICKNAME', label: 'Mudar apelido', description: 'Escolher o próprio apelido neste servidor.' },
-      { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Mudar o apelido de quem está abaixo de você.' },
-      { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Adicionar, configurar e excluir addons (com Gerenciar canais).' }
+      { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Mudar o apelido de quem está abaixo de você.' }
     ]
   },
   {
@@ -170,6 +172,13 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'MUTE_MEMBERS', label: 'Silenciar membros', description: 'Desligar o microfone de quem está abaixo de você, até liberar.' },
       { perm: 'DEAFEN_MEMBERS', label: 'Ensurdecer membros', description: 'Cortar o áudio (e o microfone) de quem está abaixo de você.' },
       { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Levar quem está abaixo de você para outra sala.' }
+    ]
+  },
+  {
+    title: 'Addons',
+    items: [
+      { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Adicionar, configurar e excluir addons (com Gerenciar canais).' },
+      { perm: 'EDIT_WHITEBOARD', label: 'Editar quadro branco', description: 'Desenhar, escrever e criar quadros. Quem não tem só vê.' }
     ]
   }
 ]

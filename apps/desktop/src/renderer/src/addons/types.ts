@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 import type { Channel, Me, ServerDetail } from '../lib/api'
+import type { PermName } from '../lib/permissions'
 import type { ServerEvent } from '../lib/realtime'
 
 /** What the shell hands an addon's views: the channel it runs in and who's looking. */
@@ -36,6 +37,9 @@ export interface AddonModule {
   Panel: ComponentType<AddonViewProps>
   /** Short live summary for the channel's card on the server overview. */
   Summary?: ComponentType<AddonViewProps>
+  /** The permissions its actions need, besides MANAGE_ADDONS (same as the API manifest): what
+   * the channel's overrides offer, under "Addons". */
+  permissions: PermName[]
   /** Form for channels.config, shown in the channel settings to who can manage addons. */
   Settings?: ComponentType<AddonSettingsProps>
   /** Set when the addon posts system lines to a chat (its API manifest says `announces`): the

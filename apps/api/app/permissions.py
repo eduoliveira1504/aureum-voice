@@ -55,6 +55,10 @@ class Perm(enum.IntFlag):
     DEAFEN_MEMBERS = 1 << 21
     MOVE_MEMBERS = 1 << 22
     MANAGE_ADDONS = 1 << 23
+    # Addon permissions (ADR 0027): bits of their own, so roles and channels can set them apart
+    # from messages. Stored in BIGINT (63 usable bits), but the desktop app does 32-bit math, so
+    # new bits stay at or below 1 << 30 until it moves to BigInt.
+    EDIT_WHITEBOARD = 1 << 24
 
 
 ALL = Perm((1 << len(Perm)) - 1)
@@ -72,6 +76,7 @@ DEFAULT_EVERYONE = (
     | Perm.SPEAK
     | Perm.VIDEO
     | Perm.STREAM
+    | Perm.EDIT_WHITEBOARD
 )
 
 # Permissions that only make sense per channel; the rest are server-wide and are ignored in
@@ -95,6 +100,7 @@ CHANNEL_PERMS = (
     | Perm.DEAFEN_MEMBERS
     | Perm.MOVE_MEMBERS
     | Perm.MANAGE_ADDONS
+    | Perm.EDIT_WHITEBOARD
 )
 
 VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
