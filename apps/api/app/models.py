@@ -508,6 +508,9 @@ class Message(Base):
     # The message this one answers, in the same channel. No foreign key: once the original is
     # deleted the id stays, and the app shows "Mensagem original apagada".
     reply_to_id: Mapped[int | None] = mapped_column(BigInteger)
+    # A forward: snapshot of the original, {"content", "created_at", "source"} (see app/forwarding.py).
+    # Its `content` is the comment added when forwarding.
+    forwarded_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")

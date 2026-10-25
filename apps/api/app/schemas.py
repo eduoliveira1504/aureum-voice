@@ -772,6 +772,12 @@ class MessageCreate(BaseModel):
         return self
 
 
+class ForwardCreate(BaseModel):
+    channel_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=5)]
+    # Optional text sent with it.
+    comment: Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)] = ""
+
+
 class MessageEdit(BaseModel):
     content: Content
 
@@ -825,7 +831,9 @@ class ReplyOut(BaseModel):
             media = "poll" if value.embed.get("addon_key") == "polls" else "embed"
         elif first:
             media = "gif" if first.get("content_type") == "image/gif" else first.get("kind")
-        return {"id": value.id, "author": value.author, "content": value.content[:REPLY_SNIPPET], "media": media}
+        # A forward without a comment quotes what it carries.
+        content = value.content or (value.forwarded_from or {}).get("content", "")
+        return {"id": value.id, "author": value.author, "content": content[:REPLY_SNIPPET], "media": media}
 
 
 class MessageOut(BaseModel):
@@ -851,6 +859,9 @@ class MessageOut(BaseModel):
     # A reply: the original's id, and its quote while it exists (deleted: id only).
     reply_to_id: int | None = None
     reply_to: ReplyOut | None = None
+    # A forward: the original's snapshot, {"content", "created_at", "source"}; source is
+    # {"kind": "dm"} or {"kind": "server", server_id/name, channel_id/name, message_id}.
+    forwarded_from: dict[str, Any] | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

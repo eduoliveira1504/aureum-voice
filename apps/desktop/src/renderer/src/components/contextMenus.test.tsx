@@ -362,3 +362,45 @@ describe('replies', () => {
     expect(screen.getByText('Mensagem original apagada')).toBeTruthy()
   })
 })
+
+describe('forwarding', () => {
+  const rowOf = (id: number): HTMLElement => document.querySelector(`[data-message-id="${id}"] [tabindex="-1"]`) as HTMLElement
+
+  it('lists where I can send, searches, and forwards with a comment', async () => {
+    const forwardMessage = vi.fn(async () => {})
+    useChat.setState({ forwardMessage })
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.click(within(rowOf(1)).getByLabelText('Encaminhar'))
+    const options = (): string[] => screen.getAllByRole('checkbox').map((c) => c.querySelector('span.min-w-0')?.textContent ?? '')
+    // DMs with friends, groups, then the server's text channels (not its voice room).
+    expect(options()).toEqual(['AnaMensagem direta', 'RolêGrupo', '#geralSquad'])
+    fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: 'rol' } })
+    expect(options()).toEqual(['RolêGrupo'])
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ana/ }))
+    fireEvent.change(screen.getByLabelText('Comentário'), { target: { value: ' olha ' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Encaminhar para 2' })))
+    expect(forwardMessage).toHaveBeenCalledWith(1, [GROUP.id, DM.id], 'olha')
+  })
+
+  it('leaves out channels where I cannot send', () => {
+    const s = useChat.getState().servers[SID]
+    useChat.setState({ servers: { [SID]: { ...s, roles: s.roles.map((r) => (r.id === SID ? { ...r, permissions: Perm.VIEW_CHANNEL } : r)) } } })
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    fireEvent.click(within(rowOf(1)).getByLabelText('Encaminhar'))
+    expect(screen.queryByRole('checkbox', { name: /#geral/ })).toBeNull()
+  })
+
+  it('shows what a forward carries and where it came from', () => {
+    const forwarded = {
+      ...message(4, ANA, ''),
+      forwarded_from: { content: 'segredo', created_at: '2026-10-19T11:00:00Z', source: { kind: 'dm' as const } }
+    }
+    useChat.setState((s) => ({ messages: { ...s.messages, [TEXT.id]: { ...s.messages[TEXT.id], items: [forwarded] } } }))
+    show(<ChatView channel={TEXT} me={ME} canModerate={false} />)
+    expect(screen.getByText('Encaminhada')).toBeTruthy()
+    expect(screen.getByText('segredo')).toBeTruthy()
+    expect(screen.getByText(/de uma conversa privada/)).toBeTruthy()
+  })
+})

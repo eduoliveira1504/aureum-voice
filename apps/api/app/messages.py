@@ -63,6 +63,7 @@ async def post_message(
     system: dict[str, Any] | None = None,
     reply_to: Message | None = None,
     mention_reply: bool = False,
+    forwarded_from: dict[str, Any] | None = None,
     on_saved: Callable[[Message], None] | None = None,
 ) -> MessageOut:
     """Saves the message, commits and sends it live. Permissions are the caller's job, and so is
@@ -80,6 +81,7 @@ async def post_message(
         embed=embed,
         system=system,
         reply_to_id=reply_to.id if reply_to else None,
+        forwarded_from=forwarded_from,
     )
     session.add(message)
     await session.flush()

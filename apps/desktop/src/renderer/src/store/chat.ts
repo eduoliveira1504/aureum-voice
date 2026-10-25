@@ -70,6 +70,8 @@ interface ChatState {
    * `reply` answers a message of the channel, notifying its author when `mention`. */
   sendMessage(channelId: string, content: string, attachmentIds?: string[], reply?: { id: number; mention: boolean }): Promise<Message>
   editMessage(id: number, content: string): Promise<void>
+  /** Sends a copy of the message to up to 5 conversations, with an optional comment. */
+  forwardMessage(id: number, channelIds: string[], comment: string): Promise<void>
   deleteMessage(id: number): Promise<void>
   /**
    * Marks a channel read up to its newest message. Skips the request when the counters are
@@ -225,6 +227,13 @@ export const useChat = create<ChatState>()((set, get) => {
     editMessage: async (id, content) => {
       const message = await api<Message>(`/messages/${id}`, { method: 'PATCH', body: { content } })
       patchMessages(message.channel_id, (items) => mergeMessages(items, [message]))
+    },
+
+    forwardMessage: async (id, channelIds, comment) => {
+      const sent = await api<Message[]>(`/messages/${id}/forward`, { method: 'POST', body: { channel_ids: channelIds, comment } })
+      for (const message of sent) {
+        if (get().messages[message.channel_id]) patchMessages(message.channel_id, (items) => mergeMessages(items, [message]))
+      }
     },
 
     deleteMessage: async (id) => {

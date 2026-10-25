@@ -258,7 +258,7 @@ async def delete_server(server_id: uuid.UUID, user: CurrentUser, session: Sessio
     )
     await session.delete(server)
     await session.commit()
-    await attachments.delete_keys(files)
+    await attachments.delete_keys(session, files)
     await voice.clear_server(server_id)
     await broker.publish("server.deleted", {"id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

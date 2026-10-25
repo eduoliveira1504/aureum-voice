@@ -167,7 +167,7 @@ async def close_or_leave(channel_id: uuid.UUID, user: CurrentUser, session: Sess
                 files.append(icon)
             await session.delete(channel)
         await session.commit()
-        await attachments.delete_keys(files)
+        await attachments.delete_keys(session, files)
         if remaining:
             await dms.announce(session, channel, await channel_member_ids(session, channel.id))
     await broker.publish("dm.deleted", {"id": str(channel_id)}, [user.id])

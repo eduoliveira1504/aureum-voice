@@ -128,7 +128,7 @@ async def _drop_stale(session: AsyncSession, user_id: uuid.UUID) -> None:
         )
     )
     await session.commit()
-    await delete_keys(stale)
+    await delete_keys(session, stale)
 
 
 async def upload(
@@ -217,6 +217,13 @@ async def keys_of_channels(session: AsyncSession, channel_ids: Iterable[uuid.UUI
     return list(await session.scalars(select(Attachment.key).where(Attachment.channel_id.in_(ids))))
 
 
-async def delete_keys(keys: Iterable[str]) -> None:
-    for key in keys:
-        await storage.delete(key)
+async def delete_keys(session: AsyncSession, keys: Iterable[str]) -> None:
+    """Deletes stored files, once their rows are gone (committed). A file a forwarded copy still
+    points to (another attachment row with the same key) stays."""
+    wanted = list(dict.fromkeys(keys))
+    if not wanted:
+        return
+    shared = set(await session.scalars(select(Attachment.key).where(Attachment.key.in_(wanted))))
+    for key in wanted:
+        if key not in shared:
+            await storage.delete(key)

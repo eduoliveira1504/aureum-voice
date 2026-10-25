@@ -1,4 +1,4 @@
-import { Hash, Paperclip, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
+import { Forward, Hash, Paperclip, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
 import {
   Fragment,
   useEffect,
@@ -30,6 +30,7 @@ import { badgeTitle, saveFeatured, withFeatured } from '../store/badges'
 import { contextMenu, Item, openMenuAt, showDialog, toast } from './ContextMenu'
 import { MESSAGE_LINK, MessageActionBar, messageKeys, MessageMenu, openMessageLink, type MessageActions } from './MessageActions'
 import { ReplyBar, ReplyQuote } from './MessageReply'
+import { ForwardModal } from './ForwardModal'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -334,6 +335,7 @@ export function ChatView({
     const own = message.author?.id === me.id
     return {
       onReply: canSend ? () => setReplying({ message, mention: true }) : undefined,
+      onForward: () => showDialog((close) => <ForwardModal message={message} meId={me.id} onClose={close} />),
       onEdit: own && message.content && !message.embed ? () => setEditingId(message.id) : undefined,
       onDelete: own || canModerate ? () => setDeleting(message) : undefined
     }
@@ -795,10 +797,45 @@ function MessageRow({
             </div>
           )
         )}
+        {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
         {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
       </div>
       {!editing && <MessageActionBar message={message} actions={actions} />}
+    </div>
+  )
+}
+
+/** What a forwarded message carries: the original's text and where it came from (a link there
+ * only when the user can open that channel). Its files are the message's own attachments. */
+function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['forwarded_from']>; own: boolean }): ReactNode {
+  const { source } = forwarded
+  const visible = useChat((s) =>
+    source.kind === 'server' ? !!s.servers[source.server_id]?.channels.some((c) => c.id === source.channel_id) : false
+  )
+  return (
+    <div className={`mt-1 max-w-full border-l-2 border-line pl-3 ${own ? 'self-end' : ''}`}>
+      <p className="mb-0.5 flex items-center gap-1 text-xs italic text-fg-subtle">
+        <Forward size={13} /> Encaminhada
+      </p>
+      {forwarded.content && (
+        <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+          <Linkified text={forwarded.content} own={false} />
+        </p>
+      )}
+      <p className="mt-0.5 text-xs text-fg-subtle">
+        {source.kind === 'dm' ? (
+          'de uma conversa privada'
+        ) : visible ? (
+          <button type="button" onClick={() => openMessageLink(source.channel_id, source.message_id)} className="hover:text-fg hover:underline">
+            de #{source.channel_name} · {source.server_name}
+          </button>
+        ) : (
+          `de #${source.channel_name} · ${source.server_name}`
+        )}
+        {' · '}
+        {formatTimestamp(forwarded.created_at)}
+      </p>
     </div>
   )
 }

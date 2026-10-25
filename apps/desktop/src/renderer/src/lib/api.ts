@@ -413,6 +413,17 @@ export interface Message {
   /** A reply: the original's id, and its quote while it exists (deleted: id only). */
   reply_to_id?: number | null
   reply_to?: ReplyRef | null
+  /** A forward: a snapshot of the original; `content` is then the comment added to it. */
+  forwarded_from?: ForwardedFrom | null
+}
+
+export interface ForwardedFrom {
+  content: string
+  created_at: string
+  /** Where the original was. A private conversation says only that. */
+  source:
+    | { kind: 'dm' }
+    | { kind: 'server'; server_id: string; server_name: string; channel_id: string; channel_name: string; message_id: number }
 }
 
 /** The original a reply quotes: its author and first 200 characters, or what it carries when it

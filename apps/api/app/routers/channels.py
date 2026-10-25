@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, media, reads, social, voice
+from app import attachments, calls, dms, forwarding, media, reads, social, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -20,6 +20,7 @@ from app.schemas import (
     ChannelOut,
     AttachmentOut,
     ChannelUpdate,
+    ForwardCreate,
     MarkRead,
     MarkUnread,
     MessageCreate,
@@ -107,7 +108,7 @@ async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: Sess
     files += await attachments.keys_of_channels(session, [channel.id])
     await session.delete(channel)
     await session.commit()
-    await attachments.delete_keys(files)
+    await attachments.delete_keys(session, files)
     await voice.clear_channel(server_id, channel_id, recipients)
     await broker.publish("channel.deleted", {"id": str(channel_id), "server_id": str(server_id)}, recipients)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -257,6 +258,12 @@ async def mark_unread(channel_id: uuid.UUID, body: MarkUnread, user: CurrentUser
     return out
 
 
+@router.post("/messages/{message_id}/forward", response_model=list[MessageOut], status_code=status.HTTP_201_CREATED)
+async def forward_message(message_id: int, body: ForwardCreate, user: CurrentUser, session: SessionDep) -> list[MessageOut]:
+    """"Encaminhar": a copy of the message in up to 5 conversations the user can write in."""
+    return await forwarding.forward(session, user.id, message_id, body.channel_ids, body.comment)
+
+
 async def _message_for_member(
     session: AsyncSession, message_id: int, user_id: uuid.UUID
 ) -> tuple[Message, Channel, ServerAccess | None]:
@@ -295,7 +302,7 @@ async def delete_message(message_id: int, user: CurrentUser, session: SessionDep
     files = await attachments.keys_of_messages(session, [message_id])
     await session.delete(message)
     await session.commit()
-    await attachments.delete_keys(files)
+    await attachments.delete_keys(session, files)
     await broker.publish(
         "message.deleted",
         {"id": message_id, "channel_id": str(channel_id)},
