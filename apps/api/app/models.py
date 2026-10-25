@@ -186,6 +186,7 @@ class Badge(Base):
     key: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    how_to_get: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     # Full art (tooltips, big sizes) and the simplified one for 32 px and below.
     icon_svg: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     icon_svg_small: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
@@ -208,6 +209,9 @@ class UserBadge(Base):
     badge_id: Mapped[int] = mapped_column(ForeignKey("badges.id", ondelete="CASCADE"), primary_key=True, index=True)
     number: Mapped[int | None] = mapped_column(Integer)
     granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Where the holder put it next to their name (0 first); NULL: not featured. With none
+    # featured the app picks the rarest (see app/badges.py).
+    featured_position: Mapped[int | None] = mapped_column(Integer)
     # NULL: granted by the system (sign-up, a resolved bug report...).
     granted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 

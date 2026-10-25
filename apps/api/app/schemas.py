@@ -214,6 +214,19 @@ class UserBadgeOut(BaseModel):
     key: str
     number: int | None
     granted_at: datetime
+    # Next to the name, in this order; null: not featured (none featured: the app's own pick).
+    featured_position: int | None = None
+
+
+class FeaturedBadges(BaseModel):
+    keys: list[str] = Field(max_length=3)
+
+    @field_validator("keys")
+    @classmethod
+    def _unique(cls, keys: list[str]) -> list[str]:
+        if len(set(keys)) != len(keys):
+            raise ValueError("Each badge once")
+        return keys
 
 
 class BadgeOut(BaseModel):
@@ -222,6 +235,9 @@ class BadgeOut(BaseModel):
     key: str
     name: str
     description: str
+    # Shown on badges the person doesn't have; `available` false: nobody can earn it anymore.
+    how_to_get: str = ""
+    available: bool = True
     rarity: BadgeRarity
     numbered: bool
     # Only granted while the beta runs.

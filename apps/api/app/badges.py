@@ -14,7 +14,9 @@ Who gets what:
 - bug_hunter: the author of a bug report the owner marks as resolved.
 Beta-only badges (exclusive_beta: the mythic ones and Beta Tester) are never granted again once
 AUREUM_BETA is off.
-Next to a name the app shows the two rarest; `priority` breaks ties (Fundador before Pioneiro).
+Next to a name the app shows the ones the person featured (up to 3, in their order;
+user_badges.featured_position), or without a choice the two rarest; `priority` breaks ties
+(Fundador before Pioneiro). A new badge never joins a choice by itself.
 
 Planned (structure ready, added here once their art exists), with their descriptions:
 - Veterano (rara, per year of account): "Faz parte do Aureum há mais de um ano."
@@ -43,6 +45,10 @@ class BadgeDefinition:
     rarity: BadgeRarity
     icon_svg: str
     icon_svg_small: str
+    # What earns it, shown on badges the person doesn't have yet.
+    how_to_get: str = ""
+    # False for one-of-a-kind badges nobody else can earn (Fundador).
+    earnable: bool = True
     numbered: bool = False
     exclusive_beta: bool = False
     # Ties within a rarity next to a name: lower first (then the oldest grant).
@@ -59,6 +65,8 @@ BADGES: dict[str, BadgeDefinition] = {
     for b in (
         BadgeDefinition(
             key=FOUNDER,
+            how_to_get="Exclusiva de quem criou o Aureum.",
+            earnable=False,
             name="Fundador",
             description="Criou o Aureum. Tudo começou aqui.",
             rarity=BadgeRarity.mitica,
@@ -70,6 +78,7 @@ BADGES: dict[str, BadgeDefinition] = {
         BadgeDefinition(
             # Name and art are placeholders while the testers vote; swapping them keeps the numbers.
             key=PIONEER,
+            how_to_get="Confirme o e-mail entre os 20 primeiros do beta.",
             name="Pioneiro",
             description="Um dos 20 primeiros a chegar no Aureum.",
             rarity=BadgeRarity.mitica,
@@ -82,6 +91,7 @@ BADGES: dict[str, BadgeDefinition] = {
         BadgeDefinition(
             # Placeholder art (a lab flask) until the final one.
             key=BETA_TESTER,
+            how_to_get="Entre no Aureum durante o beta.",
             name="Beta Tester",
             description="Testou o Aureum no beta e ajudou a moldar o app.",
             rarity=BadgeRarity.lendaria,
@@ -92,6 +102,7 @@ BADGES: dict[str, BadgeDefinition] = {
         ),
         BadgeDefinition(
             key=BUG_HUNTER,
+            how_to_get="Reporte um bug (Ctrl+Shift+R) que seja confirmado e corrigido.",
             name="Caçador de bugs",
             description="Encontrou um bug de verdade e ajudou a corrigir.",
             rarity=BadgeRarity.rara,
@@ -172,10 +183,35 @@ async def sync_badges(session: AsyncSession) -> None:
     rows = {b.key: b for b in await session.scalars(select(Badge))}
     for definition in BADGES.values():
         row = rows.get(definition.key) or Badge(key=definition.key)
-        for field in ("name", "description", "rarity", "icon_svg", "icon_svg_small", "numbered", "exclusive_beta", "priority"):
+        for field in ("name", "description", "how_to_get", "rarity", "icon_svg", "icon_svg_small", "numbered", "exclusive_beta", "priority"):
             setattr(row, field, getattr(definition, field))
         session.add(row)
     await session.commit()
+
+
+async def available_keys(session: AsyncSession) -> set[str]:
+    """Badges someone could still earn: not Fundador, no beta-only ones after the beta, and no
+    Pioneiro once its numbers ran out (reserved ones count)."""
+    settings = get_settings()
+    pioneers = await session.scalar(select(func.count()).select_from(PioneerNumber))
+    return {
+        d.key
+        for d in BADGES.values()
+        if d.earnable
+        and (settings.aureum_beta or not d.exclusive_beta)
+        and (d.key != PIONEER or (pioneers or 0) < settings.aureum_pioneer_limit)
+    }
+
+
+async def set_featured(session: AsyncSession, user: User, keys: list[str]) -> None:
+    """The badges next to the user's name, in this order (not committed). Empty: back to the
+    automatic pick. Raises KeyError for a badge they don't hold."""
+    held = {g.badge.key: g for g in user.badge_grants}
+    for key in keys:
+        if key not in held:
+            raise KeyError(key)
+    for key, grant_ in held.items():
+        grant_.featured_position = keys.index(key) if key in keys else None
 
 
 async def grant(session: AsyncSession, user: User, key: str, granted_by: uuid.UUID | None = None) -> UserBadge | None:

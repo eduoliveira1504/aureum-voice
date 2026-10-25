@@ -168,3 +168,53 @@ async def test_owner_name_may_be_written_with_an_at(client: AsyncClient, beta) -
     async with SessionLocal() as session:
         await badges.grant_founder_if_due(session)
     assert held((await edu.get("/users/me")).json()) == [("founder", None)]
+
+
+def featured(user_json: dict) -> list[str]:
+    shown = [b for b in user_json["badges"] if b["featured_position"] is not None]
+    return [b["key"] for b in sorted(shown, key=lambda b: b["featured_position"])]
+
+
+async def test_featured_badges(client: AsyncClient, beta) -> None:  # noqa: ANN001
+    beta()
+    ana, bia = await make_user(client, "ana"), await make_user(client, "bia")
+    for key in ("pioneer", "beta_tester"):
+        assert await cli.badges("grant", "ana", key) == 0
+    assert featured((await ana.get("/users/me")).json()) == []  # no choice: the app's automatic pick
+
+    res = await ana.put("/users/me/badges/featured", {"keys": ["beta_tester", "pioneer"]})
+    assert res.status_code == 200 and featured(res.json()) == ["beta_tester", "pioneer"]
+    assert featured((await bia.get(f"/users/{ana.id}")).json()) == ["beta_tester", "pioneer"]  # everyone sees it
+
+    # A new badge doesn't join the choice by itself.
+    assert await cli.badges("grant", "ana", "bug_hunter") == 0
+    assert featured((await ana.get("/users/me")).json()) == ["beta_tester", "pioneer"]
+    res = await ana.put("/users/me/badges/featured", {"keys": ["bug_hunter", "pioneer", "beta_tester"]})
+    assert featured(res.json()) == ["bug_hunter", "pioneer", "beta_tester"]
+
+    # Only badges they hold, each once, at most 3.
+    assert (await ana.put("/users/me/badges/featured", {"keys": ["founder"]})).status_code == 422
+    assert (await bia.put("/users/me/badges/featured", {"keys": ["pioneer"]})).status_code == 422
+    assert (await ana.put("/users/me/badges/featured", {"keys": ["pioneer", "pioneer"]})).status_code == 422
+    four = {"keys": ["pioneer", "beta_tester", "bug_hunter", "founder"]}
+    assert (await ana.put("/users/me/badges/featured", four)).status_code == 422
+    assert featured((await ana.get("/users/me")).json()) == ["bug_hunter", "pioneer", "beta_tester"]
+
+    # Empty goes back to the automatic pick.
+    assert featured((await ana.put("/users/me/badges/featured", {"keys": []})).json()) == []
+
+
+async def test_catalog_says_how_to_get_and_what_is_left(client: AsyncClient, beta, monkeypatch) -> None:  # noqa: ANN001
+    alice = await make_user(client, "alice")
+
+    async def catalog() -> dict:
+        return {b["key"]: b for b in (await alice.get("/badges")).json()}
+
+    beta()
+    now = await catalog()
+    assert all(b["how_to_get"] for b in now.values())
+    assert {k for k, b in now.items() if b["available"]} == {"pioneer", "beta_tester", "bug_hunter"}  # Fundador: one only
+    monkeypatch.setattr(get_settings(), "aureum_pioneer_limit", 0)  # every Pioneiro number handed out
+    assert (await catalog())["pioneer"]["available"] is False
+    beta(on=False)
+    assert {k for k, b in (await catalog()).items() if b["available"]} == {"bug_hunter"}
