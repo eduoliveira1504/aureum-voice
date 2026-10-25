@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from app.addons.whiteboard.models import WhiteboardBoard
 from app.db import SessionLocal
 from app.permissions import DEFAULT_EVERYONE, Perm
-from tests.helpers import ApiUser, make_server, make_user, ws_client
+from tests.helpers import ApiUser, make_server, make_user, text_channel, ws_client
 from tests.test_profile import GIF, PNG
 from tests.test_ws import next_event, no_event, ws_url
 
@@ -421,3 +421,26 @@ async def test_live_needs_access(client: AsyncClient) -> None:
         await send(ws, "update", board_id=bid, elements=[element("x1")])
         await send(ws, "pointer", board_id=bid, x=0, y=0)
         await no_event(ws, "addon.whiteboard.live")
+
+
+async def test_creating_a_board_posts_a_system_line(client: AsyncClient) -> None:
+    owner, member = await make_user(client, "owner"), await make_user(client, "member")
+    server = await make_server(owner, member)
+    sid, chat = server["id"], text_channel(server)
+    cid = await whiteboard_channel(owner, sid)
+
+    # Off by default.
+    await new_board(member, cid, "Antes")
+    assert (await owner.get(f"/channels/{chat}/messages")).json() == []
+
+    assert (await owner.patch(f"/channels/{cid}", {"announce_channel_id": chat})).status_code == 200
+    board = await new_board(member, cid, "Mapa do jogo")
+    # Renaming, drawing and duplicating aren't news.
+    await member.patch(url(cid, f"/boards/{board['id']}"), {"name": "Mapa"})
+    await save(member, cid, board["id"], element("a1"))
+    messages = (await owner.get(f"/channels/{chat}/messages")).json()
+    assert len(messages) == 1
+    line = messages[0]
+    assert line["author"]["id"] == member.id
+    assert line["system"]["addon_key"] == "whiteboard" and line["system"]["source_channel_id"] == cid
+    assert line["system"]["lines"] == ["criou o quadro “Mapa do jogo”"]

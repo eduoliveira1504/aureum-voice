@@ -272,7 +272,9 @@ async def create_board(channel_id: uuid.UUID, body: BoardCreate, user: CurrentUs
     board = WhiteboardBoard(
         workspace_id=ctx.workspace_id, name=body.name, background=body.background, created_by=user.id, updated_by=user.id
     )
-    return await _created(session, ctx, board)
+    out = await _created(session, ctx, board)
+    await ctx.announce(f"criou o quadro “{board.name}”", group="board.created")
+    return out
 
 
 @router.get("/channels/{channel_id}/boards/{board_id}", response_model=BoardOut)
