@@ -21,8 +21,10 @@ reiniciar a API e rodar o badges grant-all com OK do Eduardo. Testes manuais pen
 3.1, no 3.2, no 3.4, no 3.5, no 3.6 e no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6
 renumerados. 3.9 parte A (Quadro branco) pronta em 25/10 (API com 2 migrações: core
 a7c3e1f5b902 e branch whiteboard; app com Excalidraw), ainda não em produção nem publicada; teste
-manual pendente listado na parte A.
-Próximo: 3.9 parte B (Enquetes).
+manual pendente listado na parte A. 3.9 parte B (Enquetes) pronta em 25/10 (API com migração
+core b8d4f2a6c731 e branch polls; app), ainda não em produção nem publicada; passos de produção
+acumulados no topo do 3.9.
+Próximo: 3.9 parte C (Eventos).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -168,6 +170,23 @@ Todos no framework do 2.8 (módulo isolado, tabelas addon_<key>_, workspace_id g
 sem dependência direta de servidor dentro do módulo). Fazer na ordem A → D; cada parte
 pode virar release sozinha.
 
+### Produção pendente do 3.9 (acumulado; tudo com OK do Eduardo, na ordem)
+O Eduardo vai publicar o 3.6 ao 3.9 de uma vez. A API roda `alembic upgrade heads` sozinha ao
+subir (Dockerfile), então reconstruir a API aplica as migrações: o backup vem ANTES.
+1. Backup do banco (sem ele, nada segue):
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_dump -U aureum -Fc aureum > backups/aureum-AAAA-MM-DD.dump`
+   Restauração, se precisar:
+   `docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_restore -U aureum -d aureum --clean --if-exists < backups/aureum-AAAA-MM-DD.dump`
+2. Reconstruir e reiniciar a API (aplica as migrações):
+   `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
+   Migrações que entram: core a7c3e1f5b902 (EDIT_WHITEBOARD ao @everyone, 3.9A) e core
+   b8d4f2a6c731 (messages.embed, 3.9B); branches whiteboard (c2d8f4a6e310) e polls
+   (d5a9e3c7f164). Conferir: `... exec api alembic current` mostra uma linha por branch.
+3. Do 3.8: `docker compose ... exec api python -m app.cli badges grant-all beta_tester`
+   (mostra quantas contas e pergunta).
+4. Release do app (`npm run release`, 0.2.0-beta.6) só depois da API no ar: apps antigos
+   continuam funcionando com a API nova (enquete aparece como texto "📊 Enquete: …").
+
 ### Hook novo no framework (fazer antes da parte D; vai no começo da C)
 - AddonManifest ganha o hook opcional dated_items(session, workspace_ids, inicio, fim):
   itens genéricos com data (id, workspace_id, título, início, fim opcional, dia inteiro,
@@ -202,7 +221,15 @@ cor de destaque, alguém sem "Editar quadro branco" só vendo, Sobre › licenç
 - Testes: duas pessoas desenhando ao mesmo tempo sem perder traço; salvamento e reabertura;
   restaurar versão; sem permissão não edita (inclusive via API); exportar.
 
-### B. Enquetes (addon_key polls)
+### B. Enquetes (addon_key polls) ✅ concluída (teste manual pendente)
+Ver docs/decisions/0028-polls-and-chat-addons.md. Produção: ver a lista acumulada acima
+(migrações core b8d4f2a6c731 e branch polls; o worker de prazo sobe junto com a API).
+Teste manual: criar pelo "+" num canal de texto, numa DM e num grupo; votar em dois PCs e ver
+as barras mudarem ao vivo; mudar e tirar o voto; múltipla escolha; "Ver votos"; anônima não
+mostra quem votou; prazo de 1h (ou mudar closes_at no banco de teste) encerra sozinho com a
+linha "Enquete … encerrada: X venceu" e o "Ver" leva à enquete; encerrar antes (quem criou e um
+moderador; outro membro não vê o botão); apagar a mensagem some com a enquete; app antigo vê o
+texto "📊 Enquete: …".
 - Criada pelo "+" do campo de mensagem em qualquer canal de texto, DM ou grupo
   ("Criar enquete"); aparece como mensagem própria no chat.
 - Pergunta, 2 a 10 opções (texto + emoji opcional), escolha única ou múltipla, prazo

@@ -126,6 +126,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
 - A whiteboard add-on built on Excalidraw: several boards per channel, live strokes and cursors,
   following someone, autosave with per-element merging, images, versions to restore and PNG/SVG export.
   Editing has its own permission bit ([ADR 0027](decisions/0027-whiteboard-addon.md))
+- Polls in any chat (server text channel, DM or group), from the "+" of the message box: single or
+  multiple choice, optional deadline, anonymous or visible votes, live counts and a result line when
+  they close ([ADR 0028](decisions/0028-polls-and-chat-addons.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](decisions/0003-design-tokens-and-themes.md))
 
@@ -165,7 +168,9 @@ flowchart LR
   separate Alembic branches, applied with `alembic upgrade heads`. Add-on tables hang off a generic
   `workspace_id`, so an add-on like the Kanban board doesn't depend on servers or channels. Add-ons
   can also take WebSocket messages (`addon.<key>.<name>`) and send events only to the connections
-  in a "room", such as the people with one whiteboard open.
+  in a "room", such as the people with one whiteboard open. Some add-ons live in chats instead of a
+  channel (polls): their things are messages that carry them (`messages.embed`), and they reach the
+  chat through the same kind of helper (`addon_chat`).
 - **Media**: the API issues a LiveKit token per voice channel (room = channel id, identity = user id) and
   returns the LiveKit URL with it, so the desktop app holds no media secrets. LiveKit can be self-hosted
   (included in compose) or LiveKit Cloud.
