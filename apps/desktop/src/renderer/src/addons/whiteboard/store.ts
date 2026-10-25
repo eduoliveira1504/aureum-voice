@@ -59,6 +59,8 @@ interface WhiteboardState {
   create(channelId: string, name: string): Promise<BoardSummary>
   update(channelId: string, boardId: string, fields: Partial<{ name: string; background: Background; archived: boolean }>): Promise<void>
   duplicate(channelId: string, boardId: string): Promise<BoardSummary>
+  /** For good (whoever created it, or who can manage addons). */
+  remove(channelId: string, boardId: string): Promise<void>
 }
 
 export const useWhiteboard = create<WhiteboardState>()((set) => {
@@ -66,6 +68,11 @@ export const useWhiteboard = create<WhiteboardState>()((set) => {
     set((s) => {
       const list = s.lists[channelId]
       return list ? { lists: { ...s.lists, [channelId]: { ...list, boards: upsert(list.boards, board) } } } : s
+    })
+  const drop = (channelId: string, boardId: string): void =>
+    set((s) => {
+      const list = s.lists[channelId]
+      return list ? { lists: { ...s.lists, [channelId]: { ...list, boards: list.boards.filter((b) => b.id !== boardId) } } } : s
     })
   return {
     lists: {},
@@ -78,6 +85,8 @@ export const useWhiteboard = create<WhiteboardState>()((set) => {
     apply: (type, data) => {
       if (type === 'addon.whiteboard.board.created' || type === 'addon.whiteboard.board.updated') {
         put(data.channel_id as string, data as unknown as BoardSummary)
+      } else if (type === 'addon.whiteboard.board.deleted') {
+        drop(data.channel_id as string, data.id as string)
       }
     },
 
@@ -95,6 +104,11 @@ export const useWhiteboard = create<WhiteboardState>()((set) => {
       const board = await api<BoardSummary>(whiteboardPath(channelId, `/boards/${boardId}/duplicate`), { method: 'POST' })
       put(channelId, board)
       return board
+    },
+
+    remove: async (channelId, boardId) => {
+      await api(whiteboardPath(channelId, `/boards/${boardId}`), { method: 'DELETE' })
+      drop(channelId, boardId)
     }
   }
 })

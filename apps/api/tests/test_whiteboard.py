@@ -448,3 +448,27 @@ async def test_creating_a_board_posts_a_system_line(client: AsyncClient) -> None
     assert line["author"]["id"] == member.id
     assert line["system"]["addon_key"] == "whiteboard" and line["system"]["source_channel_id"] == cid
     assert line["system"]["lines"] == ["criou o quadro “Mapa do jogo”"]
+
+
+async def test_deleting_a_board(client: AsyncClient) -> None:
+    owner, ana, bia = [await make_user(client, n) for n in ("owner", "ana", "bia")]
+    sid = (await make_server(owner, ana, bia))["id"]
+    cid = await whiteboard_channel(owner, sid)
+    mine = await new_board(ana, cid, "Da Ana")
+    other = await new_board(bia, cid, "Da Bia")
+
+    # Someone else's board: archive, not delete.
+    assert (await ana.delete(url(cid, f"/boards/{other['id']}"))).status_code == 403
+    async with ws_client() as wsc, aconnect_ws(ws_url(bia), wsc) as bws:
+        await next_event(bws, "ready")
+        assert (await ana.delete(url(cid, f"/boards/{mine['id']}"))).status_code == 204
+        assert (await next_event(bws, "addon.whiteboard.board.deleted"))["id"] == mine["id"]
+    assert (await ana.get(url(cid, f"/boards/{mine['id']}"))).status_code == 404
+    # Who can manage addons deletes anyone's.
+    assert (await owner.delete(url(cid, f"/boards/{other['id']}"))).status_code == 204
+    assert [b["id"] for b in (await owner.get(url(cid, "/boards"))).json()["boards"]] == []
+    assert await board_rows() == 0
+    # Without "Editar quadro branco", not even one's own.
+    own = await new_board(bia, cid, "Outra")
+    await owner.put(f"/channels/{cid}/overrides/member/{bia.id}", {"deny": int(Perm.EDIT_WHITEBOARD)})
+    assert (await bia.delete(url(cid, f"/boards/{own['id']}"))).status_code == 403

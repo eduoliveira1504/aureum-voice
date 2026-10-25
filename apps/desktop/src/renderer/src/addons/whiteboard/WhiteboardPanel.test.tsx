@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type Channel, type Me, type ServerDetail } from '../../lib/api'
@@ -77,6 +77,31 @@ describe('whiteboard list', () => {
       channel_id: 'c1'
     })
     expect(useWhiteboard.getState().lists.c1.boards.map((b) => b.name)).toEqual(['Mapa novo', 'Ideias'])
+  })
+})
+
+describe('deleting a board', () => {
+  it('is offered on my own boards, asks first and removes it', async () => {
+    show([board('b1', 'Minha'), board('b2', 'Da Bia', { created_by: 'u2' })])
+    await screen.findByText('Minha')
+    const [mine, theirs] = screen.getAllByLabelText('Opções do quadro')
+    fireEvent.click(theirs)
+    expect(screen.queryByText('Excluir')).toBeNull()
+    fireEvent.click(theirs)
+    fireEvent.click(mine)
+    fireEvent.click(screen.getByText('Excluir'))
+    vi.mocked(api).mockResolvedValueOnce(undefined)
+    fireEvent.click(screen.getByText('Excluir', { selector: 'button[type="button"]:not([role])' }))
+    await waitFor(() => expect(screen.queryByText('Minha')).toBeNull())
+    expect(vi.mocked(api)).toHaveBeenCalledWith('/addons/whiteboard/channels/c1/boards/b1', { method: 'DELETE' })
+    expect(screen.getByText('Da Bia')).toBeTruthy()
+  })
+
+  it('drops a board deleted by someone else', async () => {
+    show([board('b1', 'Ideias'), board('b2', 'Mapa')])
+    await screen.findByText('Mapa')
+    act(() => useWhiteboard.getState().apply('addon.whiteboard.board.deleted', { channel_id: 'c1', id: 'b2' }))
+    expect(screen.queryByText('Mapa')).toBeNull()
   })
 })
 

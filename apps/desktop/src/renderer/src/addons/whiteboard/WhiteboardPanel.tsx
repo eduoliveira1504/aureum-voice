@@ -1,9 +1,11 @@
-import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Copy, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronDown, ChevronRight, Copy, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
+import { ConfirmModal } from '../../components/modals'
 import { inputClass, MenuItem, menuClass, useDismiss } from '../../components/ui'
 import { api, ApiError, type User } from '../../lib/api'
 import { serverPeople } from '../../lib/members'
+import { has, Perm } from '../../lib/permissions'
 import type { AddonViewProps } from '../types'
 import { BoardThumbnail, editedLabel } from './bits'
 import type { SyncStatus } from './BoardSync'
@@ -24,7 +26,7 @@ const failure = (err: unknown): string =>
   err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar a mudança.'
 
 /** Several boards per channel: the list, and the board open in place of it. */
-export function WhiteboardPanel({ server, channel, openItem, onItemOpened }: AddonViewProps): ReactNode {
+export function WhiteboardPanel({ server, channel, me, perms, openItem, onItemOpened }: AddonViewProps): ReactNode {
   const list = useWhiteboard((s) => s.lists[channel.id])
   const people = useMemo(() => serverPeople(server), [server])
   const [open, setOpen] = useState<string | null>(null)
@@ -45,7 +47,17 @@ export function WhiteboardPanel({ server, channel, openItem, onItemOpened }: Add
     onItemOpened?.()
   }, [openItem, onItemOpened])
 
-  if (open) return <BoardView key={open} channelId={channel.id} boardId={open} people={people} onBack={() => setOpen(null)} />
+  // The open board was deleted (here or by someone else): back to the list.
+  const gone = !!open && !!list && !list.boards.some((b) => b.id === open)
+  useEffect(() => {
+    if (!gone) return
+    setOpen(null)
+    setError('Esse quadro foi excluído.')
+  }, [gone])
+  // Deleting is for whoever created the board, or who can manage addons; the others archive.
+  const canDelete = (board: BoardSummary): boolean => board.created_by === me.id || has(perms, Perm.MANAGE_ADDONS)
+
+  if (open && !gone) return <BoardView key={open} channelId={channel.id} boardId={open} people={people} onBack={() => setOpen(null)} />
   if (!list) {
     return <div className="flex flex-1 items-center justify-center bg-main text-sm text-fg-subtle">{error ?? 'Carregando os quadros…'}</div>
   }
@@ -58,6 +70,7 @@ export function WhiteboardPanel({ server, channel, openItem, onItemOpened }: Add
       error={error}
       onError={setError}
       onOpen={setOpen}
+      canDelete={canDelete}
     />
   )
 }
@@ -69,7 +82,8 @@ function BoardList({
   people,
   error,
   onError,
-  onOpen
+  onOpen,
+  canDelete
 }: {
   channelId: string
   boards: BoardSummary[]
@@ -78,6 +92,7 @@ function BoardList({
   error: string | null
   onError(message: string | null): void
   onOpen(boardId: string): void
+  canDelete(board: BoardSummary): boolean
 }): ReactNode {
   const [creating, setCreating] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
@@ -126,7 +141,16 @@ function BoardList({
         )}
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
           {active.map((board) => (
-            <BoardCard key={board.id} channelId={channelId} board={board} canEdit={canEdit} people={people} onOpen={onOpen} onError={onError} />
+            <BoardCard
+              key={board.id}
+              channelId={channelId}
+              board={board}
+              canEdit={canEdit}
+              canDelete={canEdit && canDelete(board)}
+              people={people}
+              onOpen={onOpen}
+              onError={onError}
+            />
           ))}
         </ul>
         {!!archived.length && (
@@ -141,7 +165,16 @@ function BoardList({
             {showArchived && (
               <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 opacity-80">
                 {archived.map((board) => (
-                  <BoardCard key={board.id} channelId={channelId} board={board} canEdit={canEdit} people={people} onOpen={onOpen} onError={onError} />
+                  <BoardCard
+              key={board.id}
+              channelId={channelId}
+              board={board}
+              canEdit={canEdit}
+              canDelete={canEdit && canDelete(board)}
+              people={people}
+              onOpen={onOpen}
+              onError={onError}
+            />
                 ))}
               </ul>
             )}
@@ -156,6 +189,7 @@ function BoardCard({
   channelId,
   board,
   canEdit,
+  canDelete,
   people,
   onOpen,
   onError
@@ -163,12 +197,14 @@ function BoardCard({
   channelId: string
   board: BoardSummary
   canEdit: boolean
+  canDelete: boolean
   people: Map<string, User>
   onOpen(boardId: string): void
   onError(message: string | null): void
 }): ReactNode {
   const [menu, setMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setMenu(false), [])
   useDismiss(ref, menu, close)
@@ -232,9 +268,29 @@ function BoardCard({
               ) : (
                 <MenuItem icon={Archive} label="Arquivar" onClick={() => run(() => store.update(channelId, board.id, { archived: true }))} />
               )}
+              {canDelete && (
+                <MenuItem
+                  icon={Trash2}
+                  label="Excluir"
+                  danger
+                  onClick={() => {
+                    setMenu(false)
+                    setDeleting(true)
+                  }}
+                />
+              )}
             </div>
           )}
         </div>
+      )}
+      {deleting && (
+        <ConfirmModal
+          title="Excluir quadro"
+          message={`“${board.name}” e as versões dele somem para todo mundo. Isso não pode ser desfeito. Para só tirar da lista, use Arquivar.`}
+          confirmLabel="Excluir"
+          onConfirm={() => store.remove(channelId, board.id)}
+          onClose={() => setDeleting(false)}
+        />
       )}
     </li>
   )

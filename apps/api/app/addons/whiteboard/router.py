@@ -305,6 +305,23 @@ async def update_board(
     return out
 
 
+@router.delete("/channels/{channel_id}/boards/{board_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_board(channel_id: uuid.UUID, board_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
+    """For good, with its versions. Only whoever created it, or who can manage addons here; the
+    others archive. Images stay: they belong to the channel and duplicates may use them."""
+    ctx = await addon_channel(session, manifest, channel_id, user.id, "edit")
+    board = await _board(session, ctx, board_id, lock=True)
+    if board.created_by != user.id and not ctx.access.channel(ctx.channel) & Perm.MANAGE_ADDONS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only who created the board can delete it")
+    thumbnail = board.thumbnail_key
+    await session.delete(board)
+    await session.commit()
+    if thumbnail:
+        await storage.delete(thumbnail)
+    await ctx.publish("board.deleted", {"id": str(board_id)})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post(
     "/channels/{channel_id}/boards/{board_id}/duplicate", response_model=BoardSummary, status_code=status.HTTP_201_CREATED
 )
