@@ -1,5 +1,6 @@
 """The whiteboard addon: boards, scenes and sync, images, versions, permissions, live events."""
 
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -358,6 +359,9 @@ async def test_live_drawing_and_cursors(client: AsyncClient) -> None:
         for ws in (a, b, c):
             await next_event(ws, "ready")
         await send(a, "join", channel_id=cid, board_id=bid, origin="A")
+        # Each connection's messages are handled on their own: without a pause, Bia's join can
+        # land before Ana is in the room, and Ana never hears of it.
+        await asyncio.sleep(0.3)
         await send(b, "join", channel_id=cid, board_id=bid, origin="B")
         joined = await next_event(a, "addon.whiteboard.peer.joined")
         assert (joined["user_id"], joined["origin"], joined["board_id"]) == (bia.id, "B", bid)
