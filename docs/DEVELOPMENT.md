@@ -123,6 +123,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   progress card on the server overview. Card moves can be announced as system lines in a chosen
   text channel, with a warning when that channel is seen by people who can't see the board
   ([ADR 0014](decisions/0014-kanban-addon.md))
+- A whiteboard add-on built on Excalidraw: several boards per channel, live strokes and cursors,
+  following someone, autosave with per-element merging, images, versions to restore and PNG/SVG export.
+  Editing has its own permission bit ([ADR 0027](decisions/0027-whiteboard-addon.md))
 - Dark and light themes (or follow Windows) and a custom accent color, saved per user on the server; text
   on and in the accent keeps WCAG AA contrast automatically ([ADR 0003](decisions/0003-design-tokens-and-themes.md))
 
@@ -160,7 +163,9 @@ flowchart LR
   `apps/desktop/src/renderer/src/addons/<key>`. Add-on code reaches channels only through a shared
   helper that checks permissions, so add-ons never reimplement access control. Their migrations are
   separate Alembic branches, applied with `alembic upgrade heads`. Add-on tables hang off a generic
-  `workspace_id`, so an add-on like the Kanban board doesn't depend on servers or channels.
+  `workspace_id`, so an add-on like the Kanban board doesn't depend on servers or channels. Add-ons
+  can also take WebSocket messages (`addon.<key>.<name>`) and send events only to the connections
+  in a "room", such as the people with one whiteboard open.
 - **Media**: the API issues a LiveKit token per voice channel (room = channel id, identity = user id) and
   returns the LiveKit URL with it, so the desktop app holds no media secrets. LiveKit can be self-hosted
   (included in compose) or LiveKit Cloud.

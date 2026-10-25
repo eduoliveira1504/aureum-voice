@@ -19,8 +19,10 @@ backups/aureum-2026-10-21b.dump). 3.6 e 3.7 prontos em 25/10 (só app, sem API n
 ainda não publicados. 3.8 pronto em 25/10 (só API, sem migração), ainda não em produção: falta
 reiniciar a API e rodar o badges grant-all com OK do Eduardo. Testes manuais pendentes listados no
 3.1, no 3.2, no 3.4, no 3.5, no 3.6 e no 3.7. Reorganização em 24/10/2026: blocos a partir do 3.6
-renumerados.
-Próximo: 3.9 (Leva de addons), parte A (Quadro branco).
+renumerados. 3.9 parte A (Quadro branco) pronta em 25/10 (API com 2 migrações: core
+a7c3e1f5b902 e branch whiteboard; app com Excalidraw), ainda não em produção nem publicada; teste
+manual pendente listado na parte A.
+Próximo: 3.9 parte B (Enquetes).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -166,13 +168,19 @@ Todos no framework do 2.8 (módulo isolado, tabelas addon_<key>_, workspace_id g
 sem dependência direta de servidor dentro do módulo). Fazer na ordem A → D; cada parte
 pode virar release sozinha.
 
-### Hook novo no framework (fazer antes da parte D, pode ser já na A)
+### Hook novo no framework (fazer antes da parte D; vai no começo da C)
 - AddonManifest ganha o hook opcional dated_items(session, workspace_ids, inicio, fim):
   itens genéricos com data (id, workspace_id, título, início, fim opcional, dia inteiro,
   tipo, cor, link para abrir no addon). Mesmo padrão do hook "assigned" do 3.4.
 - Kanban implementa: cards com prazo (não concluídos e concluídos, marcados diferente).
 
-### A. Quadro branco (addon_key whiteboard)
+### A. Quadro branco (addon_key whiteboard) ✅ concluída (teste manual pendente)
+Ver docs/decisions/0027-whiteboard-addon.md. Kanban passou a se chamar "Kanban" no app.
+Produção: backup, depois `alembic upgrade heads` (core a7c3e1f5b902 dá EDIT_WHITEBOARD ao
+@everyone; branch whiteboard cria as tabelas) e reiniciar a API, com OK do Eduardo.
+Teste manual: dois PCs no mesmo quadro (traço ao vivo, cursores, seguir), imagem colada,
+exportar PNG/SVG, Copiar como imagem e colar no chat, restaurar versão, tema claro/escuro e
+cor de destaque, alguém sem "Editar quadro branco" só vendo, Sobre › licenças.
 - Base: Excalidraw (MIT) embutido; perguntar antes. Desligar qualquer recurso de IA da
   biblioteca (princípio do produto). Fontes e arquivos empacotados no app, nada de CDN.
 - Ferramentas: caneta livre, formas, setas, texto, nota adesiva, imagem, borracha,
