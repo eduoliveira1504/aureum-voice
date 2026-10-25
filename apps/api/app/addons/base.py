@@ -31,8 +31,9 @@ log = logging.getLogger(__name__)
 ANNOUNCE_MERGE_WINDOW = timedelta(minutes=2)
 ANNOUNCE_MAX_LINES = 20
 
-# Removes an addon's data for a workspace that is going away (its channel or server was deleted).
-CleanupHook = Callable[[AsyncSession, list[uuid.UUID]], Awaitable[None]]
+# Removes an addon's data for workspaces that are going away (their channel or server was deleted),
+# in the caller's transaction. It may return object storage keys, deleted once that commits.
+CleanupHook = Callable[[AsyncSession, list[uuid.UUID]], Awaitable[list[str] | None]]
 
 
 class ItemLabel(BaseModel):

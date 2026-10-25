@@ -245,8 +245,8 @@ async def delete_server(server_id: uuid.UUID, user: CurrentUser, session: Sessio
     addon_channels = await session.execute(
         select(Channel.addon_key, Channel.id).where(Channel.server_id == server_id, Channel.type == ChannelType.addon)
     )
-    await addons.cleanup(session, addon_channels.tuples())
-    files = await attachments.keys_of_channels(
+    files = await addons.cleanup(session, addon_channels.tuples())
+    files += await attachments.keys_of_channels(
         session, await session.scalars(select(Channel.id).where(Channel.server_id == server_id))
     )
     await session.delete(server)

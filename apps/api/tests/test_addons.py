@@ -49,7 +49,7 @@ def test_every_addon_migration_folder_is_in_alembic_ini() -> None:
 async def test_registry_lists_the_addons(client: AsyncClient) -> None:
     user = await make_user(client, "user")
     addons = {a["key"]: a for a in (await user.get("/addons")).json()}
-    assert set(addons) == {"kanban"}
+    assert set(addons) == {"kanban", "whiteboard"}
     kanban = addons["kanban"]
     assert kanban["permissions"] == {
         "view": int(Perm.VIEW_CHANNEL),
@@ -57,6 +57,7 @@ async def test_registry_lists_the_addons(client: AsyncClient) -> None:
         "manage": int(Perm.MANAGE_ADDONS),
     }
     assert kanban["config_schema"] is None and kanban["announces"] is True
+    assert addons["whiteboard"]["permissions"] == {"view": int(Perm.VIEW_CHANNEL), "edit": int(Perm.EDIT_WHITEBOARD)}
 
 
 async def test_create_an_addon_channel(client: AsyncClient) -> None:

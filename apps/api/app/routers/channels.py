@@ -94,14 +94,15 @@ async def _check_announce_channel(
 async def delete_channel(channel_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
     channel, access = await get_channel_for_member(session, channel_id, user.id)
     access.require_in(channel, Perm.MANAGE_CHANNELS)
+    files: list[str] = []
     if channel.type == ChannelType.addon:
         # Deleting an addon channel also deletes the addon's data in it.
         access.require_in(channel, Perm.MANAGE_ADDONS)
-        await addons.cleanup(session, [(channel.addon_key, channel.id)])
+        files += await addons.cleanup(session, [(channel.addon_key, channel.id)])
     server_id = channel.server_id
     assert server_id is not None
     recipients = await channel_viewers(session, channel)
-    files = await attachments.keys_of_channels(session, [channel.id])
+    files += await attachments.keys_of_channels(session, [channel.id])
     await session.delete(channel)
     await session.commit()
     await attachments.delete_keys(files)
