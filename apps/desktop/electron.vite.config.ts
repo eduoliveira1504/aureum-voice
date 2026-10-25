@@ -25,29 +25,25 @@ function base64Import(): Plugin {
   }
 }
 
-const EXCALIDRAW_FONTS = resolve(__dirname, 'node_modules/@excalidraw/excalidraw/dist/prod/fonts')
-// Xiaolai (13 MB of Chinese handwriting) stays out; CJK text falls back to the system's fonts.
-const SKIPPED_FONTS = new Set(['Xiaolai'])
-
 /**
- * The whiteboard's fonts (Excalidraw's), shipped with the app at excalidraw/fonts/ instead of
- * coming from Excalidraw's CDN: served by the dev server and copied into the build.
+ * Files from a package shipped with the app at `url`/ instead of coming from a CDN: served by the
+ * dev server and copied into the build. Only files ending in `ext`; `skip` leaves out top-level folders.
  */
-function excalidrawFonts(): Plugin {
+function vendorFiles({ url, dir, ext, type, skip = new Set() }: { url: string; dir: string; ext: string; type: string; skip?: Set<string> }): Plugin {
   const files = async (): Promise<string[]> =>
-    (await readdir(EXCALIDRAW_FONTS, { recursive: true, withFileTypes: true }))
-      .filter((f) => f.isFile())
-      .map((f) => relative(EXCALIDRAW_FONTS, resolve(f.parentPath, f.name)).split(sep).join('/'))
-      .filter((path) => !SKIPPED_FONTS.has(path.split('/')[0]))
+    (await readdir(dir, { recursive: true, withFileTypes: true }))
+      .filter((f) => f.isFile() && f.name.endsWith(ext))
+      .map((f) => relative(dir, resolve(f.parentPath, f.name)).split(sep).join('/'))
+      .filter((path) => !skip.has(path.split('/')[0]))
   return {
-    name: 'aureum:excalidraw-fonts',
+    name: `aureum:vendor:${url}`,
     configureServer(server) {
-      server.middlewares.use('/excalidraw/fonts/', (req, res, next) => {
+      server.middlewares.use(`/${url}/`, (req, res, next) => {
         const path = decodeURIComponent((req.url ?? '').split('?')[0]).replace(/^\/+/, '')
-        if (path.includes('..') || SKIPPED_FONTS.has(path.split('/')[0])) return next()
+        if (path.includes('..') || skip.has(path.split('/')[0])) return next()
         try {
-          res.setHeader('Content-Type', 'font/woff2')
-          res.end(readFileSync(resolve(EXCALIDRAW_FONTS, path)))
+          res.setHeader('Content-Type', type)
+          res.end(readFileSync(resolve(dir, path)))
         } catch {
           next()
         }
@@ -55,8 +51,38 @@ function excalidrawFonts(): Plugin {
     },
     async generateBundle() {
       for (const path of await files()) {
-        this.emitFile({ type: 'asset', fileName: `excalidraw/fonts/${path}`, source: await readFile(resolve(EXCALIDRAW_FONTS, path)) })
+        this.emitFile({ type: 'asset', fileName: `${url}/${path}`, source: await readFile(resolve(dir, path)) })
       }
+    }
+  }
+}
+
+// The whiteboard's fonts (Excalidraw's). Xiaolai (13 MB of Chinese handwriting) stays out; CJK
+// text falls back to the system's fonts.
+const excalidrawFonts = (): Plugin =>
+  vendorFiles({
+    url: 'excalidraw/fonts',
+    dir: resolve(__dirname, 'node_modules/@excalidraw/excalidraw/dist/prod/fonts'),
+    ext: '.woff2',
+    type: 'font/woff2',
+    skip: new Set(['Xiaolai'])
+  })
+
+// Emojis look the same on every PC: Twemoji's drawings (CC-BY 4.0), see lib/emoji.ts.
+const TWEMOJI = resolve(__dirname, 'node_modules/@twemoji/svg')
+const twemoji = (): Plugin => vendorFiles({ url: 'twemoji', dir: TWEMOJI, ext: '.svg', type: 'image/svg+xml' })
+
+/** `import names from 'virtual:twemoji-names'`: the drawings Twemoji has ("1f525", ...), so the
+ * picker leaves out emojis it can't draw yet. Also used by the tests (vitest.config.mts). */
+export function twemojiNames(): Plugin {
+  const id = 'virtual:twemoji-names'
+  return {
+    name: 'aureum:twemoji-names',
+    resolveId: (source) => (source === id ? `\0${id}` : null),
+    async load(source) {
+      if (source !== `\0${id}`) return null
+      const names = (await readdir(TWEMOJI)).filter((f) => f.endsWith('.svg')).map((f) => f.slice(0, -4))
+      return `export default ${JSON.stringify(names)}`
     }
   }
 }
@@ -65,7 +91,7 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
-    plugins: [base64Import(), excalidrawFonts(), react(), tailwindcss()],
+    plugins: [base64Import(), excalidrawFonts(), twemoji(), twemojiNames(), react(), tailwindcss()],
     // The repo's CHANGELOG.md is built into the app (Novidades in Home); the dev server may read it.
     server: { fs: { allow: [resolve(__dirname, '../..')] } }
   }

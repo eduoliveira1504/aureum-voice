@@ -1,4 +1,4 @@
-import { Forward, Hash, Paperclip, Phone, PhoneMissed, Plus, Trash2 } from 'lucide-react'
+import { Forward, Hash, Paperclip, Phone, PhoneMissed, Plus, Smile, Trash2 } from 'lucide-react'
 import {
   Fragment,
   useEffect,
@@ -31,6 +31,8 @@ import { contextMenu, Item, openMenuAt, showDialog, toast } from './ContextMenu'
 import { MESSAGE_LINK, MessageActionBar, messageKeys, MessageMenu, openMessageLink, type MessageActions } from './MessageActions'
 import { ReplyBar, ReplyQuote } from './MessageReply'
 import { ForwardModal } from './ForwardModal'
+import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
+import { isEmojiOnly } from '../lib/emoji'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
@@ -150,7 +152,13 @@ function Linkified({
   const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]|aureum:\/\/mensagem\/[0-9a-f-]{36}\/\d+)/g)
   const plain = (part: string): ReactNode[] =>
     part.split(CHANNEL_MENTION).map((piece, j) =>
-      j % 2 === 1 ? <ChannelMention key={j} id={piece} /> : <Fragment key={j}>{withMentions(piece, mention)}</Fragment>
+      j % 2 === 1 ? (
+        <ChannelMention key={j} id={piece} />
+      ) : (
+        <Fragment key={j}>
+          {withMentions(piece, mention).map((node, k) => (typeof node === 'string' ? <EmojiText key={k} text={node} /> : <Fragment key={k}>{node}</Fragment>))}
+        </Fragment>
+      )
     )
   return parts.map((part, i) => {
     const messageLink = i % 2 === 1 && part.match(MESSAGE_LINK)
@@ -785,7 +793,14 @@ function MessageRow({
         ) : body ? (
           body
         ) : (
-          message.content && (
+          message.content &&
+          (isEmojiOnly(message.content) ? (
+            // Just 1 to 3 emojis: big, without the bubble.
+            <p title={grouped ? formatTimestamp(message.created_at) : undefined} className="select-text py-0.5 leading-none">
+              <EmojiText text={message.content.trim()} size={44} />
+              {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+            </p>
+          ) : (
             <div
               title={grouped ? formatTimestamp(message.created_at) : undefined}
               className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
@@ -795,7 +810,7 @@ function MessageRow({
                 {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
               </p>
             </div>
-          )
+          ))
         )}
         {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
         {extra}
@@ -926,6 +941,21 @@ function Composer({
   const filesRef = useRef(files)
   filesRef.current = files
   const input = useRef<HTMLTextAreaElement>(null)
+  const [caret, setCaret] = useState(0)
+  const readCaret = (): void => setCaret(input.current?.selectionStart ?? 0)
+
+  /** Puts an emoji in place of text[start, end) and the cursor right after it. */
+  function putEmoji(start: number, end: number, emoji: string): void {
+    const text = input.current?.value ?? value
+    setValue(text.slice(0, start) + emoji + text.slice(end))
+    const at = start + emoji.length
+    requestAnimationFrame(() => {
+      input.current?.focus()
+      input.current?.setSelectionRange(at, at)
+      setCaret(at)
+    })
+  }
+  const autocomplete = useEmojiAutocomplete(value, caret, putEmoji)
 
   // Picking "Responder" puts the cursor in the box.
   useEffect(() => {
@@ -1035,6 +1065,7 @@ function Composer({
   const voice = useVoiceMessage(sendVoice, setError)
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (autocomplete.onKeyDown(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       void send()
@@ -1091,16 +1122,35 @@ function Composer({
           </>
         )}
         <div className="relative min-w-0 flex-1">
+          {autocomplete.popup}
           <AutoTextarea
             key={channel.id}
             inputRef={input}
             autoFocus
             value={value}
-            onChange={setValue}
+            onChange={(v) => {
+              setValue(v)
+              readCaret()
+            }}
+            onSelect={readCaret}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder={placeholder}
+            roomRight
           />
+          <button
+            type="button"
+            title="Emojis"
+            aria-label="Emojis"
+            onClick={(e) => {
+              const el = input.current
+              const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
+              pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji))
+            }}
+            className="absolute bottom-1.5 right-2 rounded-item p-1.5 text-fg-subtle hover:text-fg"
+          >
+            <Smile size={20} />
+          </button>
           {voice.bar}
         </div>
         {canAttach && voice.button}
@@ -1121,9 +1171,14 @@ function AutoTextarea({
   onPaste,
   placeholder,
   autoFocus,
-  inputRef
+  inputRef,
+  onSelect,
+  roomRight = false
 }: {
   inputRef?: RefObject<HTMLTextAreaElement | null>
+  onSelect?: () => void
+  /** Leaves room on the right for a button over the box (the emoji picker's). */
+  roomRight?: boolean
   value: string
   onChange(v: string): void
   onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void
@@ -1152,7 +1207,8 @@ function AutoTextarea({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
-      className="block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60"
+      onSelect={onSelect}
+      className={`block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60 ${roomRight ? 'pr-11' : ''}`}
     />
   )
 }

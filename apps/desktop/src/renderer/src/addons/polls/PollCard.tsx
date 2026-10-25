@@ -1,6 +1,7 @@
 import { Check, ChartBar, EyeOff } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
+import { Emoji } from '../../components/Emoji'
 import { Modal } from '../../components/Modal'
 import { Avatar } from '../../components/ui'
 import type { ChatEmbedProps } from '../types'
@@ -118,7 +119,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
                   {mine && <Check size={11} strokeWidth={3} />}
                 </span>
                 <span className={`relative min-w-0 flex-1 break-words ${winner ? 'font-semibold' : ''}`}>
-                  {option.emoji && <span className="mr-1.5">{option.emoji}</span>}
+                  {option.emoji && <Emoji emoji={option.emoji} className="mr-1.5" />}
                   {option.text}
                 </span>
                 <span className="relative shrink-0 text-xs tabular-nums text-fg-muted">
@@ -168,7 +169,7 @@ function VotersModal({
         {poll.options.map((option) => (
           <section key={option.id}>
             <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-              {option.emoji && <span className="mr-1">{option.emoji}</span>}
+              {option.emoji && <Emoji emoji={option.emoji} className="mr-1" />}
               {option.text} · {option.votes}
             </h3>
             {option.voter_ids?.length ? (

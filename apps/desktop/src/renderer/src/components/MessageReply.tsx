@@ -2,6 +2,7 @@ import { AtSign, Reply, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import type { Message, ReplyRef } from '../lib/api'
+import { EmojiText } from './Emoji'
 import { Avatar } from './ui'
 
 const MEDIA_LABEL: Record<NonNullable<ReplyRef['media']>, string> = {
@@ -51,7 +52,9 @@ export function ReplyQuote({
       <Reply size={14} className="shrink-0 text-fg-subtle" />
       <Avatar name={name} url={ref.author?.avatar_url} size={16} />
       <span className="shrink-0 font-semibold">{name}</span>
-      <span className="min-w-0 truncate">{replySnippet(ref)}</span>
+      <span className="min-w-0 truncate">
+        <EmojiText text={replySnippet(ref)} />
+      </span>
     </button>
   )
 }
@@ -81,7 +84,12 @@ export function ReplyBar({
       <Reply size={16} className="shrink-0 text-fg-subtle" />
       <p className="min-w-0 flex-1 truncate text-fg-muted">
         Respondendo a <span className="font-semibold text-fg">@{name}</span>
-        {snippet && <span className="text-fg-subtle"> · {snippet}</span>}
+        {snippet && (
+          <span className="text-fg-subtle">
+            {' · '}
+            <EmojiText text={snippet} />
+          </span>
+        )}
       </p>
       {mention !== null && (
         <button

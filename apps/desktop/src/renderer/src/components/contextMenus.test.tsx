@@ -14,6 +14,7 @@ import { useSocial } from '../store/social'
 import { ChatView } from './ChatView'
 import { closeContextMenu, ContextMenuHost } from './ContextMenu'
 import { DmView } from './DmView'
+import { EmojiPickerHost } from './Emoji'
 import { openMessageLink } from './MessageActions'
 import { MemberList } from './MemberList'
 import { ProfileView } from './ProfileCard'
@@ -402,5 +403,50 @@ describe('forwarding', () => {
     expect(screen.getByText('Encaminhada')).toBeTruthy()
     expect(screen.getByText('segredo')).toBeTruthy()
     expect(screen.getByText(/de uma conversa privada/)).toBeTruthy()
+  })
+})
+
+describe('emojis in the chat', () => {
+  const showChat = (): void =>
+    show(
+      <>
+        <EmojiPickerHost />
+        <ChatView channel={TEXT} me={ME} canModerate={false} />
+      </>
+    )
+
+  it('suggests emojis after ":" + 2 letters and puts the chosen one in place', async () => {
+    showChat()
+    const box = screen.getByPlaceholderText('Conversar em #geral') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: 'que :fog' } })
+    const list = await screen.findByRole('listbox', { name: 'Emojis' })
+    expect(within(list).getAllByRole('option')[0].textContent).toContain(':fogo:')
+    await act(async () => fireEvent.keyDown(box, { key: 'Enter' }))
+    expect(box.value).toBe('que 🔥')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('inserts a picked emoji where the cursor is', async () => {
+    showChat()
+    const box = screen.getByPlaceholderText('Conversar em #geral') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: 'bom dia' } })
+    box.setSelectionRange(3, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Emojis' }))
+    fireEvent.change(await screen.findByLabelText('Buscar emoji'), { target: { value: 'sol' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'sol' }))
+    expect(box.value).toBe('bom☀️ dia')
+    expect(screen.queryByRole('dialog', { name: 'Escolher emoji' })).toBeNull()
+  })
+
+  it('draws emojis with Twemoji and shows 1 to 3 alone big', () => {
+    useChat.setState((s) => ({
+      messages: { ...s.messages, [TEXT.id]: { ...s.messages[TEXT.id], items: [message(5, ANA, 'bora 🔥'), message(6, ANA, '😂😂')] } }
+    }))
+    showChat()
+    const inText = screen.getAllByAltText('🔥')[0] as HTMLImageElement
+    expect(inText.getAttribute('src')).toBe('twemoji/1f525.svg')
+    const big = screen.getAllByAltText('😂')
+    expect(big).toHaveLength(2)
+    expect(big[0].style.width).toBe('44px')
   })
 })

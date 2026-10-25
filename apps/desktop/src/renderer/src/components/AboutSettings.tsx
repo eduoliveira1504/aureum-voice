@@ -10,6 +10,14 @@ const CREDITS: { name: string; what: string; license: string; url: string }[] = 
   { name: 'LiveKit', what: 'Voz, câmera e tela', license: 'Apache-2.0', url: 'https://github.com/livekit/client-sdk-js' },
   { name: 'RNNoise (web-noise-suppressor)', what: 'Supressão de ruído', license: 'MIT', url: 'https://github.com/sapphi-red/web-noise-suppressor' },
   { name: 'Lucide', what: 'Ícones', license: 'ISC', url: 'https://github.com/lucide-icons/lucide' },
+  {
+    name: 'Twemoji',
+    what: 'Desenhos dos emojis (Copyright Twitter, Inc. e colaboradores)',
+    license: 'CC-BY 4.0',
+    url: 'https://github.com/jdecked/twemoji'
+  },
+  { name: 'Emojibase', what: 'Nomes dos emojis em português', license: 'MIT', url: 'https://github.com/milesj/emojibase' },
+  { name: 'tailwind-merge', what: 'Estilos', license: 'MIT', url: 'https://github.com/dcastil/tailwind-merge' },
   { name: 'Zustand', what: 'Estado do app', license: 'MIT', url: 'https://github.com/pmndrs/zustand' },
   { name: 'Tailwind CSS', what: 'Estilos', license: 'MIT', url: 'https://github.com/tailwindlabs/tailwindcss' },
   { name: 'koffi', what: 'Detecção de jogos', license: 'MIT', url: 'https://github.com/Koromix/koffi' },

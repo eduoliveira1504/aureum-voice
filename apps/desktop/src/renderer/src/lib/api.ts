@@ -195,6 +195,9 @@ export interface UserSettings {
   official_dm: Record<string, boolean>
   /** The app version whose "Novidades do Aureum" card in Home was dismissed. */
   news_dismissed: string | null
+  /** Emoji picker: skin tone (0 default, 1-5 light to dark) and recent emojis, newest first. */
+  emoji_tone: number
+  recent_emojis: string[]
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */

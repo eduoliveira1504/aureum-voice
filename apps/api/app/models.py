@@ -18,6 +18,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -271,6 +272,10 @@ class UserSettings(Base):
     # The app version whose "Novidades do Aureum" card in Home the user dismissed; the card
     # comes back with the next version.
     news_dismissed: Mapped[str | None] = mapped_column(String(40))
+    # Emoji picker: skin tone (0 the default yellow, 1-5 light to dark) and recently used emojis,
+    # newest first.
+    emoji_tone: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0, server_default="0")
+    recent_emojis: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

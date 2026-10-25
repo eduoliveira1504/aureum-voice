@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vitest/config'
 
+import { twemojiNames } from './electron.vite.config'
+
 /** `?base64` imports (the RNNoise WebAssembly) aren't needed by component tests: empty stand-in. */
 const base64Stub: Plugin = {
   name: 'aureum:base64-stub',
@@ -13,7 +15,7 @@ const base64Stub: Plugin = {
 // Component tests for the renderer (npm test). They run in jsdom with a fake window.aureum
 // bridge (src/renderer/src/test/setup.ts); nothing talks to the API.
 export default defineConfig({
-  plugins: [base64Stub, react()],
+  plugins: [base64Stub, twemojiNames(), react()],
   // The repo's CHANGELOG.md is built into the app (Novidades in Home).
   server: { fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] } },
   test: {

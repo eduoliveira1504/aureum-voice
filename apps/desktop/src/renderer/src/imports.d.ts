@@ -3,3 +3,9 @@ declare module '*?base64' {
   const data: string
   export default data
 }
+
+declare module 'virtual:twemoji-names' {
+  /** File names (without .svg) of the emoji drawings shipped with the app. */
+  const names: string[]
+  export default names
+}

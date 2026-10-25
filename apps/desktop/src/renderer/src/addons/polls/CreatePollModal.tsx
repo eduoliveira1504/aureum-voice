@@ -1,10 +1,10 @@
-import { Plus, X } from 'lucide-react'
+import { Plus, SmilePlus, X } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
+import { Emoji, pickEmoji } from '../../components/Emoji'
 import { FormError, Modal } from '../../components/Modal'
 import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from '../../components/ui'
 import { ApiError, type Channel } from '../../lib/api'
-import { lastEmoji } from '../../lib/emoji'
 import { DURATIONS, MAX_OPTIONS, MIN_OPTIONS, usePolls, type Duration } from './store'
 
 interface OptionRow {
@@ -92,15 +92,20 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
                   placeholder={`Opção ${i + 1}`}
                   className={cn(inputClass, 'min-w-0 flex-1')}
                 />
-                {/* Only takes an emoji: text typed here would leave the option empty. */}
-                <input
-                  value={row.emoji}
-                  onChange={(e) => patch(row.key, { emoji: lastEmoji(e.target.value) })}
-                  aria-label={`Emoji da opção ${i + 1}`}
-                  title="Emoji (opcional)"
-                  placeholder="🙂"
-                  className={cn(inputClass, 'w-11 shrink-0 px-0 text-center')}
-                />
+                {/* Opens the emoji picker: no text can end up here instead of in the option. */}
+                <button
+                  type="button"
+                  aria-label={row.emoji ? `Emoji da opção ${i + 1}: ${row.emoji}` : `Escolher emoji da opção ${i + 1}`}
+                  title={row.emoji ? 'Trocar emoji (clique direito tira)' : 'Emoji (opcional)'}
+                  onClick={(e) => pickEmoji(e.currentTarget, (emoji) => patch(row.key, { emoji }))}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    patch(row.key, { emoji: '' })
+                  }}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-line bg-main text-fg-subtle hover:border-accent hover:text-fg"
+                >
+                  {row.emoji ? <Emoji emoji={row.emoji} size={22} /> : <SmilePlus size={18} />}
+                </button>
                 <button
                   type="button"
                   aria-label={`Remover opção ${i + 1}`}

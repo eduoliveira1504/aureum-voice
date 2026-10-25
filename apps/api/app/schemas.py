@@ -394,10 +394,15 @@ class SettingsOut(BaseModel):
     # Official DM categories turned off (false); missing ones are on.
     official_dm: dict[str, bool] = {}
     news_dismissed: str | None = None
+    emoji_tone: int = 0
+    recent_emojis: list[str] = []
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
 OfficialDmCategory = Literal["insignias", "bugs", "convites", "novidades", "avisos", "eventos"]
+
+
+MAX_RECENT_EMOJIS = 36
 
 
 class SettingsUpdate(BaseModel):
@@ -420,6 +425,9 @@ class SettingsUpdate(BaseModel):
     official_dm: dict[OfficialDmCategory, bool | None] | None = None
     # An app version, e.g. "0.2.0-beta.4".
     news_dismissed: AppVersion | None = None
+    emoji_tone: Annotated[int, Field(ge=0, le=5)] | None = None
+    # Newest first; the app keeps the list short.
+    recent_emojis: Annotated[list[Annotated[str, StringConstraints(min_length=1, max_length=32)]], Field(max_length=MAX_RECENT_EMOJIS)] | None = None
 
 
 # --- Friends --------------------------------------------------------------

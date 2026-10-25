@@ -19,6 +19,8 @@ DEFAULTS = {
     "status": "online",
     "official_dm": {},
     "news_dismissed": None,
+    "emoji_tone": 0,
+    "recent_emojis": [],
 }
 
 
@@ -149,3 +151,13 @@ async def test_dismissed_news_version(client: AsyncClient) -> None:
     assert (await user.get("/users/me/settings")).json()["news_dismissed"] == "0.2.0-beta.3"
     for bad in ["", "x" * 41, "0.2 beta", "<b>"]:
         assert (await user.patch("/users/me/settings", {"news_dismissed": bad})).status_code == 422, bad
+
+
+async def test_emoji_tone_and_recents(client: AsyncClient) -> None:
+    user = await make_user(client, "emoji")
+    defaults = (await user.get("/users/me/settings")).json()
+    assert (defaults["emoji_tone"], defaults["recent_emojis"]) == (0, [])
+    res = await user.patch("/users/me/settings", {"emoji_tone": 3, "recent_emojis": ["🔥", "👍🏽"]})
+    assert res.status_code == 200 and (res.json()["emoji_tone"], res.json()["recent_emojis"]) == (3, ["🔥", "👍🏽"])
+    for bad in [{"emoji_tone": 6}, {"emoji_tone": -1}, {"recent_emojis": ["🔥"] * 37}, {"recent_emojis": [""]}]:
+        assert (await user.patch("/users/me/settings", bad)).status_code == 422, bad

@@ -1,8 +1,8 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type Channel, type Me, type Message } from '../../lib/api'
-import { lastEmoji } from '../../lib/emoji'
+import { EmojiPickerHost } from '../../components/Emoji'
 import { CreatePollModal } from './CreatePollModal'
 import { PollCard, timeLeft } from './PollCard'
 import { isClosed, leaders, nextVotes, percent, usePolls, type Poll } from './store'
@@ -139,7 +139,12 @@ describe('poll card', () => {
 describe('create poll', () => {
   it('checks the form and sends the poll', async () => {
     const onClose = vi.fn()
-    render(<CreatePollModal channel={channel} onClose={onClose} />)
+    render(
+      <>
+        <CreatePollModal channel={channel} onClose={onClose} />
+        <EmojiPickerHost />
+      </>
+    )
     fireEvent.click(screen.getByText('Criar enquete', { selector: 'button' }))
     expect(screen.getByRole('alert').textContent).toBe('Escreva a pergunta.')
 
@@ -150,7 +155,7 @@ describe('create poll', () => {
     expect(screen.getByRole('alert').textContent).toBe('As opções precisam ser diferentes.')
 
     fireEvent.change(screen.getByLabelText('Opção 2'), { target: { value: 'Sushi' } })
-    fireEvent.change(screen.getByLabelText('Emoji da opção 1'), { target: { value: '🍕' } })
+    await pickFor('Escolher emoji da opção 1', 'pizza')
     fireEvent.click(screen.getByText('Adicionar opção'))
     fireEvent.click(screen.getByText('Várias respostas'))
     vi.mocked(api).mockResolvedValueOnce(poll())
@@ -177,11 +182,11 @@ describe('create poll', () => {
     render(<CreatePollModal channel={channel} onClose={vi.fn()} />)
     const [first] = screen.getAllByRole('listitem')
     const fields = first.querySelectorAll('input')
+    // One text field per option; the emoji is a button that opens the picker.
+    expect(fields).toHaveLength(1)
     expect(fields[0].getAttribute('aria-label')).toBe('Opção 1')
     expect(fields[0].classList.contains('flex-1')).toBe(true)
-    // The emoji box keeps its own width: inputClass's w-full doesn't win over it.
-    expect(fields[1].classList.contains('w-11')).toBe(true)
-    expect(fields[1].classList.contains('w-full')).toBe(false)
+    expect(within(first).getByLabelText('Escolher emoji da opção 1').tagName).toBe('BUTTON')
 
     fireEvent.change(screen.getByPlaceholderText('O que vocês acham?'), { target: { value: 'Jantar?' } })
     fireEvent.change(screen.getByLabelText('Opção 1'), { target: { value: 'Pizza' } })
@@ -194,14 +199,28 @@ describe('create poll', () => {
     expect(api).toHaveBeenCalledTimes(1)
   })
 
-  it('takes only an emoji in the emoji box', () => {
-    render(<CreatePollModal channel={channel} onClose={vi.fn()} />)
-    const emoji = screen.getByLabelText('Emoji da opção 1') as HTMLInputElement
-    fireEvent.change(emoji, { target: { value: 'Pizza' } })
-    expect(emoji.value).toBe('')
-    fireEvent.change(emoji, { target: { value: 'a🍕b' } })
-    expect(emoji.value).toBe('🍕')
-    expect(lastEmoji('🇧🇷')).toBe('🇧🇷')
-    expect(lastEmoji('👍🏽')).toBe('👍🏽')
+  it('takes the emoji from the picker, and a right click takes it off', async () => {
+    render(
+      <>
+        <CreatePollModal channel={channel} onClose={vi.fn()} />
+        <EmojiPickerHost />
+      </>
+    )
+    await pickFor('Escolher emoji da opção 1', 'pizza')
+    const chosen = screen.getByLabelText('Emoji da opção 1: 🍕')
+    // Esc in the picker closes only the picker, not the modal.
+    fireEvent.click(chosen)
+    fireEvent.keyDown(await screen.findByLabelText('Buscar emoji'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Escolher emoji' })).toBeNull()
+    expect(screen.getByText('Criar enquete', { selector: 'button' })).toBeTruthy()
+    fireEvent.contextMenu(chosen)
+    expect(screen.getByLabelText('Escolher emoji da opção 1')).toBeTruthy()
   })
 })
+
+/** Opens the picker from `button`, searches `name` and picks it. */
+async function pickFor(button: string, name: string): Promise<void> {
+  fireEvent.click(screen.getByLabelText(button))
+  fireEvent.change(await screen.findByLabelText('Buscar emoji'), { target: { value: name } })
+  fireEvent.click(await screen.findByRole('button', { name }))
+}
