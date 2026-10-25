@@ -112,7 +112,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         <div className="truncate text-sm font-semibold">{info.room}</div>
         <div className="truncate text-xs text-fg-subtle">{info.speakingText}</div>
         <div className="mt-1.5 flex items-center gap-0.5">
-          <CallButtons compact />
+          <CallButtons size={16} />
           <span className="flex-1" />
           <button type="button" title="Expandir" aria-label="Expandir" onClick={info.open} className={iconButton}>
             <Maximize2 size={18} />
