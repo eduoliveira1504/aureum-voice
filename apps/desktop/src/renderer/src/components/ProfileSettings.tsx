@@ -1,19 +1,18 @@
 import { Pipette, Plus, Trash2 } from 'lucide-react'
-import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
-import { api, ApiError, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
+import { api, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
 import { ACCENT_PRESETS } from '../store/appearance'
 import { BadgeSummary } from './Badge'
 import { CustomStatusEditor, draftOf, statusFromDraft, type StatusDraft } from './CustomStatus'
+import { CroppedImageRow } from './ImageCropper'
 import { FormError } from './Modal'
 import { errorText } from './modals'
 import { ProfileView } from './ProfileCard'
 import { FRAME_PRESETS } from './profileBits'
 import { Field, inputClass, labelClass, PrimaryButton } from './ui'
 
-const MAX_BYTES = 8 * 1024 * 1024
-const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
 const MAX_LINKS = 5
 
 const FRAME_OPTIONS: { key: AvatarFrame; name: string; color: string | null }[] = [
@@ -21,12 +20,6 @@ const FRAME_OPTIONS: { key: AvatarFrame; name: string; color: string | null }[] 
   { key: 'accent', name: 'Cor do perfil', color: null },
   ...FRAME_PRESETS.map((p) => ({ key: p.key, name: p.name, color: p.hex }))
 ]
-
-export function uploadError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 413) return 'A imagem passa de 8 MB.'
-  if (err instanceof ApiError && err.status === 415) return 'Formato não suportado. Use PNG, JPG, GIF ou WebP.'
-  return 'Não foi possível enviar a imagem.'
-}
 
 interface LinkDraft {
   label: string
@@ -123,16 +116,9 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
         setSaved(true)
       }
     } catch (err) {
-      setError(label === 'save' ? errorText(err, 'Não foi possível salvar.') : uploadError(err))
+      setError(errorText(err, 'Não foi possível salvar.'))
     } finally {
       setBusy(null)
-    }
-  }
-
-  function pickImage(kind: 'avatar' | 'banner') {
-    return (e: ChangeEvent<HTMLInputElement>): void => {
-      const upload = imageForm(e, setError)
-      if (upload) void run(kind, () => api<Me>(`/users/me/${kind}`, { method: 'POST', body: upload }))
     }
   }
 
@@ -145,10 +131,10 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
     <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-6">
       <div className="min-w-0 space-y-5">
         <FormError message={error} />
-        <ImageRow label="Avatar" busy={busy === 'avatar'} hasImage={!!user.avatar_url} onPick={pickImage('avatar')}
-          onRemove={() => run('avatar', () => api<Me>('/users/me/avatar', { method: 'DELETE' }))} />
-        <ImageRow label="Banner" busy={busy === 'banner'} hasImage={!!user.banner_url} onPick={pickImage('banner')}
-          onRemove={() => run('banner', () => api<Me>('/users/me/banner', { method: 'DELETE' }))} />
+        <CroppedImageRow<Me> label="Avatar" shape="avatar" path="/users/me/avatar" hasImage={!!user.avatar_url} crop={user.avatar_crop}
+          name={preview.display_name} onDone={setUser} />
+        <CroppedImageRow<Me> label="Banner" shape="banner" path="/users/me/banner" hasImage={!!user.banner_url} crop={user.banner_crop}
+          name={preview.display_name} onDone={setUser} />
         <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB. GIFs e WebPs animados continuam animados.</p>
 
         <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-3">
@@ -288,57 +274,6 @@ export function ProfileSettings({ user, onOpenBadges }: { user: Me; onOpenBadges
             <BadgeSummary badges={user.badges} onOpen={onOpenBadges} />
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-/** The picked image as an upload body, or null (nothing picked, or too big: reported). */
-export function imageForm(e: ChangeEvent<HTMLInputElement>, onError: (message: string) => void): FormData | null {
-  const file = e.target.files?.[0]
-  e.target.value = '' // allow picking the same file again
-  if (!file) return null
-  if (file.size > MAX_BYTES) {
-    onError('A imagem passa de 8 MB.')
-    return null
-  }
-  const body = new FormData()
-  body.append('file', file)
-  return body
-}
-
-export function ImageRow({
-  label,
-  busy,
-  hasImage,
-  onPick,
-  onRemove
-}: {
-  label: string
-  busy: boolean
-  hasImage: boolean
-  onPick(e: ChangeEvent<HTMLInputElement>): void
-  onRemove(): void
-}): ReactNode {
-  const input = useRef<HTMLInputElement>(null)
-  return (
-    <div>
-      <span className={labelClass}>{label}</span>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => input.current?.click()}
-          className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
-        >
-          {busy ? 'Enviando…' : `Alterar ${label.toLowerCase()}`}
-        </button>
-        {hasImage && (
-          <button type="button" disabled={busy} onClick={onRemove} className="text-sm text-fg-muted hover:text-fg">
-            Remover
-          </button>
-        )}
-        <input ref={input} type="file" accept={ACCEPT} hidden aria-label={`Arquivo de ${label.toLowerCase()}`} onChange={onPick} />
       </div>
     </div>
   )

@@ -87,6 +87,18 @@ export interface Me extends User {
   email_verified: boolean
   /** A temporary password from the admin: nothing works until it's replaced. */
   must_change_password: boolean
+  /** Set when the image was cropped in the app: the original is kept for "Ajustar posição". */
+  avatar_crop?: ImageCrop | null
+  banner_crop?: ImageCrop | null
+}
+
+/** The part of an image to keep, in the original's pixels after turning it `rotate`° clockwise. */
+export interface ImageCrop {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotate: number
 }
 
 /** What confirming the e-mail brought (POST /auth/verify-email). */
@@ -311,6 +323,9 @@ export interface Server {
   name: string
   icon_url: string | null
   banner_url: string | null
+  /** As on Me: set when the image was cropped in the app and can be re-cropped. */
+  icon_crop?: ImageCrop | null
+  banner_crop?: ImageCrop | null
   owner_id: string
   created_at: string
 }

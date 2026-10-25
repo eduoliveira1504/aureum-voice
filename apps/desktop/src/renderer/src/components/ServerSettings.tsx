@@ -1,13 +1,13 @@
 import { Crown, GripVertical, Pipette, Plus, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { api, ApiError, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
 import { basePermissions, has, outranks, Perm, PERMISSION_GROUPS, rankOf } from '../lib/permissions'
 import { ACCENT_PRESETS, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
+import { CroppedImageRow, imageForm, ImageRow, uploadError } from './ImageCropper'
 import { ConfirmModal } from './modals'
 import { FormError, Modal, ModalBody, ModalTabs } from './Modal'
-import { imageForm, ImageRow, uploadError } from './ProfileSettings'
 import { ServerBannerLayer } from './ServerBanner'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
 
@@ -77,13 +77,10 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
 
 function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
   const [name, setName] = useState(server.name)
-  const { busy, error, setError, run } = useAction(server.id)
+  const { busy, error, run } = useAction(server.id)
 
-  const pick = (kind: 'icon' | 'banner') => (e: ChangeEvent<HTMLInputElement>) => {
-    const body = imageForm(e, setError)
-    if (body) void run(kind, () => api(`/servers/${server.id}/${kind}`, { method: 'POST', body }), 'Não foi possível enviar a imagem.')
-  }
-  const remove = (kind: 'icon' | 'banner') => () => void run(kind, () => api(`/servers/${server.id}/${kind}`, { method: 'DELETE' }))
+  // The answer comes as server.updated too; refetching shows it right away.
+  const refresh = (): void => void useChat.getState().refreshServer(server.id)
 
   return (
     <div className="max-w-[520px] space-y-5">
@@ -94,8 +91,10 @@ function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
           <ServerIcon name={server.name} url={server.icon_url} size={48} />
         </span>
       </div>
-      <ImageRow label="Ícone" busy={busy === 'icon'} hasImage={!!server.icon_url} onPick={pick('icon')} onRemove={remove('icon')} />
-      <ImageRow label="Banner" busy={busy === 'banner'} hasImage={!!server.banner_url} onPick={pick('banner')} onRemove={remove('banner')} />
+      <CroppedImageRow label="Ícone" shape="icon" path={`/servers/${server.id}/icon`} hasImage={!!server.icon_url} crop={server.icon_crop}
+        name={server.name} onDone={refresh} />
+      <CroppedImageRow label="Banner" shape="server-banner" path={`/servers/${server.id}/banner`} hasImage={!!server.banner_url}
+        crop={server.banner_crop} name={server.name} onDone={refresh} />
       <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB. GIFs e WebPs animados continuam animados.</p>
       <form
         className="flex items-end gap-3"

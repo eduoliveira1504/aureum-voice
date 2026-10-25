@@ -1,5 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
+// Open modals, oldest first: Escape closes only the top one.
+const openModals: object[] = []
+
 /**
  * Never taller than the window: the body takes what's left and scrolls. `tall` (settings with
  * tabs) keeps one height across tabs and grows with big windows.
@@ -19,13 +22,21 @@ export function Modal({
   tall?: boolean
   children: ReactNode
 }): ReactNode {
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
+    const me = {}
+    openModals.push(me)
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
+      // A modal opened over another (a confirmation, the crop editor) closes alone.
+      if (e.key === 'Escape' && openModals.at(-1) === me) closeRef.current()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      openModals.splice(openModals.indexOf(me), 1)
+    }
+  }, [])
 
   return (
     <div className="app-no-drag fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 p-6" onMouseDown={onClose}>
