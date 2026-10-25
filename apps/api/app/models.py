@@ -113,6 +113,9 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))  # null for OAuth-only accounts
     avatar_url: Mapped[str | None] = mapped_column(String(512))
     banner_url: Mapped[str | None] = mapped_column(String(512))
+    # {"key", "crop"} when the image was cropped in the app (see app/images.py).
+    avatar_source: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    banner_source: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     bio: Mapped[str | None] = mapped_column(String(190))
     accent_color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb", the profile card color
     pronouns: Mapped[str | None] = mapped_column(String(40))
@@ -151,6 +154,14 @@ class User(Base):
     @property
     def badges(self) -> list["UserBadge"]:
         return self.badge_grants
+
+    @property
+    def avatar_crop(self) -> dict[str, Any] | None:
+        return (self.avatar_source or {}).get("crop")
+
+    @property
+    def banner_crop(self) -> dict[str, Any] | None:
+        return (self.banner_source or {}).get("crop")
 
 
 DEFAULT_ACCENT = "#E8B531"  # Aureum gold
@@ -280,6 +291,9 @@ class Server(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     icon_url: Mapped[str | None] = mapped_column(String(512))
     banner_url: Mapped[str | None] = mapped_column(String(512))
+    # As on User: {"key", "crop"} when the image was cropped in the app.
+    icon_source: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    banner_source: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # The owner has every permission and is above every role (see app.permissions).
     owner_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), index=True, nullable=False
@@ -287,6 +301,14 @@ class Server(Base):
     # Official servers (set with the CLI) take in everyone who confirms their e-mail.
     is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = _created_at()
+
+    @property
+    def icon_crop(self) -> dict[str, Any] | None:
+        return (self.icon_source or {}).get("crop")
+
+    @property
+    def banner_crop(self) -> dict[str, Any] | None:
+        return (self.banner_source or {}).get("crop")
 
 
 class Role(Base):

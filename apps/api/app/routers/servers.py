@@ -2,7 +2,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select, text, update
@@ -37,7 +37,7 @@ from app.permissions import (
     server_access,
 )
 from app.realtime import broker
-from app.routers.users import ImageUpload
+from app.routers.users import CropForm, ImageUpload
 from app.schemas import (
     BanCreate,
     BanOut,
@@ -45,6 +45,7 @@ from app.schemas import (
     ChannelOrder,
     ChannelOut,
     ChannelPosition,
+    ImageCrop,
     InviteCreate,
     InviteOut,
     MemberOut,
@@ -203,35 +204,41 @@ async def update_server(server_id: uuid.UUID, body: ServerUpdate, user: CurrentU
     return await _publish_server(session, server)
 
 
-async def _set_image(server_id: uuid.UUID, field: str, upload: ImageUpload | None, user: User, session: AsyncSession) -> ServerOut:
+async def _managed_server(session: AsyncSession, server_id: uuid.UUID, user: User) -> Server:
     (await server_access(session, server_id, user.id)).require(Perm.MANAGE_SERVER)
     server = await session.get(Server, server_id)
     assert server is not None
-    new_url = await images.store_upload(upload, f"servers/{server_id}") if upload else None
-    old_url = getattr(server, field)
-    setattr(server, field, new_url)
-    await images.replace(old_url, new_url, session.commit)
-    return await _publish_server(session, server)
+    return server
 
 
-@router.post("/servers/{server_id}/icon", response_model=ServerOut)
-async def upload_icon(server_id: uuid.UUID, file: ImageUpload, user: CurrentUser, session: SessionDep) -> ServerOut:
-    return await _set_image(server_id, "icon_url", file, user, session)
+def _image_routes(kind: Literal["icon", "banner"]) -> None:
+    """Upload (optionally cropped), remove, re-crop and the kept original of the icon/banner."""
+
+    @router.post(f"/servers/{{server_id}}/{kind}", response_model=ServerOut, name=f"upload_server_{kind}")
+    async def upload(server_id: uuid.UUID, file: ImageUpload, user: CurrentUser, session: SessionDep, crop: CropForm = None) -> ServerOut:
+        server = await _managed_server(session, server_id, user)
+        await images.set_image(server, kind, file, images.crop_field(crop), f"servers/{server_id}", session.commit)
+        return await _publish_server(session, server)
+
+    @router.delete(f"/servers/{{server_id}}/{kind}", response_model=ServerOut, name=f"remove_server_{kind}")
+    async def remove(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ServerOut:
+        server = await _managed_server(session, server_id, user)
+        await images.set_image(server, kind, None, None, f"servers/{server_id}", session.commit)
+        return await _publish_server(session, server)
+
+    @router.put(f"/servers/{{server_id}}/{kind}/crop", response_model=ServerOut, name=f"recrop_server_{kind}")
+    async def recrop(server_id: uuid.UUID, body: ImageCrop, user: CurrentUser, session: SessionDep) -> ServerOut:
+        server = await _managed_server(session, server_id, user)
+        await images.set_crop(server, kind, body, f"servers/{server_id}", session.commit)
+        return await _publish_server(session, server)
+
+    @router.get(f"/servers/{{server_id}}/{kind}/original", name=f"server_{kind}_original")
+    async def original(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
+        return await images.original(await _managed_server(session, server_id, user), kind)
 
 
-@router.delete("/servers/{server_id}/icon", response_model=ServerOut)
-async def remove_icon(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ServerOut:
-    return await _set_image(server_id, "icon_url", None, user, session)
-
-
-@router.post("/servers/{server_id}/banner", response_model=ServerOut)
-async def upload_banner(server_id: uuid.UUID, file: ImageUpload, user: CurrentUser, session: SessionDep) -> ServerOut:
-    return await _set_image(server_id, "banner_url", file, user, session)
-
-
-@router.delete("/servers/{server_id}/banner", response_model=ServerOut)
-async def remove_banner(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ServerOut:
-    return await _set_image(server_id, "banner_url", None, user, session)
+_image_routes("icon")
+_image_routes("banner")
 
 
 @router.delete("/servers/{server_id}", status_code=status.HTTP_204_NO_CONTENT)

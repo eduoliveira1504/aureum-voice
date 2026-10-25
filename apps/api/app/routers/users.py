@@ -2,7 +2,7 @@ import uuid
 from urllib.parse import quote
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -17,6 +17,7 @@ from app.routers.auth import CODE_SENDS_PER_IP, CODE_TRIES_PER_IP, OFFICIAL_NAME
 from app.schemas import (
     ChangeEmail,
     CodeRequest,
+    ImageCrop,
     InviterOut,
     MyInvite,
     SettingsOut,
@@ -98,38 +99,43 @@ async def update_my_settings(body: SettingsUpdate, user: CurrentUser, session: S
     return row
 
 
-async def _set_image(kind: ImageKind, upload: UploadFile | None, user: User, session: SessionDep) -> User:
+async def _set_image(kind: ImageKind, upload: UploadFile | None, crop: str | None, user: User, session: SessionDep) -> User:
     """Replaces (or with no upload, removes) the user's avatar or banner."""
-    new_url = await images.store_upload(upload, f"{kind}s/{user.id}") if upload else None
-    field = f"{kind}_url"
-    old_url = getattr(user, field)
-    setattr(user, field, new_url)
-    await images.replace(old_url, new_url, session.commit)
+    await images.set_image(user, kind, upload, images.crop_field(crop), f"{kind}s/{user.id}", session.commit)
     await _broadcast_profile(session, user)
     return user
 
 
 ImageUpload = Annotated[UploadFile, File(description="PNG, JPG, GIF or WebP (animated allowed), up to 8 MB")]
+# JSON of an ImageCrop; without it the image is kept as sent (apps before the crop editor).
+CropForm = Annotated[str | None, Form(description="ImageCrop as JSON: crops the image and keeps the original")]
 
 
-@router.post("/me/avatar", response_model=UserMe)
-async def upload_avatar(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
-    return await _set_image("avatar", file, user, session)
+def _image_routes(kind: ImageKind) -> None:
+    """Upload, remove, re-crop and the kept original, for /me/avatar and /me/banner."""
+
+    @router.post(f"/me/{kind}", response_model=UserMe, name=f"upload_{kind}")
+    async def upload(file: ImageUpload, user: CurrentUser, session: SessionDep, crop: CropForm = None) -> User:
+        return await _set_image(kind, file, crop, user, session)
+
+    @router.delete(f"/me/{kind}", response_model=UserMe, name=f"remove_{kind}")
+    async def remove(user: CurrentUser, session: SessionDep) -> User:
+        return await _set_image(kind, None, None, user, session)
+
+    @router.put(f"/me/{kind}/crop", response_model=UserMe, name=f"recrop_{kind}")
+    async def recrop(body: ImageCrop, user: CurrentUser, session: SessionDep) -> User:
+        """"Ajustar posição": crops the kept original again, without uploading it."""
+        await images.set_crop(user, kind, body, f"{kind}s/{user.id}", session.commit)
+        await _broadcast_profile(session, user)
+        return user
+
+    @router.get(f"/me/{kind}/original", name=f"{kind}_original")
+    async def original(user: CurrentUser) -> Response:
+        return await images.original(user, kind)
 
 
-@router.post("/me/banner", response_model=UserMe)
-async def upload_banner(file: ImageUpload, user: CurrentUser, session: SessionDep) -> User:
-    return await _set_image("banner", file, user, session)
-
-
-@router.delete("/me/avatar", response_model=UserMe)
-async def remove_avatar(user: CurrentUser, session: SessionDep) -> User:
-    return await _set_image("avatar", None, user, session)
-
-
-@router.delete("/me/banner", response_model=UserMe)
-async def remove_banner(user: CurrentUser, session: SessionDep) -> User:
-    return await _set_image("banner", None, user, session)
+_image_routes("avatar")
+_image_routes("banner")
 
 
 # --- E-mail and invites (Configurações › Conta / Convites) ----------------------------

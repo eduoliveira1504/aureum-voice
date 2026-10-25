@@ -38,6 +38,17 @@ DeviceId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=8,
 DeviceOs = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
 
 
+class ImageCrop(BaseModel):
+    """The part of an uploaded image to keep (the app's crop editor): a rectangle in the
+    original's pixels after turning it `rotate` degrees clockwise."""
+
+    x: int = Field(ge=0, le=100_000)
+    y: int = Field(ge=0, le=100_000)
+    width: int = Field(ge=1, le=100_000)
+    height: int = Field(ge=1, le=100_000)
+    rotate: Literal[0, 90, 180, 270] = 0
+
+
 class RegisterRequest(BaseModel):
     username: Username
     email: LowerEmail
@@ -257,6 +268,9 @@ class UserMe(UserPublic):
     email_verified_at: datetime | None = None
     # A temporary password from the CLI: the app asks for a new one before anything else.
     must_change_password: bool = False
+    # Set when the image was cropped in the app: the original is kept so it can be re-cropped.
+    avatar_crop: ImageCrop | None = None
+    banner_crop: ImageCrop | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -445,6 +459,9 @@ class ServerOut(BaseModel):
     name: str
     icon_url: str | None
     banner_url: str | None
+    # As in UserMe: set when the image was cropped in the app and can be re-cropped.
+    icon_crop: ImageCrop | None = None
+    banner_crop: ImageCrop | None = None
     owner_id: uuid.UUID
     created_at: datetime
 
