@@ -165,6 +165,10 @@ interface VoiceStore {
   /** Whose screen shares we receive. Nobody's until "Assistir": the call only subscribes to
    * microphones and cameras on its own (bandwidth, and nobody gets a stream they didn't ask for). */
   watching: string[]
+  /** The latest small preview of each screen share in the room (blurred on the "Assistir" card). */
+  screenPreviews: Record<string, string>
+  /** Who is watching our screen share ("N assistindo"), as their apps tell us. */
+  watchers: string[]
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -221,6 +225,20 @@ const SCREEN_SOURCES: Track.Source[] = [Track.Source.ScreenShare, Track.Source.S
 export function wantsTrack(pub: Pick<RemoteTrackPublication, 'source'>, identity: string): boolean {
   if (pub.source === Track.Source.Microphone || pub.source === Track.Source.Camera) return true
   return SCREEN_SOURCES.includes(pub.source) && useVoice.getState().watching.includes(identity)
+}
+
+// Room data messages between apps (LiveKit data channel; the sender's identity is set by the
+// media server, so it can't be faked). Screen previews go to everyone, "watching" only to the sharer.
+const PREVIEW_TOPIC = 'aureum.screen-preview'
+const WATCH_TOPIC = 'aureum.screen-watch'
+const MAX_PREVIEW_CHARS = 64 * 1024
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+function sendData(r: Room, topic: string, data: unknown, to?: string[]): void {
+  void r.localParticipant
+    .publishData(encoder.encode(JSON.stringify(data)), { reliable: true, topic, destinationIdentities: to })
+    .catch(() => {})
 }
 
 /** Asks the media server for what we want of this person (a no-op for what we already get). */
@@ -309,6 +327,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       speaking: [],
       screenVolume: {},
       watching: [],
+      screenPreviews: {},
+      watchers: [],
       error
     })
     syncPushToTalk()
@@ -340,9 +360,19 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       })
       // The share ended: watching it again takes a new "Assistir".
       .on(RoomEvent.TrackUnpublished, (pub, participant) => {
-        if (isCurrent() && pub.source === Track.Source.ScreenShare) get().stopWatching(participant.identity)
+        if (!isCurrent() || pub.source !== Track.Source.ScreenShare) return
+        get().stopWatching(participant.identity)
+        dropPreview(participant.identity)
       })
-      .on(RoomEvent.ParticipantDisconnected, (participant) => isCurrent() && get().stopWatching(participant.identity))
+      .on(RoomEvent.ParticipantDisconnected, (participant) => {
+        if (!isCurrent()) return
+        get().stopWatching(participant.identity)
+        dropPreview(participant.identity)
+        set((s) => ({ watchers: s.watchers.filter((id) => id !== participant.identity) }))
+      })
+      .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+        if (isCurrent()) onData(participant?.identity, topic, payload)
+      })
       // A server deafen lifted: ask again for what we want to receive.
       .on(RoomEvent.ParticipantPermissionsChanged, () => {
         if (isCurrent()) for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
@@ -364,6 +394,39 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       RoomEvent.LocalTrackUnpublished
     ]) {
       r.on(event, bump)
+    }
+  }
+
+  function dropPreview(identity: string): void {
+    if (!(identity in get().screenPreviews)) return
+    set((s) => {
+      const screenPreviews = { ...s.screenPreviews }
+      delete screenPreviews[identity]
+      return { screenPreviews }
+    })
+  }
+
+  /** A data message from another app in the room; anything unexpected is ignored. */
+  function onData(identity: string | undefined, topic: string | undefined, payload: Uint8Array): void {
+    if (!identity || !room) return
+    let data: unknown
+    try {
+      data = JSON.parse(decoder.decode(payload))
+    } catch {
+      return
+    }
+    if (!data || typeof data !== 'object') return
+    if (topic === PREVIEW_TOPIC) {
+      const { image } = data as { image?: unknown }
+      const ok = typeof image === 'string' && image.length <= MAX_PREVIEW_CHARS && image.startsWith('data:image/jpeg;base64,')
+      if (ok && isSharing(identity)) set((s) => ({ screenPreviews: { ...s.screenPreviews, [identity]: image } }))
+    } else if (topic === WATCH_TOPIC && get().screen) {
+      const { watching } = data as { watching?: unknown }
+      if (typeof watching !== 'boolean') return
+      set((s) => {
+        const others = s.watchers.filter((id) => id !== identity)
+        return { watchers: watching ? [...others, identity] : others }
+      })
     }
   }
 
@@ -399,6 +462,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     media: FREE_TIER,
     pttHeld: false,
     watching: [],
+    screenPreviews: {},
+    watchers: [],
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -587,7 +652,11 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       playSound('screen-share')
       announce()
       // After announce(): the server only takes thumbnails from someone marked as sharing.
-      stopThumbnails = startThumbnails(video, (image) => sendRealtime('screen.thumbnail', { image }))
+      stopThumbnails = startThumbnails(
+        video,
+        (image) => sendRealtime('screen.thumbnail', { image }),
+        (image) => room === r && sendData(r, PREVIEW_TOPIC, { image })
+      )
       bump()
     },
 
@@ -601,7 +670,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         if (r) await r.localParticipant.unpublishTrack(track).catch(() => {})
       }
       if (get().screen) {
-        set({ screen: false })
+        set({ screen: false, watchers: [] })
         announce()
       }
       bump()
@@ -617,6 +686,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       set((s) => ({ watching: [...s.watching, identity] }))
       const p = room?.remoteParticipants.get(identity)
       if (p) syncSubscriptions(p)
+      if (room) sendData(room, WATCH_TOPIC, { watching: true }, [identity])
       bump()
     },
 
@@ -625,6 +695,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       set((s) => ({ watching: s.watching.filter((id) => id !== identity) }))
       const p = room?.remoteParticipants.get(identity)
       if (p) syncSubscriptions(p)
+      if (room) sendData(room, WATCH_TOPIC, { watching: false }, [identity])
       bump()
     },
 

@@ -346,17 +346,24 @@ function LiveBadge(): ReactNode {
   return <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
 }
 
-/** "Fulano está transmitindo" with "Assistir": nothing of the stream is received before the click. */
+/**
+ * "Fulano está transmitindo" with "Assistir": nothing of the stream is received before the click.
+ * Behind it, a blurred low-res frame of the screen (one every few seconds, without audio).
+ */
 function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
   const watchScreen = useVoice((s) => s.watchScreen)
+  const preview = useVoice((s) => s.screenPreviews[identity])
   const name = user?.display_name ?? 'Alguém'
   const small = size === 'strip'
   return (
     <TileFrame size={size} label={`Tela de ${name}`} onClick={onClick} dark>
+      {preview && (
+        <img src={preview} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-md" />
+      )}
       <div className="absolute left-2 top-2">
         <LiveBadge />
       </div>
-      <div className="flex max-w-full flex-col items-center gap-2 px-3 text-center text-on-scrim">
+      <div className="relative flex max-w-full flex-col items-center gap-2 px-3 text-center text-on-scrim">
         <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{name} está transmitindo</p>
         <button
           type="button"
@@ -385,6 +392,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
   const volume = useVoice((s) => s.screenVolume[identity] ?? 1)
   const setVolume = useVoice((s) => s.setScreenVolume)
   const stopWatching = useVoice((s) => s.stopWatching)
+  const watchers = useVoice((s) => (isLocal ? s.watchers.length : 0))
   const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
 
   const fullscreen = useFullscreen(ref)
@@ -422,6 +430,15 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
         <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
           <LiveBadge />
           <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
+          {isLocal && (
+            <span
+              title="Quem clicou em Assistir"
+              className={`flex shrink-0 items-center gap-1 rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}
+            >
+              <Eye size={14} />
+              {watchers} assistindo
+            </span>
+          )}
         </div>
         {fullscreen && (
           <button
