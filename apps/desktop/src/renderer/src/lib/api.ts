@@ -425,6 +425,23 @@ export interface Message {
   forwarded_from?: ForwardedFrom | null
   /** Sent with the history and edits; null/absent means "not included" (keep what you have). */
   reactions?: Reaction[] | null
+  /** Cards of its links, filled by the API a moment after it's sent (as message.updated). */
+  link_previews?: LinkPreview[]
+}
+
+/** A link's card. `image` is a /api/media path (the API fetched it, never the app). */
+export interface LinkPreview {
+  url: string
+  kind: 'link' | 'youtube'
+  site: string | null
+  title: string | null
+  description: string | null
+  image: string | null
+  image_width: number | null
+  image_height: number | null
+  /** YouTube only. */
+  channel?: string | null
+  video_id?: string | null
 }
 
 export interface Reaction {

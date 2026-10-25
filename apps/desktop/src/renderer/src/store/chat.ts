@@ -70,6 +70,8 @@ interface ChatState {
    * `reply` answers a message of the channel, notifying its author when `mention`. */
   sendMessage(channelId: string, content: string, attachmentIds?: string[], reply?: { id: number; mention: boolean }): Promise<Message>
   editMessage(id: number, content: string): Promise<void>
+  /** The X on a link's card: takes the message's cards away (mine only). */
+  removePreviews(message: Message): Promise<void>
   /** Adds (on) or takes back my reaction; shown right away, then as the API says. */
   react(message: Message, emoji: string, on: boolean): Promise<void>
   /** Takes away someone else's reaction (MANAGE_MESSAGES). */
@@ -252,6 +254,11 @@ export const useChat = create<ChatState>()((set, get) => {
     editMessage: async (id, content) => {
       const message = await api<Message>(`/messages/${id}`, { method: 'PATCH', body: { content } })
       patchMessages(message.channel_id, (items) => mergeMessages(items, [message]))
+    },
+
+    removePreviews: async (message) => {
+      const updated = await api<Message>(`/messages/${message.id}/previews`, { method: 'DELETE' })
+      patchMessages(updated.channel_id, (items) => mergeMessages(items, [updated]))
     },
 
     react: async (message, emoji, on) => {

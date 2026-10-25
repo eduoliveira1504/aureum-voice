@@ -33,6 +33,7 @@ import { ReplyBar, ReplyQuote } from './MessageReply'
 import { ReactionChips } from './MessageReactions'
 import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
+import { LinkPreviews } from './LinkPreviews'
 import { isEmojiOnly } from '../lib/emoji'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
@@ -150,7 +151,8 @@ function Linkified({
   rich?: boolean
   mention?: (username: string) => ReactNode
 }): ReactNode {
-  const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]|aureum:\/\/mensagem\/[0-9a-f-]{36}\/\d+)/g)
+  // Same rule as the API's link previews (app/link_previews.py).
+  const parts = text.split(/(https?:\/\/[^\s<>]+[^\s<>.,:;"')\]!?]|aureum:\/\/mensagem\/[0-9a-f-]{36}\/\d+)/g)
   const plain = (part: string): ReactNode[] =>
     part.split(CHANNEL_MENTION).map((piece, j) =>
       j % 2 === 1 ? (
@@ -852,6 +854,7 @@ function MessageRow({
           ))
         )}
         {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
+        {!editing && <LinkPreviews message={message} own={own} />}
         {extra}
         {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
         {reactions}
