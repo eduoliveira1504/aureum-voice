@@ -113,6 +113,13 @@ for real-time media. The whole stack is open source and designed to run at zero 
   show next to their name, in their order (otherwise the two rarest)
 - Voice messages: hold the mic button in the message field (or click it) to record up to 5 minutes of
   Opus/WebM. The player shows the waveform, the time and 1x/1.5x/2x speed
+- Message actions on hover or right click (R / E / Del on the focused message): replies that quote the
+  original (with or without a mention), forwards to up to 5 conversations (a snapshot of the original,
+  files re-checked in the destination), copy text or the message's link, mark as unread. Emoji
+  reactions with live counts. Emojis drawn with Twemoji (shipped with the app at `twemoji/`, so they
+  look the same on every PC), a picker with Portuguese search from emojibase, skin tone and recents
+  synced in the settings, and `:name` autocomplete
+  ([ADR 0032](decisions/0032-message-actions-replies-forwards-emojis-reactions.md))
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
   only that key and only during a call
 - Automatic updates from GitHub releases, and **Reportar problema** (profile menu or Ctrl+Shift+R): a

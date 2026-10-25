@@ -22,7 +22,10 @@ excluir quadros brancos (só API e app, sem migração), ainda não publicado. T
 listados no 3.1, no 3.2, no 3.4, no 3.5, no 3.6, no 3.7 e em cada parte do 3.9.
 3.10 ✅ pronto em 25/10 (API com 2 migrações core, c6e1a9d4f357 e d7f2b4e8a913, e o Pillow novo no
 requirements; app), ainda não em produção nem publicado; passos de produção e teste manual no 3.10.
-Próximo: 3.11 (Chat: emojis, reações, figurinhas, visto e preview de links).
+3.11 parte A ✅ pronta em 26/10 (com as correções da imagem com faixa cinza e da enquete; API com 4
+migrações core, e3a9c5b1d742 a b6d2f8a4c975; app com Twemoji e emojibase), ainda não em produção
+nem publicada; passos de produção e teste manual no 3.11.
+Próximo: 3.11 parte B (visto nas DMs e preview de links).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -370,10 +373,54 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
 ## 3.11 Chat: ações da mensagem, emojis, reações, GIFs, figurinhas, visto e preview de links
 Bloco grande: fazer em 3 partes, cada uma numa conversa (A → B → C). Todas as partes valem
 em canais de servidor, DMs e grupos, salvo onde dito.
+Parte A ✅ (com as correções antes dela) em 26/10; partes B e C pendentes. Decisões em
+docs/decisions/0032-message-actions-replies-forwards-emojis-reactions.md.
 
-### Parte A: ações da mensagem, responder, encaminhar, emojis e reações
+### Produção do 3.11 (acumulado; nada feito ainda)
+A produção do 3.10 também está pendente: dá pra fazer as duas juntas, com um backup só. Tudo com
+OK do Eduardo, na ordem. A API nova não quebra o app beta.6 (só campos e rotas novos; o beta.6
+ignora reações, respostas e encaminhadas, e mostra o texto delas normalmente).
+1. Backup do banco com os mesmos comandos do item 1 da produção do 3.9 (sem ele, nada segue).
+2. Reconstruir e reiniciar a API. Sem dependência Python nova na parte A (o Pillow veio no 3.10).
+   Aplica as migrações core da parte A, depois das do 3.10: e3a9c5b1d742 (messages.reply_to_id),
+   f4b8d6c2e953 (messages.forwarded_from), a5c1e7f3b864 (user_settings.emoji_tone e
+   recent_emojis) e b6d2f8a4c975 (tabela message_reactions):
+   `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
+   Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current`
+   mostra b6d2f8a4c975 (head).
+3. Conferir `curl -s https://<endereço do Funnel>/api/health` e o app beta.6 abrindo, mandando
+   mensagem, imagem e enquete normalmente.
+4. Release do app (0.2.0-beta.7, seguindo o Ritual de release) só depois da API no ar. O
+   instalador cresce uns MB com os desenhos do Twemoji. No CHANGELOG: responder, encaminhar,
+   reagir, emojis, imagem sem faixa cinza e enquete criando de novo.
 
-### Correções antes da parte A (entram na mesma release)
+### Parte A: ações da mensagem, responder, encaminhar, emojis e reações ✅ concluída (teste manual pendente)
+Teste manual da parte A (dois PCs, ou duas contas, num servidor e numa DM):
+- Imagem PNG larga e foto do celular em pé: a caixa tem o tamanho da imagem, sem faixa cinza, e
+  não pula quando a imagem carrega; uma imagem antiga (enviada antes) também fica sem faixa;
+  vídeo em pé sem faixas pretas dos lados.
+- Criar enquete digitando só nas opções (cria); emoji da opção pelo botão quadrado (abre o seletor;
+  clique direito tira); Esc no seletor fecha só ele.
+- Passar o mouse numa mensagem: barra com Reagir, Responder, Encaminhar e "…"; o mesmo menu no
+  botão direito; sem permissão de enviar, sem Responder; Editar/Apagar só onde pode. Clicar na
+  mensagem e usar R, E e Del (pergunta antes).
+- Copiar texto; Copiar link da mensagem e colar noutra conversa: vira "#canal › mensagem" e abre
+  lá; Marcar como não lida: o canal volta a ter não lidas (some ao sair e voltar).
+- Responder com e sem "@ Mencionar" (a outra pessoa recebe a menção só com ele ligado); Esc e X
+  cancelam; clicar na citação rola até a original e destaca (também numa mensagem antiga, que
+  precisa carregar o histórico); apagar a original: "Mensagem original apagada" na hora.
+- Encaminhar para 2 conversas com comentário (busca, limite de 5); com imagem, a pessoa de
+  destino que não está no servidor de origem abre a imagem; apagar a original não apaga a
+  encaminhada nem a imagem dela; de uma DM aparece "de uma conversa privada".
+- Emojis: seletor (busca "fogo", "joia", categorias, recentes, tom de pele lembrado noutro PC);
+  ":fog" sugere 🔥 e Enter/Tab insere; mensagem só com 1 a 3 emojis aparece grande; os emojis
+  têm o mesmo desenho no Windows 10 e 11.
+- Reações: 6 rápidas e "+" pela barra e pelo botão direito; chips com contagem, a minha em
+  destaque, passar o mouse mostra quem; clicar soma/tira; o outro PC vê na hora; sem "Adicionar
+  reações" (cargo) não cria nova mas soma nas existentes; moderador tira a de outro pelo botão
+  direito no chip; reagir na DM da @aureum.
+
+### Correções antes da parte A (entram na mesma release) ✅ concluídas
 - Imagem no chat com faixa cinza do lado: em components/Attachments.tsx (ImageThumb), o
   <button> que envolve a imagem é "block" e ocupa a largura toda da mensagem, mostrando o
   bg-elevated ao lado da imagem (máx 360px). A caixa deve ter o tamanho da imagem
