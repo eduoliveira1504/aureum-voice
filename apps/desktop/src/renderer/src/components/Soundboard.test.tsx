@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type ServerDetail, type Sound } from '../lib/api'
 import { channelPermissions, Perm } from '../lib/permissions'
+import { useAppearance } from '../store/appearance'
 import { useSoundboard } from '../store/soundboard'
 import { useVoice } from '../store/voice'
-import { ServerSoundsTab, SoundboardGrid } from './Soundboard'
+import { ServerSoundsTab, SoundboardGrid, SoundboardPrefs } from './Soundboard'
 
 vi.mock('../lib/api', async (original) => ({ ...(await original<object>()), api: vi.fn() }))
 vi.mock('../lib/attachments', () => ({ attachmentUrl: async () => 'blob:x' }))
@@ -72,6 +73,18 @@ describe('the grid in the call', () => {
     vi.mocked(api).mockResolvedValue([])
     render(<SoundboardGrid serverId="s1" canManage />)
     expect(await screen.findByText(/Configurações do servidor › Painel de sons/)).toBeTruthy()
+  })
+})
+
+describe('my own soundboard settings', () => {
+  it('saves how loud the others sound and whether they are silenced', () => {
+    const update = vi.spyOn(useAppearance.getState(), 'update').mockImplementation(() => {})
+    render(<SoundboardPrefs />)
+    fireEvent.change(screen.getByLabelText('Volume dos sons dos outros'), { target: { value: '35' } })
+    expect(update).toHaveBeenCalledWith({ soundboard_volume: 35 })
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(update).toHaveBeenCalledWith({ soundboard_muted: true })
+    update.mockRestore()
   })
 })
 

@@ -2,12 +2,13 @@ import { Pencil, Play, Plus, Smile, Square, Trash2, Volume2 } from 'lucide-react
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { api, ApiError, uploadFile, type ServerDetail, type Sound } from '../lib/api'
+import { useAppearance } from '../store/appearance'
 import { MAX_SOUND_BYTES, MAX_SOUNDS, playHere, soundUrl, useSoundboard } from '../store/soundboard'
 import { useVoice } from '../store/voice'
 import { pickEmoji, Emoji } from './Emoji'
 import { ConfirmModal } from './modals'
 import { FormError } from './Modal'
-import { cn, inputClass, labelClass, PrimaryButton } from './ui'
+import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from './ui'
 
 const NO_SOUNDS: Sound[] = []
 
@@ -348,5 +349,27 @@ export function SoundboardGrid({ serverId, canManage }: { serverId: string; canM
         </li>
       ))}
     </ul>
+  )
+}
+
+
+/** Each person's own: how loud others' sounds play (0-100 %) and "Silenciar sons dos outros".
+ * Saved with the other settings (every PC); in Configurações › Sons and under the call's grid. */
+export function SoundboardPrefs({ compact = false }: { compact?: boolean }): ReactNode {
+  const volume = useAppearance((s) => s.settings.soundboard_volume)
+  const muted = useAppearance((s) => s.settings.soundboard_muted)
+  const update = useAppearance((s) => s.update)
+  return (
+    <div className={compact ? 'space-y-2 border-t border-line pt-3' : 'space-y-2'}>
+      <div className={cn(muted && 'opacity-50')}>
+        <VolumeRow label="Volume dos sons dos outros" value={volume} onChange={(v) => update({ soundboard_volume: v })} />
+      </div>
+      <ToggleRow
+        title="Silenciar sons dos outros"
+        description={compact ? 'Os seus continuam tocando para a sala.' : 'Você não ouve os sons que as outras pessoas tocam. Os seus continuam tocando para a sala.'}
+        checked={muted}
+        onChange={(on) => update({ soundboard_muted: on })}
+      />
+    </div>
   )
 }

@@ -35,7 +35,7 @@ import { NameMarks } from './Badge'
 import { CallPopover, DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
-import { SoundboardGrid } from './Soundboard'
+import { SoundboardGrid, SoundboardPrefs } from './Soundboard'
 import { Avatar } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
 
@@ -669,6 +669,7 @@ function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void
       {open && (
         <CallPopover anchor={anchor} label="Painel de sons" width={320} onClose={() => toggle(false)}>
           <SoundboardGrid serverId={serverId} canManage={has(perms, Perm.MANAGE_SOUNDBOARD)} />
+          <SoundboardPrefs compact />
         </CallPopover>
       )}
     </span>

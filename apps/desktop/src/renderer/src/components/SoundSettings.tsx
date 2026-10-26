@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { OTHERS_SOUNDS, OWN_SOUNDS, playSound, soundKey, type SoundName } from '../lib/sounds'
 import { useAppearance } from '../store/appearance'
+import { SoundboardPrefs } from './Soundboard'
 import { labelClass } from './ui'
 
 const LABELS: Record<SoundName, string> = {
@@ -91,6 +92,11 @@ export function SoundSettings(): ReactNode {
         'Silenciados no Não perturbe; chamadas recebidas viram só um aviso de chamada perdida. Durante uma chamada, mensagens tocam mais baixo.',
         OTHERS_SOUNDS
       )}
+      <section>
+        <span className={labelClass}>Painel de sons</span>
+        <p className="-mt-1 mb-2 text-xs text-fg-subtle">Os sons que as pessoas tocam nas salas dos servidores.</p>
+        <SoundboardPrefs />
+      </section>
     </div>
   )
 }
