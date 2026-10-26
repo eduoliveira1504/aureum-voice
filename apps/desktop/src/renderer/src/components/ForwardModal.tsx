@@ -18,6 +18,8 @@ export interface ForwardTarget {
   /** Under the name: the server of a channel, "Grupo" or "Mensagem direta". */
   where: string
   icon: ReactNode
+  /** Shown but not pickable, with why (a server's sticker outside its server). */
+  blocked?: string
 }
 
 const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
@@ -33,6 +35,10 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
   const order = useChat((s) => s.order)
   return useMemo(() => {
     const needed = Perm.SEND_MESSAGES | (message.attachments.length ? Perm.ATTACH_FILES : 0)
+    // A server's sticker only goes in that server; any sticker needs USE_STICKERS in servers.
+    const sticker = message.sticker ?? message.forwarded_from?.sticker
+    const stickerServer = sticker?.server_id ?? null
+    const onlyIn = stickerServer ? `Figurinha só do servidor ${servers[stickerServer]?.name ?? 'de origem'}` : undefined
     const out: ForwardTarget[] = []
     for (const dm of Object.values(dms).sort((a, b) => b.last_message_id - a.last_message_id)) {
       if (dm.official) continue // read-only
@@ -42,7 +48,8 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
         channelId: dm.id,
         name: dmTitle(dm, meId),
         where: dm.type === 'group_dm' ? 'Grupo' : 'Mensagem direta',
-        icon: peer ? <Avatar name={peer.display_name} url={peer.avatar_url} size={28} /> : <GroupAvatar url={dm.icon_url} size={28} />
+        icon: peer ? <Avatar name={peer.display_name} url={peer.avatar_url} size={28} /> : <GroupAvatar url={dm.icon_url} size={28} />,
+        blocked: onlyIn
       })
     }
     for (const id of order) {
@@ -50,12 +57,15 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
       if (!server) continue
       for (const channel of server.channels) {
         if (channel.type !== 'text') continue
-        if ((channelPermissions(server, channel, meId) & needed) !== needed) continue
-        out.push({ channelId: channel.id, name: `#${channel.name}`, where: server.name, icon: <ServerIcon name={server.name} url={server.icon_url} size={28} /> })
+        const perms = channelPermissions(server, channel, meId)
+        if ((perms & needed) !== needed) continue
+        const blocked =
+          stickerServer && stickerServer !== server.id ? onlyIn : sticker && !(perms & Perm.USE_STICKERS) ? 'Sem permissão para figurinhas' : undefined
+        out.push({ channelId: channel.id, name: `#${channel.name}`, where: server.name, icon: <ServerIcon name={server.name} url={server.icon_url} size={28} />, blocked })
       }
     }
     return out
-  }, [dms, friends, servers, order, message.attachments.length, meId])
+  }, [dms, friends, servers, order, message, meId])
 }
 
 /** "Encaminhar": pick up to 5 conversations, add an optional comment, send. */
@@ -112,7 +122,7 @@ export function ForwardModal({ message, meId, onClose }: { message: Message; meI
                       type="button"
                       role="checkbox"
                       aria-checked={on}
-                      disabled={!on && full}
+                      disabled={(!on && full) || !!t.blocked}
                       onClick={() => toggle(t.channelId)}
                       className="flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated disabled:opacity-50"
                     >
@@ -121,7 +131,7 @@ export function ForwardModal({ message, meId, onClose }: { message: Message; meI
                         <span className="block truncate text-sm font-medium">{t.name}</span>
                         <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
                           {t.name.startsWith('#') && <Hash size={11} />}
-                          {t.where}
+                          {t.blocked ? `${t.where} · ${t.blocked}` : t.where}
                         </span>
                       </span>
                       <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${on ? 'border-accent bg-accent text-on-accent' : 'border-line'}`}>

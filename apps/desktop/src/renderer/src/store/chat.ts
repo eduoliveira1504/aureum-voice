@@ -87,6 +87,8 @@ interface ChatState {
   /** "Marcar como não lida": the message and what came after count as unread again. */
   markUnread(channelId: string, messageId: number): Promise<void>
   addServer(server: ServerDetail): void
+  /** A message the user just sent some other way (a sticker): shown without waiting for the event. */
+  addMessage(message: Message): void
   /** Saves a sidebar section's order (MANAGE_CHANNELS): applied right away, then as the API says. */
   reorderChannels(serverId: string, section: Section, ids: string[]): Promise<void>
   /** Moves a channel one place up (-1) or down (+1) in its section. */
@@ -250,6 +252,8 @@ export const useChat = create<ChatState>()((set, get) => {
       patchMessages(channelId, (items) => mergeMessages(items, [message]))
       return message
     },
+
+    addMessage: (message) => patchMessages(message.channel_id, (items) => mergeMessages(items, [message])),
 
     editMessage: async (id, content) => {
       const message = await api<Message>(`/messages/${id}`, { method: 'PATCH', body: { content } })

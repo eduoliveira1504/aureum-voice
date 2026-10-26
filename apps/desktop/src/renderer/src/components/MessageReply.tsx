@@ -12,7 +12,8 @@ const MEDIA_LABEL: Record<NonNullable<ReplyRef['media']>, string> = {
   voice: 'mensagem de voz',
   file: 'arquivo',
   poll: 'enquete',
-  embed: 'mensagem'
+  embed: 'mensagem',
+  sticker: 'figurinha'
 }
 
 /** How a quoted message starts, on one line; what it carries when it has no text. */
@@ -76,8 +77,8 @@ export function ReplyBar({
   onCancel(): void
 }): ReactNode {
   const snippet = replySnippet({
-    content: target.content,
-    media: target.embed ? 'poll' : target.attachments[0] ? (target.attachments[0].content_type === 'image/gif' ? 'gif' : target.attachments[0].kind) : null
+    content: target.sticker ? '' : target.content,
+    media: target.sticker ? 'sticker' : target.embed ? 'poll' : target.attachments[0] ? (target.attachments[0].content_type === 'image/gif' ? 'gif' : target.attachments[0].kind) : null
   })
   return (
     <div className="mb-1.5 flex items-center gap-2 rounded-control border border-line bg-elevated px-3 py-1.5 text-sm">

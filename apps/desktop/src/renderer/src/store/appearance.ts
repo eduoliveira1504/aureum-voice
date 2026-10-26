@@ -27,7 +27,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   news_dismissed: null,
   emoji_tone: 0,
   recent_emojis: [],
-  read_receipts: true
+  read_receipts: true,
+  recent_stickers: []
 }
 
 const CACHE_KEY = 'aureum.appearance'

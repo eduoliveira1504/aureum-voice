@@ -431,7 +431,7 @@ describe('emojis in the chat', () => {
     const box = screen.getByPlaceholderText('Conversar em #geral') as HTMLTextAreaElement
     fireEvent.change(box, { target: { value: 'bom dia' } })
     box.setSelectionRange(3, 3)
-    fireEvent.click(screen.getByRole('button', { name: 'Emojis' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Emojis e figurinhas' }))
     fireEvent.change(await screen.findByLabelText('Buscar emoji'), { target: { value: 'sol' } })
     fireEvent.click(await screen.findByRole('button', { name: 'sol' }))
     expect(box.value).toBe('bom☀️ dia')

@@ -16,7 +16,7 @@ import {
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
-import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type OfficialEventRef, type User } from '../lib/api'
+import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type OfficialEventRef, type Sticker, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import type { Recording } from '../lib/voiceRecorder'
 import { useReadableColor } from '../store/appearance'
@@ -34,6 +34,8 @@ import { ReactionChips } from './MessageReactions'
 import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
 import { LinkPreviews } from './LinkPreviews'
+import { StickerImage, StickerMessage } from './Stickers'
+import { useStickers } from '../store/stickers'
 import { isEmojiOnly } from '../lib/emoji'
 import { ConfirmModal, errorText } from './modals'
 import { useVoiceMessage } from './VoiceMessage'
@@ -273,6 +275,7 @@ export function ChatView({
   canSend = true,
   canAttach = true,
   canReact = true,
+  canStickers = true,
   nameColorOf,
   nameOf,
   intro,
@@ -291,6 +294,8 @@ export function ChatView({
   canAttach?: boolean
   /** Can react (ADD_REACTIONS in servers: without it, only adding to reactions already there). */
   canReact?: boolean
+  /** Can send stickers (USE_STICKERS in servers). */
+  canStickers?: boolean
   /** Color for an author's name (their strongest colored role); their profile color otherwise. */
   nameColorOf?: (userId: string) => string | null
   /** Name to show for an author (their server nickname); their display name otherwise. */
@@ -344,6 +349,7 @@ export function ChatView({
   // A message that carries a chat addon's thing (a poll), when this app knows the addon; else
   // its content, the API's fallback text, shows as usual.
   const embedOf = (message: Message): ReactNode => {
+    if (message.sticker) return <StickerMessage sticker={message.sticker} />
     const addon = chatAddon(message.embed?.addon_key)
     if (!addon) return undefined
     return <addon.Embed message={message} channel={channel} me={me} canModerate={canModerate} userOf={userOf} nameOf={displayName} />
@@ -356,7 +362,7 @@ export function ChatView({
       onReact: canReact ? (emoji) => react(message, emoji, !mine(emoji)) : undefined,
       onReply: canSend ? () => setReplying({ message, mention: true }) : undefined,
       onForward: () => showDialog((close) => <ForwardModal message={message} meId={me.id} onClose={close} />),
-      onEdit: own && message.content && !message.embed ? () => setEditingId(message.id) : undefined,
+      onEdit: own && message.content && !message.embed && !message.sticker ? () => setEditingId(message.id) : undefined,
       onDelete: own || canModerate ? () => setDeleting(message) : undefined
     }
   }
@@ -592,6 +598,7 @@ export function ChatView({
           replyTo={replying && { id: replying.message.id, mention: replying.mention }}
           onReplied={() => setReplying(null)}
           canAttach={canAttach}
+          canStickers={canStickers}
           addFilesRef={addFiles}
           placeholder={placeholder ?? `Conversar em #${channel.name}`}
         />
@@ -910,6 +917,7 @@ function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['for
           <Linkified text={forwarded.content} own={false} />
         </p>
       )}
+      {forwarded.sticker && <StickerImage sticker={forwarded.sticker} size={120} />}
       <p className="mt-0.5 text-xs text-fg-subtle">
         {source.kind === 'dm' ? (
           'de uma conversa privada'
@@ -987,6 +995,7 @@ function Composer({
   replyTo,
   onReplied,
   canAttach,
+  canStickers,
   addFilesRef,
   placeholder
 }: {
@@ -997,6 +1006,7 @@ function Composer({
   replyTo: { id: number; mention: boolean } | null
   onReplied(): void
   canAttach: boolean
+  canStickers: boolean
   /** Set here so the whole conversation can take dropped files. */
   addFilesRef: { current: (files: File[]) => void }
   placeholder: string
@@ -1136,6 +1146,17 @@ function Composer({
   }
   const voice = useVoiceMessage(sendVoice, setError)
 
+  // A sticker goes on its own, as a message with just it (answering what the box answers).
+  async function sendSticker(sticker: Sticker): Promise<void> {
+    setError(null)
+    try {
+      await useStickers.getState().send(channel.id, sticker, replyTo ?? undefined)
+      onReplied()
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 403 ? 'Você não pode enviar essa figurinha aqui.' : 'Não foi possível enviar a figurinha.')
+    }
+  }
+
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
     if (autocomplete.onKeyDown(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1212,12 +1233,14 @@ function Composer({
           />
           <button
             type="button"
-            title="Emojis"
-            aria-label="Emojis"
+            title={canStickers ? 'Emojis e figurinhas' : 'Emojis'}
+            aria-label={canStickers ? 'Emojis e figurinhas' : 'Emojis'}
             onClick={(e) => {
               const el = input.current
               const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
-              pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji))
+              pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji), {
+                stickers: canStickers ? { serverId: channel.server_id, onPick: (sticker) => void sendSticker(sticker) } : undefined
+              })
             }}
             className="absolute bottom-1.5 right-2 rounded-item p-1.5 text-fg-subtle hover:text-fg"
           >

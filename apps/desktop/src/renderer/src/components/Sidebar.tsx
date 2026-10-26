@@ -575,7 +575,7 @@ function ServerHeader({
   const canInvite = has(perms, Perm.CREATE_INVITE)
   const canCreate = has(perms, Perm.MANAGE_CHANNELS)
   const canAddAddons = canCreate && has(perms, Perm.MANAGE_ADDONS)
-  const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)
+  const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_EXPRESSIONS)
 
   const settingsButton = (
     <button

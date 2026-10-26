@@ -15,7 +15,9 @@ import {
   type EmojiEntry,
   type SkinTone
 } from '../lib/emoji'
+import type { Sticker } from '../lib/api'
 import { useAppearance } from '../store/appearance'
+import { StickerPanel } from './Stickers'
 import { cn, inputClass, menuClass } from './ui'
 
 /** One emoji drawn with Twemoji, the same on every PC; the system's own if the drawing is missing.
@@ -56,17 +58,28 @@ const GROUP_ICONS: Record<number, LucideIcon> = { 0: Smile, 1: Hand, 3: PawPrint
 const RECENT = -1
 const TONE_SAMPLE = '✋'
 
-interface PickerState {
-  open: { x: number; y: number; onPick(emoji: string): void } | null
+/** The message box's picker also has stickers, for the place it sends to. */
+export interface StickerTarget {
+  /** null: a DM or group (only Aureum's stickers go there). */
+  serverId: string | null
+  onPick(sticker: Sticker): void
 }
 
-const usePicker = create<PickerState>()(() => ({ open: null }))
+type PickerTab = 'emoji' | 'stickers'
+
+interface PickerState {
+  open: { x: number; y: number; onPick(emoji: string): void; stickers?: StickerTarget } | null
+  tab: PickerTab
+}
+
+const usePicker = create<PickerState>()(() => ({ open: null, tab: 'emoji' }))
 
 /** Opens the emoji picker next to `anchor`; `onPick` gets the chosen emoji (in the user's tone).
- * One picker at a time, rendered by <EmojiPickerHost />. */
-export function pickEmoji(anchor: Element, onPick: (emoji: string) => void): void {
+ * With `stickers`, it also has a "Figurinhas" tab. One picker at a time, rendered by
+ * <EmojiPickerHost />. */
+export function pickEmoji(anchor: Element, onPick: (emoji: string) => void, options: { stickers?: StickerTarget } = {}): void {
   const rect = anchor.getBoundingClientRect()
-  usePicker.setState({ open: { x: rect.right, y: rect.top, onPick } })
+  usePicker.setState({ open: { x: rect.right, y: rect.top, onPick, stickers: options.stickers }, tab: 'emoji' })
 }
 
 export const closeEmojiPicker = (): void => usePicker.setState({ open: null })
@@ -92,33 +105,67 @@ export function rememberEmoji(emoji: string): void {
 
 export function EmojiPickerHost(): ReactNode {
   const open = usePicker((s) => s.open)
+  const tab = usePicker((s) => s.tab)
   if (!open) return null
-  return createPortal(<EmojiPicker x={open.x} y={open.y} onPick={open.onPick} />, document.body)
+  const { stickers } = open
+  return createPortal(
+    <PickerFrame x={open.x} y={open.y} tall={!!stickers}>
+      {stickers && (
+        <div role="tablist" className="flex gap-1 border-b border-line px-2 pt-2">
+          {(
+            [
+              ['emoji', 'Emojis'],
+              ['stickers', 'Figurinhas']
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => usePicker.setState({ tab: key })}
+              className={`-mb-px border-b-2 px-3 pb-1.5 text-sm font-medium ${tab === key ? 'border-accent text-fg' : 'border-transparent text-fg-subtle hover:text-fg'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {stickers && tab === 'stickers' ? (
+        <StickerPanel
+          serverId={stickers.serverId}
+          onPick={(sticker) => {
+            stickers.onPick(sticker)
+            closeEmojiPicker()
+          }}
+        />
+      ) : (
+        <EmojiPanel onPick={open.onPick} />
+      )}
+    </PickerFrame>,
+    document.body
+  )
 }
 
 const PICKER_W = 352
 const PICKER_H = 420
+// With tabs (the message box's picker).
+const PICKER_TALL_H = 460
 
-function EmojiPicker({ x, y, onPick }: { x: number; y: number; onPick(emoji: string): void }): ReactNode {
+/** The popover: above the anchor, ending at its right edge, kept inside the window. Outside click
+ * or Esc closes it, and only it (not a modal it was opened from). */
+function PickerFrame({ x, y, tall, children }: { x: number; y: number; tall: boolean; children: ReactNode }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
-  const list = useRef<HTMLDivElement>(null)
-  const catalog = useEmojiCatalog()
-  const tone = useAppearance((s) => s.settings.emoji_tone) as SkinTone
-  const recent = useAppearance((s) => s.settings.recent_emojis)
-  const [query, setQuery] = useState('')
-  const [hovered, setHovered] = useState<EmojiEntry | null>(null)
-  const [tones, setTones] = useState(false)
-  const [pos, setPos] = useState({ left: x - PICKER_W, top: y - PICKER_H - 8 })
+  const height = tall ? PICKER_TALL_H : PICKER_H
+  const [pos, setPos] = useState({ left: x - PICKER_W, top: y - height - 8 })
 
-  // Above the anchor, ending at its right edge; kept inside the window.
   useLayoutEffect(() => {
     setPos({
       left: Math.max(8, Math.min(x - PICKER_W, window.innerWidth - PICKER_W - 8)),
-      top: y - PICKER_H - 8 >= 8 ? y - PICKER_H - 8 : Math.min(y + 32, window.innerHeight - PICKER_H - 8)
+      top: y - height - 8 >= 8 ? y - height - 8 : Math.min(y + 32, window.innerHeight - height - 8)
     })
-  }, [x, y])
+  }, [x, y, height])
 
-  // Outside click or Esc closes it, and only it (not a modal it was opened from).
   useEffect(() => {
     const onDown = (e: MouseEvent): void => {
       if (!ref.current?.contains(e.target as Node)) closeEmojiPicker()
@@ -135,6 +182,28 @@ function EmojiPicker({ x, y, onPick }: { x: number; y: number; onPick(emoji: str
       window.removeEventListener('keydown', onKey, true)
     }
   }, [])
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label="Escolher emoji"
+      style={{ ...pos, width: PICKER_W, height }}
+      className={cn(menuClass, 'app-no-drag fixed z-[70] flex flex-col p-0')}
+    >
+      {children}
+    </div>
+  )
+}
+
+function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
+  const list = useRef<HTMLDivElement>(null)
+  const catalog = useEmojiCatalog()
+  const tone = useAppearance((s) => s.settings.emoji_tone) as SkinTone
+  const recent = useAppearance((s) => s.settings.recent_emojis)
+  const [query, setQuery] = useState('')
+  const [hovered, setHovered] = useState<EmojiEntry | null>(null)
+  const [tones, setTones] = useState(false)
 
   const results = useMemo(() => (catalog && query.trim() ? searchEmojis(catalog, query, 120) : null), [catalog, query])
   const recentEntries = useMemo(
@@ -165,13 +234,7 @@ function EmojiPicker({ x, y, onPick }: { x: number; y: number; onPick(emoji: str
   )
 
   return (
-    <div
-      ref={ref}
-      role="dialog"
-      aria-label="Escolher emoji"
-      style={{ ...pos, width: PICKER_W, height: PICKER_H }}
-      className={cn(menuClass, 'app-no-drag fixed z-[70] flex flex-col p-0')}
-    >
+    <>
       <div className="flex items-center gap-2 border-b border-line p-2">
         <div className="relative min-w-0 flex-1">
           <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle" />
@@ -270,7 +333,7 @@ function EmojiPicker({ x, y, onPick }: { x: number; y: number; onPick(emoji: str
           <span className="text-fg-subtle">Emojis por Twemoji</span>
         )}
       </p>
-    </div>
+    </>
   )
 }
 

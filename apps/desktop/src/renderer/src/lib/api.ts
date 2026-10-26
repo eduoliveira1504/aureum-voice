@@ -200,6 +200,8 @@ export interface UserSettings {
   recent_emojis: string[]
   /** "Confirmação de leitura" in 1:1 DMs; off hides it both ways. */
   read_receipts: boolean
+  /** Sticker ids, newest first. */
+  recent_stickers: string[]
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
@@ -427,6 +429,39 @@ export interface Message {
   reactions?: Reaction[] | null
   /** Cards of its links, filled by the API a moment after it's sent (as message.updated). */
   link_previews?: LinkPreview[]
+  /** A sticker message; its content is a fallback for older apps. */
+  sticker?: MessageSticker | null
+}
+
+/** What a sticker message keeps of the sticker (it stays after the sticker is removed). */
+export interface MessageSticker {
+  id: string
+  name: string
+  pack_id: string
+  /** Set for a server's own sticker: it only goes in that server. */
+  server_id: string | null
+  url: string
+  width: number
+  height: number
+}
+
+export interface Sticker {
+  id: string
+  name: string
+  emoji: string | null
+  width: number
+  height: number
+  /** /api/media/stickers/{id}: fetched with the token. */
+  url: string
+}
+
+export interface StickerPack {
+  id: string
+  /** Empty for a server's pack (shown with the server's name). */
+  name: string
+  is_global: boolean
+  server_id: string | null
+  stickers: Sticker[]
 }
 
 /** A link's card. `image` is a /api/media path (the API fetched it, never the app). */
@@ -454,6 +489,8 @@ export interface Reaction {
 export interface ForwardedFrom {
   content: string
   created_at: string
+  /** A forwarded sticker. */
+  sticker?: MessageSticker
   /** Where the original was. A private conversation says only that. */
   source:
     | { kind: 'dm' }
@@ -466,7 +503,7 @@ export interface ReplyRef {
   id: number
   author: User | null
   content: string
-  media: 'image' | 'gif' | 'video' | 'voice' | 'file' | 'poll' | 'embed' | null
+  media: 'image' | 'gif' | 'video' | 'voice' | 'file' | 'poll' | 'embed' | 'sticker' | null
 }
 
 /** The event an official "eventos" notice is about (a reminder, a change...). */

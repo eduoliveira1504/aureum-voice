@@ -32,12 +32,14 @@ export const Perm = {
   MANAGE_ADDONS: 1 << 23,
   // Addon permissions. Bitwise math here is 32-bit: new bits stay at or below 1 << 30.
   EDIT_WHITEBOARD: 1 << 24,
-  MANAGE_EVENTS: 1 << 25
+  MANAGE_EVENTS: 1 << 25,
+  MANAGE_EXPRESSIONS: 1 << 26,
+  USE_STICKERS: 1 << 27
 } as const
 
 export type PermName = keyof typeof Perm
 
-export const ALL = (1 << 26) - 1
+export const ALL = (1 << 28) - 1
 const VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
 
 /** Permissions a channel override can change (the rest are server-wide). */
@@ -56,7 +58,8 @@ export const CHANNEL_PERMS =
   VOICE_ONLY |
   Perm.MANAGE_ADDONS |
   Perm.EDIT_WHITEBOARD |
-  Perm.MANAGE_EVENTS
+  Perm.MANAGE_EVENTS |
+  Perm.USE_STICKERS
 
 const OWNER_RANK = 1 << 30
 
@@ -159,8 +162,10 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'SEND_MESSAGES', label: 'Enviar mensagens', description: '' },
       { perm: 'READ_HISTORY', label: 'Ler histórico', description: 'Sem isso, só vê o que chegar enquanto está com o canal aberto.' },
       { perm: 'MANAGE_MESSAGES', label: 'Gerenciar mensagens', description: 'Apagar mensagens dos outros.' },
-      { perm: 'ATTACH_FILES', label: 'Enviar arquivos', description: 'Reservado: anexos chegam numa próxima versão.' },
-      { perm: 'ADD_REACTIONS', label: 'Reagir', description: 'Reservado: reações chegam numa próxima versão.' },
+      { perm: 'ATTACH_FILES', label: 'Enviar arquivos', description: 'Imagens, vídeos, arquivos e mensagens de voz.' },
+      { perm: 'ADD_REACTIONS', label: 'Reagir', description: 'Criar reações novas. Somar numa reação que já existe não precisa.' },
+      { perm: 'USE_STICKERS', label: 'Usar figurinhas', description: 'Enviar figurinhas do Aureum e deste servidor.' },
+      { perm: 'MANAGE_EXPRESSIONS', label: 'Gerenciar figurinhas', description: 'Enviar, renomear e remover as figurinhas do servidor.' },
       { perm: 'MENTION_EVERYONE', label: 'Mencionar @everyone', description: 'Reservado: menções a cargos chegam numa próxima versão.' }
     ]
   },
