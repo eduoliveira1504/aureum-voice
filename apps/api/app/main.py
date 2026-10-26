@@ -14,7 +14,7 @@ from app.bot import broadcast, releases
 from app.config import get_settings
 from app.db import SessionLocal
 from app.realtime import broker
-from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, gifs, home, moderation, public, roles, servers, stickers, users, web, ws
+from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, gifs, home, moderation, public, roles, servers, soundboard, stickers, users, web, ws
 
 settings = get_settings()
 
@@ -65,6 +65,7 @@ api.include_router(home.router)
 api.include_router(bug_reports.router)
 api.include_router(badges_router.router)
 api.include_router(stickers.router)  # its /media/stickers/{id} goes before media_router too
+api.include_router(soundboard.router)  # and its /media/sounds/{id}
 api.include_router(users.media_router)
 api.include_router(servers.router)
 api.include_router(channels.router)

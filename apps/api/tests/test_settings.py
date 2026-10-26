@@ -23,6 +23,8 @@ DEFAULTS = {
     "recent_emojis": [],
     "read_receipts": True,
     "recent_stickers": [],
+    "soundboard_volume": 100,
+    "soundboard_muted": False,
 }
 
 

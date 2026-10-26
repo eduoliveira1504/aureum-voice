@@ -13,3 +13,4 @@ minio==7.2.20
 python-multipart==0.0.32
 pillow==11.3.0
 httpx==0.28.1
+tinytag==2.3.2

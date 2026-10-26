@@ -281,6 +281,9 @@ class UserSettings(Base):
     # "Confirmação de leitura" (1:1 DMs, app/receipts.py): off, the other side doesn't see when I
     # read and I don't see when they do.
     read_receipts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # Painel de sons: how loud others' sounds play for me (0-100), or not at all.
+    soundboard_volume: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=100, server_default="100")
+    soundboard_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -584,6 +587,27 @@ class Sticker(Base):
     created_at: Mapped[datetime] = _created_at()
 
     pack: Mapped[StickerPack] = relationship(back_populates="stickers", lazy="joined")
+
+
+class SoundboardSound(Base):
+    """A server's sound for its Painel de sons (app/soundboard.py): mp3, ogg or wav as uploaded,
+    checked to be at most 5 s. Served through /api/media/sounds/{id}, to the server's members."""
+
+    __tablename__ = "soundboard_sounds"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    emoji: Mapped[str | None] = mapped_column(String(64))
+    # How loud it plays (0-100), before each listener's own soundboard volume.
+    volume: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=100, server_default="100")
+    # As measured on upload; the app stops playing it there.
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    key: Mapped[str] = mapped_column(String(200), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created_at()
 
 
 class GifFavorite(Base):

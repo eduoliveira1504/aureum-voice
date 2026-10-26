@@ -398,6 +398,8 @@ class SettingsOut(BaseModel):
     recent_emojis: list[str] = []
     read_receipts: bool = True
     recent_stickers: list[str] = []
+    soundboard_volume: int = 100
+    soundboard_muted: bool = False
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -434,6 +436,9 @@ class SettingsUpdate(BaseModel):
     read_receipts: bool | None = None
     # Sticker ids, newest first.
     recent_stickers: Annotated[list[uuid.UUID], Field(max_length=MAX_RECENT_STICKERS)] | None = None
+    # Painel de sons: how loud others' sounds play for me, and "Silenciar sons dos outros".
+    soundboard_volume: Annotated[int, Field(ge=0, le=100)] | None = None
+    soundboard_muted: bool | None = None
 
 
 # --- Friends --------------------------------------------------------------
@@ -1010,6 +1015,43 @@ class StickerUpdate(BaseModel):
     name: StickerName | None = None
     # A related emoji (search); "" clears it.
     emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=32)] | None = None
+
+
+# --- Painel de sons -----------------------------------------------------------
+
+
+SoundName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=30)]
+SoundVolume = Annotated[int, Field(ge=0, le=100)]
+
+
+class SoundOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    server_id: uuid.UUID
+    name: str
+    emoji: str | None
+    volume: int
+    duration_ms: int
+    # /api/media/sounds/{id}, fetched with the token.
+    url: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _url(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return value
+        return {
+            "id": value.id, "server_id": value.server_id, "name": value.name, "emoji": value.emoji,
+            "volume": value.volume, "duration_ms": value.duration_ms, "url": f"/api/media/sounds/{value.id}",
+        }
+
+
+class SoundUpdate(BaseModel):
+    name: SoundName | None = None
+    # One emoji from the picker; "" clears it.
+    emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=32)] | None = None
+    volume: SoundVolume | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

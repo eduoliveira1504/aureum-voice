@@ -63,6 +63,10 @@ class Perm(enum.IntFlag):
     # Stickers (block 3.11C): managing the server's own, and sending any (Aureum's or the server's).
     MANAGE_EXPRESSIONS = 1 << 26
     USE_STICKERS = 1 << 27
+    # Sound panel (block 3.15): playing a server's sounds in its voice rooms, and managing them.
+    # After these only 1 << 30 is left below the desktop's 32-bit limit.
+    USE_SOUNDBOARD = 1 << 28
+    MANAGE_SOUNDBOARD = 1 << 29
 
 
 ALL = Perm((1 << len(Perm)) - 1)
@@ -82,6 +86,7 @@ DEFAULT_EVERYONE = (
     | Perm.STREAM
     | Perm.EDIT_WHITEBOARD
     | Perm.USE_STICKERS
+    | Perm.USE_SOUNDBOARD
 )
 
 # Permissions that only make sense per channel; the rest are server-wide and are ignored in
@@ -108,9 +113,12 @@ CHANNEL_PERMS = (
     | Perm.EDIT_WHITEBOARD
     | Perm.MANAGE_EVENTS
     | Perm.USE_STICKERS
+    | Perm.USE_SOUNDBOARD
 )
 
-VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
+VOICE_ONLY = (
+    Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS | Perm.USE_SOUNDBOARD
+)
 
 OWNER_RANK = 1 << 30  # above any role position
 
