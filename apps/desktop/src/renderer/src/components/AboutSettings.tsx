@@ -17,6 +17,7 @@ const CREDITS: { name: string; what: string; license: string; url: string }[] = 
     url: 'https://github.com/jdecked/twemoji'
   },
   { name: 'Emojibase', what: 'Nomes dos emojis em português', license: 'MIT', url: 'https://github.com/milesj/emojibase' },
+  { name: 'KLIPY', what: 'GIFs (busca e conteúdo, Powered by KLIPY)', license: 'Termos do KLIPY', url: 'https://klipy.com/developers' },
   { name: 'tailwind-merge', what: 'Estilos', license: 'MIT', url: 'https://github.com/dcastil/tailwind-merge' },
   { name: 'Zustand', what: 'Estado do app', license: 'MIT', url: 'https://github.com/pmndrs/zustand' },
   { name: 'Tailwind CSS', what: 'Estilos', license: 'MIT', url: 'https://github.com/tailwindlabs/tailwindcss' },

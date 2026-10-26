@@ -25,6 +25,7 @@ import { loadAppearance, useAppearance } from '../store/appearance'
 import { useBadges } from '../store/badges'
 import { useChat } from '../store/chat'
 import { useHome } from '../store/home'
+import { useGifs } from '../store/gifs'
 import { useStickers } from '../store/stickers'
 import { layoutOf, membersOpenFor, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
@@ -60,6 +61,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     chat.reset(user.id)
     useSocial.getState().reset(user.id)
     useStickers.getState().reset()
+    useGifs.getState().reset()
     useNav.setState({ place: 'home', homePage: 'hub' }) // the app always opens on the Home hub
     const realtime = new Realtime(
       (event) => {
@@ -78,6 +80,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         useSocial.getState().applyEvent(event)
         useHome.getState().applyEvent(event)
         useStickers.getState().applyEvent(event)
+        useGifs.getState().applyEvent(event)
       },
       (s) => useChat.getState().setStatus(s)
     )

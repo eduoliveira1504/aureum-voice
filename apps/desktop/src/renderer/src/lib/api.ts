@@ -431,6 +431,32 @@ export interface Message {
   link_previews?: LinkPreview[]
   /** A sticker message; its content is a fallback for older apps. */
   sticker?: MessageSticker | null
+  /** A GIF message (likewise). */
+  gif?: Gif | null
+}
+
+/** A GIF (Klipy's URLs as given): what a GIF message keeps, and a favorite. */
+export interface Gif {
+  id: string
+  title: string
+  /** What plays: MP4 or WebP preferred. */
+  url: string
+  format: 'mp4' | 'webp' | 'gif'
+  /** A still, for reduced motion and while it loads. */
+  preview: string | null
+  width: number
+  height: number
+  provider?: string
+}
+
+/** How the app searches Klipy itself (GET /gifs/config). */
+export interface GifConfig {
+  enabled: boolean
+  provider: string
+  app_key: string | null
+  customer_id: string | null
+  content_filter: string
+  locale: string
 }
 
 /** What a sticker message keeps of the sticker (it stays after the sticker is removed). */
@@ -489,8 +515,9 @@ export interface Reaction {
 export interface ForwardedFrom {
   content: string
   created_at: string
-  /** A forwarded sticker. */
+  /** A forwarded sticker or GIF. */
   sticker?: MessageSticker
+  gif?: Gif
   /** Where the original was. A private conversation says only that. */
   source:
     | { kind: 'dm' }

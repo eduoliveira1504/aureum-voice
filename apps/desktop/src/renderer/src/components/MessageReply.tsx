@@ -77,8 +77,8 @@ export function ReplyBar({
   onCancel(): void
 }): ReactNode {
   const snippet = replySnippet({
-    content: target.sticker ? '' : target.content,
-    media: target.sticker ? 'sticker' : target.embed ? 'poll' : target.attachments[0] ? (target.attachments[0].content_type === 'image/gif' ? 'gif' : target.attachments[0].kind) : null
+    content: target.sticker || target.gif ? '' : target.content,
+    media: target.sticker ? 'sticker' : target.gif ? 'gif' : target.embed ? 'poll' : target.attachments[0] ? (target.attachments[0].content_type === 'image/gif' ? 'gif' : target.attachments[0].kind) : null
   })
   return (
     <div className="mb-1.5 flex items-center gap-2 rounded-control border border-line bg-elevated px-3 py-1.5 text-sm">

@@ -15,8 +15,9 @@ import {
   type EmojiEntry,
   type SkinTone
 } from '../lib/emoji'
-import type { Sticker } from '../lib/api'
+import type { Gif, Sticker } from '../lib/api'
 import { useAppearance } from '../store/appearance'
+import { GifPanel } from './Gifs'
 import { StickerPanel } from './Stickers'
 import { cn, inputClass, menuClass } from './ui'
 
@@ -65,21 +66,34 @@ export interface StickerTarget {
   onPick(sticker: Sticker): void
 }
 
-type PickerTab = 'emoji' | 'stickers'
+/** ...and GIFs, where files may be sent. */
+export interface GifTarget {
+  onPick(gif: Gif): void
+}
+
+export type PickerTab = 'emoji' | 'stickers' | 'gifs'
+
+interface PickerOptions {
+  stickers?: StickerTarget
+  gifs?: GifTarget
+  /** The tab it opens on (the GIF button opens on GIFs). */
+  tab?: PickerTab
+}
 
 interface PickerState {
-  open: { x: number; y: number; onPick(emoji: string): void; stickers?: StickerTarget } | null
+  open: { x: number; y: number; onPick(emoji: string): void; stickers?: StickerTarget; gifs?: GifTarget } | null
   tab: PickerTab
 }
 
 const usePicker = create<PickerState>()(() => ({ open: null, tab: 'emoji' }))
 
 /** Opens the emoji picker next to `anchor`; `onPick` gets the chosen emoji (in the user's tone).
- * With `stickers`, it also has a "Figurinhas" tab. One picker at a time, rendered by
- * <EmojiPickerHost />. */
-export function pickEmoji(anchor: Element, onPick: (emoji: string) => void, options: { stickers?: StickerTarget } = {}): void {
+ * With `stickers` / `gifs`, it also has "Figurinhas" / "GIFs" tabs. One picker at a time, rendered
+ * by <EmojiPickerHost />. */
+export function pickEmoji(anchor: Element, onPick: (emoji: string) => void, options: PickerOptions = {}): void {
   const rect = anchor.getBoundingClientRect()
-  usePicker.setState({ open: { x: rect.right, y: rect.top, onPick, stickers: options.stickers }, tab: 'emoji' })
+  const { stickers, gifs, tab = 'emoji' } = options
+  usePicker.setState({ open: { x: rect.right, y: rect.top, onPick, stickers, gifs }, tab })
 }
 
 export const closeEmojiPicker = (): void => usePicker.setState({ open: null })
@@ -107,17 +121,19 @@ export function EmojiPickerHost(): ReactNode {
   const open = usePicker((s) => s.open)
   const tab = usePicker((s) => s.tab)
   if (!open) return null
-  const { stickers } = open
+  const { stickers, gifs } = open
+  const tabs = (
+    [
+      ['emoji', 'Emojis', true],
+      ['stickers', 'Figurinhas', !!stickers],
+      ['gifs', 'GIFs', !!gifs]
+    ] as const
+  ).filter(([, , shown]) => shown)
   return createPortal(
-    <PickerFrame x={open.x} y={open.y} tall={!!stickers}>
-      {stickers && (
+    <PickerFrame x={open.x} y={open.y} tall={tabs.length > 1}>
+      {tabs.length > 1 && (
         <div role="tablist" className="flex gap-1 border-b border-line px-2 pt-2">
-          {(
-            [
-              ['emoji', 'Emojis'],
-              ['stickers', 'Figurinhas']
-            ] as const
-          ).map(([key, label]) => (
+          {tabs.map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -136,6 +152,13 @@ export function EmojiPickerHost(): ReactNode {
           serverId={stickers.serverId}
           onPick={(sticker) => {
             stickers.onPick(sticker)
+            closeEmojiPicker()
+          }}
+        />
+      ) : gifs && tab === 'gifs' ? (
+        <GifPanel
+          onPick={(gif) => {
+            gifs.onPick(gif)
             closeEmojiPicker()
           }}
         />

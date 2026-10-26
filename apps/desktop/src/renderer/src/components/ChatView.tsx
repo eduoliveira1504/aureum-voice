@@ -16,7 +16,7 @@ import {
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
-import { ApiError, uploadFile, type Attachment, type Channel, type Me, type Message, type OfficialEventRef, type Sticker, type User } from '../lib/api'
+import { api, ApiError, uploadFile, type Attachment, type Channel, type Gif, type Me, type Message, type OfficialEventRef, type Sticker, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import type { Recording } from '../lib/voiceRecorder'
 import { useReadableColor } from '../store/appearance'
@@ -34,7 +34,9 @@ import { ReactionChips } from './MessageReactions'
 import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
 import { LinkPreviews } from './LinkPreviews'
+import { GifMessage } from './Gifs'
 import { StickerImage, StickerMessage } from './Stickers'
+import { useGifs } from '../store/gifs'
 import { useStickers } from '../store/stickers'
 import { isEmojiOnly } from '../lib/emoji'
 import { ConfirmModal, errorText } from './modals'
@@ -350,6 +352,7 @@ export function ChatView({
   // its content, the API's fallback text, shows as usual.
   const embedOf = (message: Message): ReactNode => {
     if (message.sticker) return <StickerMessage sticker={message.sticker} />
+    if (message.gif) return <GifMessage gif={message.gif} />
     const addon = chatAddon(message.embed?.addon_key)
     if (!addon) return undefined
     return <addon.Embed message={message} channel={channel} me={me} canModerate={canModerate} userOf={userOf} nameOf={displayName} />
@@ -362,7 +365,7 @@ export function ChatView({
       onReact: canReact ? (emoji) => react(message, emoji, !mine(emoji)) : undefined,
       onReply: canSend ? () => setReplying({ message, mention: true }) : undefined,
       onForward: () => showDialog((close) => <ForwardModal message={message} meId={me.id} onClose={close} />),
-      onEdit: own && message.content && !message.embed && !message.sticker ? () => setEditingId(message.id) : undefined,
+      onEdit: own && message.content && !message.embed && !message.sticker && !message.gif ? () => setEditingId(message.id) : undefined,
       onDelete: own || canModerate ? () => setDeleting(message) : undefined
     }
   }
@@ -918,6 +921,7 @@ function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['for
         </p>
       )}
       {forwarded.sticker && <StickerImage sticker={forwarded.sticker} size={120} />}
+      {forwarded.gif && <GifMessage gif={forwarded.gif} />}
       <p className="mt-0.5 text-xs text-fg-subtle">
         {source.kind === 'dm' ? (
           'de uma conversa privada'
@@ -1146,6 +1150,32 @@ function Composer({
   }
   const voice = useVoiceMessage(sendVoice, setError)
 
+  // GIFs show where files may be sent, once the API says they're on (it has Klipy's key).
+  const gifsOn = useGifs((s) => !!s.config?.enabled) && canAttach
+  useEffect(() => {
+    void useGifs.getState().loadConfig().catch(() => {})
+  }, [])
+
+  // A GIF goes on its own too.
+  async function sendGif(gif: Gif): Promise<void> {
+    setError(null)
+    try {
+      useChat.getState().addMessage(
+        await api<Message>(`/channels/${channel.id}/messages`, {
+          method: 'POST',
+          body: { gif, ...(replyTo && { reply_to_id: replyTo.id, mention_reply: replyTo.mention }) }
+        })
+      )
+      onReplied()
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para enviar GIFs aqui.' : 'Não foi possível enviar o GIF.')
+    }
+  }
+  const pickerOptions = {
+    stickers: canStickers ? { serverId: channel.server_id, onPick: (sticker: Sticker) => void sendSticker(sticker) } : undefined,
+    gifs: gifsOn ? { onPick: (gif: Gif) => void sendGif(gif) } : undefined
+  }
+
   // A sticker goes on its own, as a message with just it (answering what the box answers).
   async function sendSticker(sticker: Sticker): Promise<void> {
     setError(null)
@@ -1229,7 +1259,7 @@ function Composer({
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder={placeholder}
-            roomRight
+            roomRight={gifsOn ? 'wide' : true}
           />
           <button
             type="button"
@@ -1238,14 +1268,27 @@ function Composer({
             onClick={(e) => {
               const el = input.current
               const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
-              pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji), {
-                stickers: canStickers ? { serverId: channel.server_id, onPick: (sticker) => void sendSticker(sticker) } : undefined
-              })
+              pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji), pickerOptions)
             }}
             className="absolute bottom-1.5 right-2 rounded-item p-1.5 text-fg-subtle hover:text-fg"
           >
             <Smile size={20} />
           </button>
+          {gifsOn && (
+            <button
+              type="button"
+              title="GIFs"
+              aria-label="GIFs"
+              onClick={(e) => {
+                const el = input.current
+                const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
+                pickEmoji(e.currentTarget, (emoji) => putEmoji(start, end, emoji), { ...pickerOptions, tab: 'gifs' })
+              }}
+              className="absolute bottom-2.5 right-11 rounded-item border border-current px-1 text-[10px] font-bold leading-4 text-fg-subtle hover:text-fg"
+            >
+              GIF
+            </button>
+          )}
           {voice.bar}
         </div>
         {canAttach && voice.button}
@@ -1272,8 +1315,8 @@ function AutoTextarea({
 }: {
   inputRef?: RefObject<HTMLTextAreaElement | null>
   onSelect?: () => void
-  /** Leaves room on the right for a button over the box (the emoji picker's). */
-  roomRight?: boolean
+  /** Leaves room on the right for the buttons over the box (emoji picker; 'wide': GIF too). */
+  roomRight?: boolean | 'wide'
   value: string
   onChange(v: string): void
   onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void
@@ -1303,7 +1346,7 @@ function AutoTextarea({
       onKeyDown={onKeyDown}
       onPaste={onPaste}
       onSelect={onSelect}
-      className={`block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60 ${roomRight ? 'pr-11' : ''}`}
+      className={`block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60 ${roomRight === 'wide' ? 'pr-20' : roomRight ? 'pr-11' : ''}`}
     />
   )
 }
