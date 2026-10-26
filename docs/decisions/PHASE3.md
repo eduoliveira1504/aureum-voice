@@ -34,6 +34,8 @@ manual no 3.11.
 3.15 ✅ pronto em 25/10, feito antes do 3.12–3.14 a pedido do Eduardo (Painel de sons: API com 1
 migração core, c1e7a3b9d520, e a dependência nova tinytag no requirements; app), ainda não em
 produção nem publicado; passos de produção e teste manual no 3.15.
+Depois da beta.7, a pedido do Eduardo: correção da saída da call em tela cheia (só app), na
+0.2.0-beta.7.b.
 Próximo: 3.12 (categorias de canais); depois 3.13, 3.14 e 3.16.
 
 ## Regras de produção (valem para todos os blocos)

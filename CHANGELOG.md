@@ -1,5 +1,11 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.7.b
+
+- **Call em tela cheia:** o botão de sair da tela cheia ficava escondido atrás dos botões da
+  janela, e só dava pra sair com Esc. Agora a barra da call tem o botão "Tela cheia" / "Sair da
+  tela cheia", e nada no topo da call fica por baixo dos botões da janela.
+
 ## 0.2.0-beta.7
 
 - **Painel de sons:** cada servidor pode ter até 24 sons curtos (até 5 segundos) pra tocar na call,

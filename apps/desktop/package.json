@@ -1,7 +1,7 @@
 {
   "name": "aureum-voice-desktop",
   "productName": "Aureum Voice",
-  "version": "0.2.0-beta.7",
+  "version": "0.2.0-beta.7.b",
   "description": "Aureum Voice desktop client",
   "author": "Eduardo Oliveira",
   "private": true,
