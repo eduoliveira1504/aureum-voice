@@ -178,7 +178,8 @@ function FullscreenCall({ meId }: { meId: string }): ReactNode {
 
   if (!on || !inCall) return null
   return (
-    <div className="fixed inset-0 z-40 flex bg-rail">
+    // Over the top bar's drag region, which Electron keeps active under layers that don't opt out.
+    <div className="app-no-drag fixed inset-0 z-40 flex bg-rail">
       {server && channel ? (
         <VoiceView server={server} channel={channel} meId={meId} fullscreen />
       ) : (

@@ -141,7 +141,8 @@ export function CallView({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-rail">
-      <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+      {/* In fullscreen the header sits under Windows' window buttons: keep their width free. */}
+      <header className={`flex h-12 shrink-0 items-center gap-2 pl-4 ${fullscreen ? 'pr-window-controls' : 'pr-4'}`}>
         <Volume2 size={20} className="text-fg-subtle" />
         <h2 className="truncate font-semibold">{title}</h2>
         {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">Reconectando…</span>}
@@ -172,7 +173,7 @@ export function CallView({
         <>
           <CallStage tiles={tiles} layout={layout} focused={focused} people={people} meId={meId} onFocus={focusOn} />
           {footer}
-          <CallControls autoHide={fullscreen} />
+          <CallControls fullscreen={fullscreen} />
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
@@ -678,16 +679,17 @@ function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void
 
 /**
  * The call's control bar, at the bottom of the call, centered. The arrows next to the mic,
- * headphone and camera open their device menus. With `autoHide` (the call in fullscreen) it fades
- * out while the mouse stands still, unless a menu is open.
+ * headphone and camera open their device menus. In fullscreen it fades out while the mouse stands
+ * still, unless a menu is open, and its fullscreen button is the way out besides Esc.
  */
-export function CallControls({ autoHide = false }: { autoHide?: boolean }): ReactNode {
+export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } =
     useVoice()
   const [picking, setPicking] = useState(false)
   const [menus, setMenus] = useState(0)
-  const idle = useIdle(autoHide, CONTROLS_IDLE_MS)
-  const hidden = autoHide && idle && menus === 0 && !picking
+  const setCallFullscreen = useNav((s) => s.setCallFullscreen)
+  const idle = useIdle(fullscreen, CONTROLS_IDLE_MS)
+  const hidden = fullscreen && idle && menus === 0 && !picking
   const menuOpen = (open: boolean): void => setMenus((n) => Math.max(0, n + (open ? 1 : -1)))
   const connecting = phase === 'connecting'
   return (
@@ -729,6 +731,9 @@ export function CallControls({ autoHide = false }: { autoHide?: boolean }): Reac
           onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
         >
           {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
+        </ControlButton>
+        <ControlButton label={fullscreen ? 'Sair da tela cheia (Esc)' : 'Tela cheia'} onClick={() => setCallFullscreen(!fullscreen)}>
+          {fullscreen ? <Shrink size={22} /> : <Expand size={22} />}
         </ControlButton>
         <SoundboardControl onOpenChange={menuOpen} />
         <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
