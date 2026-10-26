@@ -87,6 +87,14 @@ async def delete_sound(sound_id: uuid.UUID, user: CurrentUser, session: SessionD
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/sounds/{sound_id}/play", response_model=SoundOut)
+async def play_sound(sound_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> SoundboardSound:
+    """Asked right before the app publishes the sound in the room (app/soundboard.py)."""
+    sound = await soundboard.visible(session, sound_id, user.id)
+    await soundboard.start_playing(session, sound, user.id)
+    return sound
+
+
 @router.get("/media/sounds/{sound_id}")
 async def sound_file(sound_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
     """The audio, for the server's members. 404 otherwise."""

@@ -5,6 +5,12 @@ kept as uploaded. Its length is measured here (tinytag) and must be at most MAX_
 that plays it stops at that length too, so a file whose header lies doesn't play longer.
 Files are served by /api/media/sounds/{id}, to the server's members only. A sound belongs to its
 server: it can't be played anywhere else, DMs included.
+
+Playing (see docs/decisions/0035-soundboard.md): the app asks POST /sounds/{id}/play first, then
+publishes the sound itself as a second LiveKit audio track named "soundboard". The API checks that
+the user is in one of that server's voice rooms with SPEAK and USE_SOUNDBOARD, not deafened and
+not server-muted, and holds a per-user lock in Redis for the sound's length (at least COOLDOWN_MS):
+one sound at a time, and a 3 s cooldown.
 """
 
 import io
@@ -16,14 +22,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tinytag import TinyTag
 
-from app import storage
-from app.models import ServerMember, SoundboardSound
+from app import storage, voice
+from app.config import get_settings
+from app.models import Channel, ServerMember, SoundboardSound
+from app.permissions import Perm, server_access
+from app.realtime import broker
 
 MAX_BYTES = 1024 * 1024
 MAX_SECONDS = 5.0
 # Encoders pad the end (an mp3 of exactly 5 s measures ~5.07 s); not enough to matter.
 SLACK_SECONDS = 0.2
 MAX_PER_SERVER = 24
+COOLDOWN_MS = 3000
 URL_PREFIX = storage.MEDIA_PREFIX + "sounds/"
 # Stored files; not under /api/media's public prefixes.
 KEY_PREFIX = "sounds/"
@@ -101,3 +111,34 @@ async def visible(session: AsyncSession, sound_id: uuid.UUID, user_id: uuid.UUID
     if sound is None or await session.get(ServerMember, (sound.server_id, user_id)) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Sound not found")
     return sound
+
+
+def _lock_key(user_id: uuid.UUID) -> str:
+    return f"{get_settings().redis_prefix}:soundboard:{user_id}"
+
+
+async def start_playing(session: AsyncSession, sound: SoundboardSound, user_id: uuid.UUID) -> None:
+    """Lets the user play `sound` now in the room they're in, or raises (403, 409 or 429)."""
+    current = await voice.current_state(user_id)
+    if current is None or current[0] != voice.server_scope(sound.server_id):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Join one of this server's voice rooms first")
+    state = current[1]
+    channel = await session.get(Channel, state.channel_id)
+    member = await session.get(ServerMember, (sound.server_id, user_id))
+    if channel is None or member is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Join one of this server's voice rooms first")
+    access = await server_access(session, sound.server_id, user_id)
+    access.require_in(channel, Perm.SPEAK)
+    access.require_in(channel, Perm.USE_SOUNDBOARD)
+    if state.deafened or member.voice_deafened:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Sounds are off while you're deafened")
+    if state.server_muted or member.voice_muted:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You were muted in this server")
+    hold = max(sound.duration_ms, COOLDOWN_MS)
+    if not await broker.redis.set(_lock_key(user_id), str(sound.id), px=hold, nx=True):
+        left = await broker.redis.pttl(_lock_key(user_id))
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Wait for your last sound",
+            headers={"Retry-After": str(max(1, -(-max(left, 0) // 1000)))},
+        )
