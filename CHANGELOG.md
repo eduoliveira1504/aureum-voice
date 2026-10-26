@@ -1,5 +1,31 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.7
+
+- **Painel de sons:** cada servidor pode ter até 24 sons curtos (até 5 segundos) pra tocar na call,
+  pelo botão novo na barra da call. Quem gerencia o servidor adiciona os sons em Configurações do
+  servidor › Painel de sons. Cada pessoa escolhe o volume dos sons dos outros, ou silencia todos, em
+  Configurações › Sons. Os sons não fazem o seu anel de "falando" acender.
+- **Chat:**
+  - **Responder e encaminhar:** responda uma mensagem citando ela, ou encaminhe pra até 5
+    conversas. Passe o mouse numa mensagem pra ver as ações, ou use o botão direito.
+  - **Reações e emojis:** reaja com qualquer emoji. Tem um seletor novo com busca em português e
+    tom de pele, e dá pra digitar `:nome` pra completar.
+  - **Figurinhas:** o pacote "Aureum básico" pra usar em qualquer lugar, e cada servidor pode ter
+    as suas.
+  - **GIFs:** busque e mande GIFs direto do campo de mensagem, e guarde os favoritos.
+  - **Prévia de links:** links de sites e do YouTube mostram um cartão com título e imagem.
+  - **Vista:** nas conversas a dois, você vê quando a mensagem foi entregue e vista. Dá pra
+    desligar em Configurações › Privacidade, e aí ninguém vê de ninguém.
+  - Imagens e vídeos no chat sem a faixa cinza em volta.
+- **Perfil:** "Editar perfil" direto no seu cartão. Avatar, banner e o ícone do servidor agora têm
+  recorte, zoom e posição (o GIF continua animado). Escolha até 3 insígnias pra destacar, e veja no
+  cartão de qualquer pessoa as insígnias dela e como ganhar as que faltam.
+- **Quadro branco:** agora dá pra excluir um quadro.
+- **Enquetes:** o campo da opção ficou maior e vem primeiro.
+- **Cargos:** novas permissões "Usar figurinhas", "Gerenciar figurinhas", "Usar o painel de sons" e
+  "Gerenciar sons".
+
 ## 0.2.0-beta.6
 
 - **Addons novos:**
