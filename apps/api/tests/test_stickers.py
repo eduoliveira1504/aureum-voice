@@ -41,7 +41,7 @@ async def send(user: ApiUser, channel_id: str, sticker_id: str):  # noqa: ANN201
 async def aureum_pack(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     (tmp_path / "bom_dia.png").write_bytes(image())
     (tmp_path / "gg.png").write_bytes(image(400, 200))
-    (tmp_path / "emojis.json").write_text('{"bom_dia": "☀️"}', encoding="utf-8")
+    (tmp_path / "stickers.json").write_text('{"bom_dia": {"emoji": "☀️"}}', encoding="utf-8")
     assert await cli.stickers_pack_add("Aureum básico", str(tmp_path)) == 0
     assert "2 stickers" in capsys.readouterr().out
 
@@ -179,3 +179,15 @@ async def test_recent_stickers_in_settings(client: AsyncClient) -> None:
     ana = await make_user(client, "ana")
     res = await ana.patch("/users/me/settings", {"recent_stickers": ["8a3c1f6e-0000-4000-8000-000000000001"]})
     assert res.json()["recent_stickers"] == ["8a3c1f6e-0000-4000-8000-000000000001"]
+
+
+async def test_the_aureum_basic_pack_imports(client: AsyncClient, capsys: pytest.CaptureFixture[str]) -> None:
+    """The pack shipped in app/static (scripts/build-stickers.mjs) goes in with the CLI as is."""
+    folder = Path(cli.__file__).parent / "static" / "stickers" / "aureum-basico"
+    assert await cli.stickers_pack_add("Aureum básico", str(folder)) == 0
+    assert "16 stickers" in capsys.readouterr().out
+    ana = await make_user(client, "ana")
+    [pack] = await packs(ana)
+    names = {s["name"]: s for s in pack["stickers"]}
+    assert {"bom dia", "kkkk", "gg", "tô dentro", "boa noite"} <= names.keys()
+    assert names["kkkk"]["emoji"] == "😂" and (names["kkkk"]["width"], names["kkkk"]["height"]) == (320, 320)

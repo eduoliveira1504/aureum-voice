@@ -32,8 +32,8 @@ Without --oficial, CLI accounts follow the normal rules. `users update` turns th
 an account that already exists (--oficial only if it holds no Pioneiro and no invites).
 Badges are granted by the system or whoever runs the server, never by users through the API.
 Aureum's sticker packs (usable everywhere) only come from here. `pack-add --pasta` also adds every
-PNG/WebP in the folder, in name order, named after the file ("bom_dia.png" is "bom dia"), with
-the emoji from an optional emojis.json ({"bom_dia": "☀️"}).
+PNG/WebP in the folder, in file name order, named after the file ("bom_dia.png" is "bom dia")
+unless an optional stickers.json says otherwise: {"to_dentro": {"name": "tô dentro", "emoji": "👍"}}.
 """
 
 import argparse
@@ -419,10 +419,13 @@ async def stickers_list() -> int:
 def _sticker_files(folder: Path) -> list[tuple[str, Path, str | None]]:
     if not folder.is_dir():
         raise SystemExit(f"No folder {folder}")
-    emoji_file = folder / "emojis.json"
-    emojis: dict[str, str] = json.loads(emoji_file.read_text(encoding="utf-8")) if emoji_file.exists() else {}
+    manifest = folder / "stickers.json"
+    about: dict[str, dict[str, str]] = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
     files = sorted(p for p in folder.iterdir() if p.suffix.lower() in (".png", ".webp"))
-    return [(p.stem.replace("_", " ")[:30], p, emojis.get(p.stem)) for p in files]
+    return [
+        ((about.get(p.stem, {}).get("name") or p.stem.replace("_", " "))[:30], p, about.get(p.stem, {}).get("emoji"))
+        for p in files
+    ]
 
 
 async def stickers_pack_add(name: str, folder: str | None) -> int:

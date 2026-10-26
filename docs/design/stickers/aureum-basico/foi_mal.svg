@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+<defs>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.25"/></filter></defs>
+<g filter="url(#shadow)">
+
+<polygon points="160.0,32.0 243.1,80.0 243.1,176.0 160.0,224.0 76.9,176.0 76.9,80.0" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="34" stroke-linejoin="round"/>
+<polygon points="160.0,32.0 243.1,80.0 243.1,176.0 160.0,224.0 76.9,176.0 76.9,80.0" fill="#E8B531" stroke="#1B1D23" stroke-width="7" stroke-linejoin="round"/>
+<polygon points="160.0,60.0 227.5,99.0 227.5,177.0 160.0,216.0 92.5,177.0 92.5,99.0" fill="#C4921A" opacity="0.18"/>
+<ellipse cx="112" cy="156" rx="11" ry="7" fill="#F28B6B" opacity="0.7"/><ellipse cx="208" cy="156" rx="11" ry="7" fill="#F28B6B" opacity="0.7"/>
+<path d="M113 120 Q126 131 139 120" stroke="#1B1D23" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M181 120 Q194 131 207 120" stroke="#1B1D23" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M136 166 Q148 156 160 166 Q172 176 184 164" stroke="#1B1D23" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M222 74 Q236 96 226 106 Q212 100 222 74 Z" fill="#5BB8F0" stroke="#1B1D23" stroke-width="3.5" stroke-linejoin="round"/>
+<g transform="rotate(-3 160 272)">
+<text x="160" y="289.68" text-anchor="middle" font-family="Sora" font-weight="800" font-size="52" letter-spacing="-1"
+  fill="#FFFFFF" stroke="#1B1D23" stroke-width="12" stroke-linejoin="round" paint-order="stroke">foi mal</text>
+</g>
+</g>
+</svg>

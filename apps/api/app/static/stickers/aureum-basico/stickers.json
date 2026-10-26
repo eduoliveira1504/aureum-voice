@@ -1,0 +1,66 @@
+{
+  "bom_dia": {
+    "name": "bom dia",
+    "emoji": "☀️"
+  },
+  "oi": {
+    "name": "oi",
+    "emoji": "👋"
+  },
+  "kkkk": {
+    "name": "kkkk",
+    "emoji": "😂"
+  },
+  "gg": {
+    "name": "gg",
+    "emoji": "🎮"
+  },
+  "bora": {
+    "name": "bora",
+    "emoji": "🚀"
+  },
+  "to_dentro": {
+    "name": "tô dentro",
+    "emoji": "👍"
+  },
+  "valeu": {
+    "name": "valeu",
+    "emoji": "🙏"
+  },
+  "amei": {
+    "name": "amei",
+    "emoji": "😍"
+  },
+  "brabo": {
+    "name": "brabo",
+    "emoji": "🔥"
+  },
+  "parabens": {
+    "name": "parabéns",
+    "emoji": "🎉"
+  },
+  "triste": {
+    "name": "triste",
+    "emoji": "😢"
+  },
+  "socorro": {
+    "name": "socorro",
+    "emoji": "😱"
+  },
+  "calma": {
+    "name": "calma",
+    "emoji": "😌"
+  },
+  "foi_mal": {
+    "name": "foi mal",
+    "emoji": "😅"
+  },
+  "dormindo": {
+    "name": "dormindo",
+    "emoji": "😴"
+  },
+  "boa_noite": {
+    "name": "boa noite",
+    "emoji": "🌙"
+  }
+}

@@ -17,6 +17,7 @@
     "email-images": "electron ../../scripts/generate-email-images.mjs",
     "og-image": "electron ../../scripts/generate-og-image.mjs",
     "build:icons": "electron ../../scripts/build-icons.mjs",
+    "build:stickers": "electron ../../scripts/build-stickers.mjs",
     "release": "node ../../scripts/release-desktop.mjs"
   },
   "devDependencies": {
