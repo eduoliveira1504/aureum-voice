@@ -9,6 +9,7 @@ import { CroppedImageRow, imageForm, ImageRow, uploadError } from './ImageCroppe
 import { ConfirmModal } from './modals'
 import { FormError, Modal, ModalBody, ModalTabs } from './Modal'
 import { ServerBannerLayer } from './ServerBanner'
+import { ServerSoundsTab } from './Soundboard'
 import { ServerStickersTab } from './Stickers'
 import { Avatar, cn, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
 
@@ -47,7 +48,7 @@ function useAction(serverId: string): {
   return { busy, error, setError, run }
 }
 
-type Tab = 'general' | 'roles' | 'members' | 'bans' | 'stickers'
+type Tab = 'general' | 'roles' | 'members' | 'bans' | 'stickers' | 'sounds'
 
 export function ServerSettingsModal({ server, meId, onClose }: { server: ServerDetail; meId: string; onClose(): void }): ReactNode {
   const perms = basePermissions(server, meId)
@@ -57,6 +58,7 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
       ['roles', 'Cargos', has(perms, Perm.MANAGE_ROLES)],
       ['members', 'Membros', has(perms, Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)],
       ['stickers', 'Figurinhas', has(perms, Perm.MANAGE_EXPRESSIONS)],
+      ['sounds', 'Painel de sons', has(perms, Perm.MANAGE_SOUNDBOARD)],
       ['bans', 'Banimentos', has(perms, Perm.BAN_MEMBERS)]
     ] as const
   ).filter(([, , allowed]) => allowed)
@@ -71,6 +73,7 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
         {tab === 'members' && <MembersTab server={server} meId={meId} />}
         {tab === 'bans' && <BansTab server={server} />}
         {tab === 'stickers' && <ServerStickersTab server={server} />}
+        {tab === 'sounds' && <ServerSoundsTab server={server} />}
       </ModalBody>
     </Modal>
   )

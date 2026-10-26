@@ -115,7 +115,7 @@ export function ServerMenu({ server, meId, tabs }: { server: ServerDetail; meId:
   const unread = useChat((s) => server.channels.some((c) => s.reads[c.id]?.unread_count || s.reads[c.id]?.mention_count))
   const muted = useMuted(server.id)
   const perms = basePermissions(server, meId)
-  const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_EXPRESSIONS)
+  const canSettings = has(perms, Perm.MANAGE_SERVER | Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS | Perm.MANAGE_EXPRESSIONS | Perm.MANAGE_SOUNDBOARD)
   const canInvite = has(perms, Perm.CREATE_INVITE)
   const isOwner = server.owner_id === meId
   // "Criar evento" opens the first events channel where the user can create them.

@@ -28,7 +28,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   emoji_tone: 0,
   recent_emojis: [],
   read_receipts: true,
-  recent_stickers: []
+  recent_stickers: [],
+  soundboard_volume: 100,
+  soundboard_muted: false
 }
 
 const CACHE_KEY = 'aureum.appearance'

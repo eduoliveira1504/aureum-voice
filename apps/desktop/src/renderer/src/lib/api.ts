@@ -202,6 +202,9 @@ export interface UserSettings {
   read_receipts: boolean
   /** Sticker ids, newest first. */
   recent_stickers: string[]
+  /** Painel de sons: how loud others' sounds play for me (0-100), and "Silenciar sons dos outros". */
+  soundboard_volume: number
+  soundboard_muted: boolean
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
@@ -478,6 +481,20 @@ export interface Sticker {
   width: number
   height: number
   /** /api/media/stickers/{id}: fetched with the token. */
+  url: string
+}
+
+/** A sound of a server's Painel de sons; only plays in that server's rooms. */
+export interface Sound {
+  id: string
+  server_id: string
+  name: string
+  emoji: string | null
+  /** 0-100, before each listener's own soundboard volume. */
+  volume: number
+  /** As measured by the server; playback stops there. */
+  duration_ms: number
+  /** /api/media/sounds/{id}: fetched with the token. */
   url: string
 }
 

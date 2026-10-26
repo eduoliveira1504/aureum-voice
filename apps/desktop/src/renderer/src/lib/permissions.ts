@@ -34,13 +34,17 @@ export const Perm = {
   EDIT_WHITEBOARD: 1 << 24,
   MANAGE_EVENTS: 1 << 25,
   MANAGE_EXPRESSIONS: 1 << 26,
-  USE_STICKERS: 1 << 27
+  USE_STICKERS: 1 << 27,
+  // Painel de sons. Only 1 << 30 is left after these.
+  USE_SOUNDBOARD: 1 << 28,
+  MANAGE_SOUNDBOARD: 1 << 29
 } as const
 
 export type PermName = keyof typeof Perm
 
-export const ALL = (1 << 28) - 1
-const VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS
+export const ALL = (1 << 30) - 1
+const VOICE_ONLY =
+  Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS | Perm.USE_SOUNDBOARD
 
 /** Permissions a channel override can change (the rest are server-wide). */
 export const CHANNEL_PERMS =
@@ -178,7 +182,9 @@ export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label:
       { perm: 'STREAM', label: 'Transmitir tela', description: '' },
       { perm: 'MUTE_MEMBERS', label: 'Silenciar membros', description: 'Desligar o microfone de quem está abaixo de você, até liberar.' },
       { perm: 'DEAFEN_MEMBERS', label: 'Ensurdecer membros', description: 'Cortar o áudio (e o microfone) de quem está abaixo de você.' },
-      { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Levar quem está abaixo de você para outra sala.' }
+      { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Levar quem está abaixo de você para outra sala.' },
+      { perm: 'USE_SOUNDBOARD', label: 'Usar o painel de sons', description: 'Tocar os sons do servidor na sala (precisa de Falar).' },
+      { perm: 'MANAGE_SOUNDBOARD', label: 'Gerenciar sons', description: 'Adicionar, editar e remover os sons do painel do servidor.' }
     ]
   },
   {
