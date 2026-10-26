@@ -130,6 +130,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   with USE_STICKERS / MANAGE_EXPRESSIONS. GIFs from Klipy, searched straight from the app as
   Klipy requires (the API only hands out the key and keeps sent GIFs and favorites), playing muted
   and paused off screen ([ADR 0034](decisions/0034-stickers-and-gifs.md))
+- Painel de sons: each server's short sounds (mp3/ogg/wav, up to 5 s and 1 MB, 24 per server,
+  length measured by the API with tinytag), with USE_SOUNDBOARD / MANAGE_SOUNDBOARD. A sound goes
+  out as its own LiveKit track named `soundboard` (never through the mic), one at a time and 3 s
+  apart (a Redis lock), and the speaking ring only follows the real mic
+  ([ADR 0035](decisions/0035-soundboard.md))
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
   only that key and only during a call
 - Automatic updates from GitHub releases, and **Reportar problema** (profile menu or Ctrl+Shift+R): a

@@ -19,6 +19,8 @@ amigos ou o seu time:
 - **Início:** um resumo do que importa agora: quem está em call, as menções e mensagens que você
   perdeu e as suas tarefas do Kanban, de todos os servidores.
 - **Câmera e tela com áudio:** compartilhe a tela ou uma janela com o som do jogo junto.
+- **Painel de sons:** cada servidor tem os seus sons curtos pra tocar na call, e cada um escolhe o
+  volume ou silencia os dos outros.
 - **Chat completo:** responder, encaminhar, reações, emojis, figurinhas (do Aureum e do seu
   servidor), GIFs, prévia de links e "Vista" nas conversas a dois.
 - **Lado a lado:** chat e quadro Kanban na mesma tela.
@@ -59,9 +61,9 @@ As decisões de projeto ficam em [docs/decisions](docs/decisions).
 ## In English
 
 **Aureum** is a desktop communication app for groups of friends and small teams: voice rooms with a
-live overview of who's talking, camera and **screen sharing with system audio**, chat, side-by-side
-panels with add-ons (Kanban board, whiteboard, polls, events with reminders and a calendar), and an
-in-game overlay. No ads and no AI features.
+live overview of who's talking, camera and **screen sharing with system audio**, a per-server
+soundboard, chat, side-by-side panels with add-ons (Kanban board, whiteboard, polls, events with
+reminders and a calendar), and an in-game overlay. No ads and no AI features.
 
 It's a Windows app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
 backend, with LiveKit for real-time media. The whole stack is open source and designed to run at

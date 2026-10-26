@@ -31,7 +31,10 @@ c7e3a9f5d186 e d8f4b0a6e297, sem dependência Python nova; app), ainda não em p
 padrão dele; API com 2 migrações core, a9c5e1f7b308 e b0d6f2a8c419; app), ainda não em produção nem
 publicada. Com isso o 3.11 inteiro ✅; passos de produção (inclusive a conta grátis no Klipy) e teste
 manual no 3.11.
-Próximo: 3.12 (categorias de canais).
+3.15 ✅ pronto em 25/10, feito antes do 3.12–3.14 a pedido do Eduardo (Painel de sons: API com 1
+migração core, c1e7a3b9d520, e a dependência nova tinytag no requirements; app), ainda não em
+produção nem publicado; passos de produção e teste manual no 3.15.
+Próximo: 3.12 (categorias de canais); depois 3.13, 3.14 e 3.16.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -698,7 +701,50 @@ janelinha; layout salvo e restaurado por servidor; layout antigo de 2 painéis p
 - Testes: câmera liga e a pessoa muda de widget; horizontal/vertical; posições salvas;
   notificação some sozinha; widget desligado não aparece.
 
-## 3.15 Painel de sons
+## 3.15 Painel de sons ✅ concluído (falta produção e teste manual)
+Feito antes do 3.12–3.14, a pedido do Eduardo. Decisões em
+[ADR 0035](0035-soundboard.md): som como segunda track de áudio de origem microfone com o nome
+"soundboard" (o token não permite outra origem), duração medida com tinytag (MIT), trava no Redis
+para "1 por vez" e cooldown, e o anel de fala medindo só o microfone de quem está com um som tocando.
+Ajustes do Eduardo antes de começar: o indicador de fala (call, overlay e listas) nunca acende por
+causa de um som; com o próprio mic mutado o painel funciona, ensurdecido fica desligado.
+
+### Produção do 3.15 (nada feito ainda)
+Pode ir junto com a do 3.10/3.11, num backup só. Tudo com OK do Eduardo, na ordem. A API nova não
+quebra o app beta.6: só rotas, colunas e um evento novos. Um app beta.6 numa sala ouve os sons de
+quem tem o app novo, no volume daquela pessoa, e o anel dela acende enquanto o som toca. Ele não
+tem o botão.
+1. Backup do banco com os mesmos comandos do item 1 da produção do 3.9 (sem ele, nada segue).
+2. Reconstruir e reiniciar a API. **Dependência Python nova: tinytag** (o `--build` instala).
+   Aplica a migração core c1e7a3b9d520 (tabela soundboard_sounds, user_settings.soundboard_volume
+   e soundboard_muted, e a permissão USE_SOUNDBOARD, que entra no @everyone dos servidores que já
+   existem):
+   `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
+   Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current`
+   mostra c1e7a3b9d520 (head).
+3. Conferir `curl -s https://<endereço do Funnel>/api/health` e o app beta.6 entrando numa sala
+   normalmente.
+4. Release do app só depois da API no ar. No CHANGELOG: "Painel de sons nas salas dos servidores:
+   quem gerencia o servidor adiciona sons curtos e todo mundo toca na call; cada um escolhe o volume
+   ou silencia os sons dos outros."
+
+### Teste manual do 3.15 (dois PCs ou duas contas, na mesma sala de um servidor)
+1. Configurações do servidor › Painel de sons: adicionar um mp3, um ogg e um wav (ouvir antes),
+   com nome, emoji e volume; um arquivo de mais de 5 s e um de mais de 1 MB são recusados com aviso.
+   Renomear, trocar o emoji, mudar o volume e remover; a outra conta vê a lista mudar sozinha.
+2. Na call, botão do painel de sons: a grade mostra emoji e nome; clicar toca para os dois, inclusive
+   com o próprio microfone mutado. A grade fica cinza enquanto toca e por 3 s.
+3. O anel de quem toca o som NÃO acende só por causa dele (call, overlay, Sidebar e Visão geral);
+   falando por cima, acende. Com o mic mutado e um som tocando, o tile continua com o mic cortado.
+4. Ensurdecer: o botão desliga e um som que estava tocando para. Silenciado pelo servidor: o botão
+   desliga. Sem "Usar o painel de sons" ou sem "Falar" no cargo: o botão fica sem permissão.
+5. Configurações › Sons › Painel de sons (ou embaixo da grade): o volume muda o som dos outros na
+   hora; "Silenciar sons dos outros" para de tocar os deles, e os seus continuam saindo.
+6. Microfone depois de um som: entrar mutado, tocar um som, desmutar; a outra conta ouve a voz.
+   Repetir trocando o microfone em Configurações durante um som.
+7. Outro servidor: os sons de um não aparecem na call do outro; DMs não têm o botão.
+
+### Spec original
 Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Sons por servidor e exclusivos dele (não usáveis em outros servidores nem em DMs):
   nome, emoji opcional (do seletor de emojis) e áudio de até 5s, máx 1 MB, mp3/ogg/wav,
