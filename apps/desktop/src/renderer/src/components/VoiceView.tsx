@@ -1,5 +1,6 @@
 import type { Track } from 'livekit-client'
 import {
+  AudioWaveform,
   Expand,
   Eye,
   EyeOff,
@@ -25,13 +26,16 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode }
 import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
+import { channelPermissions, has, Perm } from '../lib/permissions'
 import { pttKeyLabel } from '../lib/pushToTalk'
+import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
-import { cameraTrackOf, getRoom, isSharing, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { cameraTrackOf, getRoom, isSharing, micEnabled, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
-import { DeviceArrow } from './CallDeviceMenus'
+import { CallPopover, DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
+import { SoundboardGrid } from './Soundboard'
 import { Avatar } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
 
@@ -305,7 +309,7 @@ function TileFrame({
 function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meId }: TileProps & { speaking: boolean; meId: string }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
   const name = user?.display_name ?? participant?.name ?? 'Alguém'
-  const micMuted = !participant?.isMicrophoneEnabled
+  const micMuted = !micEnabled(identity)
   const camera = cameraTrackOf(identity)
 
   return (
@@ -626,6 +630,51 @@ function PushToTalkHint(): ReactNode {
   )
 }
 
+/** "Painel de sons", in server rooms only: opens the grid of the server's sounds. Off without
+ * Falar and Usar o painel de sons in the room, while deafened, and when muted by the server. */
+function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void }): ReactNode {
+  const serverId = useVoice((s) => s.serverId)
+  const channelId = useVoice((s) => s.channelId)
+  const deafened = useVoice((s) => s.deafened || s.serverDeafened)
+  const serverMuted = useVoice((s) => s.serverMuted)
+  const connected = useVoice((s) => s.phase === 'connected')
+  const server = useChat((s) => (serverId ? s.servers[serverId] : undefined))
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLSpanElement>(null)
+  const toggle = (next: boolean): void => {
+    setOpen(next)
+    onOpenChange(next)
+  }
+  const blocked = deafened || serverMuted
+  useEffect(() => {
+    if (blocked && open) toggle(false)
+  }, [blocked])
+  if (!serverId || !server) return null
+  const me = getRoom()?.localParticipant.identity ?? ''
+  const channel = server.channels.find((c) => c.id === channelId)
+  const perms = channel ? channelPermissions(server, channel, me) : 0
+  const allowed = has(perms, Perm.SPEAK) && has(perms, Perm.USE_SOUNDBOARD)
+  const label = !allowed
+    ? 'Sem permissão para o painel de sons aqui'
+    : deafened
+      ? 'Painel de sons desligado com o áudio desativado'
+      : serverMuted
+        ? 'Você foi silenciado neste servidor'
+        : 'Painel de sons'
+  return (
+    <span ref={anchor} className="flex">
+      <ControlButton label={label} active={!open} disabled={!connected || !allowed || blocked} onClick={() => toggle(!open)}>
+        <AudioWaveform size={22} />
+      </ControlButton>
+      {open && (
+        <CallPopover anchor={anchor} label="Painel de sons" width={320} onClose={() => toggle(false)}>
+          <SoundboardGrid serverId={serverId} canManage={has(perms, Perm.MANAGE_SOUNDBOARD)} />
+        </CallPopover>
+      )}
+    </span>
+  )
+}
+
 /**
  * The call's control bar, at the bottom of the call, centered. The arrows next to the mic,
  * headphone and camera open their device menus. With `autoHide` (the call in fullscreen) it fades
@@ -680,6 +729,7 @@ export function CallControls({ autoHide = false }: { autoHide?: boolean }): Reac
         >
           {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
         </ControlButton>
+        <SoundboardControl onOpenChange={menuOpen} />
         <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
           <PhoneOff size={22} />
         </ControlButton>

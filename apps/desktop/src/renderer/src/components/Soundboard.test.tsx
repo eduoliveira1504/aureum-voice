@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, type ServerDetail, type Sound } from '../lib/api'
 import { channelPermissions, Perm } from '../lib/permissions'
 import { useSoundboard } from '../store/soundboard'
-import { ServerSoundsTab } from './Soundboard'
+import { useVoice } from '../store/voice'
+import { ServerSoundsTab, SoundboardGrid } from './Soundboard'
 
 vi.mock('../lib/api', async (original) => ({ ...(await original<object>()), api: vi.fn() }))
 vi.mock('../lib/attachments', () => ({ attachmentUrl: async () => 'blob:x' }))
@@ -45,6 +46,32 @@ describe('Configurações do servidor › Painel de sons', () => {
     useSoundboard.getState().applyEvent({ type: 'soundboard.updated', data: { server_id: 'not-loaded' } })
     await waitFor(() => expect(api).toHaveBeenCalledTimes(1))
     expect(api).toHaveBeenCalledWith('/servers/s1/sounds')
+  })
+})
+
+describe('the grid in the call', () => {
+  it('plays a sound on click', async () => {
+    const play = vi.spyOn(useVoice.getState(), 'playBoardSound').mockResolvedValue()
+    render(<SoundboardGrid serverId="s1" canManage={false} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Tocar buzina' }))
+    expect(play).toHaveBeenCalledWith(SOUNDS[0])
+    play.mockRestore()
+  })
+
+  it('greys out while a sound plays and during the cooldown', async () => {
+    useVoice.setState({ boardSound: 'b', boardUntil: 0 })
+    render(<SoundboardGrid serverId="s1" canManage={false} />)
+    expect((await screen.findByRole<HTMLButtonElement>('button', { name: 'Tocar sino' })).disabled).toBe(true)
+    useVoice.setState({ boardSound: null, boardUntil: Date.now() + 3000 })
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tocar sino' }).disabled).toBe(true))
+    useVoice.setState({ boardUntil: 0 })
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tocar sino' }).disabled).toBe(false))
+  })
+
+  it('says where to add sounds, to who can', async () => {
+    vi.mocked(api).mockResolvedValue([])
+    render(<SoundboardGrid serverId="s1" canManage />)
+    expect(await screen.findByText(/Configurações do servidor › Painel de sons/)).toBeTruthy()
   })
 })
 

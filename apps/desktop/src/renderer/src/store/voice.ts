@@ -14,7 +14,7 @@ import {
 } from 'livekit-client'
 import { create } from 'zustand'
 
-import { api } from '../lib/api'
+import { api, ApiError, type Sound } from '../lib/api'
 import { gateOf, inputGainOf, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import {
   cameraPreset,
@@ -30,7 +30,19 @@ import { useAppearance } from './appearance'
 import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
 import { sendRealtime } from '../lib/realtime'
+import {
+  COOLDOWN_MS,
+  decodeSound,
+  isSoundboard,
+  micPublication,
+  MicLevels,
+  participantsOf,
+  playingSound,
+  publishSound,
+  speakingNow
+} from '../lib/soundboard'
 import { playSound } from '../lib/sounds'
+import { soundUrl } from './soundboard'
 import { startThumbnails } from '../lib/thumbnail'
 
 type Phase = 'idle' | 'connecting' | 'connected' | 'reconnecting'
@@ -88,7 +100,7 @@ function pushToTalkOn(): boolean {
  * setting. Calls are queued so a quick toggle can't set up two processors at once. */
 function syncMicProcessor(r: Room): Promise<void> {
   micProcessorSync = micProcessorSync.then(async () => {
-    const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
+    const track = micPublication(r.localParticipant)?.audioTrack as LocalAudioTrack | undefined
     if (!track) return
     void logMic(track)
     const prefs = loadMediaPrefs()
@@ -168,14 +180,14 @@ async function moveToDevice(r: Room, kind: DeviceKind, deviceId: string): Promis
   }
   const capture = { ...micCapture({ ...loadMediaPrefs(), audioInput: deviceId }), deviceId: deviceId || 'default' }
   r.options.audioCaptureDefaults = capture
-  const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack as LocalAudioTrack | undefined
+  const track = micPublication(r.localParticipant)?.audioTrack as LocalAudioTrack | undefined
   if (track) await track.restartTrack(capture)
   await syncMicProcessor(r)
 }
 
 /** The mic track lost the capture settings (LiveKit restarted it on its own). */
 function micLostSettings(r: Room): boolean {
-  const track = r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack
+  const track = micPublication(r.localParticipant)?.audioTrack
   return !!track && track.mediaStreamTrack.readyState === 'live' && track.mediaStreamTrack.getConstraints().noiseSuppression !== false
 }
 
@@ -216,6 +228,10 @@ interface VoiceStore {
   screenPreviews: Record<string, string>
   /** Who is watching our screen share ("N assistindo"), as their apps tell us. */
   watchers: string[]
+  /** Painel de sons: the sound we're playing (id) and until when (ms epoch) we can't play the
+   * next one (its length, 3 s at least). */
+  boardSound: string | null
+  boardUntil: number
 
   /** Joins a server voice room, or a private call (serverId null, channelId = the conversation). */
   join(serverId: string | null, channelId: string): Promise<void>
@@ -246,6 +262,9 @@ interface VoiceStore {
   /** Applies noise suppression and sensitivity changes to the mic in the call, without
    * reopening the device (echo cancellation and auto gain need applyDevicePrefs). */
   applyMicProcessing(): Promise<void>
+  /** Plays one of the server's sounds in the room (see lib/soundboard.ts). */
+  playBoardSound(sound: Sound): Promise<void>
+  stopBoardSound(): void
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
   clearError(): void
@@ -274,7 +293,9 @@ const SCREEN_SOURCES: Track.Source[] = [Track.Source.ScreenShare, Track.Source.S
 
 /** The call connects with autoSubscribe off: mic and camera are received right away, a screen
  * share (and its audio) only while watching it. */
-export function wantsTrack(pub: Pick<RemoteTrackPublication, 'source'>, identity: string): boolean {
+export function wantsTrack(pub: Pick<RemoteTrackPublication, 'source'> & Partial<Pick<RemoteTrackPublication, 'trackName'>>, identity: string): boolean {
+  // Others' sounds, unless "Silenciar sons dos outros".
+  if (pub.trackName && isSoundboard({ trackName: pub.trackName })) return !useAppearance.getState().settings.soundboard_muted
   if (pub.source === Track.Source.Microphone || pub.source === Track.Source.Camera) return true
   return SCREEN_SOURCES.includes(pub.source) && useVoice.getState().watching.includes(identity)
 }
@@ -299,27 +320,35 @@ function syncSubscriptions(p: RemoteParticipant): void {
 }
 
 /** How loud a remote audio track plays: 0 while deafened (by us or the server), else the
- * screen-share volume for stream audio, or the person's volume (0-2) unless muted locally,
- * times the output volume (0-2). */
-function volumeFor(identity: string, source: Track.Source): number {
+ * screen-share volume for stream audio, our soundboard volume for their sounds (silent when we
+ * muted the person), or the person's volume (0-2) unless muted locally; times the output volume
+ * (0-2). */
+function volumeFor(identity: string, pub: Pick<RemoteTrackPublication, 'source' | 'trackName'>): number {
   const { deafened, serverDeafened, screenVolume } = useVoice.getState()
   if (deafened || serverDeafened) return 0
   const output = loadMediaPrefs().outputVolume / 100
-  if (source === Track.Source.ScreenShareAudio) return (screenVolume[identity] ?? 1) * output
-  const audio = useAppearance.getState().settings.user_audio[identity]
+  if (pub.source === Track.Source.ScreenShareAudio) return (screenVolume[identity] ?? 1) * output
+  const { user_audio, soundboard_volume } = useAppearance.getState().settings
+  const audio = user_audio[identity]
+  if (isSoundboard(pub)) return audio?.muted ? 0 : (soundboard_volume / 100) * output
   return audio?.muted ? 0 : ((audio?.volume ?? 100) / 100) * output
 }
 
 function applyVolumes(): void {
   for (const p of room?.remoteParticipants.values() ?? []) {
     for (const pub of p.audioTrackPublications.values()) {
-      ;(pub.track as RemoteAudioTrack | undefined)?.setVolume(volumeFor(p.identity, pub.source))
+      ;(pub.track as RemoteAudioTrack | undefined)?.setVolume(volumeFor(p.identity, pub))
     }
   }
 }
 
-// Volumes set on another PC (or in a menu) apply right away.
-useAppearance.subscribe((s, prev) => s.settings.user_audio !== prev.settings.user_audio && applyVolumes())
+// Volumes set on another PC (or in a menu) apply right away; so does "Silenciar sons dos outros".
+useAppearance.subscribe((s, prev) => {
+  const now = s.settings
+  const before = prev.settings
+  if (now.user_audio !== before.user_audio || now.soundboard_volume !== before.soundboard_volume) applyVolumes()
+  if (now.soundboard_muted !== before.soundboard_muted) for (const p of room?.remoteParticipants.values() ?? []) syncSubscriptions(p)
+})
 
 /** Sets how loud someone sounds to us (0-200%) and/or mutes them just for us. Saved per user. */
 export function setUserAudio(userId: string, change: { volume?: number; muted?: boolean }): void {
@@ -335,6 +364,31 @@ if (import.meta.env.MODE === 'test') {
 
 export const useVoice = create<VoiceStore>()((set, get) => {
   const bump = (): void => set((s) => ({ version: s.version + 1 }))
+
+  // Who's speaking (see lib/soundboard.ts): LiveKit's active speakers, but for anyone with a
+  // sound playing only their mic counts, measured here.
+  let activeSpeakers: string[] = []
+  let byMic = new Set<string>()
+  let stopBoard: (() => void) | null = null
+  const micLevels = new MicLevels((speaking) => {
+    byMic = speaking
+    refreshSpeaking()
+  })
+  function refreshSpeaking(): void {
+    const r = room
+    const withSound = new Set<string>()
+    const mics = new Map<string, MediaStreamTrack | null>()
+    for (const p of r ? participantsOf(r) : []) {
+      if (!playingSound(p)) continue
+      withSound.add(p.identity)
+      const mic = micPublication(p)
+      mics.set(p.identity, mic && !mic.isMuted ? (mic.track?.mediaStreamTrack ?? null) : null)
+    }
+    micLevels.sync(mics)
+    const speaking = speakingNow(activeSpeakers, withSound, byMic)
+    const prev = get().speaking
+    if (speaking.length !== prev.length || speaking.some((id, i) => id !== prev[i])) set({ speaking })
+  }
 
   const announce = (): void => {
     const { phase, channelId, muted, deafened, camera, screen, allowed } = get()
@@ -404,6 +458,9 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
   const reset = (error: string | null = null): void => {
     room = null
+    stopBoard?.()
+    activeSpeakers = []
+    micLevels.stop()
     stopDeviceWatch()
     onDefault.clear()
     audioSink.replaceChildren()
@@ -425,6 +482,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       watching: [],
       screenPreviews: {},
       watchers: [],
+      boardSound: null,
       error
     })
     syncPushToTalk()
@@ -433,10 +491,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
   function wire(r: Room): void {
     const isCurrent = (): boolean => room === r
-    r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant) => {
+    r.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub, participant) => {
       if (track.kind === Track.Kind.Audio) {
         audioSink.appendChild(track.attach())
-        ;(track as RemoteAudioTrack).setVolume(volumeFor(participant.identity, track.source))
+        ;(track as RemoteAudioTrack).setVolume(volumeFor(participant.identity, pub))
       }
       bump()
     })
@@ -444,7 +502,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         track.detach().forEach((el) => el.remove())
         bump()
       })
-      .on(RoomEvent.ActiveSpeakersChanged, (speakers) => set({ speaking: speakers.map((p) => p.identity) }))
+      .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        activeSpeakers = speakers.map((p) => p.identity)
+        refreshSpeaking()
+      })
       .on(RoomEvent.Reconnecting, () => isCurrent() && set({ phase: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => isCurrent() && set({ phase: 'connected' }))
       .on(RoomEvent.ParticipantConnected, () => isCurrent() && playSound('user-join', { fromOthers: true }))
@@ -490,6 +551,19 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       RoomEvent.LocalTrackUnpublished
     ]) {
       r.on(event, bump)
+    }
+    // A sound started or ended somewhere, or a mic was muted: who counts as speaking changes.
+    for (const event of [
+      RoomEvent.TrackPublished,
+      RoomEvent.TrackUnpublished,
+      RoomEvent.TrackSubscribed,
+      RoomEvent.TrackMuted,
+      RoomEvent.TrackUnmuted,
+      RoomEvent.LocalTrackPublished,
+      RoomEvent.LocalTrackUnpublished,
+      RoomEvent.ParticipantDisconnected
+    ]) {
+      r.on(event, () => isCurrent() && refreshSpeaking())
     }
   }
 
@@ -561,6 +635,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     watching: [],
     screenPreviews: {},
     watchers: [],
+    boardSound: null,
+    boardUntil: 0,
 
     join: async (serverId, channelId) => {
       if (get().channelId === channelId && get().phase !== 'idle') return
@@ -651,6 +727,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     toggleDeafen: () => {
       const deafened = !get().deafened
+      if (deafened) get().stopBoardSound()
       set({ deafened })
       playSound(deafened ? 'deafen' : 'undeafen')
       applyVolumes()
@@ -800,6 +877,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     setModeration: (serverMuted, serverDeafened) => {
       if (serverMuted === get().serverMuted && serverDeafened === get().serverDeafened) return
+      if (serverMuted || serverDeafened) get().stopBoardSound()
       set({ serverMuted, serverDeafened, allowed: { ...tokenAllowed, mic: tokenAllowed.mic && !serverMuted && !serverDeafened } })
       applyVolumes()
       // Lifted: the mic comes back as the user had it (and our state is re-announced).
@@ -885,6 +963,46 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       if (room) await syncMicProcessor(room)
     },
 
+    playBoardSound: async (sound) => {
+      const r = room
+      const { phase, serverId, deafened, serverDeafened, allowed, boardSound, boardUntil } = get()
+      if (!r || phase !== 'connected' || serverId !== sound.server_id || deafened || serverDeafened || !allowed.mic) return
+      if (boardSound || Date.now() < boardUntil) return
+      set({ boardSound: sound.id })
+      try {
+        const buffer = await decodeSound(await soundUrl(sound))
+        // The API holds the lock (one at a time, 3 s apart) and checks the permissions.
+        await api(`/sounds/${sound.id}/play`, { method: 'POST' })
+        if (room !== r || get().deafened) return set({ boardSound: null })
+        const length = Math.min(buffer.duration * 1000, sound.duration_ms)
+        set({ boardUntil: Date.now() + Math.max(length, COOLDOWN_MS) })
+        const { soundboard_volume } = useAppearance.getState().settings
+        stopBoard = await publishSound(r.localParticipant, buffer, {
+          volume: sound.volume / 100,
+          localVolume: (soundboard_volume / 100) * (loadMediaPrefs().outputVolume / 100),
+          maxMs: sound.duration_ms,
+          onEnd: () => {
+            stopBoard = null
+            if (get().boardSound === sound.id) set({ boardSound: null })
+            // LiveKit's mic helpers take the first mic-source track: if the real mic was toggled
+            // while the sound was out, put it back as it should be.
+            if (room === r) void applyMic(false)
+          }
+        })
+        // Deafened, muted by the server or left while it was going out.
+        if (room !== r || get().deafened || get().serverMuted || get().serverDeafened) stopBoard?.()
+      } catch (err) {
+        const busy = err instanceof ApiError && err.status === 429
+        set({
+          boardSound: null,
+          ...(busy && { boardUntil: Date.now() + COOLDOWN_MS }),
+          error: busy ? null : err instanceof ApiError && err.status === 403 ? 'Você não pode tocar sons agora.' : 'Não foi possível tocar o som.'
+        })
+      }
+    },
+
+    stopBoardSound: () => stopBoard?.(),
+
     announce,
     clearError: () => set({ error: null })
   }
@@ -901,6 +1019,14 @@ export function cameraTrackOf(identity: string): Track | undefined {
   const p = identity === r.localParticipant.identity ? r.localParticipant : r.remoteParticipants.get(identity)
   const pub = p?.getTrackPublication(Track.Source.Camera) as RemoteTrackPublication | undefined
   return pub && !pub.isMuted ? pub.track : undefined
+}
+
+/** Whether a participant's real mic is on (a sound playing doesn't count). */
+export function micEnabled(identity: string): boolean {
+  const r = room
+  const p = r && (identity === r.localParticipant.identity ? r.localParticipant : r.remoteParticipants.get(identity))
+  const pub = p ? micPublication(p) : undefined
+  return !!pub && !pub.isMuted
 }
 
 /** Whether a participant is sharing their screen right now, watched or not. */

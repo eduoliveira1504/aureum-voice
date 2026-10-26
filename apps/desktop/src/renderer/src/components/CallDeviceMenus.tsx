@@ -63,7 +63,7 @@ export function DeviceArrow({
         <ChevronUp size={small ? 12 : 14} />
       </button>
       {open && (
-        <Popover
+        <CallPopover
           anchor={button}
           label={TITLE[kind]}
           onClose={() => toggle(false)}
@@ -73,7 +73,7 @@ export function DeviceArrow({
           }}
         >
           {kind === 'mic' ? <MicOptions /> : kind === 'output' ? <OutputOptions /> : <CameraOptions />}
-        </Popover>
+        </CallPopover>
       )}
       {settings && (
         <Detached>
@@ -101,17 +101,20 @@ function Detached({ children }: { children: ReactNode }): ReactNode {
 /** Above the arrow, or below it when there's more room there; always inside the window. It grows
  * away from the arrow (anchored by its bottom when above), so showing the sensitivity slider
  * never covers the button. */
-function Popover({
+export function CallPopover({
   anchor,
   label,
   onClose,
   onSettings,
+  width = WIDTH,
   children
 }: {
-  anchor: RefObject<HTMLButtonElement | null>
+  anchor: RefObject<HTMLElement | null>
   label: string
   onClose(): void
-  onSettings(): void
+  /** Adds the "Configurações de voz e vídeo" link at the bottom. */
+  onSettings?(): void
+  width?: number
   children: ReactNode
 }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
@@ -120,7 +123,7 @@ function Popover({
   useLayoutEffect(() => {
     const a = anchor.current?.getBoundingClientRect()
     if (!a) return
-    const left = Math.min(Math.max(GAP, a.left + a.width / 2 - WIDTH / 2), window.innerWidth - WIDTH - GAP)
+    const left = Math.min(Math.max(GAP, a.left + a.width / 2 - width / 2), window.innerWidth - width - GAP)
     const above = a.top >= window.innerHeight - a.bottom
     setStyle(
       above
@@ -135,7 +138,7 @@ function Popover({
             maxHeight: window.innerHeight - a.bottom - 2 * GAP
           }
     )
-  }, [anchor])
+  }, [anchor, width])
 
   useEffect(() => {
     const onDown = (e: MouseEvent): void => {
@@ -164,18 +167,20 @@ function Popover({
         ref={ref}
         role="dialog"
         aria-label={label}
-        style={{ ...style, width: WIDTH }}
+        style={{ ...style, width }}
         className={`fixed z-[55] space-y-3 overflow-y-auto p-3 text-sm ${menuClass}`}
       >
         {children}
-        <button
-          type="button"
-          onClick={onSettings}
-          className="flex w-full items-center gap-2 rounded-item px-1 py-1 text-xs font-medium text-fg-muted hover:text-fg"
-        >
-          <Settings size={14} />
-          Configurações de voz e vídeo
-        </button>
+        {onSettings && (
+          <button
+            type="button"
+            onClick={onSettings}
+            className="flex w-full items-center gap-2 rounded-item px-1 py-1 text-xs font-medium text-fg-muted hover:text-fg"
+          >
+            <Settings size={14} />
+            Configurações de voz e vídeo
+          </button>
+        )}
       </div>
     </Detached>
   )

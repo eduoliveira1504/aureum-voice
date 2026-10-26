@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { api, ApiError, uploadFile, type ServerDetail, type Sound } from '../lib/api'
 import { MAX_SOUND_BYTES, MAX_SOUNDS, playHere, soundUrl, useSoundboard } from '../store/soundboard'
+import { useVoice } from '../store/voice'
 import { pickEmoji, Emoji } from './Emoji'
 import { ConfirmModal } from './modals'
 import { FormError } from './Modal'
@@ -287,5 +288,65 @@ function SoundItem({
       </div>
       <VolumeRow label={`Volume de ${sound.name}`} value={volume} onChange={setVolume} onCommit={() => volume !== sound.volume && void onChange({ volume })} />
     </li>
+  )
+}
+
+
+/** Re-renders until `until` (ms epoch) passes, so a cooldown un-greys the grid on its own. */
+function useUntil(until: number): boolean {
+  const [, tick] = useState(0)
+  const waiting = Date.now() < until
+  useEffect(() => {
+    if (!waiting) return
+    const timer = window.setTimeout(() => tick((n) => n + 1), until - Date.now() + 20)
+    return () => window.clearTimeout(timer)
+  }, [until, waiting])
+  return waiting
+}
+
+/** The call's Painel de sons: the server's sounds as a grid (emoji + name); a click plays one in
+ * the room. One at a time, 3 s apart (the API holds the same rule). */
+export function SoundboardGrid({ serverId, canManage }: { serverId: string; canManage: boolean }): ReactNode {
+  const sounds = useSoundboard((s) => s.byServer[serverId])
+  const playing = useVoice((s) => s.boardSound)
+  const until = useVoice((s) => s.boardUntil)
+  const waiting = useUntil(until)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    void useSoundboard.getState().load(serverId).catch(() => setFailed(true))
+  }, [serverId])
+
+  if (!sounds) {
+    return <p className="py-6 text-center text-fg-subtle">{failed ? 'Não foi possível carregar os sons.' : 'Carregando…'}</p>
+  }
+  if (!sounds.length) {
+    return (
+      <p className="py-4 text-center text-fg-subtle">
+        Este servidor ainda não tem sons.
+        {canManage && <span className="block text-xs">Adicione em Configurações do servidor › Painel de sons.</span>}
+      </p>
+    )
+  }
+  return (
+    <ul className="grid grid-cols-3 gap-1.5" aria-label="Sons do servidor">
+      {sounds.map((sound) => (
+        <li key={sound.id}>
+          <button
+            type="button"
+            title={`${sound.name} (${seconds(sound.duration_ms)})`}
+            aria-label={`Tocar ${sound.name}`}
+            disabled={!!playing || waiting}
+            onClick={() => void useVoice.getState().playBoardSound(sound)}
+            className={cn(
+              'flex h-16 w-full flex-col items-center justify-center gap-1 rounded-control border px-1 text-xs transition-colors disabled:cursor-not-allowed',
+              playing === sound.id ? 'border-accent bg-accent/15 text-fg' : 'border-line bg-panel hover:bg-elevated disabled:opacity-50'
+            )}
+          >
+            {sound.emoji ? <Emoji emoji={sound.emoji} size={22} /> : <Volume2 size={20} className="text-fg-subtle" />}
+            <span className="w-full truncate">{sound.name}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
