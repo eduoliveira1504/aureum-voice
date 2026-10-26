@@ -19,6 +19,8 @@ amigos ou o seu time:
 - **Início:** um resumo do que importa agora: quem está em call, as menções e mensagens que você
   perdeu e as suas tarefas do Kanban, de todos os servidores.
 - **Câmera e tela com áudio:** compartilhe a tela ou uma janela com o som do jogo junto.
+- **Chat completo:** responder, encaminhar, reações, emojis, figurinhas (do Aureum e do seu
+  servidor), GIFs, prévia de links e "Vista" nas conversas a dois.
 - **Lado a lado:** chat e quadro Kanban na mesma tela.
 - **Addons:** Kanban, quadro branco pra desenhar junto, enquetes no chat, eventos com lembretes e um
   calendário com os eventos e prazos do servidor.

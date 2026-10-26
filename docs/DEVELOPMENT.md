@@ -125,6 +125,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   API, never the app, through a guard that only reaches public addresses (checked on each redirect
   and when the socket connects), with the image re-encoded and served from `/api/media`
   ([ADR 0033](decisions/0033-read-receipts-and-link-previews.md))
+- Stickers: Aureum's packs (added with the CLI, usable everywhere; the first one, "Aureum básico",
+  drawn in `scripts/build-stickers.mjs`) and each server's own (up to 30, only in that server),
+  with USE_STICKERS / MANAGE_EXPRESSIONS. GIFs from Klipy, searched straight from the app as
+  Klipy requires (the API only hands out the key and keeps sent GIFs and favorites), playing muted
+  and paused off screen ([ADR 0034](decisions/0034-stickers-and-gifs.md))
 - Push-to-talk with a key or a side mouse button that works in the background and in games, reading
   only that key and only during a call
 - Automatic updates from GitHub releases, and **Reportar problema** (profile menu or Ctrl+Shift+R): a
@@ -248,6 +253,9 @@ Requirements: Docker Desktop, Node.js 22+, and Python 3.12 (only to run the API 
    With `AUREUM_INVITE_ONLY=true` (the default) sign-up needs an account invite: create the first
    account and invites with the admin commands below. Set `EMAIL_PROVIDER` and `SMTP_*` in `.env` for
    the confirmation codes to go out.
+   GIFs need `KLIPY_APP_KEY` (a free key from the Klipy Partner Panel); without it the GIF button
+   stays hidden. Aureum's stickers come from `python -m app.cli stickers pack-add --nome "Aureum básico"
+   --pasta app/static/stickers/aureum-basico`.
 
 ### Tests
 

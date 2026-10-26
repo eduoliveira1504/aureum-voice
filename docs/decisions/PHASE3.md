@@ -27,7 +27,11 @@ migrações core, e3a9c5b1d742 a b6d2f8a4c975; app com Twemoji e emojibase), ain
 nem publicada; passos de produção e teste manual no 3.11.
 3.11 parte B ✅ pronta em 26/10 (visto nas DMs e preview de links; API com 2 migrações core,
 c7e3a9f5d186 e d8f4b0a6e297, sem dependência Python nova; app), ainda não em produção nem publicada.
-Próximo: 3.11 parte C (figurinhas e GIFs).
+3.11 parte C ✅ pronta em 27/10 (figurinhas, pacote "Aureum básico" e GIFs do Klipy na integração
+padrão dele; API com 2 migrações core, a9c5e1f7b308 e b0d6f2a8c419; app), ainda não em produção nem
+publicada. Com isso o 3.11 inteiro ✅; passos de produção (inclusive a conta grátis no Klipy) e teste
+manual no 3.11.
+Próximo: 3.12 (categorias de canais).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -372,34 +376,45 @@ passar o mouse no próprio cartão; "Destacar no perfil" na DM da @aureum de uma
   inventário completo; conta sem escolha usa o automático; insígnia nova não entra no
   destaque sozinha; não dá pra destacar insígnia que não tem (inclusive via API).
 
-## 3.11 Chat: ações da mensagem, emojis, reações, GIFs, figurinhas, visto e preview de links
+## 3.11 Chat: ações da mensagem, emojis, reações, GIFs, figurinhas, visto e preview de links ✅ concluído (falta produção e teste manual)
 Bloco grande: fazer em 3 partes, cada uma numa conversa (A → B → C). Todas as partes valem
 em canais de servidor, DMs e grupos, salvo onde dito.
-Parte A ✅ (com as correções antes dela) e parte B ✅ em 26/10; parte C pendente. Decisões em
-docs/decisions/0032-message-actions-replies-forwards-emojis-reactions.md (A) e
-docs/decisions/0033-read-receipts-and-link-previews.md (B).
+Parte A ✅ (com as correções antes dela) e parte B ✅ em 26/10; parte C ✅ em 27/10. Decisões em
+docs/decisions/0032-message-actions-replies-forwards-emojis-reactions.md (A),
+docs/decisions/0033-read-receipts-and-link-previews.md (B) e docs/decisions/0034-stickers-and-gifs.md (C).
 
 ### Produção do 3.11 (acumulado; nada feito ainda)
 A produção do 3.10 também está pendente: dá pra fazer as duas juntas, com um backup só. Tudo com
 OK do Eduardo, na ordem. A API nova não quebra o app beta.6 (só campos, rotas e eventos novos; o
-beta.6 ignora reações, respostas, encaminhadas, visto e previews, e mostra o texto normalmente).
+beta.6 ignora reações, respostas, encaminhadas, visto e previews, e mostra o texto normalmente;
+figurinha e GIF aparecem pra ele como "[Figurinha: nome]" e "[GIF: título]").
 1. Backup do banco com os mesmos comandos do item 1 da produção do 3.9 (sem ele, nada segue).
 2. Reconstruir e reiniciar a API. Sem dependência Python nova na parte A (o Pillow veio no 3.10).
    Aplica as migrações core da parte A, depois das do 3.10: e3a9c5b1d742 (messages.reply_to_id),
    f4b8d6c2e953 (messages.forwarded_from), a5c1e7f3b864 (user_settings.emoji_tone e
    recent_emojis) e b6d2f8a4c975 (tabela message_reactions), e as da parte B: c7e3a9f5d186
-   (user_settings.read_receipts) e d8f4b0a6e297 (messages.link_previews e previews_removed). Sem
-   dependência Python nova na parte B (o httpx já estava):
+   (user_settings.read_receipts) e d8f4b0a6e297 (messages.link_previews e previews_removed), e as
+   da parte C: a9c5e1f7b308 (figurinhas, permissões MANAGE_EXPRESSIONS e USE_STICKERS, que entra
+   no @everyone dos servidores que já existem, e user_settings.recent_stickers) e b0d6f2a8c419
+   (messages.gif e tabela gif_favorites). Sem dependência Python nova nas partes B e C:
    `docker compose --env-file .env -f infra/docker-compose.yml up -d --build --no-deps --wait api`
    Conferir: `docker compose --env-file .env -f infra/docker-compose.yml exec api alembic current`
-   mostra d8f4b0a6e297 (head).
+   mostra b0d6f2a8c419 (head).
 3. Conferir `curl -s https://<endereço do Funnel>/api/health` e o app beta.6 abrindo, mandando
    mensagem, imagem e enquete normalmente. A partir da parte B a API faz requisições pra fora (só
    pros previews, só pra endereços públicos): cada site linkado no chat vê o IP da sua conexão.
-4. Release do app (0.2.0-beta.7, seguindo o Ritual de release) só depois da API no ar. O
+4. Pacote "Aureum básico" (os PNGs já vêm na imagem da API; uma vez só):
+   `docker compose --env-file .env -f infra/docker-compose.yml exec api python -m app.cli stickers pack-add --nome "Aureum básico" --pasta app/static/stickers/aureum-basico`
+   Conferir com `... python -m app.cli stickers list` (16 figurinhas).
+5. GIFs (feito pelo Eduardo, no navegador, grátis): criar a conta no Klipy (partner.klipy.com),
+   criar o app e copiar a chave pro `.env` como `KLIPY_APP_KEY=` (sem ela o botão GIF não aparece).
+   Pedir a chave de produção no Partner Panel (formulário); até sair, a de teste aguenta 100
+   chamadas por hora pra todo mundo junto. Anúncios ficam desligados. Depois de pôr a chave,
+   reiniciar a API (o comando do item 2, sem `--build`).
+6. Release do app (0.2.0-beta.7, seguindo o Ritual de release) só depois da API no ar. O
    instalador cresce uns MB com os desenhos do Twemoji. No CHANGELOG: responder, encaminhar,
    reagir, emojis, imagem sem faixa cinza, enquete criando de novo, visto nas DMs (e a opção em
-   Privacidade) e prévia de links.
+   Privacidade), prévia de links, figurinhas (do Aureum e do servidor) e GIFs.
 
 ### Parte A: ações da mensagem, responder, encaminhar, emojis e reações ✅ concluída (teste manual pendente)
 Teste manual da parte A (dois PCs, ou duas contas, num servidor e numa DM):
@@ -549,7 +564,22 @@ Visto em tempo real e respeitando a opção desligada nos dois sentidos (inclusi
 preview OpenGraph e YouTube; link para IP interno recusado (inclusive via redirect e DNS);
 timeout; cache; remover preview.
 
-### Parte C: figurinhas e GIFs
+### Parte C: figurinhas e GIFs ✅ concluída (teste manual pendente)
+Teste manual da parte C (dois PCs, ou duas contas; com o pacote e a chave do Klipy da produção):
+- Carinha no campo de mensagem: abas Emojis, Figurinhas e GIFs. Figurinhas: "Aureum básico"
+  primeiro, depois as deste servidor; as de outro servidor aparecem com cadeado ("Só no
+  servidor X"); busca por "parab" e por 😂; enviar uma: aparece em 160px e vai pros Recentes
+  (também no outro PC). Na DM e no grupo só as do Aureum.
+- Configurações do servidor › Figurinhas (dono, ou cargo com "Gerenciar figurinhas"): enviar PNG
+  e WebP, recusar GIF/animado e arquivo de mais de 512 KB, renomear, trocar o emoji, remover (as
+  mensagens antigas mostram "Figurinha removida"). Cargo sem "Usar figurinhas": não envia.
+- Encaminhar uma figurinha do servidor: os outros servidores e as DMs aparecem bloqueados.
+- Botão GIF: abre na aba GIFs com "Search KLIPY", Em alta e Favoritos; buscar "bom dia"; enviar:
+  toca sem som em loop, no tamanho certo, e para ao rolar pra longe; estrela no seletor e na
+  mensagem (aparece em Favoritos no outro PC). Windows com "Mostrar animações" desligado: o GIF
+  fica parado e toca ao passar o mouse. Canal sem "Enviar arquivos": sem botão GIF.
+- Sem internet (ou chave errada): a aba GIFs diz que estão fora do ar e o chat segue normal.
+
 #### Figurinhas do Aureum e do servidor
 - Por enquanto só figurinhas ESTÁTICAS (PNG/WebP), sem animação.
 - Figurinhas do Aureum (genéricas): pacotes do próprio app que todo mundo pode usar em
@@ -574,12 +604,13 @@ timeout; cache; remover preview.
 #### GIFs
 - Botão "GIF" no campo de mensagem (ao lado da carinha) abre um seletor com busca em
   português, em alta (trending) e favoritos do usuário. Clicar envia como mensagem.
-- Provedor: a Tenor API foi encerrada em 30/06/2026; usar Klipy ou GIPHY. Antes de
-  implementar, conferir os termos atuais de cada um (custo, limite de requisições,
-  atribuição obrigatória, uso comercial) e perguntar ao Eduardo qual usar.
-- Camada de provedor (app/gifs/providers/), pra trocar sem mexer no resto. Chave só no
-  .env. O app NUNCA chama o provedor direto: busca e trending passam pela nossa API
-  (rate limit por usuário, cache de 10 min das buscas e de 1h do trending).
+- Provedor: a Tenor API foi encerrada em 30/06/2026; o Eduardo escolheu o Klipy (27/10).
+- MUDOU na implementação (ADR 0034): os termos do Klipy exigem que busca e trending saiam do app
+  da pessoa e proíbem proxy, cache e reordenação nossos sem aprovação por escrito. Por decisão do
+  Eduardo, integração padrão: o app chama o Klipy direto com a chave que a nossa API entrega
+  (GET /api/gifs/config; a chave fica no .env e troca sem release) e um customer_id anônimo;
+  sem cache nem rate limit nossos (o limite é do Klipy). Plano original, que não vale mais:
+  "busca e trending passam pela nossa API, com cache de 10 min / 1h".
 - Classificação de conteúdo no filtro mais seguro do provedor (equivalente a "pg-13"),
   idioma pt-BR. Atribuição exigida pelo provedor no seletor.
 - O GIF não é baixado pro MinIO: a mensagem guarda provedor, id, URL do arquivo (MP4/WebP
@@ -591,8 +622,9 @@ timeout; cache; remover preview.
 #### Testes da parte C
 Figurinha do Aureum em DM, grupo e qualquer servidor; figurinha de servidor só nele
 (inclusive via API); limites de arquivo; permissões novas; CLI de pacotes; busca de GIF
-passa pela API (chave nunca chega ao app); cache; rate limit; provedor fora do ar mostra
-erro amigável sem quebrar o chat; favoritos.
+direto no Klipy com chave, customer_id, filtro e idioma (ver ADR 0034; sem cache nem rate limit
+nossos); só URLs do Klipy aceitas na mensagem; provedor fora do ar mostra erro amigável sem
+quebrar o chat; favoritos.
 
 ## 3.12 Categorias de canais
 - Quem tem MANAGE_CHANNELS cria categorias livres (ex: "Administração", "Jogos",
