@@ -13,7 +13,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, ratelimit
+from app import attachments, ratelimit, stickers
 from app.access import get_channel_access
 from app.messages import chat_channel, post_message, require_dm_friends
 from app.models import Attachment, Channel, Message, Server
@@ -46,9 +46,11 @@ async def snapshot(session: AsyncSession, message: Message, channel: Channel) ->
     if message.forwarded_from and not message.content:
         return message.forwarded_from
     return {
-        "content": message.content,
+        # A sticker's content is only its fallback text.
+        "content": "" if message.sticker else message.content,
         "created_at": message.created_at.isoformat(),
         "source": await _source_of(session, message, channel),
+        **({"sticker": message.sticker} if message.sticker else {}),
     }
 
 
@@ -80,6 +82,11 @@ async def forward(
         await ratelimit.hit(f"forward:{user_id}", PER_MINUTE, 60)
 
     carried = await snapshot(session, original, source_channel)
+    if carried.get("sticker"):
+        # A server's sticker stays in its server (USE_STICKERS too, as for sending one).
+        for channel in targets:
+            _, access = await chat_channel(session, channel.id, user_id)
+            stickers.require_here(carried["sticker"], channel, access)
     sent = []
     for channel in targets:
 

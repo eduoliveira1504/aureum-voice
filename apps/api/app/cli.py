@@ -18,6 +18,9 @@
     python -m app.cli bot set-channel --acao <boas-vindas|bugs|avisos> --canal <id>
     python -m app.cli bot say [--canal <id>] "mensagem"   (without --canal: the avisos channel)
     python -m app.cli bot broadcast --categoria <avisos|novidades> "mensagem" [--yes]
+    python -m app.cli stickers list
+    python -m app.cli stickers pack-add --nome "Aureum básico" [--pasta DIR]
+    python -m app.cli stickers sticker-add --pacote <id> --nome kkkk --arquivo f.png [--emoji 😂]
 
 `users create` also makes accounts sign-up refuses, like the reserved names (app/accounts.py).
 Without --password it makes a strong temporary password, prints it once (never logged) and the
@@ -28,24 +31,30 @@ badge nor invites) and also sets --verificado (gold check next to the name) and 
 Without --oficial, CLI accounts follow the normal rules. `users update` turns those flags on for
 an account that already exists (--oficial only if it holds no Pioneiro and no invites).
 Badges are granted by the system or whoever runs the server, never by users through the API.
+Aureum's sticker packs (usable everywhere) only come from here. `pack-add --pasta` also adds every
+PNG/WebP in the folder, in name order, named after the file ("bom_dia.png" is "bom dia"), with
+the emoji from an optional emojis.json ({"bom_dia": "☀️"}).
 """
 
 import argparse
 import asyncio
 import getpass
+import json
 import secrets
 import sys
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
+from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 
-from app import account_invites, badges as badge_rules, bot, onboarding
+from app import account_invites, badges as badge_rules, bot, onboarding, stickers
 from app.bot import broadcast
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import AccountInvite, Server, User
+from app.models import AccountInvite, Server, StickerPack, User
 from app.realtime import broker
 from app.schemas import DisplayName, LowerEmail, Username
 from app.security import hash_password
@@ -395,6 +404,65 @@ def _ask_password() -> str:
     return first
 
 
+async def stickers_list() -> int:
+    async with SessionLocal() as session:
+        packs = list(await session.scalars(select(StickerPack).where(StickerPack.is_global.is_(True)).order_by(StickerPack.position)))
+        if not packs:
+            print("No Aureum sticker packs yet.")
+        for pack in packs:
+            print(f"{pack.name} ({pack.id}): {len(pack.stickers)} stickers")
+            for sticker in pack.stickers:
+                print(f"  {sticker.emoji or ' '} {sticker.name} ({sticker.id})")
+    return 0
+
+
+def _sticker_files(folder: Path) -> list[tuple[str, Path, str | None]]:
+    if not folder.is_dir():
+        raise SystemExit(f"No folder {folder}")
+    emoji_file = folder / "emojis.json"
+    emojis: dict[str, str] = json.loads(emoji_file.read_text(encoding="utf-8")) if emoji_file.exists() else {}
+    files = sorted(p for p in folder.iterdir() if p.suffix.lower() in (".png", ".webp"))
+    return [(p.stem.replace("_", " ")[:30], p, emojis.get(p.stem)) for p in files]
+
+
+async def stickers_pack_add(name: str, folder: str | None) -> int:
+    files = _sticker_files(Path(folder)) if folder else []
+    async with SessionLocal() as session:
+        last = max([p.position for p in await session.scalars(select(StickerPack).where(StickerPack.is_global.is_(True)))], default=0)
+        pack = StickerPack(id=uuid.uuid4(), name=name[:60], is_global=True, position=last + 1)
+        session.add(pack)
+        await session.flush()
+        for sticker_name, path, emoji in files:
+            try:
+                await stickers.add(session, pack, path.read_bytes(), sticker_name, emoji, None)
+            except HTTPException as exc:
+                print(f"{path.name}: {exc.detail}. Nothing was added.", file=sys.stderr)
+                return 1
+        await session.commit()
+        print(f"Pack {pack.name} ({pack.id}) created with {len(files)} stickers.")
+    return 0
+
+
+async def stickers_sticker_add(pack_id: str, name: str, file: str, emoji: str | None) -> int:
+    try:
+        pid = uuid.UUID(pack_id)
+    except ValueError:
+        raise SystemExit(f"Invalid pack id: {pack_id!r}") from None
+    async with SessionLocal() as session:
+        pack = await session.get(StickerPack, pid)
+        if pack is None or not pack.is_global:
+            print(f"No Aureum pack {pack_id} (a server's stickers are managed in the app)", file=sys.stderr)
+            return 1
+        try:
+            sticker = await stickers.add(session, pack, Path(file).read_bytes(), name[:30], emoji, None)
+        except HTTPException as exc:
+            print(f"{file}: {exc.detail}", file=sys.stderr)
+            return 1
+        await session.commit()
+        print(f"Added {sticker.name} ({sticker.id}) to {pack.name}.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -437,7 +505,25 @@ def main() -> int:
     bot_cmd.add_argument("--categoria", choices=bot.BROADCAST_CATEGORIES, help="broadcast: who gets it")
     bot_cmd.add_argument("--yes", action="store_true", help="broadcast: don't ask for confirmation")
 
+    stickers_cmd = commands.add_parser("stickers", help="Aureum's sticker packs (usable everywhere)")
+    stickers_cmd.add_argument("action", choices=("list", "pack-add", "sticker-add"))
+    stickers_cmd.add_argument("--nome", help="pack-add/sticker-add: the name")
+    stickers_cmd.add_argument("--pasta", help="pack-add: a folder of PNG/WebP files to add")
+    stickers_cmd.add_argument("--pacote", help="sticker-add: the pack id")
+    stickers_cmd.add_argument("--arquivo", help="sticker-add: PNG or WebP, static, up to 512 KB")
+    stickers_cmd.add_argument("--emoji", help="sticker-add: a related emoji (search)")
+
     args = parser.parse_args()
+    if args.command == "stickers":
+        if args.action == "list":
+            return asyncio.run(stickers_list())
+        if not args.nome:
+            parser.error(f"stickers {args.action} needs --nome")
+        if args.action == "pack-add":
+            return asyncio.run(stickers_pack_add(args.nome, args.pasta))
+        if not args.pacote or not args.arquivo:
+            parser.error("stickers sticker-add needs --pacote and --arquivo")
+        return asyncio.run(stickers_sticker_add(args.pacote, args.nome, args.arquivo, args.emoji))
     if args.command == "bot":
         if args.action == "status":
             return asyncio.run(bot_status())

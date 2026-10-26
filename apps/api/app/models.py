@@ -276,6 +276,8 @@ class UserSettings(Base):
     # newest first.
     emoji_tone: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0, server_default="0")
     recent_emojis: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    # Sticker ids, newest first (the picker's "Recentes").
+    recent_stickers: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     # "Confirmação de leitura" (1:1 DMs, app/receipts.py): off, the other side doesn't see when I
     # read and I don't see when they do.
     read_receipts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
@@ -523,6 +525,9 @@ class Message(Base):
     # author with `previews_removed`, which keeps edits from bringing them back.
     link_previews: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     previews_removed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # A sticker message (app/stickers.py): snapshot {"id", "name", "pack_id", "server_id", "url"}.
+    # Its content is a plain fallback for apps that don't know stickers.
+    sticker: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
@@ -535,6 +540,47 @@ class Message(Base):
         # Covers "latest messages of a channel" and "messages before id X".
         Index("ix_messages_channel_id_id", "channel_id", "id"),
     )
+
+
+class StickerPack(Base):
+    """A set of stickers. Global packs (the Aureum ones, added with the CLI) work everywhere;
+    a server's own pack (one per server, made with its first sticker) only in that server."""
+
+    __tablename__ = "sticker_packs"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    is_global: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    server_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), unique=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = _created_at()
+
+    stickers: Mapped[list["Sticker"]] = relationship(
+        back_populates="pack", order_by="Sticker.position", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class Sticker(Base):
+    """A static image, kept as a WebP of at most 320x320. Served through
+    /api/media/stickers/{id}, which checks who may see it."""
+
+    __tablename__ = "stickers"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    pack_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sticker_packs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    # A related emoji, for search.
+    emoji: Mapped[str | None] = mapped_column(String(64))
+    key: Mapped[str] = mapped_column(String(200), nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created_at()
+
+    pack: Mapped[StickerPack] = relationship(back_populates="stickers", lazy="joined")
 
 
 class MessageReaction(Base):

@@ -60,6 +60,9 @@ class Perm(enum.IntFlag):
     # new bits stay at or below 1 << 30 until it moves to BigInt.
     EDIT_WHITEBOARD = 1 << 24
     MANAGE_EVENTS = 1 << 25
+    # Stickers (block 3.11C): managing the server's own, and sending any (Aureum's or the server's).
+    MANAGE_EXPRESSIONS = 1 << 26
+    USE_STICKERS = 1 << 27
 
 
 ALL = Perm((1 << len(Perm)) - 1)
@@ -78,6 +81,7 @@ DEFAULT_EVERYONE = (
     | Perm.VIDEO
     | Perm.STREAM
     | Perm.EDIT_WHITEBOARD
+    | Perm.USE_STICKERS
 )
 
 # Permissions that only make sense per channel; the rest are server-wide and are ignored in
@@ -103,6 +107,7 @@ CHANNEL_PERMS = (
     | Perm.MANAGE_ADDONS
     | Perm.EDIT_WHITEBOARD
     | Perm.MANAGE_EVENTS
+    | Perm.USE_STICKERS
 )
 
 VOICE_ONLY = Perm.SPEAK | Perm.VIDEO | Perm.STREAM | Perm.MUTE_MEMBERS | Perm.DEAFEN_MEMBERS | Perm.MOVE_MEMBERS

@@ -397,6 +397,7 @@ class SettingsOut(BaseModel):
     emoji_tone: int = 0
     recent_emojis: list[str] = []
     read_receipts: bool = True
+    recent_stickers: list[str] = []
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -404,6 +405,7 @@ OfficialDmCategory = Literal["insignias", "bugs", "convites", "novidades", "avis
 
 
 MAX_RECENT_EMOJIS = 36
+MAX_RECENT_STICKERS = 16
 
 
 class SettingsUpdate(BaseModel):
@@ -430,6 +432,8 @@ class SettingsUpdate(BaseModel):
     # Newest first; the app keeps the list short.
     recent_emojis: Annotated[list[Annotated[str, StringConstraints(min_length=1, max_length=32)]], Field(max_length=MAX_RECENT_EMOJIS)] | None = None
     read_receipts: bool | None = None
+    # Sticker ids, newest first.
+    recent_stickers: Annotated[list[uuid.UUID], Field(max_length=MAX_RECENT_STICKERS)] | None = None
 
 
 # --- Friends --------------------------------------------------------------
@@ -777,10 +781,15 @@ class MessageCreate(BaseModel):
     # Answers this message of the same channel; `mention_reply` notifies its author ("@ Mencionar").
     reply_to_id: Annotated[int, Field(ge=1)] | None = None
     mention_reply: bool = True
+    # A sticker message: no text or files with it.
+    sticker_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _not_empty(self) -> "MessageCreate":
-        if not self.content and not self.attachment_ids:
+        if self.sticker_id is not None:
+            if self.content or self.attachment_ids:
+                raise ValueError("A sticker goes on its own")
+        elif not self.content and not self.attachment_ids:
             raise ValueError("A message needs text or a file")
         return self
 
@@ -833,7 +842,7 @@ REPLY_SNIPPET = 200
 
 class ReplyOut(BaseModel):
     """The original a reply quotes: who wrote it and how it starts, or what it carries when it
-    has no text (`media`: image, gif, video, voice, file or poll)."""
+    has no text (`media`: image, gif, video, voice, file, poll or sticker)."""
 
     id: int
     author: UserPublic | None
@@ -847,12 +856,14 @@ class ReplyOut(BaseModel):
             return value
         first = value.attachments[0] if value.attachments else None
         media = None
-        if value.embed:
+        if value.sticker:
+            media = "sticker"
+        elif value.embed:
             media = "poll" if value.embed.get("addon_key") == "polls" else "embed"
         elif first:
             media = "gif" if first.get("content_type") == "image/gif" else first.get("kind")
         # A forward without a comment quotes what it carries.
-        content = value.content or (value.forwarded_from or {}).get("content", "")
+        content = "" if value.sticker else value.content or (value.forwarded_from or {}).get("content", "")
         return {"id": value.id, "author": value.author, "content": content[:REPLY_SNIPPET], "media": media}
 
 
@@ -903,6 +914,54 @@ class MessageOut(BaseModel):
     reactions: list[ReactionOut] | None = None
     # Cards of its links, filled a moment after it's sent (they come as "message.updated").
     link_previews: list[LinkPreviewOut] = []
+    # A sticker message: {"id", "name", "pack_id", "server_id", "url", "width", "height"}; its
+    # content is a fallback for older apps.
+    sticker: dict[str, Any] | None = None
+
+
+# --- Stickers -----------------------------------------------------------------
+
+
+StickerName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=30)]
+
+
+class StickerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    emoji: str | None
+    width: int
+    height: int
+    # /api/media/stickers/{id}, fetched with the token.
+    url: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _url(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return value
+        return {
+            "id": value.id, "name": value.name, "emoji": value.emoji, "width": value.width,
+            "height": value.height, "url": f"/api/media/stickers/{value.id}",
+        }
+
+
+class StickerPackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    # Empty for a server's pack (the app names it after the server).
+    name: str
+    is_global: bool
+    server_id: uuid.UUID | None
+    stickers: list[StickerOut]
+
+
+class StickerUpdate(BaseModel):
+    name: StickerName | None = None
+    # A related emoji (search); "" clears it.
+    emoji: Annotated[str, StringConstraints(strip_whitespace=True, max_length=32)] | None = None
 
 
 # --- Bug reports --------------------------------------------------------------

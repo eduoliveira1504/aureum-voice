@@ -22,6 +22,7 @@ DEFAULTS = {
     "emoji_tone": 0,
     "recent_emojis": [],
     "read_receipts": True,
+    "recent_stickers": [],
 }
 
 
