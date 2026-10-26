@@ -46,11 +46,12 @@ async def snapshot(session: AsyncSession, message: Message, channel: Channel) ->
     if message.forwarded_from and not message.content:
         return message.forwarded_from
     return {
-        # A sticker's content is only its fallback text.
-        "content": "" if message.sticker else message.content,
+        # A sticker's or a GIF's content is only its fallback text.
+        "content": "" if message.sticker or message.gif else message.content,
         "created_at": message.created_at.isoformat(),
         "source": await _source_of(session, message, channel),
         **({"sticker": message.sticker} if message.sticker else {}),
+        **({"gif": message.gif} if message.gif else {}),
     }
 
 
@@ -67,6 +68,8 @@ async def forward(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This line can't be forwarded")
 
     files = list(await session.scalars(select(Attachment).where(Attachment.message_id == original.id)))
+    # A GIF counts as a file: in servers it needs ATTACH_FILES, as when sending one.
+    has_gif = bool(original.gif or (original.forwarded_from or {}).get("gif"))
     order = {a["id"]: i for i, a in enumerate(original.attachments)}
     files.sort(key=lambda a: order.get(str(a.id), len(order)))
     targets: list[Channel] = []
@@ -74,7 +77,7 @@ async def forward(
         channel, access = await chat_channel(session, channel_id, user_id)
         await require_dm_friends(session, channel, user_id)
         if access is not None:
-            needed = Perm.SEND_MESSAGES | (Perm.ATTACH_FILES if files else 0)
+            needed = Perm.SEND_MESSAGES | (Perm.ATTACH_FILES if files or has_gif else 0)
             if access.channel(channel) & needed != needed:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You can't send messages in one of these conversations")
         targets.append(channel)

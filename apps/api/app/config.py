@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     livekit_api_url: str | None = None
     livekit_api_key: str
     livekit_api_secret: str
+
+    # GIFs (app/gifs.py): Klipy's app key, from its Partner Panel (free). Empty: no GIFs. Klipy
+    # wants the app to call it directly, so this key reaches the app (GET /api/gifs/config).
+    klipy_app_key: str = ""
     voice_token_minutes: int = 60
 
     # Username of the app owner's personal account: sees bug reports, gets the Founder badge.

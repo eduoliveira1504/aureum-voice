@@ -528,6 +528,9 @@ class Message(Base):
     # A sticker message (app/stickers.py): snapshot {"id", "name", "pack_id", "server_id", "url"}.
     # Its content is a plain fallback for apps that don't know stickers.
     sticker: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # A GIF message (app/gifs.py): {"provider", "id", "title", "url", "format", "preview", "width",
+    # "height"}, with the provider's URLs as given. Its content is a fallback for older apps.
+    gif: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     author: Mapped[User | None] = relationship(lazy="joined")
     call: Mapped["Call | None"] = relationship(lazy="joined")
@@ -581,6 +584,18 @@ class Sticker(Base):
     created_at: Mapped[datetime] = _created_at()
 
     pack: Mapped[StickerPack] = relationship(back_populates="stickers", lazy="joined")
+
+
+class GifFavorite(Base):
+    """A GIF the user starred, kept as the provider gave it (URLs, not the file)."""
+
+    __tablename__ = "gif_favorites"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(20), primary_key=True)
+    gif_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
 
 
 class MessageReaction(Base):

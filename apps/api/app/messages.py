@@ -66,6 +66,7 @@ async def post_message(
     forwarded_from: dict[str, Any] | None = None,
     previews: list[dict[str, Any]] | None = None,
     sticker: dict[str, Any] | None = None,
+    gif: dict[str, Any] | None = None,
     on_saved: Callable[[Message], None] | None = None,
 ) -> MessageOut:
     """Saves the message, commits and sends it live. Permissions are the caller's job, and so is
@@ -88,6 +89,7 @@ async def post_message(
         forwarded_from=forwarded_from,
         link_previews=previews or [],
         sticker=sticker,
+        gif=gif,
     )
     session.add(message)
     await session.flush()
@@ -110,6 +112,6 @@ async def post_message(
         "mentions": [str(u) for u in mentioned],
     }
     await broker.publish("message.created", event, audience)
-    if author_id is not None and system is None and embed is None and sticker is None and previews is None:
+    if author_id is not None and system is None and embed is None and sticker is None and gif is None and previews is None:
         link_previews.schedule(message.id, content)
     return out

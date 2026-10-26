@@ -783,12 +783,14 @@ class MessageCreate(BaseModel):
     mention_reply: bool = True
     # A sticker message: no text or files with it.
     sticker_id: uuid.UUID | None = None
+    # A GIF message, as the provider gave it: no text or files with it either.
+    gif: "GifIn | None" = None
 
     @model_validator(mode="after")
     def _not_empty(self) -> "MessageCreate":
-        if self.sticker_id is not None:
-            if self.content or self.attachment_ids:
-                raise ValueError("A sticker goes on its own")
+        if self.sticker_id is not None or self.gif is not None:
+            if self.content or self.attachment_ids or (self.sticker_id and self.gif):
+                raise ValueError("A sticker or a GIF goes on its own")
         elif not self.content and not self.attachment_ids:
             raise ValueError("A message needs text or a file")
         return self
@@ -858,12 +860,14 @@ class ReplyOut(BaseModel):
         media = None
         if value.sticker:
             media = "sticker"
+        elif value.gif:
+            media = "gif"
         elif value.embed:
             media = "poll" if value.embed.get("addon_key") == "polls" else "embed"
         elif first:
             media = "gif" if first.get("content_type") == "image/gif" else first.get("kind")
         # A forward without a comment quotes what it carries.
-        content = "" if value.sticker else value.content or (value.forwarded_from or {}).get("content", "")
+        content = "" if value.sticker or value.gif else value.content or (value.forwarded_from or {}).get("content", "")
         return {"id": value.id, "author": value.author, "content": content[:REPLY_SNIPPET], "media": media}
 
 
@@ -917,6 +921,50 @@ class MessageOut(BaseModel):
     # A sticker message: {"id", "name", "pack_id", "server_id", "url", "width", "height"}; its
     # content is a fallback for older apps.
     sticker: dict[str, Any] | None = None
+    # A GIF message: {"provider", "id", "title", "url", "format", "preview", "width", "height"}.
+    gif: dict[str, Any] | None = None
+
+
+# --- GIFs ---------------------------------------------------------------------
+
+
+def _klipy_media(url: str) -> str:
+    from app import gifs
+
+    if not gifs.media_url_ok(url):
+        raise ValueError("Only the provider's media URLs")
+    return url
+
+
+KlipyUrl = Annotated[str, StringConstraints(max_length=1000), AfterValidator(_klipy_media)]
+
+
+class GifIn(BaseModel):
+    """A GIF as the app got it from Klipy's search."""
+
+    id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
+    title: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
+    # What plays: MP4 or WebP preferred (smaller than GIF).
+    url: KlipyUrl
+    format: Literal["mp4", "webp", "gif"]
+    # A still or small version, for reduced motion and while it loads.
+    preview: KlipyUrl | None = None
+    width: Annotated[int, Field(ge=1, le=4096)]
+    height: Annotated[int, Field(ge=1, le=4096)]
+
+
+class GifConfigOut(BaseModel):
+    """What the app needs to search Klipy itself (Klipy's rules: from the user's app)."""
+
+    enabled: bool
+    provider: str
+    app_key: str | None
+    customer_id: str | None
+    content_filter: str
+    locale: str
+
+
+MessageCreate.model_rebuild()  # it names GifIn, defined above
 
 
 # --- Stickers -----------------------------------------------------------------

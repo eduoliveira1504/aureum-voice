@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, calls, dms, forwarding, link_previews, media, reactions, reads, receipts, social, stickers, voice
+from app import attachments, calls, dms, forwarding, gifs, link_previews, media, reactions, reads, receipts, social, stickers, voice
 from app.access import channel_audience, channel_member_ids, get_channel_access, get_channel_for_member
 from app.addons import registry as addons
 from app.config import get_settings
@@ -218,9 +218,10 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
     await require_dm_friends(session, channel, user.id)
     if access is not None:
         access.require_in(channel, Perm.SEND_MESSAGES)
-    if body.attachment_ids and access is not None:
+    if (body.attachment_ids or body.gif) and access is not None:
         access.require_in(channel, Perm.ATTACH_FILES)
     reply_to = await reply_target(session, channel, body.reply_to_id)
+    gif = gifs.snapshot(body.gif) if body.gif else None
     sticker = None
     if body.sticker_id is not None:
         sticker = stickers.snapshot(await stickers.for_sending(session, body.sticker_id, user.id))
@@ -229,11 +230,12 @@ async def create_message(channel_id: uuid.UUID, body: MessageCreate, user: Curre
         session,
         channel,
         user.id,
-        stickers.fallback(sticker["name"]) if sticker else body.content,
+        stickers.fallback(sticker["name"]) if sticker else gifs.fallback(gif["title"]) if gif else body.content,
         attachment_ids=body.attachment_ids,
         reply_to=reply_to,
         mention_reply=body.mention_reply,
         sticker=sticker,
+        gif=gif,
     )
 
 
@@ -291,8 +293,8 @@ async def edit_message(message_id: int, body: MessageEdit, user: CurrentUser, se
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="System lines can't be edited")
     if message.embed is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This message is edited in its addon")
-    if message.sticker is not None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="A sticker can't be edited")
+    if message.sticker is not None or message.gif is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="A sticker or a GIF can't be edited")
     links_changed = link_previews.links(message.content) != link_previews.links(body.content)
     message.content = body.content
     message.edited_at = func.now()
