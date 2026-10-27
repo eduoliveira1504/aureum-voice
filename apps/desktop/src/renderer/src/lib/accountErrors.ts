@@ -19,7 +19,17 @@ const MESSAGES: Record<string, string> = {
   'Confirm your e-mail to create servers': 'Confirme seu e-mail para criar servidores.'
 }
 
+/** The server's own message when it's out of service on purpose (503 with a detail written for
+ * people, e.g. "O Aureum mudou de servidor. Atualize o app."), else null. */
+export function serverNotice(err: unknown): string | null {
+  return err instanceof ApiError && err.status === 503 && typeof err.detail === 'string' && err.detail
+    ? err.detail
+    : null
+}
+
 export function accountMessage(err: unknown): string {
+  const notice = serverNotice(err)
+  if (notice) return notice
   if (err instanceof ApiError) {
     if (err.status === 429 && !MESSAGES[String(err.detail)]) return 'Muitas tentativas seguidas. Espere um pouco e tente de novo.'
     if (typeof err.detail === 'string' && MESSAGES[err.detail]) return MESSAGES[err.detail]

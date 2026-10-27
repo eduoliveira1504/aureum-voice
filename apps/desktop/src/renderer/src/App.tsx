@@ -27,7 +27,7 @@ export function App(): ReactNode {
     return (
       <>
         <WindowDragStrip />
-        <AuthScreen serverUnreachable={state.serverUnreachable} />
+        <AuthScreen serverUnreachable={state.serverUnreachable} serverMessage={state.serverMessage} />
       </>
     )
   }

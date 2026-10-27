@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { CodeInput } from '../components/AccountScreens'
 import { FormError, SecondaryButton } from '../components/Modal'
 import { Field, PrimaryButton } from '../components/ui'
-import { accountMessage } from '../lib/accountErrors'
+import { accountMessage, serverNotice } from '../lib/accountErrors'
 import { ApiError, authConfig, checkServer, forgotPassword, getApiBaseUrl, resetPassword, setApiBaseUrl } from '../lib/api'
 
 type Mode = 'login' | 'register'
@@ -29,6 +29,8 @@ function validate(mode: Mode, f: Record<string, string>): Errors {
 }
 
 function describeError(err: unknown, mode: Mode): Errors {
+  const notice = serverNotice(err)
+  if (notice) return { form: notice }
   if (err instanceof ApiError) {
     if (err.status === 401 && mode === 'login') return { form: 'E-mail ou senha incorretos.' }
     if (err.status === 429) return { form: 'Muitas tentativas. Espere alguns minutos e tente de novo.' }
@@ -48,7 +50,14 @@ function describeError(err: unknown, mode: Mode): Errors {
   return { form: `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.` }
 }
 
-export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean }): ReactNode {
+export function AuthScreen({
+  serverUnreachable,
+  serverMessage
+}: {
+  serverUnreachable?: boolean
+  /** The server's own words when it's out of service on purpose (e.g. it moved). */
+  serverMessage?: string
+}): ReactNode {
   const { login, register, reload } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
   const [forgot, setForgot] = useState(false)
@@ -57,7 +66,11 @@ export function AuthScreen({ serverUnreachable }: { serverUnreachable?: boolean 
   const [server, setServer] = useState(getApiBaseUrl())
   const [form, setForm] = useState({ username: '', display_name: '', email: '', password: '', confirm: '', invite: '' })
   const [errors, setErrors] = useState<Errors>(
-    serverUnreachable ? { form: `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.` } : {}
+    serverMessage
+      ? { form: serverMessage }
+      : serverUnreachable
+        ? { form: `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.` }
+        : {}
   )
   const [busy, setBusy] = useState(false)
   const [showServer, setShowServer] = useState(!!serverUnreachable)

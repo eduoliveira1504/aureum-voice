@@ -2,11 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import * as client from '../lib/api'
 import type { Me } from '../lib/api'
+import { serverNotice } from '../lib/accountErrors'
 import { clearAttachmentCache } from '../lib/attachments'
 
 type AuthState =
   | { status: 'loading' }
-  | { status: 'signedOut'; serverUnreachable?: boolean }
+  | { status: 'signedOut'; serverUnreachable?: boolean; serverMessage?: string }
   | { status: 'signedIn'; user: Me }
 
 interface AuthContextValue {
@@ -41,9 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
         } else {
           setState({ status: 'signedOut' })
         }
-      } catch {
-        // Network error: keep the stored session, let the user retry or change the server.
-        setState({ status: 'signedOut', serverUnreachable: true })
+      } catch (err) {
+        // Network error or server out of service: keep the stored session, let the user retry
+        // or change the server.
+        setState({ status: 'signedOut', serverUnreachable: true, serverMessage: serverNotice(err) ?? undefined })
       }
     })()
   }, [loadMe])

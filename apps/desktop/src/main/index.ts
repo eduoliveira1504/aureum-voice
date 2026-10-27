@@ -17,6 +17,7 @@ import {
 
 import appIcon from '../../build/icon.ico?asset'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
+import { currentApiUrl } from './apiUrl'
 import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
@@ -69,6 +70,13 @@ async function readSettings(): Promise<AppSettings> {
     cachedSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(await readFile(settingsPath(), 'utf8')) }
   } catch {
     cachedSettings = { ...DEFAULT_SETTINGS }
+  }
+  const apiUrl = currentApiUrl(cachedSettings.apiUrl, DEFAULT_SETTINGS.apiUrl)
+  if (apiUrl !== cachedSettings.apiUrl) {
+    // The old server's address: point at the new one and remember it.
+    cachedSettings = { ...cachedSettings, apiUrl }
+    await mkdir(app.getPath('userData'), { recursive: true })
+    await writeFile(settingsPath(), JSON.stringify(cachedSettings, null, 2))
   }
   return cachedSettings
 }

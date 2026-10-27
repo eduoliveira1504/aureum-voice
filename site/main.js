@@ -4,7 +4,7 @@
 
 const REPO = 'eduoliveira1504/aureum-voice'
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`
-const STATS_URL = 'https://user.tail394e17.ts.net/api/public/stats'
+const STATS_URL = 'https://api.aureum-voice.duckdns.org/api/public/stats'
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 document.documentElement.classList.add('js')
