@@ -1,0 +1,24 @@
+# Production reverse proxy (docs/decisions/0036-vps-deploy.md). Certificates come from Let's
+# Encrypt over HTTP-01 on port 80 and renew by themselves; they live in the caddy_data volume.
+# AUREUM_DOMAIN is the base name, e.g. aureum-voice.duckdns.org.
+{
+	servers {
+		# Only 443/tcp is open, so don't advertise HTTP/3 (udp).
+		protocols h1 h2
+	}
+}
+
+{$AUREUM_DOMAIN} {
+	redir https://api.{$AUREUM_DOMAIN}{uri} permanent
+}
+
+# API + WebSocket. Caddy sets X-Forwarded-For to the real client IP and drops what clients send.
+api.{$AUREUM_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}
+
+# LiveKit signaling (wss). Media goes straight to LiveKit's own ports.
+live.{$AUREUM_DOMAIN} {
+	reverse_proxy livekit:7880
+}

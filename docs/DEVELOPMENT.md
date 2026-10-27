@@ -446,6 +446,11 @@ sudo bash setup.sh harden   # SSH key only, no root login; run only after "ssh a
 
 ufw allows only 22, 80, 443 and 7881/tcp plus LiveKit's UDP port; the Hostinger panel firewall mirrors it.
 
+The address is the free DuckDNS name `aureum-voice.duckdns.org`, whose subdomains resolve to the same IP.
+[infra/caddy/Caddyfile](../infra/caddy/Caddyfile) serves the API at `api.` and LiveKit signaling at `live.`, and
+redirects the bare name to `api.`. Certificates come from Let's Encrypt over HTTP-01 (no DuckDNS token needed) and
+are kept in the `aureum_caddy_data` volume.
+
 ## Roadmap
 
 - Role mentions: the permission already exists
