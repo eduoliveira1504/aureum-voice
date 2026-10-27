@@ -4,6 +4,7 @@
 #
 #   sudo bash setup.sh base     # packages, Docker, deploy user, ufw, fail2ban
 #   sudo bash setup.sh harden   # SSH: key only, no root login (run after testing the deploy user)
+#   sudo bash setup.sh backup   # daily backup timer (04:30), once ~/aureum is deployed
 #
 # Env: DEPLOY_USER (default aureum), LIVEKIT_UDP_PORT (default 7882, final choice in item 4).
 set -euo pipefail
@@ -26,7 +27,7 @@ base() {
   log "packages"
   apt-get update -q
   apt-get upgrade -yq
-  apt-get install -yq ca-certificates curl gnupg ufw fail2ban python3-systemd unattended-upgrades
+  apt-get install -yq ca-certificates curl gnupg ufw fail2ban python3-systemd unattended-upgrades vnstat
 
   log "time zone"
   timedatectl set-timezone America/Sao_Paulo
@@ -127,8 +128,46 @@ EOF
   log "done. Keep this session open and test a new login before closing it."
 }
 
+backup() {
+  home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
+  script="$home/aureum/infra/vps/backup.sh"
+  if [ ! -f "$script" ]; then
+    echo "$script not found; deploy ~/aureum first" >&2
+    exit 1
+  fi
+
+  log "aureum-backup.timer (daily 04:30, catches up after downtime)"
+  cat > /etc/systemd/system/aureum-backup.service <<EOF
+[Unit]
+Description=Aureum daily backup (Postgres + MinIO)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=$DEPLOY_USER
+ExecStart=/usr/bin/bash $script
+EOF
+  cat > /etc/systemd/system/aureum-backup.timer <<'EOF'
+[Unit]
+Description=Daily Aureum backup
+
+[Timer]
+OnCalendar=*-*-* 04:30
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl daemon-reload
+  systemctl enable --now aureum-backup.timer
+  systemctl list-timers aureum-backup.timer --no-legend
+}
+
 case "${1:-}" in
   base) require_root "$@"; base ;;
   harden) require_root "$@"; harden ;;
-  *) echo "usage: $0 base|harden" >&2; exit 2 ;;
+  backup) require_root "$@"; backup ;;
+  *) echo "usage: $0 base|harden|backup" >&2; exit 2 ;;
 esac

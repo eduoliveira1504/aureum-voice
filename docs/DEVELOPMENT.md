@@ -463,6 +463,17 @@ ssh aureum@<vps> "cd ~/aureum && docker compose --env-file .env -f infra/docker-
   -f infra/docker-compose.prod.yml up -d --build"
 ```
 
+On the VPS, [infra/vps/status.sh](../infra/vps/status.sh) shows CPU, memory, disk, this month's traffic (vnstat),
+the containers and the last backup. [infra/vps/backup.sh](../infra/vps/backup.sh) runs daily at 04:30 (São Paulo)
+from `aureum-backup.timer` (`sudo bash infra/vps/setup.sh backup` installs it; missed runs catch up): `pg_dump` and
+the MinIO tar into `~/backups/<date>/`, checked to open, newest 7 kept. Results are in
+`journalctl -u aureum-backup`. To keep a copy on the PC (git-ignored):
+
+```bash
+ssh aureum@<vps> "bash ~/aureum/infra/vps/status.sh"
+scp -r aureum@<vps>:backups/<date> backups/vps/
+```
+
 After the switch, the old server runs in "we moved" mode: `SERVER_MOVED_TO=<new address>` in its `.env`
 ([app/moved.py](../apps/api/app/moved.py)). It answers 503 with a readable `detail` everywhere but `/api/health`,
 closes WebSockets with code 4010 and the same message, and redirects `/convite/...` and `/static/...` (301) so
