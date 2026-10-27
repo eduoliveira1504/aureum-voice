@@ -1,5 +1,14 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.8
+
+- **O Aureum mudou de servidor.** Agora ele roda num servidor só dele, no Brasil, e a voz não
+  depende mais de uma cota grátis que acabava no meio do mês. É só atualizar e seguir normal: o
+  app troca de endereço sozinho, sua conta, seus servidores e suas conversas vieram junto, e você
+  continua logado.
+- Se um dia o servidor estiver fora do ar de propósito (como numa mudança), a tela de entrada mostra
+  o aviso dele em vez de um erro genérico.
+
 ## 0.2.0-beta.7.b
 
 - **Call em tela cheia:** o botão de sair da tela cheia ficava escondido atrás dos botões da
