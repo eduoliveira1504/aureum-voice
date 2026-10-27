@@ -1,0 +1,48 @@
+# Production override for the VPS (docs/decisions/0036-vps-deploy.md). Run from the repository root:
+#   docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d --build
+#
+# Only Caddy (80, 443) and LiveKit (7881/tcp, 7882/udp) publish ports. Postgres, Redis, MinIO and
+# the API are reachable only on the compose network.
+services:
+  caddy:
+    image: caddy:2.11.7
+    restart: unless-stopped
+    environment:
+      AUREUM_DOMAIN: ${AUREUM_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2019/config/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  livekit:
+    profiles: !reset []
+    command: ["--config=/etc/livekit.yaml"]
+    ports: !override
+      - "7881:7881"      # ICE over TCP (fallback for networks that block UDP)
+      - "7882:7882/udp"  # WebRTC media, one muxed UDP port
+    volumes: !override
+      - ./livekit.prod.yaml:/etc/livekit.yaml:ro
+
+  api:
+    ports: !reset []
+    environment:
+      # Clients get LIVEKIT_URL (wss://live.<domain>) with the token; the API talks to LiveKit directly.
+      LIVEKIT_API_URL: http://livekit:7880
+    depends_on:
+      livekit:
+        condition: service_healthy
+
+volumes:
+  # Created by hand before the first run (block 3.18, item 2) so certificates survive a `down -v`.
+  caddy-data:
+    external: true
+    name: aureum_caddy_data
+  caddy-config:

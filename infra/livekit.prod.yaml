@@ -1,0 +1,13 @@
+# LiveKit server configuration (production, on the VPS).
+# API keys come from the LIVEKIT_KEYS env var set in docker-compose.yml.
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  # One UDP port for all media (muxed), published as 7882/udp.
+  udp_port: 7882
+  # Find the public IP via STUN: the container only sees its Docker address.
+  use_external_ip: true
+
+logging:
+  level: info

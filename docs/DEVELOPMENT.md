@@ -451,6 +451,18 @@ The address is the free DuckDNS name `aureum-voice.duckdns.org`, whose subdomain
 redirects the bare name to `api.`. Certificates come from Let's Encrypt over HTTP-01 (no DuckDNS token needed) and
 are kept in the `aureum_caddy_data` volume.
 
+The stack runs from `~/aureum` on the VPS with the production override,
+[infra/docker-compose.prod.yml](../infra/docker-compose.prod.yml): it adds Caddy, runs LiveKit without `--dev`
+([infra/livekit.prod.yaml](../infra/livekit.prod.yaml)), and publishes only 80/443 (Caddy) and 7881/tcp + 7882/udp
+(LiveKit). The VPS `.env` (mode 600) has its own secrets, except `JWT_SECRET`, which is the PC's. To deploy the
+current commit from the repository root:
+
+```bash
+git archive HEAD | ssh aureum@<vps> "mkdir -p ~/aureum && tar -x -C ~/aureum"
+ssh aureum@<vps> "cd ~/aureum && docker compose --env-file .env -f infra/docker-compose.yml \
+  -f infra/docker-compose.prod.yml up -d --build"
+```
+
 ## Roadmap
 
 - Role mentions: the permission already exists
