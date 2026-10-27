@@ -34,9 +34,15 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
 - Se alguma tarefa exigir serviço pago ou que possa virar pago, PARE e pergunte antes,
   explicando o custo e a alternativa grátis.
 - Nunca colocar segredos no código ou no git; apenas no .env (que está no .gitignore).
-- EXCEÇÕES AUTORIZADAS pelo Eduardo (plano B, enquanto não há VM Oracle): LiveKit Cloud
-  no plano GRÁTIS e Tailscale Funnel no plano GRÁTIS. Nunca fazer upgrade de plano em
-  nenhum deles; se algo exigir plano pago, PARE e pergunte.
+- EXCEÇÃO AUTORIZADA (bloco 3.18): servidor de produção numa VPS paga da Hostinger (KVM 4,
+  datacenter Brasil), contratada pelo Eduardo e dividida com os sócios. Só esse plano: nada de
+  upgrade, add-on pago (backup, domínio, IP extra, painel) ou troca de plano sem perguntar.
+  Contratação e mudanças no painel da Hostinger são feitas pelo Eduardo; eu só mexo via SSH.
+- EXCEÇÃO AUTORIZADA: DuckDNS grátis para o endereço técnico (aureum-voice.duckdns.org).
+- O resto da regra de R$0 continua valendo: tudo que roda na VPS é self-hosted e open source.
+- EXCEÇÕES DO PLANO B, A DESLIGAR depois da virada para a VPS (3.18, item 10, com OK do Eduardo):
+  LiveKit Cloud no plano GRÁTIS e Tailscale Funnel no plano GRÁTIS. Nunca fazer upgrade de plano
+  em nenhum deles; se algo exigir plano pago, PARE e pergunte.
 - EXCEÇÃO AUTORIZADA permanente: envio de e-mail por SMTP de uma conta Gmail dedicada do
   Aureum (grátis, limite ~500/dia). Credenciais só no .env.
   
@@ -130,11 +136,12 @@ call.* (chamadas privadas), read-state. Redis pub/sub para distribuir eventos.
 6. screenshare com áudio do sistema ✅
 7. perfil: avatar/banner animados, bio, cor ✅
 8. README em inglês ✅
-9. deploy na VM Oracle — PENDENTE (sem capacidade na Oracle; rodando no plano B)
+9. deploy na VM Oracle — SUBSTITUÍDO pela VPS da Hostinger (bloco 3.18 do PHASE3.md); a Oracle
+   fica como possibilidade futura de reduzir custo.
 
-## Deploy provisório (plano B)
-Enquanto não há VM Oracle (out of capacity). A tarefa 9 (VM Oracle) continua sendo o destino final;
-o plano B é temporário e não deve criar dependências que impeçam a migração.
+## Deploy provisório (plano B, a desligar)
+Em uso até a virada para a VPS da Hostinger (bloco 3.18; escolhas em docs/decisions/0036-vps-deploy.md).
+Depois da virada, PC e Funnel ficam só como ponte por alguns dias para quem não atualizou.
 - Mídia (voz, câmera, tela): LiveKit Cloud, plano grátis (Build). Credenciais só no .env
   (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET); nunca imprimir, logar ou commitar.
   Cota grátis é teto rígido (≈5.000 min de participante e 50 GB de download/mês): ao acabar,
@@ -149,8 +156,8 @@ o plano B é temporário e não deve criar dependências que impeçam a migraç�
 - Amigos só instalam o app (instalador Windows apontando para o endereço do Funnel).
 
 ## Próximos passos
-Seguir os blocos do docs/decisions/PHASE2.md. Depois da Fase 2: migração para a VM Oracle
-(tarefa 9), login com Google/Discord, importação de servidores do Discord (estrutura
+Seguir os blocos do docs/decisions/PHASE3.md (agora: 3.18, migração para a VPS da Hostinger).
+Depois: login com Google/Discord, importação de servidores do Discord (estrutura
 primeiro), eventos, wiki do servidor, plano Aureum+.
 
 ## Beta fechado

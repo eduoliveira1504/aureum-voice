@@ -36,7 +36,10 @@ migração core, c1e7a3b9d520, e a dependência nova tinytag no requirements; ap
 produção nem publicado; passos de produção e teste manual no 3.15.
 Depois da beta.7, a pedido do Eduardo: correção da saída da call em tela cheia (só app), na
 0.2.0-beta.7.b.
-Próximo: 3.12 (categorias de canais); depois 3.13, 3.14 e 3.16.
+Em 26/10 a voz parou (cota grátis do LiveKit Cloud estourou); o Eduardo decidiu migrar para uma VPS
+paga da Hostinger (3.18), que passa na frente do 3.12. Escolhas de deploy em 0036-vps-deploy.md.
+Próximo: 3.18 (migração para a VPS da Hostinger); depois 3.12 (categorias de canais), 3.13, 3.14
+e 3.16.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -827,12 +830,92 @@ NÃO começar sem spec detalhada do Eduardo. Escopo previsto:
   original de verdade, legível de 24px a ilustração grande. Usos: guia do tour (3.16),
   estados vazios, carregamento, erro de conexão, e-mails, figurinhas.
 
-## 3.18 Migração para a Oracle (quando a VM estiver pronta)
-NÃO começar sem spec detalhada. Escopo previsto: VM A1 Always Free (PAYG com tudo grátis
-e alerta de gasto), API + Postgres + Redis + MinIO + LiveKit na VM, HTTPS, migração dos
-dados com backup e janela de manutenção avisada pela @aureum, troca de URLs no app sem
-quebrar instalações existentes (inclusive a landing no GitHub Pages), fim do Tailscale
-Funnel e do LiveKit Cloud.
+## 3.18 Migração para a VPS da Hostinger (PRIORIDADE: antes do 3.12)
+Contexto: em 26/10 a voz parou (o plano grátis do LiveKit Cloud estourou os 5.000 min do mês)
+e a VM da Oracle não saiu. Decisão do Eduardo: VPS paga Hostinger KVM 4 (4 vCPU, 16 GB, datacenter
+Brasil), custo dividido com os sócios, e abrir o beta a mais gente depois. A Oracle fica como
+possibilidade futura de reduzir custo. Endereço técnico provisório: aureum-voice.duckdns.org (grátis).
+A marca e o domínio próprio são decisão à parte e NÃO bloqueiam este bloco.
+
+Regras deste bloco:
+- Nenhum bloco a partir do 3.12 e nenhuma release antes disto, exceto a 0.2.0-beta.8 daqui.
+- Valem as regras de produção do cabeçalho: backup com data no nome, mostrar o comando de
+  restauração, e comandos que mexem no PC de produção só rodam com OK do Eduardo. Na VPS nova (ainda
+  sem usuários) a preparação pode rodar direto. Nunca apagar nada do PC antes de o Eduardo mandar.
+- Segredos só no .env (da VPS), nunca no repositório, nunca impressos nem colados no chat.
+
+### 0. Docs e regras (um commit)
+- CLAUDE.md: exceção de custo para o servidor pago (VPS Hostinger, dividida) e para o DuckDNS grátis;
+  o resto da regra de R$0 continua. Marcar Tailscale Funnel e LiveKit Cloud como "a desligar".
+- docs/decisions/0036-vps-deploy.md: escolhas de deploy (Caddy, LiveKit self-hosted, firewall).
+- Status do PHASE3: "Próximo: 3.18, depois 3.12".
+
+### 1. VPS pronta (Eduardo contrata; o resto via SSH)
+- Eduardo: contratar KVM 4, Brasil, Ubuntu limpo, chave SSH cadastrada. Me passar só o IP.
+- Usuário comum com sudo, login de root e senha por SSH desligados, chave só.
+- Firewall (ufw e o da Hostinger): só 22, 80, 443, 7881/tcp e a porta UDP do LiveKit.
+- Atualizações automáticas de segurança, fail2ban, Docker e compose, fuso de São Paulo, rotação
+  de logs do Docker.
+
+### 2. Endereço e HTTPS
+- Eduardo aponta o DuckDNS aureum-voice para o IP da VPS.
+- Testar se subníveis funcionam (api. e live.). Se não, criar um segundo nome no DuckDNS só para o
+  LiveKit e dizer qual foi usado.
+- Caddy com HTTPS automático na frente da API (e do LiveKit, se o subnível servir).
+
+### 3. Compose de produção
+- infra/docker-compose.prod.yml (ou override) com Caddy, API, Postgres, Redis, MinIO e LiveKit.
+- Só Caddy e LiveKit publicam portas; Postgres, Redis e MinIO nunca saem do localhost.
+- restart: unless-stopped e healthchecks. O compose de dev não muda.
+
+### 4. LiveKit self-hosted
+- livekit.yaml de produção: sem --dev, chaves novas, use_external_ip ligado, porta UDP única ou faixa
+  larga (propor e justificar).
+- Avaliar o TURN embutido (para quem está atrás de firewall rígido) e perguntar antes de ligar.
+- API com LIVEKIT_URL=wss://... e LIVEKIT_API_URL interno. O app não precisa de update para isso,
+  porque a URL da mídia vem da API junto com o token.
+- Teste: call de 2 pessoas em redes diferentes (uma delas no 4G), com câmera e tela com som.
+
+### 5. Backup e ensaio
+- pg_dump com data no nome + cópia dos arquivos do MinIO (avatares, anexos, sons, figurinhas).
+- Conferir se algo durável mora no Redis (ex: tokens, convites); se sim, migrar também.
+- Restaurar uma CÓPIA na VPS, rodar `alembic upgrade head` e testar o app apontando para o endereço
+  novo (a tela de login deixa trocar a URL). Mesmo segredo JWT do PC, para ninguém ser deslogado.
+
+### 6. Modo "mudamos de servidor" na API do PC
+- Variável nova (ex: SERVER_MOVED_TO). Ligada, a API responde 503 com mensagem legível ("O Aureum
+  mudou de servidor. Atualize o app.") em tudo menos no health, e o WebSocket fecha com o mesmo aviso.
+- /convite/{codigo} redireciona (301) para o endereço novo, para os links já enviados não quebrarem.
+- Não pode quebrar o app da versão anterior (erro legível, não genérico).
+- Testes.
+
+### 7. Release 0.2.0-beta.8 (só o necessário; rascunho, NÃO publicar ainda)
+- Endereço padrão novo. Se o endereço salvo no app for o antigo (*.ts.net do Funnel), troca sozinho
+  pelo novo; endereços personalizados ficam como estão.
+- CSP da landing (site/index.html) com o endereço novo.
+- CHANGELOG em linguagem simples ("o Aureum mudou de servidor, atualiza e segue normal").
+- Confirmar que um app beta.7.b instalado encontra a beta.8.
+
+### 8. Monitoramento e carga
+- Script simples que mostra CPU, RAM, disco, tráfego do mês e containers.
+- Backup diário automático (7 dias de retenção na VPS) e comando para copiar para o PC do Eduardo.
+- Teste de carga com `lk load-test`, rodando de OUTRA máquina e em escala pequena, para saber a folga.
+
+### 9. Virada (janela curta, o Eduardo avisa os testers antes)
+1. Parar a API no PC (Postgres continua ligado).
+2. Dump final + espelho do MinIO, copiar para a VPS, restaurar e `alembic upgrade head`.
+3. Subir tudo na VPS e validar: login, mensagem, anexo, voz em 2 redes, tela com som.
+4. Se der certo: publicar a beta.8 e ligar o modo "mudamos" no PC (Funnel continua no ar).
+5. Se falhar: religar a API no PC (nada foi apagado), investigar e tentar de novo.
+
+### 10. Depois
+- PC e Funnel ficam alguns dias só para quem não atualizou. Depois, com OK do Eduardo, desligar o
+  Funnel e o LiveKit Cloud. Backups do PC ficam guardados por 30 dias.
+
+## Pronto quando (3.18)
+- App rodando na VPS, voz com 2 redes diferentes funcionando, sem depender do PC do Eduardo.
+- beta.8 publicada e um app antigo atualiza sozinho para o endereço novo.
+- Backup diário rodando e restauração testada. PC e Funnel só como ponte.
 
 ## Backlog (não fazer agora)
 - Convite de grupo do WhatsApp (invites create --usos 15 --dias 7); a landing já está no
@@ -876,4 +959,4 @@ Funnel e do LiveKit Cloud.
 - Overlay com widgets separados de voz, câmeras (horizontal/vertical) e notificações.
 - Painel de sons funcionando na call, exclusivo de cada servidor.
 - Conta nova faz o tour inicial; dicas aparecem uma vez em cada recurso.
-- App rodando na VM da Oracle, sem depender do PC do Eduardo.
+- App rodando na VPS da Hostinger, sem depender do PC do Eduardo.

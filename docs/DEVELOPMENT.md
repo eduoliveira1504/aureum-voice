@@ -431,8 +431,8 @@ with the dev override and `--profile local-livekit`. The data volumes are shared
 
 ### Permanent deployment
 
-The target is an Oracle Cloud Always Free VM running the whole stack, including a self-hosted LiveKit, behind
-Caddy with automatic HTTPS. Plan B adds no dependency that prevents moving there: the desktop app gets the
+The target is a Hostinger VPS (KVM 4, Brazil) running the whole stack, including a self-hosted LiveKit, behind
+Caddy with automatic HTTPS (see [0036](decisions/0036-vps-deploy.md)); plan B is turned off after the move. Plan B adds no dependency that prevents moving there: the desktop app gets the
 LiveKit URL from the API, and the API URL is only a build setting.
 
 ## Roadmap
