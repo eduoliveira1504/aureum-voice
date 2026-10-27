@@ -14,6 +14,8 @@ os.environ["AUREUM_OWNER_USERNAME"] = ""
 os.environ["AUREUM_BETA"] = "false"
 os.environ["AUREUM_INVITE_ONLY"] = "true"
 os.environ["KLIPY_APP_KEY"] = ""
+# The old server's .env turns on "we moved" mode after the switch; tests run a normal API.
+os.environ["SERVER_MOVED_TO"] = ""
 # E-mails stay in memory (tests read them through tests.helpers.inbox); nothing is sent.
 os.environ["EMAIL_PROVIDER"] = "memory"
 os.environ["PUBLIC_BASE_URL"] = "https://aureum.test"
