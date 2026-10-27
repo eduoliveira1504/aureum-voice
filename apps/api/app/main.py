@@ -13,6 +13,7 @@ from app.addons.registry import ADDONS
 from app.bot import broadcast, releases
 from app.config import get_settings
 from app.db import SessionLocal
+from app.moved import ServerMovedMiddleware
 from app.realtime import broker
 from app.routers import addons, auth, badges as badges_router, bug_reports, calls, channels, dms, friends, gifs, home, moderation, public, roles, servers, soundboard, stickers, users, web, ws
 
@@ -56,6 +57,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Added last so it runs first: in "we moved" mode nothing else is reached.
+app.add_middleware(ServerMovedMiddleware)
 
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)

@@ -85,6 +85,10 @@ class Settings(BaseSettings):
 
     # Public address of the API (the Funnel URL): invite links, e-mail images and links.
     public_base_url: str = "http://localhost:8000"
+    # "We moved" mode (app/moved.py): the new server's address, e.g. https://api.example.org.
+    # Set, this API answers 503 with a readable message everywhere but /api/health, closes
+    # WebSockets with it and redirects invite pages there. Empty = normal.
+    server_moved_to: str = ""
     # Where installers come from: the newest GitHub release of this repository.
     releases_repo: str = "eduoliveira1504/aureum-voice"
 

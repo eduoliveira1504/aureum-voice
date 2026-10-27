@@ -463,6 +463,12 @@ ssh aureum@<vps> "cd ~/aureum && docker compose --env-file .env -f infra/docker-
   -f infra/docker-compose.prod.yml up -d --build"
 ```
 
+After the switch, the old server runs in "we moved" mode: `SERVER_MOVED_TO=<new address>` in its `.env`
+([app/moved.py](../apps/api/app/moved.py)). It answers 503 with a readable `detail` everywhere but `/api/health`,
+closes WebSockets with code 4010 and the same message, and redirects `/convite/...` and `/static/...` (301) so
+invite links and e-mail images already sent keep working. Sessions stay valid (a 503 isn't a 401), and the old
+app's updater still finds the new release on GitHub.
+
 Backups are a custom-format `pg_dump` plus the MinIO bucket as a tar made by
 [infra/vps/media_archive.py](../infra/vps/media_archive.py), which runs inside the API container (it has the client
 and the credentials) and keeps each object's Content-Type, since `/api/media` serves files with it. Redis holds
