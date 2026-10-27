@@ -79,7 +79,15 @@ separate decision and doesn't block the move. Block 3.18 in PHASE3.md has the st
   IPs) are not used; backups are a daily `pg_dump` + MinIO copy kept 7 days on the VPS and copied to
   Eduardo's PC.
 - No more participant-minute quota: voice capacity is bounded by the VPS's CPU and bandwidth, which
-  item 8 measures with a small `lk load-test` run from another machine.
+  item 8 measured with a small `lk load-test` (v2.19.2) run from Eduardo's PC on 27/10/2026:
+  - 10 audio publishers + 10 subscribers, 1 min: LiveKit at ~8–13% of one vCPU (of 400%), ~73 MB of
+    RAM, 0% packet loss. The server got all 10 tracks; each subscriber counted 6/10, the same for all,
+    which looks like the load tester's own accounting rather than loss.
+  - 3 video publishers (medium, simulcast) + 10 subscribers, 1 min: ~4–5% of one vCPU, ~93 MB, 30/30
+    tracks, 0% loss, 8.5 Mbps out (~280 kbps per received video track).
+  - Load average stayed under 0.25. CPU is far from being the limit at beta scale; outgoing bandwidth
+    (video and screen share, which multiply per viewer) will be first. The home connection running
+    the test capped its scale, so these numbers are a floor for the headroom, not a ceiling.
 - Everything sits on one host, so a VPS outage takes the whole app down. Acceptable for the beta;
   the daily backup and a tested restore are the recovery path.
 - Oracle stays an option to cut cost later: the same compose runs on any Linux host.
