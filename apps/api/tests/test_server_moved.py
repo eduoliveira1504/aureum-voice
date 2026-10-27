@@ -67,3 +67,23 @@ async def test_sessions_survive_the_mode(monkeypatch: pytest.MonkeyPatch, user: 
     assert (await user.get("/users/me")).status_code == 503
     monkeypatch.setattr(get_settings(), "server_moved_to", "")
     assert (await user.get("/users/me")).status_code == 200
+
+
+async def test_no_background_workers(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The new server sends the e-mails, reminders and bot posts; the old one must not repeat them.
+    from app import main
+    from app.realtime import broker
+
+    started: list[str] = []
+    monkeypatch.setattr(get_settings(), "server_moved_to", NEW)
+    monkeypatch.setattr(main.mail, "run_worker", lambda: started.append("mail"))
+    monkeypatch.setattr(main.broadcast, "run_worker", lambda: started.append("broadcast"))
+    monkeypatch.setattr(main.releases, "run_worker", lambda: started.append("releases"))
+
+    async def keep_broker() -> None:  # other tests share it
+        pass
+
+    monkeypatch.setattr(broker, "close", keep_broker)
+    async with main.lifespan(main.app):
+        pass
+    assert started == []

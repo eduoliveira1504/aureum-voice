@@ -27,6 +27,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except Exception:  # storage down: the API still works, only uploads fail
         logging.getLogger(__name__).exception("Could not prepare the storage bucket")
     await broker.ensure_listening()
+    if settings.server_moved_to:
+        # "We moved" mode (app/moved.py): the new server sends the e-mails, reminders and bot posts.
+        yield
+        await broker.close()
+        return
     async with SessionLocal() as session:
         await badges.sync_badges(session)
         await badges.grant_founder_if_due(session)
