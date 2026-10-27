@@ -224,7 +224,7 @@ Design decisions are recorded in [`docs/decisions`](decisions).
 apps/api/        FastAPI app, Alembic migrations, pytest suite
 apps/desktop/    Electron + React desktop app
 scripts/         generate-sounds.mjs (UI sounds), e-mail and share images, test and release helpers
-infra/           docker-compose files and LiveKit config
+infra/           docker-compose files, LiveKit config, VPS setup script (infra/vps/)
 site/            the landing page (GitHub Pages)
 docs/decisions/  architecture decision records
 .env.example     every setting the stack reads
@@ -434,6 +434,17 @@ with the dev override and `--profile local-livekit`. The data volumes are shared
 The target is a Hostinger VPS (KVM 4, Brazil) running the whole stack, including a self-hosted LiveKit, behind
 Caddy with automatic HTTPS (see [0036](decisions/0036-vps-deploy.md)); plan B is turned off after the move. Plan B adds no dependency that prevents moving there: the desktop app gets the
 LiveKit URL from the API, and the API URL is only a build setting.
+
+Preparing a fresh Ubuntu VPS is one idempotent script, [infra/vps/setup.sh](../infra/vps/setup.sh), run as root
+over SSH in two steps:
+
+```bash
+sudo bash setup.sh base     # updates, unattended security upgrades, São Paulo time zone, Docker + compose
+                            # with log rotation, an "aureum" sudo user with root's SSH key, ufw, fail2ban
+sudo bash setup.sh harden   # SSH key only, no root login; run only after "ssh aureum@<ip>" works
+```
+
+ufw allows only 22, 80, 443 and 7881/tcp plus LiveKit's UDP port; the Hostinger panel firewall mirrors it.
 
 ## Roadmap
 
