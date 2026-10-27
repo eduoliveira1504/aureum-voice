@@ -42,9 +42,18 @@ separate decision and doesn't block the move. Block 3.18 in PHASE3.md has the st
 - No `--dev`, new API key and secret, `use_external_ip: true`. The API hands out `LIVEKIT_URL`
   (public `wss://`) with the token and reaches LiveKit's server API on the internal
   `LIVEKIT_API_URL`, so the desktop app needs no update for the media move.
-- Media ports: 7881/tcp (ICE over TCP, fallback for networks that block UDP) and UDP. The UDP choice
-  (one muxed port vs. a wide range, and host networking for the LiveKit container) is made and
-  justified in item 4. The built-in TURN stays off until it's evaluated there and Eduardo agrees.
+- Media ports: 7881/tcp (ICE over TCP, fallback for networks that block UDP) and one muxed UDP port,
+  7882 (`rtc.udp_port`). LiveKit tells participants apart on that single port, so the container
+  stays on the Docker bridge network: a wide range (e.g. 50000-60000) would mean thousands of
+  NAT rules and a slow container start, and host networking would drop the container's isolation.
+  It's also a single rule in each firewall. The trade-off is that a range spreads load over CPU
+  cores a little better with hundreds of participants at once, which the beta isn't near; item 8
+  measures the actual headroom.
+- The built-in TURN stays off. It only helps on networks that block UDP *and* every TCP port but 443
+  (7881/tcp already covers networks without UDP), and to help there it would have to answer
+  TURN/TLS on 443, which Caddy owns: that needs a `turn.` subdomain and a Caddy build with the
+  layer4 module. TURN on 3478 or 5349 is usually blocked on those same networks. Revisit if a tester
+  on a corporate network can't join a call.
 
 ### Firewall
 

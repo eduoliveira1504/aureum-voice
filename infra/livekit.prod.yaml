@@ -8,6 +8,7 @@ rtc:
   udp_port: 7882
   # Find the public IP via STUN: the container only sees its Docker address.
   use_external_ip: true
+  # Built-in TURN is off on purpose (docs/decisions/0036-vps-deploy.md).
 
 logging:
   level: info
