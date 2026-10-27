@@ -463,6 +463,21 @@ ssh aureum@<vps> "cd ~/aureum && docker compose --env-file .env -f infra/docker-
   -f infra/docker-compose.prod.yml up -d --build"
 ```
 
+Backups are a custom-format `pg_dump` plus the MinIO bucket as a tar made by
+[infra/vps/media_archive.py](../infra/vps/media_archive.py), which runs inside the API container (it has the client
+and the credentials) and keeps each object's Content-Type, since `/api/media` serves files with it. Redis holds
+nothing durable (presence, voice state, caches, rate limits), so it isn't backed up. Backups go to `backups/`, which
+is git-ignored. With `C` the compose command for the machine:
+
+```bash
+S=$(base64 -w0 infra/vps/media_archive.py)
+$C exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backups/aureum-<date>.dump
+$C exec -T api python -c "import base64;exec(base64.b64decode('$S'))" export > backups/minio-<date>.tar
+# restore
+$C exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' < backups/aureum-<date>.dump
+$C exec -T api python -c "import base64;exec(base64.b64decode('$S'))" import < backups/minio-<date>.tar
+```
+
 ## Roadmap
 
 - Role mentions: the permission already exists
