@@ -255,6 +255,10 @@ Requirements: Docker Desktop, Node.js 22+, and Python 3.12 (only to run the API 
    npm run dev
    ```
 
+   A dev run keeps its session and settings apart from the installed app (`Aureum Voice (dev)`), so it
+   talks to `localhost:8000`, never to production. `AUREUM_PROFILE=<name>` picks another set, for a second
+   account on the same machine.
+
    With `AUREUM_INVITE_ONLY=true` (the default) sign-up needs an account invite: create the first
    account and invites with the admin commands below. Set `EMAIL_PROVIDER` and `SMTP_*` in `.env` for
    the confirmation codes to go out.

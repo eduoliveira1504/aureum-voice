@@ -42,7 +42,8 @@ const startHidden = process.argv.includes('--hidden')
 
 // AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
 // accounts can be used side by side on one machine — handy for testing calls locally.
-const profile = process.env['AUREUM_PROFILE']
+// Without one, a dev run gets its own data too: the installed app's settings point at production.
+const profile = process.env['AUREUM_PROFILE'] || (app.isPackaged ? undefined : 'dev')
 if (profile && /^[\w-]{1,32}$/.test(profile)) {
   app.setPath('userData', join(app.getPath('appData'), `Aureum Voice (${profile})`))
 }

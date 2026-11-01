@@ -639,7 +639,7 @@ membros, da call etc.):
   avatar, nome e abas ficam fixos.
 - Teste: cartão aberto no rodapé da janela com 8+ insígnias chega até a última.
 
-### Parte B: Painel de sons ✅ concluída (som testado em dev; falta teste na produção)
+### Parte B: Painel de sons ✅ concluída (som testado pelo app em dev ligado à produção; sai com a beta.9)
 Os sons não tocam. Diagnóstico PRIMEIRO, sem corrigir no chute; me explicar a causa antes:
 1. VPS: os arquivos dos sons existem no MinIO (vieram na migração?); GET /api/media/sounds/{id}
    responde 200 com o content-type certo; logs da API no POST /sounds/{id}/play.
