@@ -156,6 +156,9 @@ interface NavState {
    * split it. `index` is its place among the panel's tabs, counted before the tab leaves them.
    */
   dropTab(serverId: string, tab: PanelTab, panel: number, edge?: Edge | null, index?: number): void
+  /** Moves a tab one place within its panel; the overview stays first. */
+  moveTabBy(serverId: string, panel: number, tab: PanelTab, delta: -1 | 1): void
+  closeOtherTabs(serverId: string, panel: number, tab: PanelTab): void
   closePanel(serverId: string, panel: number): void
   /** Moves the divider of the split at `path`. */
   setPanelRatio(serverId: string, path: TreePath, ratio: number): void
@@ -299,6 +302,23 @@ export const useNav = create<NavState>()((set, get) => {
       saveLayout(serverId, tidy({ ...layout, panels }, tree))
       // Index of the destination after the emptied panel is dropped.
       setFocused(serverId, from >= 0 && from < into && panels[from].tabs.length === 0 ? into - 1 : into)
+    },
+
+    moveTabBy: (serverId, panel, tab, delta) => {
+      const { tabs } = layoutOf(serverId).panels[panel]
+      const index = tabs.indexOf(tab)
+      const first = tabs[0] === 'overview' ? 1 : 0
+      if (tab === 'overview' || index + delta < first || index + delta >= tabs.length) return
+      get().dropTab(serverId, tab, panel, null, delta < 0 ? index - 1 : index + 2)
+    },
+
+    closeOtherTabs: (serverId, panel, tab) => {
+      const layout = layoutOf(serverId)
+      const panels = layout.panels.map((p, i) =>
+        i === panel ? { tabs: p.tabs.filter((t) => t === tab || t === 'overview'), active: tab } : p
+      )
+      saveLayout(serverId, { ...layout, panels })
+      setFocused(serverId, panel)
     },
 
     closePanel: (serverId, panel) => {

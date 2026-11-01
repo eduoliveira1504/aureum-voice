@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Me, PanelLayout, ServerDetail } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { layoutOf, treeOf, useNav } from '../store/nav'
+import { ContextMenuHost } from './ContextMenu'
 import { PANEL_DRAG_TYPE, Panels } from './Panels'
 
 vi.mock('./ChatView', () => ({ ChatView: () => <div>chat</div> }))
@@ -90,6 +91,42 @@ describe('dragging', () => {
     show({ panels: [panel('overview', 'channel:c-1')], split: 0.5 })
     drag('drop', region(1), 5, 50, 'channel:c-2')
     expect(layoutOf(SID).panels).toHaveLength(1)
+  })
+})
+
+describe('tab order', () => {
+  const tabAt = (name: string, left: number): void => {
+    screen.getByRole('tab', { name }).getBoundingClientRect = () => ({ left, width: 100 }) as DOMRect
+  }
+  const strip = (): HTMLElement => screen.getByRole('tablist')
+
+  beforeEach(() => {
+    show({ panels: [panel('overview', 'channel:c-1', 'channel:c-2')], split: 0.5 })
+    tabAt('Visão geral', 0)
+    tabAt('c-1', 100)
+    tabAt('c-2', 200)
+  })
+
+  it('shows a line where the tab would go, and drops it there', () => {
+    drag('dragOver', strip(), 110, 5, 'channel:c-2')
+    expect(region(1).querySelector('[data-tab-line]')).not.toBeNull()
+    expect(region(1).querySelector('[data-drop-zone]')).toBeNull()
+    drag('drop', strip(), 110, 5, 'channel:c-2')
+    expect(layoutOf(SID).panels[0].tabs).toEqual(['overview', 'channel:c-2', 'channel:c-1'])
+    expect(region(1).querySelector('[data-tab-line]')).toBeNull()
+  })
+
+  it('never goes before the overview', () => {
+    drag('drop', strip(), 5, 5, 'channel:c-2')
+    expect(layoutOf(SID).panels[0].tabs).toEqual(['overview', 'channel:c-2', 'channel:c-1'])
+  })
+
+  it('offers only the moves that exist', () => {
+    fireEvent.contextMenu(screen.getByRole('tab', { name: 'c-1' }))
+    render(<ContextMenuHost />)
+    expect(screen.queryByText('Mover para a esquerda')).toBeNull()
+    fireEvent.click(screen.getByText('Mover para a direita'))
+    expect(layoutOf(SID).panels[0].tabs).toEqual(['overview', 'channel:c-2', 'channel:c-1'])
   })
 })
 

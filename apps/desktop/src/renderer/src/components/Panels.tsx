@@ -1,5 +1,5 @@
-import { Columns2, Hash, LayoutDashboard, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
-import { useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
+import { Fragment, useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
 import type { Channel, Me, Panel, PanelNode, PanelSplit, PanelTab, ServerDetail } from '../lib/api'
@@ -9,6 +9,7 @@ import { useAppearance } from '../store/appearance'
 import { DEFAULT_LAYOUT, dividableTab, MAX_PANELS, parseTab, pinOverview, treeOf, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
+import { contextMenu, Item } from './ContextMenu'
 import { ServerOverview } from './ServerOverview'
 import { VoiceView } from './VoiceView'
 
@@ -146,6 +147,30 @@ function Divider({
   )
 }
 
+/** Where a tab dragged over the tab strip would go: before the first tab past the pointer. */
+function tabIndexAt(strip: Element, x: number, first: number): number {
+  const tabs = [...strip.querySelectorAll('[role="tab"]')]
+  const index = tabs.findIndex((tab) => {
+    const rect = tab.getBoundingClientRect()
+    return x < rect.left + rect.width / 2
+  })
+  return Math.max(first, index < 0 ? tabs.length : index)
+}
+
+function TabMenu({ serverId, index, panel, tab }: { serverId: string; index: number; panel: Panel; tab: PanelTab }): ReactNode {
+  const { closeOtherTabs, moveTabBy } = useNav.getState()
+  const at = panel.tabs.indexOf(tab)
+  const first = panel.tabs[0] === 'overview' ? 1 : 0
+  const movable = tab !== 'overview'
+  return (
+    <>
+      {movable && at > first && <Item icon={ArrowLeft} label="Mover para a esquerda" onClick={() => moveTabBy(serverId, index, tab, -1)} />}
+      {movable && at < panel.tabs.length - 1 && <Item icon={ArrowRight} label="Mover para a direita" onClick={() => moveTabBy(serverId, index, tab, 1)} />}
+      <Item icon={X} label="Fechar outras" onClick={() => closeOtherTabs(serverId, index, tab)} />
+    </>
+  )
+}
+
 function tabInfo(tab: PanelTab, server: ServerDetail, callRoom: string | null): { icon: LucideIcon; label: string } {
   const ref = parseTab(tab)
   switch (ref.kind) {
@@ -186,6 +211,8 @@ function PanelView({
   )
   const narrow = useNav((s) => s.narrow)
   const [zone, setZone] = useState<DropZone | null>(null)
+  const [tabLine, setTabLine] = useState<number | null>(null)
+  const firstTab = panel.tabs[0] === 'overview' ? 1 : 0
   const divisible = dividableTab(panel)
 
   const zoneAt = (e: DragEvent): DropZone => {
@@ -232,15 +259,34 @@ function PanelView({
     >
       {zone && <div data-drop-zone={zone} className={`pointer-events-none absolute z-30 border-2 border-dashed border-accent bg-accent/15 ${DROP_AREA[zone]}`} />}
       <div className="flex h-11 shrink-0 items-end gap-1 border-b border-line bg-panel/60 px-2">
-        <div role="tablist" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
-          {panel.tabs.map((tab) => {
+        <div
+          role="tablist"
+          className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 self-stretch overflow-x-auto"
+          onDragOver={(e) => {
+            if (!isPanelDrag(e)) return
+            e.preventDefault()
+            e.stopPropagation()
+            setZone(null)
+            setTabLine(tabIndexAt(e.currentTarget, e.clientX, firstTab))
+          }}
+          onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setTabLine(null)}
+          onDrop={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setTabLine(null)
+            const data = readDrag(e)
+            if (data) dropTab(server.id, data.tab, index, null, tabIndexAt(e.currentTarget, e.clientX, firstTab))
+          }}
+        >
+          {panel.tabs.map((tab, position) => {
             const { icon: Icon, label } = tabInfo(tab, server, callRoom)
             const active = tab === panel.active
             // The overview is pinned: first, can't be closed or dragged away.
             const pinned = tab === 'overview'
             return (
+              <Fragment key={tab}>
+              {tabLine === position && <span data-tab-line className="-mx-[3px] mb-1.5 h-6 w-0.5 shrink-0 self-end rounded-full bg-accent" />}
               <div
-                key={tab}
                 role="tab"
                 tabIndex={0}
                 aria-selected={active}
@@ -252,6 +298,7 @@ function PanelView({
                 onClick={() => activateTab(server.id, index, tab)}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && activateTab(server.id, index, tab)}
                 onAuxClick={(e) => e.button === 1 && closeTab(server.id, index, tab)}
+                onContextMenu={contextMenu(() => <TabMenu serverId={server.id} index={index} panel={panel} tab={tab} />)}
                 onMouseDown={(e) => e.button === 1 && e.preventDefault()}
                 className={`group flex h-9 max-w-[200px] shrink-0 cursor-pointer items-center gap-1.5 rounded-t-item px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   active ? 'bg-main font-medium text-fg' : 'text-fg-muted hover:bg-main/50 hover:text-fg'
@@ -274,8 +321,10 @@ function PanelView({
                   </button>
                 )}
               </div>
+              </Fragment>
             )
           })}
+          {tabLine === panel.tabs.length && <span data-tab-line className="-mx-[3px] mb-1.5 h-6 w-0.5 shrink-0 self-end rounded-full bg-accent" />}
         </div>
         <div className="flex shrink-0 items-center gap-0.5 self-center">
           {canDivide && divideButton('right', 'Dividir para o lado', Columns2)}

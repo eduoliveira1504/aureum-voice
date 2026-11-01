@@ -107,6 +107,56 @@ describe('opening panels', () => {
   })
 })
 
+describe('tab order', () => {
+  beforeEach(() => {
+    nav.openTab(SID, tab(1))
+    nav.openTab(SID, tab(2))
+    nav.openTab(SID, tab(3))
+    nav.dropTab(SID, tab(3), 0, 'right')
+  })
+
+  it('reorders in the same panel', () => {
+    nav.dropTab(SID, tab(2), 0, null, 1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(2), tab(1)])
+    nav.dropTab(SID, tab(2), 0, null, 3)
+    expect(tabsOf()[0]).toEqual(['overview', tab(1), tab(2)])
+  })
+
+  it('moves to another panel where dropped', () => {
+    nav.dropTab(SID, tab(1), 1, null, 0)
+    expect(tabsOf()).toEqual([['overview', tab(2)], [tab(1), tab(3)]])
+  })
+
+  it('keeps the overview first', () => {
+    nav.dropTab(SID, tab(2), 0, null, 0)
+    expect(tabsOf()[0]).toEqual(['overview', tab(2), tab(1)])
+  })
+
+  it('moves one place from the menu, stopping at the ends', () => {
+    nav.moveTabBy(SID, 0, tab(2), -1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(2), tab(1)])
+    nav.moveTabBy(SID, 0, tab(2), -1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(2), tab(1)])
+    nav.moveTabBy(SID, 0, tab(2), 1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(1), tab(2)])
+    nav.moveTabBy(SID, 0, tab(2), 1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(1), tab(2)])
+    nav.moveTabBy(SID, 0, 'overview', 1)
+    expect(tabsOf()[0]).toEqual(['overview', tab(1), tab(2)])
+  })
+
+  it('closes the others, keeping the overview', () => {
+    nav.closeOtherTabs(SID, 0, tab(1))
+    expect(tabsOf()).toEqual([['overview', tab(1)], [tab(3)]])
+    expect(layoutOf(SID).panels[0].active).toBe(tab(1))
+  })
+
+  it('is saved with the layout', () => {
+    nav.dropTab(SID, tab(2), 0, null, 1)
+    expect(useAppearance.getState().settings.panel_layouts[SID].panels[0].tabs).toEqual(['overview', tab(2), tab(1)])
+  })
+})
+
 describe('closing', () => {
   beforeEach(() => {
     nav.dropTab(SID, tab(1), 0, 'right')
