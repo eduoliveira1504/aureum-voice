@@ -108,6 +108,9 @@ interface NavState {
   callFullscreen: boolean
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
+  /** Server whose member bar is open as a drawer. Only in a narrow window, and never saved: going
+   * narrow must not cover the content on its own. */
+  membersDrawer: string | null
   /** An item an addon channel should show when it opens (a Kanban card picked in Home). */
   addonItem: { channelId: string; itemId: string } | null
   /** "Editar perfil" is open (from the profile card). */
@@ -135,7 +138,7 @@ interface NavState {
   /** Removes a deleted channel's tab from the server's panels. */
   dropChannelTab(serverId: string, channelId: string): void
 
-  /** Opens or closes the server's member bar. */
+  /** Opens or closes the server's member bar (its drawer in a narrow window). */
   toggleMembers(serverId: string): void
   /** Saves the member bar's width for the server; null goes back to the general one. */
   setMembersWidth(serverId: string, width: number | null): void
@@ -177,6 +180,7 @@ export const useNav = create<NavState>()((set, get) => {
     callFullscreen: false,
     profileEditor: false,
     narrow: false,
+    membersDrawer: null,
     addonItem: null,
 
     go: (place) => set({ place }),
@@ -301,6 +305,7 @@ export const useNav = create<NavState>()((set, get) => {
     },
 
     toggleMembers: (serverId) => {
+      if (get().narrow) return set((s) => ({ membersDrawer: s.membersDrawer === serverId ? null : serverId }))
       const layout = layoutOf(serverId)
       saveLayout(serverId, { ...layout, members_open: !membersBarOpen(layout) })
     },
@@ -326,7 +331,7 @@ export const useNav = create<NavState>()((set, get) => {
 
     setCallFullscreen: (callFullscreen) => set({ callFullscreen }),
 
-    setNarrow: (narrow) => set({ narrow }),
+    setNarrow: (narrow) => set({ narrow, membersDrawer: null }),
 
     setProfileEditor: (profileEditor) => set({ profileEditor }),
 
@@ -339,6 +344,13 @@ export const useNav = create<NavState>()((set, get) => {
     clearAddonItem: () => set({ addonItem: null })
   }
 })
+
+/** Whether the server's member bar is showing: the saved state, or the drawer in a narrow window. */
+export function useMembersBar(serverId: string): boolean {
+  const saved = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[serverId]))
+  const drawer = useNav((s) => (s.narrow ? s.membersDrawer === serverId : null))
+  return drawer ?? saved
+}
 
 /**
  * Whether the call is on screen in full: fullscreen, the active tab of a visible panel, or (for a

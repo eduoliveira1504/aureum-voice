@@ -1,11 +1,11 @@
 import { Crown, Volume2, X } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 import { mediaUrl, type Channel, type Member, type Role, type ServerDetail, type User } from '../lib/api'
 import { memberName } from '../lib/members'
 import { channelMembers, isPrivate, roleColor } from '../lib/permissions'
 import { useAppearance, useReadableColor } from '../store/appearance'
-import { focusedTab, layoutOf, membersBarOpen, parseTab, useNav } from '../store/nav'
+import { focusedTab, layoutOf, parseTab, useMembersBar, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
 import { useProfilePopover } from './ProfileCard'
@@ -56,10 +56,15 @@ function useFocusedChannel(server: ServerDetail): Channel | null {
 const isMembersShortcut = (e: KeyboardEvent): boolean =>
   e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'u'
 
-/** The server's one member bar, to the right of its panels, and the shortcut that toggles it. */
+/** What's over the drawer: Esc and clicks there are for it, not for the drawer. */
+const OVER_DRAWER = '[aria-modal="true"], [role="dialog"], [role="menu"]'
+
+/** The server's one member bar and the shortcut that toggles it: to the right of the panels, or a
+ * drawer over them in a narrow window, closed with Esc or by clicking outside. */
 export function MembersBar({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
-  const open = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[server.id]))
+  const open = useMembersBar(server.id)
   const narrow = useNav((s) => s.narrow)
+  const drawer = useRef<HTMLDivElement>(null)
   const channel = useFocusedChannel(server)
   const { toggleMembers } = useNav.getState()
 
@@ -73,9 +78,28 @@ export function MembersBar({ server, meId }: { server: ServerDetail; meId: strin
     return () => window.removeEventListener('keydown', onKey)
   }, [server.id, toggleMembers])
 
+  useEffect(() => {
+    if (!narrow || !open) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !document.querySelector(OVER_DRAWER)) toggleMembers(server.id)
+    }
+    const onDown = (e: MouseEvent): void => {
+      const target = e.target as Element
+      // The button toggles it on its own click.
+      if (drawer.current?.contains(target) || target.closest?.(`${OVER_DRAWER}, [data-members-toggle]`)) return
+      toggleMembers(server.id)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', onDown)
+    }
+  }, [narrow, open, server.id, toggleMembers])
+
   if (!open) return null
   return (
-    <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
+    <div ref={drawer} className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
       <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
         <MemberList server={server} channel={channel} meId={meId} onClose={() => toggleMembers(server.id)} />
       </div>

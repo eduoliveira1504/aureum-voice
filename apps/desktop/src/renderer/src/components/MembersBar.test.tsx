@@ -1,6 +1,7 @@
 /** One member bar per server: the panels no longer carry their own, and it's saved per server. */
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Channel, Me, Member, PanelLayout, ServerDetail, User } from '../lib/api'
@@ -113,7 +114,7 @@ const bar = (): HTMLElement | null => screen.queryByRole('complementary', { name
 
 beforeEach(() => {
   setLayouts({})
-  useNav.setState({ place: SID, focusedPanel: {}, narrow: false })
+  useNav.setState({ place: SID, focusedPanel: {}, narrow: false, membersDrawer: null })
   useVoice.setState({ phase: 'idle', serverId: null, channelId: null })
 })
 
@@ -173,6 +174,77 @@ describe('MembersBar', () => {
     act(() => setLayouts({ [SID]: { ...TWO_PANELS, members_open: true, members_width: 340 } }, { members: 280 }))
     rerender(<MembersBar server={SERVER} meId={ME.id} />)
     expect(bar()!.style.width).toBe('340px')
+  })
+})
+
+describe('drawer in a narrow window', () => {
+  const drawerBar = (extra?: ReactNode) =>
+    render(
+      <>
+        <main>conteúdo</main>
+        <button type="button" data-members-toggle>
+          botão
+        </button>
+        {extra}
+        <MembersBar server={SERVER} meId={ME.id} />
+      </>
+    )
+  const open = (): void => act(() => useNav.getState().toggleMembers(SID))
+
+  beforeEach(() => act(() => useNav.getState().setNarrow(true)))
+
+  it('starts closed even when the bar is saved open, and keeps that state', () => {
+    setLayouts({ [SID]: { ...TWO_PANELS, members_open: true } })
+    drawerBar()
+    expect(bar()).toBeNull()
+    open()
+    expect(bar()).not.toBeNull()
+    open()
+    expect(bar()).toBeNull()
+    expect(layout()?.members_open).toBe(true)
+  })
+
+  it('does not change the saved state, and closes when the window widens', () => {
+    drawerBar()
+    open()
+    expect(layout()).toBeUndefined()
+    act(() => useNav.getState().setNarrow(false))
+    expect(bar()).toBeNull()
+    expect(useNav.getState().membersDrawer).toBeNull()
+  })
+
+  it('closes with Esc', () => {
+    drawerBar()
+    open()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(bar()).toBeNull()
+  })
+
+  it('closes with a click outside, but not inside or on its button', () => {
+    drawerBar()
+    open()
+    fireEvent.mouseDown(bar()!)
+    expect(bar()).not.toBeNull()
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'botão' }))
+    expect(bar()).not.toBeNull()
+    fireEvent.mouseDown(screen.getByText('conteúdo'))
+    expect(bar()).toBeNull()
+  })
+
+  it('leaves Esc and clicks to a menu over it', () => {
+    drawerBar(<div role="menu">menu</div>)
+    open()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.mouseDown(screen.getByText('menu'))
+    expect(bar()).not.toBeNull()
+  })
+
+  it('is per server', () => {
+    drawerBar()
+    open()
+    expect(useNav.getState().membersDrawer).toBe(SID)
+    render(<MembersBar server={{ ...SERVER, id: OTHER }} meId={ME.id} />)
+    expect(screen.getAllByRole('complementary', { name: 'Membros' })).toHaveLength(1)
   })
 })
 

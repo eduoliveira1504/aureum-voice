@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
-import { membersBarOpen, serverTabs, useNav } from '../store/nav'
+import { serverTabs, useMembersBar, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { contextMenu } from './ContextMenu'
 import { Logo } from './Logo'
@@ -91,10 +91,11 @@ export function TopBar({ me }: { me: Me }): ReactNode {
 
 /** Opens the current server's member bar; its fixed place, whatever the panels show. */
 function MembersButton({ serverId }: { serverId: string }): ReactNode {
-  const open = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[serverId]))
+  const open = useMembersBar(serverId)
   return (
     <button
       type="button"
+      data-members-toggle
       title="Membros (Ctrl Shift U)"
       aria-label="Membros"
       aria-pressed={open}
