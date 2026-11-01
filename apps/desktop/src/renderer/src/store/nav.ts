@@ -129,6 +129,8 @@ interface NavState {
   callFullscreen: boolean
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
+  /** Panels really on screen, per server, as the panel area worked them out. */
+  shownPanels: Record<string, number[]>
   /** Panel filling the server's area for now, per server. Never saved. */
   maximized: Record<string, number | null>
   /** Server whose member bar is open as a drawer. Only in a narrow window, and never saved: going
@@ -162,6 +164,7 @@ interface NavState {
   moveTabBy(serverId: string, panel: number, tab: PanelTab, delta: -1 | 1): void
   closeOtherTabs(serverId: string, panel: number, tab: PanelTab): void
   closePanel(serverId: string, panel: number): void
+  setShownPanels(serverId: string, panels: number[]): void
   /** Fills the area with a panel, or brings the layout back. */
   toggleMaximize(serverId: string, panel: number): void
   /** Moves the divider of the split at `path`. */
@@ -221,6 +224,7 @@ export const useNav = create<NavState>()((set, get) => {
     profileEditor: false,
     narrow: false,
     maximized: {},
+    shownPanels: {},
     membersDrawer: null,
     addonItem: null,
 
@@ -337,6 +341,8 @@ export const useNav = create<NavState>()((set, get) => {
       setFocused(serverId, 0)
     },
 
+    setShownPanels: (serverId, panels) => set((s) => ({ shownPanels: { ...s.shownPanels, [serverId]: panels } })),
+
     toggleMaximize: (serverId, panel) => {
       if (get().narrow || layoutOf(serverId).panels.length < 2) return
       set((s) => ({ maximized: { ...s.maximized, [serverId]: s.maximized[serverId] === panel ? null : panel } }))
@@ -424,12 +430,11 @@ export function useCallOnScreen(): boolean {
   const place = useNav((s) => s.place)
   const homePage = useNav((s) => s.homePage)
   const fullscreen = useNav((s) => s.callFullscreen)
-  const narrow = useNav((s) => s.narrow)
-  const focused = useNav((s) => (serverId ? (s.focusedPanel[serverId] ?? 0) : 0))
+  const shown = useNav((s) => (serverId ? s.shownPanels[serverId] : undefined))
   const layout = useAppearance((s) => (serverId ? s.settings.panel_layouts[serverId] : undefined))
   if (!inCall) return false
   if (fullscreen) return true
   if (!serverId) return place === 'home' && homePage === channelId
   if (place !== serverId || !layout) return false
-  return visiblePanels(layout, focused, narrow).some((i) => layout.panels[i].active === 'call')
+  return !!shown?.some((i) => layout.panels[i]?.active === 'call')
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PanelSplit } from './api'
-import { clampRatio, dropEdge, evenRatio, leaves, matches, minSize, nodeAt, removePanel, rowOf, setRatio, splitPanel } from './panelTree'
+import { clampRatio, dropEdge, evenRatio, fitPanels, leaves, matches, minSize, nodeAt, removePanel, rowOf, setRatio, splitPanel } from './panelTree'
 
 const row = (a: PanelSplit['a'], b: PanelSplit['b'], ratio = 0.5): PanelSplit => ({ dir: 'row', ratio, a, b })
 const col = (a: PanelSplit['a'], b: PanelSplit['b'], ratio = 0.5): PanelSplit => ({ dir: 'col', ratio, a, b })
@@ -61,6 +61,30 @@ describe('dropping on a panel', () => {
     expect(dropEdge(0.5, 0.9)).toBe('bottom')
     expect(dropEdge(0.5, 0.5)).toBeNull()
     expect(dropEdge(0.05, 0.2)).toBe('left')
+  })
+})
+
+describe('fitting a small window', () => {
+  const grid = row(col(0, 2), col(1, 3))
+
+  it('keeps everything when it fits', () => {
+    expect(fitPanels(grid, 1000, 800)).toEqual({ tree: grid, folded: {} })
+  })
+
+  it('folds as few panels as it takes, into a neighbor', () => {
+    const { tree, folded } = fitPanels(grid, 1000, 300)
+    expect(tree).toEqual(row(0, 1))
+    expect(folded).toEqual({ 0: [2], 1: [3] })
+  })
+
+  it('moves what a folded panel held along with it', () => {
+    const { tree, folded } = fitPanels(row(0, row(1, row(2, 3))), 330, 800)
+    expect(tree).toBe(0)
+    expect(folded).toEqual({ 0: [1, 2, 3] })
+  })
+
+  it('leaves the panels on screen where they were', () => {
+    expect(fitPanels(row(0, col(1, 2)), 700, 300)).toEqual({ tree: row(0, 1), folded: { 1: [2] } })
   })
 })
 

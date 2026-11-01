@@ -172,6 +172,63 @@ describe('maximizing', () => {
   })
 })
 
+describe('small windows', () => {
+  const FOUR: PanelLayout = {
+    panels: [panel('overview'), panel('channel:c-1'), panel('channel:c-2'), panel('channel:c-3')],
+    split: 0.5,
+    tree: { dir: 'row', ratio: 0.5, a: { dir: 'col', ratio: 0.5, a: 0, b: 2 }, b: { dir: 'col', ratio: 0.5, a: 1, b: 3 } }
+  }
+  let resize: () => void
+
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) {
+        resize = callback
+      }
+      observe(): void {}
+      disconnect(): void {}
+    })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const windowOf = (width: number, height: number): void => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(height)
+    act(() => resize())
+  }
+
+  it('turns panels that do not fit into tabs, and brings them back', () => {
+    show(FOUR)
+    windowOf(1000, 300)
+    expect(screen.queryByRole('region', { name: 'Painel 3' })).toBeNull()
+    expect(within(region(1)).getByRole('tab', { name: 'c-2' })).toBeTruthy()
+    expect(layoutOf(SID).panels).toHaveLength(4)
+    windowOf(1000, 800)
+    expect(region(3)).toBeTruthy()
+    expect(within(region(1)).queryByRole('tab', { name: 'c-2' })).toBeNull()
+  })
+
+  it('shows a folded tab when picked, on its own panel', () => {
+    show(FOUR)
+    windowOf(1000, 300)
+    fireEvent.click(within(region(1)).getByRole('tab', { name: 'c-2' }))
+    expect(useNav.getState().focusedPanel[SID]).toBe(2)
+    expect(region(3)).toBeTruthy()
+    expect(within(region(3)).getByRole('tab', { name: 'c-2' }).getAttribute('aria-selected')).toBe('true')
+    expect(useNav.getState().shownPanels[SID]).toEqual([2, 1])
+  })
+
+  it('reports what is on screen, for the floating call', () => {
+    show(FOUR)
+    expect(useNav.getState().shownPanels[SID]).toEqual([0, 2, 1, 3])
+    act(() => useNav.getState().toggleMaximize(SID, 1))
+    expect(useNav.getState().shownPanels[SID]).toEqual([1])
+  })
+})
+
 describe('Dividir', () => {
   it('moves the active tab to a new panel', () => {
     show({ panels: [panel('overview', 'channel:c-1')], split: 0.5 })

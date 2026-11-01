@@ -1,12 +1,12 @@
 import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Minimize2, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useEffect, useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
 import type { Channel, Me, Panel, PanelNode, PanelSplit, PanelTab, ServerDetail } from '../lib/api'
-import { clampRatio, dropEdge, type Edge, type TreePath } from '../lib/panelTree'
+import { clampRatio, dropEdge, fitPanels, leaves, type Edge, type TreePath } from '../lib/panelTree'
 import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
-import { DEFAULT_LAYOUT, dividableTab, MAX_PANELS, parseTab, pinOverview, treeOf, useNav } from '../store/nav'
+import { DEFAULT_LAYOUT, dividableTab, layoutOf, MAX_PANELS, parseTab, pinOverview, treeOf, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { contextMenu, Item } from './ContextMenu'
@@ -43,6 +43,23 @@ const DROP_AREA: Record<DropZone, string> = {
   center: 'inset-0'
 }
 
+/** The padding around the panels, which they don't get to use. */
+const AREA_PADDING = { width: 8, height: 16 }
+
+/** The element's size, once it's known (never in tests, where nothing has a size). */
+function useSize<T extends HTMLElement>(): [React.RefObject<T | null>, { width: number; height: number } | null] {
+  const ref = useRef<T>(null)
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setSize({ width: el.clientWidth, height: el.clientHeight }))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, size]
+}
+
 /** The server's content area: up to four panels divided by a tree, each with its own tabs. */
 export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const saved = useAppearance((s) => s.settings.panel_layouts[server.id])
@@ -50,7 +67,12 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
   const focused = useNav((s) => Math.min(s.focusedPanel[server.id] ?? 0, layout.panels.length - 1))
   const narrow = useNav((s) => s.narrow)
 
-  const maximized = useNav((s) => s.maximized[server.id] ?? null)
+  // An index past the panels: another device closed some of them meanwhile.
+  const maximized = useNav((s) => {
+    const panel = s.maximized[server.id] ?? null
+    return panel !== null && panel < layout.panels.length ? panel : null
+  })
+  const [area, size] = useSize<HTMLDivElement>()
 
   // Modals, menus, the member drawer and text fields have their own uses for Esc.
   useEffect(() => {
@@ -65,27 +87,40 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
     return () => window.removeEventListener('keydown', onKey)
   }, [maximized, server.id])
 
-  const tree = narrow ? focused : (maximized ?? treeOf(layout))
+  const fitted = useMemo(() => {
+    const full = treeOf(layout)
+    if (narrow || maximized !== null || !size) return { tree: narrow ? focused : (maximized ?? full), folded: {} as Record<number, number[]> }
+    return fitPanels(full, size.width - AREA_PADDING.width, size.height - AREA_PADDING.height)
+  }, [layout, narrow, focused, maximized, size])
+  const { tree, folded } = fitted
   const several = typeof tree !== 'number'
+
+  /** A panel with others folded into it shows whichever of them has the focus. */
+  const showing = (host: number): number => (folded[host]?.includes(focused) ? focused : host)
+  const shownKey = leaves(tree).map(showing).join(',')
+  useEffect(() => {
+    useNav.getState().setShownPanels(server.id, shownKey.split(',').map(Number))
+  }, [server.id, shownKey])
   const canDivide = !narrow && maximized === null && layout.panels.length < MAX_PANELS
 
-  const leaf = (index: number, grow: number): ReactNode => (
+  const leaf = (host: number, grow: number): ReactNode => (
     <PanelView
-      key={index}
+      key={host}
       server={server}
       me={me}
-      index={index}
-      panel={layout.panels[index]}
+      index={showing(host)}
+      panel={layout.panels[showing(host)]}
+      tabs={[host, ...(folded[host] ?? [])].flatMap((owner) => layout.panels[owner].tabs.map((tab) => ({ tab, owner })))}
       canClose={several}
       canDivide={canDivide}
       maximized={maximized !== null}
-      focused={several && focused === index}
+      focused={several && showing(host) === focused}
       grow={grow}
     />
   )
 
   return (
-    <div className="relative flex min-w-0 flex-1 py-2 pr-2">
+    <div ref={area} className="relative flex min-w-0 flex-1 py-2 pr-2">
       <PanelBranch serverId={server.id} node={tree} path="" grow={1} leaf={leaf} />
     </div>
   )
@@ -173,8 +208,9 @@ function tabIndexAt(strip: Element, x: number, first: number): number {
   return Math.max(first, index < 0 ? tabs.length : index)
 }
 
-function TabMenu({ serverId, index, panel, tab }: { serverId: string; index: number; panel: Panel; tab: PanelTab }): ReactNode {
+function TabMenu({ serverId, index, tab }: { serverId: string; index: number; tab: PanelTab }): ReactNode {
   const { closeOtherTabs, moveTabBy } = useNav.getState()
+  const panel = layoutOf(serverId).panels[index]
   const at = panel.tabs.indexOf(tab)
   const first = panel.tabs[0] === 'overview' ? 1 : 0
   const movable = tab !== 'overview'
@@ -207,6 +243,7 @@ function PanelView({
   me,
   index,
   panel,
+  tabs,
   canClose,
   canDivide,
   maximized,
@@ -217,6 +254,8 @@ function PanelView({
   me: Me
   index: number
   panel: Panel
+  /** The tabs on its strip: its own, then those of panels folded into it. */
+  tabs: { tab: PanelTab; owner: number }[]
   canClose: boolean
   canDivide: boolean
   maximized: boolean
@@ -300,7 +339,7 @@ function PanelView({
             if (data) dropTab(server.id, data.tab, index, null, tabIndexAt(e.currentTarget, e.clientX, firstTab))
           }}
         >
-          {panel.tabs.map((tab, position) => {
+          {tabs.map(({ tab, owner }, position) => {
             const { icon: Icon, label } = tabInfo(tab, server, callRoom)
             const active = tab === panel.active
             // The overview is pinned: first, can't be closed or dragged away.
@@ -314,13 +353,13 @@ function PanelView({
                 aria-selected={active}
                 draggable={!pinned}
                 onDragStart={(e) => {
-                  e.dataTransfer.setData(PANEL_DRAG_TYPE, JSON.stringify({ tab, from: index }))
+                  e.dataTransfer.setData(PANEL_DRAG_TYPE, JSON.stringify({ tab, from: owner }))
                   e.dataTransfer.effectAllowed = 'move'
                 }}
-                onClick={() => activateTab(server.id, index, tab)}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && activateTab(server.id, index, tab)}
-                onAuxClick={(e) => e.button === 1 && closeTab(server.id, index, tab)}
-                onContextMenu={contextMenu(() => <TabMenu serverId={server.id} index={index} panel={panel} tab={tab} />)}
+                onClick={() => activateTab(server.id, owner, tab)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && activateTab(server.id, owner, tab)}
+                onAuxClick={(e) => e.button === 1 && closeTab(server.id, owner, tab)}
+                onContextMenu={contextMenu(() => <TabMenu serverId={server.id} index={owner} tab={tab} />)}
                 onMouseDown={(e) => e.button === 1 && e.preventDefault()}
                 className={`group flex h-9 max-w-[200px] shrink-0 cursor-pointer items-center gap-1.5 rounded-t-item px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   active ? 'bg-main font-medium text-fg' : 'text-fg-muted hover:bg-main/50 hover:text-fg'
@@ -335,7 +374,7 @@ function PanelView({
                     aria-label={`Fechar ${label}`}
                     onClick={(e) => {
                       e.stopPropagation()
-                      closeTab(server.id, index, tab)
+                      closeTab(server.id, owner, tab)
                     }}
                     className={`rounded p-0.5 text-fg-subtle hover:bg-elevated hover:text-fg ${active ? '' : 'opacity-0 group-hover:opacity-100'}`}
                   >
@@ -346,7 +385,7 @@ function PanelView({
               </Fragment>
             )
           })}
-          {tabLine === panel.tabs.length && <span data-tab-line className="-mx-[3px] mb-1.5 h-6 w-0.5 shrink-0 self-end rounded-full bg-accent" />}
+          {tabLine === tabs.length && <span data-tab-line className="-mx-[3px] mb-1.5 h-6 w-0.5 shrink-0 self-end rounded-full bg-accent" />}
         </div>
         <div className="flex shrink-0 items-center gap-0.5 self-center">
           {maximized && (

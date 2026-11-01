@@ -435,7 +435,8 @@ function ServerPlaces({
 
   // Where each tab is showing: highlighted when it's a panel's active tab.
   const layout = layoutOf(server.id)
-  const visible = visiblePanels(layout, focusedPanel, narrow)
+  const shown = useNav((s) => s.shownPanels[server.id])
+  const visible = shown ?? visiblePanels(layout, focusedPanel, narrow)
   const placeOf = (tab: string): { active: boolean; hint?: string } => {
     const i = layout.panels.findIndex((p) => p.active === tab)
     if (i < 0 || !visible.includes(i)) return { active: false }

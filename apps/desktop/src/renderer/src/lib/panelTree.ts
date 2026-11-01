@@ -98,6 +98,39 @@ export function minSize(node: PanelNode, dir: PanelSplit['dir']): number {
   return count * minLength(dir) + (count - 1) * PANEL_GAP
 }
 
+/** Takes a leaf out without touching the indexes; returns the tree and the neighbor that gets it. */
+function foldLeaf(node: PanelSplit, leaf: number): { tree: PanelNode; host: number } {
+  if (node.b === leaf) return { tree: node.a, host: leaves(node.a).at(-1) as number }
+  if (node.a === leaf) return { tree: node.b, host: leaves(node.b)[0] }
+  const side = leaves(node.a).includes(leaf) ? 'a' : 'b'
+  const { tree, host } = foldLeaf(node[side] as PanelSplit, leaf)
+  return { tree: { ...node, [side]: tree }, host }
+}
+
+/** The last panel in a division of this direction: folding it frees room along that direction. */
+function lastAlong(node: PanelNode, dir: PanelSplit['dir']): number | null {
+  if (typeof node === 'number') return null
+  return lastAlong(node.b, dir) ?? lastAlong(node.a, dir) ?? (node.dir === dir ? (leaves(node.b).at(-1) as number) : null)
+}
+
+/**
+ * What fits in a size: panels that don't become tabs of a neighbor, last ones first. Nothing here
+ * is saved, so they go back to their places when the window grows. `folded` lists, per panel left
+ * on screen, the panels whose tabs it shows.
+ */
+export function fitPanels(tree: PanelNode, width: number, height: number): { tree: PanelNode; folded: Record<number, number[]> } {
+  const folded: Record<number, number[]> = {}
+  let node = tree
+  while (typeof node !== 'number' && (minSize(node, 'row') > width || minSize(node, 'col') > height)) {
+    const leaf = lastAlong(node, minSize(node, 'row') > width ? 'row' : 'col') as number
+    const { tree: rest, host } = foldLeaf(node, leaf)
+    folded[host] = [...(folded[host] ?? []), leaf, ...(folded[leaf] ?? [])]
+    delete folded[leaf]
+    node = rest
+  }
+  return { tree: node, folded }
+}
+
 /** Keeps a dragged divider from squeezing either side below its minimum. */
 export function clampRatio(split: PanelSplit, ratio: number, size: number): number {
   const low = Math.max(0.1, minSize(split.a, split.dir) / size)
