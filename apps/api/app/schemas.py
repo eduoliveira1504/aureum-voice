@@ -589,6 +589,7 @@ class ChannelCreate(BaseModel):
     # Addon channels only.
     addon_key: AddonKey | None = None
     config: dict[str, Any] | None = None
+    category_id: uuid.UUID | None = None
     # A private channel is hidden from @everyone and open to the picked roles and members.
     private: bool = False
     allowed_roles: Annotated[list[uuid.UUID], Field(max_length=250)] = []
@@ -624,6 +625,24 @@ class CategoryOut(BaseModel):
     server_id: uuid.UUID
     name: str
     position: int
+    overrides: list[OverrideOut] = []
+
+
+class CategoryCreate(BaseModel):
+    name: Name
+
+
+class CategoryUpdate(BaseModel):
+    name: Name
+
+
+class CategoryOrder(BaseModel):
+    category_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=100)]
+
+
+class ChannelArrange(BaseModel):
+    category_id: uuid.UUID | None = None
+    channel_ids: Annotated[list[uuid.UUID], Field(max_length=500)]
 
 
 class ChannelOut(BaseModel):

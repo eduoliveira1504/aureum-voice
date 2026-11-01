@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, bot, images, presence, reads, voice
+from app import attachments, bot, categories, images, presence, reads, voice
 from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
@@ -82,6 +82,13 @@ def channel_out(channel: Channel, overwrites: list[Overwrite] | None = None) -> 
     return out
 
 
+def category_out(category: ChannelCategory, overwrites: list[Overwrite] | None = None) -> CategoryOut:
+    out = CategoryOut.model_validate(category)
+    if overwrites:
+        out.overrides = [OverrideOut(target_type=o.target, target_id=o.target_id, allow=o.allow, deny=o.deny) for o in overwrites]
+    return out
+
+
 def member_out(member: ServerMember, ctx: Context, status_: str = "offline") -> MemberOut:
     # Strongest role first, so clients can take the name color from the first colored one.
     role_ids = sorted(ctx.member_roles.get(member.user_id, ()), key=lambda r: -ctx.roles[r].position if r in ctx.roles else 0)
@@ -106,11 +113,8 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
     access = ServerAccess(ctx, user_id, overwrites)
     visible = [c for c in channels if access.can_view(c)]
     visible_ids = {c.id for c in visible}
-    used = {c.category_id for c in visible}
-    manages = access.has(Perm.MANAGE_CHANNELS)
-    categories = await session.scalars(
-        select(ChannelCategory).where(ChannelCategory.server_id == server.id).order_by(ChannelCategory.position, ChannelCategory.name)
-    )
+    server_categories = await categories.of_server(session, server.id)
+    category_overwrites = await categories.overwrites_of(session, [c.id for c in server_categories])
     roles = await session.scalars(select(Role).where(Role.server_id == server.id).order_by(Role.position.desc()))
     members = list(
         await session.scalars(
@@ -126,7 +130,10 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
         **ServerOut.model_validate(server).model_dump(),
         roles=[RoleOut.model_validate(r) for r in roles],
         channels=[channel_out(c, overwrites[c.id]) for c in visible],
-        categories=[CategoryOut.model_validate(c) for c in categories if manages or c.id in used],
+        categories=[
+            category_out(c, category_overwrites[c.id])
+            for c in categories.visible(server_categories, ctx, user_id, category_overwrites, visible)
+        ],
         members=[member_out(m, ctx, statuses[m.user_id]) for m in members],
         voice_states=[v for v in voice_states if v.channel_id in visible_ids],
         reads=[
@@ -178,11 +185,11 @@ async def create_server(body: ServerCreate, user: CurrentUser, session: SessionD
     await session.flush()
     session.add(ServerMember(server_id=server.id, user_id=user.id))
     session.add(Role(id=server.id, server_id=server.id, name="@everyone", position=0, permissions=int(DEFAULT_EVERYONE)))
-    categories = [ChannelCategory(server_id=server.id, name=name, position=i) for i, name in enumerate(DEFAULT_CATEGORIES)]
-    session.add_all(categories)
+    defaults = [ChannelCategory(server_id=server.id, name=name, position=i) for i, name in enumerate(DEFAULT_CATEGORIES)]
+    session.add_all(defaults)
     await session.flush()
     for position, (name, type_, category) in enumerate(DEFAULT_CHANNELS):
-        session.add(Channel(server_id=server.id, name=name, type=type_, position=position, category_id=categories[category].id))
+        session.add(Channel(server_id=server.id, name=name, type=type_, position=position, category_id=defaults[category].id))
     await session.commit()
     return await load_detail(session, server, user.id)
 
@@ -487,6 +494,9 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
         if addon is None or not addon.in_channel:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown addon")
         config = addon.parse_config(body.config)
+    category = await session.get(ChannelCategory, body.category_id) if body.category_id else None
+    if body.category_id and (category is None or category.server_id != server_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
     last = await session.scalar(select(func.max(Channel.position)).where(Channel.server_id == server_id))
     channel = Channel(
         server_id=server_id,
@@ -495,10 +505,18 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
         position=(last + 1) if last is not None else 0,
         addon_key=body.addon_key,
         config=config,
+        category_id=body.category_id,
+        permissions_synced=not body.private,
     )
     session.add(channel)
     await session.flush()
-    overwrites = await _private_overrides(session, access, channel, body) if body.private else []
+    if body.private:
+        overwrites = await _private_overrides(session, access, channel, body)
+    elif category is not None:
+        overwrites = (await categories.overwrites_of(session, [category.id]))[category.id]
+        await categories.copy_to_channels(session, overwrites, [channel.id])
+    else:
+        overwrites = []
     await session.commit()
     out = channel_out(channel, overwrites)
     await broker.publish("channel.created", out.model_dump(mode="json"), await channel_viewers(session, channel))

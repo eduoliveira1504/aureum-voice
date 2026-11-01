@@ -425,6 +425,7 @@ async def set_override(
             set_={"allow": body.allow, "deny": body.deny},
         )
     )
+    channel.permissions_synced = False
     await session.commit()
     return await _overrides_changed(session, channel)
 
@@ -439,5 +440,6 @@ async def remove_override(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Override not found")
     await _check_override(session, channel, access, target_type, target_id, override.allow | override.deny)
     await session.delete(override)
+    channel.permissions_synced = False
     await session.commit()
     return await _overrides_changed(session, channel)

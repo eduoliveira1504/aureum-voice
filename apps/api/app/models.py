@@ -486,6 +486,22 @@ class ChannelOverride(Base):
     deny: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
 
 
+class ChannelCategoryOverride(Base):
+    """A category's allow/deny bits: copied to the channels that follow it (app/categories.py)."""
+
+    __tablename__ = "channel_category_overrides"
+
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("channel_categories.id", ondelete="CASCADE"), primary_key=True
+    )
+    target_type: Mapped[OverrideTarget] = mapped_column(
+        _str_enum(OverrideTarget, "category_override_target"), primary_key=True
+    )
+    target_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    allow: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+    deny: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+
+
 class ChannelMember(Base):
     """Who is in a DM or group DM (server channels use server_members instead)."""
 
