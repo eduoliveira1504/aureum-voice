@@ -17,7 +17,8 @@ e 3.15. 3.18: virada para a VPS feita em 27/10 com a 0.2.0-beta.8; faltam o item
 backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, com OK do Eduardo).
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
-Próximo: 3.19 (partes A a E); depois 3.12, 3.13, 3.14 e 3.16. 3.17 só com spec do Eduardo.
+3.19 (seção 3.A): parte A pronta, teste manual pendente (vai na beta.9).
+Próximo: 3.19 (partes B a E); depois 3.12, 3.13, 3.14 e 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -617,7 +618,7 @@ Em partes, na ordem (A a E). Uma conversa do Claude Code por parte; um item por 
 item, sem push. Diagnóstico antes de corrigir onde está indicado. Release 0.2.0-beta.9 no fim do
 bloco (ou antes, com as partes prontas, se o Eduardo pedir).
 
-### Parte A: tiles da call e cartão de perfil
+### Parte A: tiles da call e cartão de perfil ✅ concluída (teste manual pendente)
 Tiles cortados (falando, foco, transmissão):
 - Causa provável (conferir): o anel de "falando" e o de foco são ring (box-shadow) por FORA do tile,
   cortados pelos contêineres com overflow (faixa do modo Foco com overflow-y-auto, palco, janelinha
