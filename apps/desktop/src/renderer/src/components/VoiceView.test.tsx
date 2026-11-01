@@ -4,8 +4,10 @@ import { act, fireEvent, render, renderHook, screen } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useNav } from '../store/nav'
-import { useVoice } from '../store/voice'
+import { cameraTrackOf, useVoice } from '../store/voice'
 import { CallControls, CallStage, useIdle } from './VoiceView'
+
+vi.mock('../store/voice', async (original) => ({ ...(await original<typeof import('../store/voice')>()), cameraTrackOf: vi.fn() }))
 
 const tiles = ['ana', 'bia', 'caio'].map((identity) => ({ key: `${identity}:person`, identity, kind: 'person' as const }))
 const stage = (layout: 'grid' | 'focus'): void => {
@@ -64,6 +66,28 @@ describe('useIdle', () => {
     const { result } = renderHook(() => useIdle(false, 2000))
     act(() => vi.advanceTimersByTime(5000))
     expect(result.current).toBe(false)
+  })
+})
+
+// A camera never loses its edges: what's left of the tile is the dark background.
+describe('call tile video', () => {
+  beforeEach(() => vi.mocked(cameraTrackOf).mockReturnValue({ attach: () => {}, detach: () => {} } as never))
+  afterEach(() => vi.mocked(cameraTrackOf).mockReset())
+
+  const videos = (): HTMLElement[] => [...document.querySelectorAll('video')]
+
+  it('shows the whole camera in the grid', () => {
+    stage('grid')
+    expect(videos()).toHaveLength(3)
+    for (const video of videos()) expect(video.className).toContain('object-contain')
+    expect(screen.getAllByRole('button', { name: 'Colocar Alguém em foco' })[0].className).toContain('bg-scrim')
+  })
+
+  it('shows the whole camera in focus and in the strip', () => {
+    stage('focus')
+    expect(videos()).toHaveLength(3)
+    for (const video of videos()) expect(video.className).toContain('object-contain')
+    expect(screen.getByLabelText('Alguém').className).toContain('bg-scrim')
   })
 })
 

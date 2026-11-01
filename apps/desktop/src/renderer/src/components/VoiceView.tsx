@@ -322,9 +322,10 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
       // Right click: volume, local mute and the rest of the person's menu.
       onContextMenu={user ? userContextMenu(user, meId, useVoice.getState().serverId) : undefined}
       ring={speaking}
+      dark={!!camera}
     >
       {camera ? (
-        <VideoTrackView track={camera} mirror={isLocal} fit={size === 'focus' ? 'contain' : 'cover'} />
+        <VideoTrackView track={camera} mirror={isLocal} />
       ) : (
         <Avatar name={name} url={user?.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
       )}
@@ -432,7 +433,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
       {/* The whole box goes fullscreen, so its labels and controls come along. */}
       <div ref={ref} className={`relative flex h-full w-full items-center justify-center bg-scrim ${fullscreen && idle ? 'cursor-none' : ''}`}>
         <div className="flex h-full w-full items-center justify-center" onDoubleClick={size === 'strip' ? undefined : toggleFullscreen}>
-          <VideoTrackView track={track} mirror={false} fit="contain" />
+          <VideoTrackView track={track} mirror={false} />
         </div>
         <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
           <LiveBadge />
@@ -554,15 +555,8 @@ export function useIdle(watching: boolean, ms: number): boolean {
   return idle
 }
 
-export function VideoTrackView({
-  track,
-  mirror,
-  fit = 'cover'
-}: {
-  track: Track
-  mirror: boolean
-  fit?: 'cover' | 'contain'
-}): ReactNode {
+/** Always the whole picture: whatever is left over shows the dark background behind it. */
+export function VideoTrackView({ track, mirror }: { track: Track; mirror: boolean }): ReactNode {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const el = ref.current
@@ -578,7 +572,7 @@ export function VideoTrackView({
       autoPlay
       playsInline
       muted
-      className={`h-full w-full ${fit === 'contain' ? 'object-contain' : 'object-cover'}`}
+      className="h-full w-full object-contain"
       style={mirror ? { transform: 'scaleX(-1)' } : undefined}
     />
   )

@@ -413,7 +413,7 @@ function OverlayVideo({ track, mirror }: { track: Track; mirror: boolean }): Rea
       autoPlay
       playsInline
       muted
-      className="h-full w-full object-cover"
+      className="h-full w-full object-contain"
       style={mirror ? { transform: 'scaleX(-1)' } : undefined}
     />
   )

@@ -88,7 +88,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
     >
       <div className="relative flex aspect-video items-center justify-center rounded-t-panel bg-scrim">
         {track ? (
-          <VideoTrackView track={track} mirror={subject?.identity === meId && subject.kind === 'person'} fit={subject?.kind === 'screen' ? 'contain' : 'cover'} />
+          <VideoTrackView track={track} mirror={subject?.identity === meId && subject.kind === 'person'} />
         ) : (
           subject && (
             <span onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}>
