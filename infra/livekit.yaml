@@ -6,8 +6,8 @@ port: 7880
 rtc:
   tcp_port: 7881
   # Small UDP range so Docker Desktop on Windows doesn't map thousands of ports.
-  port_range_start: 50000
-  port_range_end: 50100
+  port_range_start: 40000
+  port_range_end: 40100
   use_external_ip: false
 
 logging:

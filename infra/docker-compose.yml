@@ -53,7 +53,7 @@ services:
     ports:
       - "7880:7880"                # HTTP / WebSocket signaling
       - "7881:7881"                # ICE over TCP (fallback)
-      - "50000-50100:50000-50100/udp"  # WebRTC media (kept small for Docker on Windows)
+      - "40000-40100:40000-40100/udp"  # WebRTC media (kept small for Docker on Windows)
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     healthcheck:
