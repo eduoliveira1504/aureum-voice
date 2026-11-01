@@ -1,8 +1,8 @@
 /**
- * Block 3.4, the hub's side column: Amigos ativos, Seus servidores and Novidades do Aureum.
+ * Block 3.4, the hub's side column: Amigos ativos and Seus servidores; the changelog's parsing.
  */
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '../lib/api'
@@ -164,25 +164,9 @@ describe('Novidades do Aureum', () => {
     expect(CHANGELOG.length).toBeGreaterThan(0) // the real file is built in
   })
 
-  it('shows the installed version, opens everything, and can be dismissed until the next one', async () => {
-    const update = vi.fn()
-    useAppearance.setState({ update } as never)
-    // The test bridge reports 0.0.0-test, which isn't listed: the newest released notes show.
-    const expected = releaseNotes(CHANGELOG, '0.0.0-test')
-    render(<HomeHub me={ME} />)
-    const card = await screen.findByRole('region', { name: 'Novidades do Aureum' })
-    expect(within(card).getByText(expected?.title ?? '')).toBeTruthy()
-    expect(within(card).getAllByRole('listitem').length).toBeLessThanOrEqual(3)
-    fireEvent.click(within(card).getByRole('button', { name: 'Ver tudo que mudou' }))
-    expect(await screen.findByRole('dialog', { name: 'Novidades do Aureum' })).toBeTruthy()
-    fireEvent.click(within(card).getByRole('button', { name: 'Dispensar' }))
-    expect(update).toHaveBeenCalledWith({ news_dismissed: '0.0.0-test' })
-  })
-
-  it('stays hidden once dismissed for this version', async () => {
-    useAppearance.setState({ settings: { ...DEFAULT_SETTINGS, news_dismissed: '0.0.0-test' } })
+  it('is no longer a card in the hub', async () => {
     render(<HomeHub me={ME} />)
     await screen.findByRole('region', { name: 'Seus servidores' })
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'Novidades do Aureum' })).toBeNull())
+    expect(screen.queryByRole('region', { name: 'Novidades do Aureum' })).toBeNull()
   })
 })

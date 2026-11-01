@@ -1,13 +1,11 @@
-import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
+import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, Volume2, type LucideIcon } from 'lucide-react'
+import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 
 import type { Activity, Dm, Friend, HomeTask, Me, Message, Presence, ServerDetail, User } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
-import { CHANGELOG, releaseNotes } from '../lib/changelog'
 import { memberName } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import { useActivity } from '../store/activity'
-import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { friendsInCall, liveRooms, useHome, usePendingItems, type LiveRoom, type PendingItem } from '../store/home'
 import { channelTab, useNav } from '../store/nav'
@@ -92,7 +90,6 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
           </div>
           <aside aria-label="Coluna lateral" className={SIDE_COLUMN}>
             <ActiveFriends me={me} />
-            <News />
           </aside>
         </div>
       </div>
@@ -1044,72 +1041,3 @@ function ServerTile({ summary: s, onOpen }: { summary: ServerSummary; onOpen?: (
 
 // Wraps into more rows on narrow windows; never scrolls sideways.
 const SERVER_GRID = 'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]'
-
-/** "**bold**" in changelog lines. */
-function Inline({ text }: { text: string }): ReactNode {
-  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : <Fragment key={i}>{part}</Fragment>
-  )
-}
-
-const NEWS_ITEMS = 3
-
-function News(): ReactNode {
-  const dismissed = useAppearance((s) => s.settings.news_dismissed)
-  const [version, setVersion] = useState<string | null>(null)
-  const [open, setOpen] = useState(false)
-  useEffect(() => {
-    window.aureum.app.info().then((info) => setVersion(info.version), () => {})
-  }, [])
-  const notes = version ? releaseNotes(CHANGELOG, version) : null
-  // Dismissed until the next version.
-  if (!version || !notes || dismissed === version) return null
-
-  return (
-    <SideCard
-      title="Novidades do Aureum"
-      className="border-accent/50 bg-accent/5"
-      action={
-        <button
-          type="button"
-          title="Dispensar"
-          aria-label="Dispensar"
-          onClick={() => useAppearance.getState().update({ news_dismissed: version })}
-          className="shrink-0 self-center rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg"
-        >
-          <X size={16} />
-        </button>
-      }
-    >
-      <p className="mb-2 text-xs font-semibold text-accent-text">{notes.title}</p>
-      <ul className="list-disc space-y-1.5 pl-5 text-sm">
-        {notes.items.slice(0, NEWS_ITEMS).map((item) => (
-          <li key={item} className="line-clamp-2">
-            <Inline text={item} />
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3">
-        <LinkButton onClick={() => setOpen(true)}>Ver tudo que mudou</LinkButton>
-      </div>
-      {open && (
-        <Modal title="Novidades do Aureum" onClose={() => setOpen(false)} wide>
-          <div className="space-y-5 pr-1">
-            {CHANGELOG.map((section) => (
-              <section key={section.title}>
-                <h3 className="font-display font-semibold">{section.title}</h3>
-                <ul className="mt-1.5 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
-                  {section.items.map((item) => (
-                    <li key={item}>
-                      <Inline text={item} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </Modal>
-      )}
-    </SideCard>
-  )
-}

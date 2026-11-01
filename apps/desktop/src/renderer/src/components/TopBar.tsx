@@ -1,4 +1,4 @@
-import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, RefreshCw, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
+import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -17,6 +17,7 @@ import { CustomStatusModal } from './CustomStatus'
 import { ProfilePopover } from './ProfileCard'
 import { openReportProblem } from './ReportProblem'
 import { StatusBubble } from './profileBits'
+import { NewsModal, useUnseenNews } from './NewsModal'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
 import { userContextMenu } from './UserMenu'
@@ -316,7 +317,7 @@ function AddServerButton({ closed }: { closed: string[] }): ReactNode {
 
 const missedFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
-/** Friend requests to answer and missed calls. */
+/** Friend requests to answer, missed calls and the notes of a new version. */
 function NotificationsButton({ me }: { me: Me }): ReactNode {
   const friends = useSocial((s) => s.friends)
   const missed = useSocial((s) => s.missed)
@@ -328,7 +329,9 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
   const close = useCallback(() => setOpen(false), [])
   useDismiss(ref, open, close)
   const requests = Object.values(friends).filter((f) => f.kind === 'incoming')
-  const count = requests.length + missed.length
+  const news = useUnseenNews()
+  const [newsOpen, setNewsOpen] = useState(false)
+  const count = requests.length + missed.length + (news.title ? 1 : 0)
   const go = (page: string): void => {
     setOpen(false)
     openHome(page)
@@ -353,10 +356,26 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
             <div className="p-3 text-center">
               <Bell size={28} className="mx-auto text-fg-subtle" />
               <p className="mt-2 font-medium">Nenhuma notificação</p>
-              <p className="mt-1 text-sm text-fg-muted">Pedidos de amizade e chamadas perdidas aparecem aqui.</p>
+              <p className="mt-1 text-sm text-fg-muted">Pedidos de amizade, chamadas perdidas e novidades do app aparecem aqui.</p>
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto">
+              {news.title && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    setNewsOpen(true)
+                    news.markSeen()
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left hover:bg-elevated"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-text">
+                    <Sparkles size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-medium">Aureum {news.title}: veja as novidades</span>
+                </button>
+              )}
               {requests.length > 0 && <p className="px-2 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Pedidos de amizade</p>}
               {requests.map((f) => (
                 <div key={f.user.id} onContextMenu={userContextMenu(f.user, me.id)} className="flex items-center gap-2.5 rounded-item px-2 py-1.5">
@@ -422,6 +441,7 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
           )}
         </div>
       )}
+      {newsOpen && <NewsModal onClose={() => setNewsOpen(false)} />}
     </div>
   )
 }
