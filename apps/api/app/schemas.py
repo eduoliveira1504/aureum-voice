@@ -617,6 +617,15 @@ class ChannelUpdate(BaseModel):
     confirm_wider_audience: bool = False
 
 
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    server_id: uuid.UUID
+    name: str
+    position: int
+
+
 class ChannelOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -625,6 +634,9 @@ class ChannelOut(BaseModel):
     name: str | None
     type: ChannelType
     position: int
+    # Server channels only; null = no category, at the top.
+    category_id: uuid.UUID | None = None
+    permissions_synced: bool = True
     # Addon channels only.
     addon_key: str | None = None
     config: dict[str, Any] = {}
@@ -746,6 +758,8 @@ class ServerDetail(ServerOut):
     roles: list[RoleOut] = []
     # Only the channels the requesting user can see.
     channels: list[ChannelOut]
+    # Those with a channel the requesting user can see; to who manages channels, the empty ones too.
+    categories: list[CategoryOut] = []
     members: list[MemberOut]
     voice_states: list[VoiceState] = []
     # The requesting user's unread state per text channel.

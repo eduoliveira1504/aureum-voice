@@ -423,6 +423,17 @@ class Invite(Base):
     uses: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
 
+class ChannelCategory(Base):
+    """A named group of a server's channels, of any type. A channel without one sits at the top."""
+
+    __tablename__ = "channel_categories"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
+
 class Channel(Base):
     __tablename__ = "channels"
 
@@ -436,6 +447,9 @@ class Channel(Base):
         _str_enum(ChannelType, "channel_type"), nullable=False
     )
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    # Server channels only. Its permissions follow the category's while `permissions_synced`.
+    category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("channel_categories.id", ondelete="SET NULL"), index=True)
+    permissions_synced: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
     # 1:1 DMs only: "<smaller user id>:<larger user id>", so a pair can't end up with two DMs.
     dm_key: Mapped[str | None] = mapped_column(String(73), unique=True)
     # Addon channels only: which addon runs the channel, and its settings (shape set by the addon).

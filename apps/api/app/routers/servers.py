@@ -15,6 +15,7 @@ from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
 from app.models import (
     Channel,
+    ChannelCategory,
     ChannelOverride,
     ChannelType,
     Invite,
@@ -41,6 +42,7 @@ from app.routers.users import CropForm, ImageUpload
 from app.schemas import (
     BanCreate,
     BanOut,
+    CategoryOut,
     ChannelCreate,
     ChannelOrder,
     ChannelOut,
@@ -63,7 +65,9 @@ from app.schemas import (
 
 router = APIRouter(tags=["servers"])
 
-DEFAULT_CHANNELS = [("geral", ChannelType.text), ("Geral", ChannelType.voice)]
+DEFAULT_CATEGORIES = ("Salas", "Conversas", "Addons")
+# (name, type, index of its category)
+DEFAULT_CHANNELS = [("geral", ChannelType.text, 1), ("Geral", ChannelType.voice, 0)]
 
 
 def normalize_channel_name(name: str, type_: ChannelType) -> str:
@@ -102,6 +106,11 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
     access = ServerAccess(ctx, user_id, overwrites)
     visible = [c for c in channels if access.can_view(c)]
     visible_ids = {c.id for c in visible}
+    used = {c.category_id for c in visible}
+    manages = access.has(Perm.MANAGE_CHANNELS)
+    categories = await session.scalars(
+        select(ChannelCategory).where(ChannelCategory.server_id == server.id).order_by(ChannelCategory.position, ChannelCategory.name)
+    )
     roles = await session.scalars(select(Role).where(Role.server_id == server.id).order_by(Role.position.desc()))
     members = list(
         await session.scalars(
@@ -117,6 +126,7 @@ async def load_detail(session: AsyncSession, server: Server, user_id: uuid.UUID)
         **ServerOut.model_validate(server).model_dump(),
         roles=[RoleOut.model_validate(r) for r in roles],
         channels=[channel_out(c, overwrites[c.id]) for c in visible],
+        categories=[CategoryOut.model_validate(c) for c in categories if manages or c.id in used],
         members=[member_out(m, ctx, statuses[m.user_id]) for m in members],
         voice_states=[v for v in voice_states if v.channel_id in visible_ids],
         reads=[
@@ -168,8 +178,11 @@ async def create_server(body: ServerCreate, user: CurrentUser, session: SessionD
     await session.flush()
     session.add(ServerMember(server_id=server.id, user_id=user.id))
     session.add(Role(id=server.id, server_id=server.id, name="@everyone", position=0, permissions=int(DEFAULT_EVERYONE)))
-    for position, (name, type_) in enumerate(DEFAULT_CHANNELS):
-        session.add(Channel(server_id=server.id, name=name, type=type_, position=position))
+    categories = [ChannelCategory(server_id=server.id, name=name, position=i) for i, name in enumerate(DEFAULT_CATEGORIES)]
+    session.add_all(categories)
+    await session.flush()
+    for position, (name, type_, category) in enumerate(DEFAULT_CHANNELS):
+        session.add(Channel(server_id=server.id, name=name, type=type_, position=position, category_id=categories[category].id))
     await session.commit()
     return await load_detail(session, server, user.id)
 
