@@ -3,7 +3,7 @@ import { useCallback, useRef, useState, type ReactNode } from 'react'
 
 import { addonModule } from '../addons/registry'
 import type { AddonModule } from '../addons/types'
-import { api, ApiError, type Channel, type Override, type ServerDetail } from '../lib/api'
+import { api, ApiError, type Category, type Channel, type Override, type ServerDetail } from '../lib/api'
 import { channelPermissions, has, outranks, Perm, PERM_INFO, rankOf, type PermName } from '../lib/permissions'
 import { useChat } from '../store/chat'
 import { FormError, Modal, ModalBody, ModalTabs, SecondaryButton } from './Modal'
@@ -21,7 +21,20 @@ const ADDON_LABELS: Partial<Record<PermName, { label: string; description: strin
 
 /** What an override can change in this channel, in titled sections. An addon channel shows its
  * addon's own permissions (Participar for the ones that don't declare any). */
+/** A category edits with the channel editor: it has no type of its own, so it lists every kind. */
+const CATEGORY_TYPE = 'category'
+
+export const categoryAsChannel = (category: Category): Channel =>
+  ({ ...category, type: CATEGORY_TYPE, addon_key: null, config: {} }) as unknown as Channel
+
 function permSections(channel: Channel): { title: string; names: PermName[] }[] {
+  if ((channel.type as string) === CATEGORY_TYPE) {
+    return [
+      { title: 'Canal', names: COMMON },
+      { title: 'Conversas', names: TEXT },
+      { title: 'Salas de voz', names: VOICE }
+    ]
+  }
   const own =
     channel.type === 'voice'
       ? { title: 'Salas de voz', names: VOICE }
@@ -66,7 +79,12 @@ export function ChannelSettingsModal({
       <ModalBody>
         {tab === 'general' && <GeneralTab channel={channel} />}
         {tab === 'addon' && addon && <AddonTab server={server} channel={channel} addon={addon} />}
-        {tab === 'permissions' && <PermissionsTab server={server} channel={channel} meId={meId} />}
+        {tab === 'permissions' && (
+          <div className="space-y-4">
+            <SyncNotice server={server} channel={channel} />
+            <PermissionsEditor server={server} channel={channel} meId={meId} path={`/channels/${channel.id}/overrides`} place="neste canal" />
+          </div>
+        )}
       </ModalBody>
     </Modal>
   )
@@ -216,7 +234,47 @@ interface Target {
   rank: number
 }
 
-function PermissionsTab({ server, channel, meId }: { server: ServerDetail; channel: Channel; meId: string }): ReactNode {
+/** Whether the channel follows its category, and the way back when it doesn't. */
+function SyncNotice({ server, channel }: { server: ServerDetail; channel: Channel }): ReactNode {
+  const [error, setError] = useState<string | null>(null)
+  const category = server.categories?.find((c) => c.id === channel.category_id)
+  if (!category) return null
+  const sync = (): void => {
+    setError(null)
+    api(`/channels/${channel.id}/permissions/sync`, { method: 'POST' })
+      .then(() => useChat.getState().refreshServer(server.id))
+      .catch((err) => setError(errorText(err)))
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">
+      <span className="min-w-0 flex-1">
+        {channel.permissions_synced ? `Segue as permissões de ${category.name}. Mudar algo aqui dá a este canal permissões próprias.` : `Tem permissões próprias, diferentes de ${category.name}.`}
+      </span>
+      {!channel.permissions_synced && (
+        <button type="button" onClick={sync} className="shrink-0 rounded-control border border-line px-3 py-1.5 font-medium hover:bg-elevated hover:text-fg">
+          Sincronizar com a categoria
+        </button>
+      )}
+      <FormError message={error} />
+    </div>
+  )
+}
+
+/** Permitir/Herdar/Negar per role and member; `path` is where the overrides are saved. */
+export function PermissionsEditor({
+  server,
+  channel,
+  meId,
+  path,
+  place
+}: {
+  server: ServerDetail
+  channel: Channel
+  meId: string
+  path: string
+  /** "neste canal", "nesta categoria". */
+  place: string
+}): ReactNode {
   const everyone: Target = { type: 'role', id: server.id, name: '@everyone', rank: 0 }
   const targetOf = (o: Pick<Override, 'target_type' | 'target_id'>): Target | null => {
     if (o.target_type === 'role') {
@@ -280,6 +338,8 @@ function PermissionsTab({ server, channel, meId }: { server: ServerDetail; chann
         server={server}
         channel={channel}
         meId={meId}
+        path={path}
+        place={place}
         target={target}
         override={override}
         onRemoved={() => {
@@ -344,6 +404,8 @@ function OverrideEditor({
   server,
   channel,
   meId,
+  path: base,
+  place,
   target,
   override,
   onRemoved
@@ -351,6 +413,8 @@ function OverrideEditor({
   server: ServerDetail
   channel: Channel
   meId: string
+  path: string
+  place: string
   target: Target
   override: Override | undefined
   onRemoved(): void
@@ -383,14 +447,14 @@ function OverrideEditor({
       setBusy(false)
     }
   }
-  const path = `/channels/${channel.id}/overrides/${target.type}/${target.id}`
+  const path = `${base}/${target.type}/${target.id}`
 
   return (
     <div className="min-w-0 space-y-3">
       <p className="text-sm text-fg-muted">
         {target.id === server.id
-          ? 'Vale para todo mundo neste canal. Negar "Ver canais" aqui deixa o canal privado; depois libere para os cargos certos.'
-          : `Muda o que ${target.type === 'role' ? 'quem tem esse cargo' : 'essa pessoa'} pode fazer só neste canal.`}
+          ? `Vale para todo mundo ${place}. Negar "Ver canais" aqui deixa privado; depois libere para os cargos certos.`
+          : `Muda o que ${target.type === 'role' ? 'quem tem esse cargo' : 'essa pessoa'} pode fazer só ${place}.`}
       </p>
       {!editable && (
         <p className="rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">Está no seu nível ou acima: só dá pra ver.</p>

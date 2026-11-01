@@ -5,10 +5,11 @@ import { addonModule } from '../addons/registry'
 import { api, ApiError, type AddonInfo, type Channel, type Invite, type ServerDetail } from '../lib/api'
 import { memberName } from '../lib/members'
 import { basePermissions, has, outranks, Perm, rankOf } from '../lib/permissions'
+import { channelGroups, defaultCategory } from '../lib/channelOrder'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
-import { Avatar, Field, labelClass, PrimaryButton, Segmented, ToggleRow } from './ui'
+import { Avatar, Field, inputClass, labelClass, PrimaryButton, Segmented, ToggleRow } from './ui'
 
 export function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
@@ -204,16 +205,41 @@ function PrivateAccess({
   )
 }
 
+/** Which category a new channel goes in. */
+function CategorySelect({ serverId, value, onChange }: { serverId: string; value: string; onChange(id: string): void }): ReactNode {
+  const server = useChat((s) => s.servers[serverId])
+  const categories = server ? channelGroups(server).groups.map((g) => g.category) : []
+  if (!categories.length) return null
+  return (
+    <label className="block">
+      <span className={labelClass}>Categoria</span>
+      <select aria-label="Categoria" value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <option value="">Sem categoria</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 export function CreateChannelModal({
   serverId,
   initialType,
+  categoryId = null,
   onClose
 }: {
   serverId: string
   initialType: 'text' | 'voice'
+  /** Where it goes; from the server's menu, the person picks. */
+  categoryId?: string | null
   onClose(): void
 }): ReactNode {
   const openTab = useNav((s) => s.openTab)
+  const server = useChat((s) => s.servers[serverId])
+  const [category, setCategory] = useState(categoryId ?? defaultCategory(server, initialType))
   const [type, setType] = useState(initialType)
   const [name, setName] = useState('')
   const [access, setAccess] = useState<Access>(PUBLIC)
@@ -225,7 +251,7 @@ export function CreateChannelModal({
     if (!name.trim()) return setError('Dê um nome ao canal.')
     setBusy(true)
     try {
-      const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type, ...accessBody(access) } })
+      const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type, category_id: category || null, ...accessBody(access) } })
       if (type === 'text') openTab(serverId, channelTab(channel.id))
       onClose()
     } catch (err) {
@@ -256,6 +282,7 @@ export function CreateChannelModal({
           ))}
         </div>
         <Field autoFocus label="Nome do canal" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={type === 'text' ? 'novo-canal' : 'Sala de jogo'} />
+        <CategorySelect serverId={serverId} value={category} onChange={setCategory} />
         <PrivateAccess serverId={serverId} voice={type === 'voice'} value={access} onChange={setAccess} />
         <PrimaryButton type="submit" disabled={busy}>
           {busy ? 'Criando…' : 'Criar canal'}
@@ -269,6 +296,8 @@ export function CreateChannelModal({
  * creates its channel. */
 export function CreateAddonModal({ serverId, onClose }: { serverId: string; onClose(): void }): ReactNode {
   const openTab = useNav((s) => s.openTab)
+  const server = useChat((s) => s.servers[serverId])
+  const [category, setCategory] = useState(defaultCategory(server, 'addon'))
   const [addons, setAddons] = useState<AddonInfo[] | null>(null)
   const [key, setKey] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -303,7 +332,7 @@ export function CreateAddonModal({ serverId, onClose }: { serverId: string; onCl
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, {
         method: 'POST',
-        body: { name: name.trim(), type: 'addon', addon_key: key, ...accessBody(access) }
+        body: { category_id: category || null, name: name.trim(), type: 'addon', addon_key: key, ...accessBody(access) }
       })
       openTab(serverId, channelTab(channel.id))
       onClose()
@@ -339,6 +368,7 @@ export function CreateAddonModal({ serverId, onClose }: { serverId: string; onCl
         </div>
         {key && <Field label="Nome" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
         {key && <PrivateAccess serverId={serverId} voice={false} value={access} onChange={setAccess} />}
+        <CategorySelect serverId={serverId} value={category} onChange={setCategory} />
         <PrimaryButton type="submit" disabled={busy || !key}>
           {busy ? 'Adicionando…' : 'Adicionar'}
         </PrimaryButton>

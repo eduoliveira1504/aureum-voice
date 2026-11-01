@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { orderedChannels } from '../lib/channelOrder'
 import { agendaPath, api, type AgendaItem, type Call, type Channel, type Dm, type Friend, type HomeData, type HomeTask, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import type { ServerEvent } from '../lib/realtime'
@@ -270,7 +271,7 @@ export function liveRooms(
   const friendsIn = (states: VoiceState[]): number => states.filter((v) => friends[v.user_id]?.kind === 'friend').length
   const rooms: LiveRoom[] = []
   for (const server of Object.values(servers)) {
-    for (const channel of server.channels) {
+    for (const channel of orderedChannels(server)) {
       if (channel.type !== 'voice') continue
       const states = server.voice_states.filter((v) => v.channel_id === channel.id)
       if (!states.length || !has(channelPermissions(server, channel, meId), Perm.CONNECT)) continue

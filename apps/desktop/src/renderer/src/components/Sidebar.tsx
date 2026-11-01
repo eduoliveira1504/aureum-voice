@@ -23,8 +23,8 @@ import {
 import { Fragment, useCallback, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { addonIcon } from '../addons/registry'
-import { api, mediaUrl, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
-import { moveId, reorderDragType, type Section as ChannelSection } from '../lib/channelOrder'
+import { api, mediaUrl, type Category, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
+import { CATEGORY_DRAG_TYPE, CHANNEL_DRAG_TYPE, channelGroups, moveId } from '../lib/channelOrder'
 import { serverPeople } from '../lib/members'
 import { basePermissions, channelActions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
@@ -34,9 +34,10 @@ import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { CallCard } from './CallCard'
 import { ChannelSettingsModal } from './ChannelSettings'
+import { CategoryNameModal } from './CategoryModals'
 import { contextMenu } from './ContextMenu'
 import { ConversationMenu } from './ConversationMenu'
-import { ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
+import { CategoryMenu, ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
 import { ConfirmModal, CreateAddonModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
@@ -47,8 +48,9 @@ import { LocallyMuted, userContextMenu } from './UserMenu'
 
 type Dialog =
   | { kind: 'invite' }
-  | { kind: 'channel'; type: 'text' | 'voice' }
+  | { kind: 'channel'; type: 'text' | 'voice'; categoryId?: string }
   | { kind: 'addon' }
+  | { kind: 'category' }
   | { kind: 'leave' }
   | { kind: 'delete' }
   | { kind: 'deleteChannel'; channel: Channel }
@@ -224,30 +226,29 @@ function Section({
 }
 
 /**
- * A channel in its sidebar section that people with MANAGE_CHANNELS can drag up or down: a line
- * shows where it will land. The drag carries a type per section, so other sections ignore it,
- * and dragging a channel into the panels still works (both ride on the same drag).
+ * A channel that people with MANAGE_CHANNELS can drag to any place in any list: a line shows where
+ * it will land. Dragging a channel into the panels still works (both ride on the same drag).
  */
 function Reorderable({
   serverId,
-  section,
+  categoryId,
   ids,
   id,
   enabled,
   children
 }: {
   serverId: string
-  section: ChannelSection
-  /** The section's channel ids, in order. */
+  /** The list it's in: null for the channels without a category. */
+  categoryId: string | null
+  /** The list's channel ids, in order. */
   ids: string[]
   id: string
   enabled: boolean
   children: ReactNode
 }): ReactNode {
   const [over, setOver] = useState<'before' | 'after' | null>(null)
-  const type = reorderDragType(section)
   if (!enabled) return children
-  const ours = (e: DragEvent): boolean => e.dataTransfer.types.includes(type)
+  const ours = (e: DragEvent): boolean => e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE)
   const side = (e: DragEvent<HTMLDivElement>): 'before' | 'after' => {
     const rect = e.currentTarget.getBoundingClientRect()
     return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
@@ -257,7 +258,7 @@ function Reorderable({
       draggable
       data-channel-id={id}
       onDragStart={(e) => {
-        e.dataTransfer.setData(type, id)
+        e.dataTransfer.setData(CHANNEL_DRAG_TYPE, id)
         e.dataTransfer.effectAllowed = 'move'
       }}
       onDragOver={(e) => {
@@ -273,10 +274,10 @@ function Reorderable({
         if (!ours(e)) return
         e.preventDefault()
         setOver(null)
-        const moved = e.dataTransfer.getData(type)
+        const moved = e.dataTransfer.getData(CHANNEL_DRAG_TYPE)
         const next = moveId(ids, moved, id, side(e) === 'after')
-        if (moved && next.some((x, i) => x !== ids[i])) {
-          useChat.getState().reorderChannels(serverId, section, next).catch(() => {})
+        if (moved && (next.length !== ids.length || next.some((x, i) => x !== ids[i]))) {
+          useChat.getState().arrangeChannels(serverId, categoryId, next).catch(() => {})
         }
       }}
       className="relative"
@@ -290,6 +291,118 @@ function Reorderable({
       )}
       {children}
     </div>
+  )
+}
+
+/**
+ * A category in the sidebar: collapses per person, and to who manages channels its header can be
+ * dragged, takes channels dropped on it, and has the + button.
+ */
+function CategorySection({
+  server,
+  category,
+  ids,
+  order,
+  meId,
+  collapsed,
+  canManage,
+  onAdd,
+  children
+}: {
+  server: ServerDetail
+  category: Category
+  /** Its channel ids, in order. */
+  ids: string[]
+  /** All category ids the user sees, in order. */
+  order: string[]
+  meId: string
+  collapsed: boolean
+  canManage: boolean
+  onAdd?: () => void
+  children: ReactNode
+}): ReactNode {
+  const closed = useAppearance((s) => s.settings.collapsed_categories.includes(category.id))
+  const [over, setOver] = useState<'before' | 'after' | 'into' | null>(null)
+  const toggle = (): void => {
+    const { settings, update } = useAppearance.getState()
+    const list = settings.collapsed_categories
+    update({ collapsed_categories: closed ? list.filter((id) => id !== category.id) : [...list, category.id] })
+  }
+  if (collapsed) return <div className="space-y-0.5 border-t border-line pt-2">{children}</div>
+
+  const side = (e: DragEvent<HTMLDivElement>): 'before' | 'after' => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+  }
+  const kind = (e: DragEvent): 'channel' | 'category' | null =>
+    e.dataTransfer.types.includes(CATEGORY_DRAG_TYPE) ? 'category' : e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE) ? 'channel' : null
+  const dragProps = canManage
+    ? {
+        draggable: true,
+        onDragStart: (e: DragEvent<HTMLDivElement>) => {
+          e.dataTransfer.setData(CATEGORY_DRAG_TYPE, category.id)
+          e.dataTransfer.effectAllowed = 'move'
+        },
+        onDragOver: (e: DragEvent<HTMLDivElement>) => {
+          const dragged = kind(e)
+          if (!dragged) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          setOver(dragged === 'channel' ? 'into' : side(e))
+        },
+        onDragLeave: (e: DragEvent<HTMLDivElement>) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null)
+        },
+        onDrop: (e: DragEvent<HTMLDivElement>) => {
+          const dragged = kind(e)
+          if (!dragged) return
+          e.preventDefault()
+          setOver(null)
+          const { arrangeChannels, reorderCategories } = useChat.getState()
+          if (dragged === 'channel') {
+            const moved = e.dataTransfer.getData(CHANNEL_DRAG_TYPE)
+            if (moved && !ids.includes(moved)) arrangeChannels(server.id, category.id, [...ids, moved]).catch(() => {})
+            return
+          }
+          const moved = e.dataTransfer.getData(CATEGORY_DRAG_TYPE)
+          const next = moveId(order, moved, category.id, side(e) === 'after')
+          if (moved && next.some((x, i) => x !== order[i])) reorderCategories(server.id, next).catch(() => {})
+        }
+      }
+    : {}
+
+  return (
+    <section aria-label={category.name}>
+      <div
+        data-category-id={category.id}
+        onContextMenu={contextMenu(() => <CategoryMenu server={server} category={category} meId={meId} />)}
+        className={`relative mb-1 flex items-center rounded-item px-1 ${over === 'into' ? 'bg-accent/15' : ''}`}
+        {...dragProps}
+      >
+        {(over === 'before' || over === 'after') && (
+          <span
+            aria-hidden
+            data-drop-indicator={over}
+            className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
+          />
+        )}
+        <button
+          type="button"
+          aria-expanded={!closed}
+          onClick={toggle}
+          className="flex min-w-0 flex-1 items-center gap-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg-muted"
+        >
+          <ChevronDown size={12} className={`shrink-0 transition-transform ${closed ? '-rotate-90' : ''}`} />
+          <span className="truncate">{category.name}</span>
+        </button>
+        {onAdd && (
+          <button type="button" title="Criar canal" aria-label={`Criar canal em ${category.name}`} onClick={onAdd} className="shrink-0 text-fg-subtle hover:text-fg">
+            <Plus size={16} />
+          </button>
+        )}
+      </div>
+      {!closed && <div className="space-y-0.5">{children}</div>}
+    </section>
   )
 }
 
@@ -319,7 +432,6 @@ function ServerPlaces({
   const canCreateChannels = has(perms, Perm.MANAGE_CHANNELS)
   // The same permission reorders channels (the API checks it too).
   const canReorder = canCreateChannels
-  const canAddAddons = canCreateChannels && has(perms, Perm.MANAGE_ADDONS)
 
   // Where each tab is showing: highlighted when it's a panel's active tab.
   const layout = layoutOf(server.id)
@@ -330,11 +442,73 @@ function ServerPlaces({
     return { active: true, hint: visible.length > 1 ? `${i + 1}/${visible.length}` : undefined }
   }
 
-  const rooms = server.channels.filter((c) => c.type === 'voice')
+  const { loose, groups } = channelGroups(server)
   const people = serverPeople(server)
-  const texts = server.channels.filter((c) => c.type === 'text')
-  const addons = server.channels.filter((c) => c.type === 'addon')
   const idsOf = (list: Channel[]): string[] => list.map((c) => c.id)
+
+  const channelRow = (channel: Channel, categoryId: string | null, ids: string[]): ReactNode => {
+    const reorderable = { serverId: server.id, categoryId, ids, id: channel.id, enabled: canReorder }
+    const shared = {
+      label: channel.name ?? '',
+      collapsed,
+      locked: isPrivate(server, channel),
+      trailing: <ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />,
+      onContextMenu: contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)
+    }
+    if (channel.type === 'voice') {
+      const here = server.voice_states.filter((v) => v.channel_id === channel.id)
+      const live = here.some((v) => v.screen)
+      const mine = callChannelId === channel.id
+      return (
+        <Fragment key={channel.id}>
+          <Reorderable {...reorderable}>
+            <Item
+              {...shared}
+              icon={Volume2}
+              active={mine}
+              dot={here.length ? 'success' : undefined}
+              badge={
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
+                  {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
+                </span>
+              }
+              // Clicking a room joins it (the call shows in the floating window); clicking the
+              // room you're in opens the call in a panel.
+              onClick={() => (mine ? expandCall(server.id) : void join(server.id, channel.id))}
+            />
+          </Reorderable>
+          {!collapsed && here.length > 0 && <RoomPeople serverId={server.id} states={here} people={people} mine={mine} meId={me.id} />}
+        </Fragment>
+      )
+    }
+    const tab = channelTab(channel.id)
+    const where = placeOf(tab)
+    const open = { active: where.active, panelHint: where.hint, dragTab: tab, onClick: () => openTab(server.id, tab), onSide: () => openTab(server.id, tab, true) }
+    if (channel.type === 'addon') {
+      return (
+        <Reorderable key={channel.id} {...reorderable}>
+          <Item {...shared} {...open} icon={addonIcon(channel.addon_key)} />
+        </Reorderable>
+      )
+    }
+    const read = reads[channel.id]
+    const muted = serverMuted || mutedPlaces.includes(channel.id)
+    // Silenced: only mentions show.
+    const unread = muted ? 0 : (read?.unread_count ?? 0)
+    return (
+      <Reorderable key={channel.id} {...reorderable}>
+        <Item
+          {...shared}
+          {...open}
+          icon={Hash}
+          dot={collapsed && unread > 0 ? 'accent' : undefined}
+          muted={muted}
+          badge={read?.mention_count ? <CountBadge count={read.mention_count} tone="danger" /> : <CountBadge count={unread} />}
+        />
+      </Reorderable>
+    )
+  }
 
   return (
     <>
@@ -358,105 +532,26 @@ function ServerPlaces({
           onClick={() => openTab(server.id, 'overview')}
         />
 
-        <Section title="Salas" collapsed={collapsed} onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: 'voice' }) : undefined}>
-          {rooms.map((room) => {
-            const here = server.voice_states.filter((v) => v.channel_id === room.id)
-            const live = here.some((v) => v.screen)
-            const mine = callChannelId === room.id
-            return (
-              <Fragment key={room.id}>
-                <Reorderable serverId={server.id} section="voice" ids={idsOf(rooms)} id={room.id} enabled={canReorder}>
-                  <Item
-                    icon={Volume2}
-                    label={room.name ?? ''}
-                    collapsed={collapsed}
-                    locked={isPrivate(server, room)}
-                    active={mine}
-                    dot={here.length ? 'success' : undefined}
-                    badge={
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
-                        {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
-                      </span>
-                    }
-                    trailing={<ChannelActions server={server} channel={room} meId={me.id} onPick={setDialog} />}
-                    onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={room} meId={me.id} />)}
-                    // Clicking a room joins it (the call shows in the floating window); clicking the
-                    // room you're in opens the call in a panel.
-                    onClick={() => (mine ? expandCall(server.id) : void join(server.id, room.id))}
-                  />
-                </Reorderable>
-                {!collapsed && here.length > 0 && <RoomPeople serverId={server.id} states={here} people={people} mine={mine} meId={me.id} />}
-              </Fragment>
-            )
-          })}
-        </Section>
+        {loose.length > 0 && <div className="space-y-0.5">{loose.map((c) => channelRow(c, null, idsOf(loose)))}</div>}
 
-        <Section title="Conversas" collapsed={collapsed} onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: 'text' }) : undefined}>
-          {texts.map((channel) => {
-            const tab = channelTab(channel.id)
-            const read = reads[channel.id]
-            const muted = serverMuted || mutedPlaces.includes(channel.id)
-            // Silenced: only mentions show.
-            const unread = muted ? 0 : (read?.unread_count ?? 0)
-            const where = placeOf(tab)
-            return (
-              <Reorderable key={channel.id} serverId={server.id} section="text" ids={idsOf(texts)} id={channel.id} enabled={canReorder}>
-                <Item
-                  icon={Hash}
-                  label={channel.name ?? ''}
-                  collapsed={collapsed}
-                  locked={isPrivate(server, channel)}
-                  active={where.active}
-                  panelHint={where.hint}
-                  dot={collapsed && unread > 0 ? 'accent' : undefined}
-                  muted={muted}
-                  badge={
-                    read?.mention_count ? (
-                      <CountBadge count={read.mention_count} tone="danger" />
-                    ) : (
-                      <CountBadge count={unread} />
-                    )
-                  }
-                  trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
-                  onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
-                  dragTab={tab}
-                  onClick={() => openTab(server.id, tab)}
-                  onSide={() => openTab(server.id, tab, true)}
-                />
-              </Reorderable>
-            )
-          })}
-        </Section>
-
-        {(addons.length > 0 || canAddAddons) && (
-          <Section title="Addons" collapsed={collapsed} onAdd={canAddAddons ? () => setDialog({ kind: 'addon' }) : undefined} addLabel="Adicionar addon">
-            {addons.map((channel) => {
-              const tab = channelTab(channel.id)
-              const where = placeOf(tab)
-              return (
-                <Reorderable key={channel.id} serverId={server.id} section="addon" ids={idsOf(addons)} id={channel.id} enabled={canReorder}>
-                  <Item
-                    icon={addonIcon(channel.addon_key)}
-                    label={channel.name ?? ''}
-                    collapsed={collapsed}
-                    locked={isPrivate(server, channel)}
-                    active={where.active}
-                    panelHint={where.hint}
-                    trailing={<ChannelActions server={server} channel={channel} meId={me.id} onPick={setDialog} />}
-                    onContextMenu={contextMenu(() => <ChannelMenu server={server} channel={channel} meId={me.id} />)}
-                    dragTab={tab}
-                    onClick={() => openTab(server.id, tab)}
-                    onSide={() => openTab(server.id, tab, true)}
-                  />
-                </Reorderable>
-              )
-            })}
-            {addons.length === 0 && !collapsed && (
-              <p className="px-2 py-1 text-sm text-fg-subtle">Quadros e outros extras do grupo aparecem aqui.</p>
-            )}
-          </Section>
-        )}
+        {groups.map(({ category, channels }) => {
+          const onlyRooms = channels.some((c) => c.type === 'voice') && !channels.some((c) => c.type === 'text')
+          return (
+            <CategorySection
+              key={category.id}
+              server={server}
+              category={category}
+              ids={idsOf(channels)}
+              order={groups.map((g) => g.category.id)}
+              meId={me.id}
+              collapsed={collapsed}
+              canManage={canReorder}
+              onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: onlyRooms ? 'voice' : 'text', categoryId: category.id }) : undefined}
+            >
+              {channels.map((c) => channelRow(c, category.id, idsOf(channels)))}
+            </CategorySection>
+          )
+        })}
       </div>
 
       {dialog?.kind === 'invite' && <InviteModal server={server} onClose={() => setDialog(null)} />}
@@ -470,8 +565,9 @@ function ServerPlaces({
         />
       )}
       {dialog?.kind === 'channel' && (
-        <CreateChannelModal serverId={server.id} initialType={dialog.type} onClose={() => setDialog(null)} />
+        <CreateChannelModal serverId={server.id} initialType={dialog.type} categoryId={dialog.categoryId} onClose={() => setDialog(null)} />
       )}
+      {dialog?.kind === 'category' && <CategoryNameModal serverId={server.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'addon' && <CreateAddonModal serverId={server.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'leave' && (
         <ConfirmModal
@@ -622,6 +718,7 @@ function ServerHeader({
           {/* Invites also create accounts, so @everyone can't hand them out by default. */}
           {canInvite && <MenuItem label="Convidar pessoas" onClick={pick({ kind: 'invite' })} />}
           {canCreate && <MenuItem label="Criar canal" onClick={pick({ kind: 'channel', type: 'text' })} />}
+          {canCreate && <MenuItem label="Criar categoria" onClick={pick({ kind: 'category' })} />}
           {canAddAddons && <MenuItem label="Adicionar addon" onClick={pick({ kind: 'addon' })} />}
           {(canSettings || canInvite || canCreate) && <div className="my-1 h-px bg-line" />}
           {isOwner ? (

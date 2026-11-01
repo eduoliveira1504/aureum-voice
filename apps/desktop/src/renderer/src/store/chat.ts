@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type Reaction, type ReadState, type Server, type ServerDetail } from '../lib/api'
-import { stepId, withSectionOrder, type Section } from '../lib/channelOrder'
+import { channelGroups, stepId, withArrangement } from '../lib/channelOrder'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
 import { useAppearance } from './appearance'
@@ -90,7 +90,9 @@ interface ChatState {
   /** A message the user just sent some other way (a sticker): shown without waiting for the event. */
   addMessage(message: Message): void
   /** Saves a sidebar section's order (MANAGE_CHANNELS): applied right away, then as the API says. */
-  reorderChannels(serverId: string, section: Section, ids: string[]): Promise<void>
+  /** One category's channels in the new order (null: those without one), any from elsewhere included. */
+  arrangeChannels(serverId: string, categoryId: string | null, ids: string[]): Promise<void>
+  reorderCategories(serverId: string, ids: string[]): Promise<void>
   /** Moves a channel one place up (-1) or down (+1) in its section. */
   moveChannel(serverId: string, channelId: string, delta: -1 | 1): Promise<void>
   /** Refetches one server (its roles or permissions changed: which channels we see may differ). */
@@ -318,27 +320,38 @@ export const useChat = create<ChatState>()((set, get) => {
       }))
     },
 
-    reorderChannels: async (serverId, section, ids) => {
-      patchServer(serverId, (s) => ({ ...s, channels: withSectionOrder(s.channels, ids).sort(byPosition) }))
+    arrangeChannels: async (serverId, categoryId, ids) => {
+      patchServer(serverId, (s) => ({ ...s, channels: withArrangement(s.channels, categoryId, ids).sort(byPosition) }))
       try {
-        const positions = await api<{ id: string; position: number }[]>(`/servers/${serverId}/channels/order`, {
-          method: 'PUT',
-          body: { type: section, channel_ids: ids }
-        })
-        applyPositions(serverId, positions)
+        await api(`/servers/${serverId}/channels/arrange`, { method: 'PUT', body: { category_id: categoryId, channel_ids: ids } })
       } catch (err) {
         void get().refreshServer(serverId) // back to the saved order
         throw err
       }
     },
 
+    reorderCategories: async (serverId, ids) => {
+      patchServer(serverId, (s) => ({
+        ...s,
+        categories: (s.categories ?? []).map((c) => ({ ...c, position: ids.includes(c.id) ? ids.indexOf(c.id) : c.position }))
+      }))
+      try {
+        await api(`/servers/${serverId}/categories/order`, { method: 'PUT', body: { category_ids: ids } })
+      } catch (err) {
+        void get().refreshServer(serverId)
+        throw err
+      }
+    },
+
     moveChannel: async (serverId, channelId, delta) => {
-      const channels = get().servers[serverId]?.channels ?? []
-      const channel = channels.find((c) => c.id === channelId)
-      if (!channel || channel.type === 'dm' || channel.type === 'group_dm') return
-      const ids = channels.filter((c) => c.type === channel.type).map((c) => c.id)
+      const server = get().servers[serverId]
+      const channel = server?.channels.find((c) => c.id === channelId)
+      if (!server || !channel || channel.type === 'dm' || channel.type === 'group_dm') return
+      const { loose, groups } = channelGroups(server)
+      const group = groups.find((g) => g.channels.some((c) => c.id === channelId))
+      const ids = (group?.channels ?? loose).map((c) => c.id)
       const next = stepId(ids, channelId, delta)
-      if (next !== ids) await get().reorderChannels(serverId, channel.type, next)
+      if (next !== ids) await get().arrangeChannels(serverId, group?.category.id ?? null, next)
     },
 
     refreshServer: async (id) => {

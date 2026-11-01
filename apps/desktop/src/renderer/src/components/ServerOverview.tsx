@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { addonIcon, addonModule } from '../addons/registry'
 import { api, mediaUrl, type Channel, type Me, type Member, type Message, type ServerDetail, type VoiceState } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
+import { orderedChannels } from '../lib/channelOrder'
 import { memberName } from '../lib/members'
 import { basePermissions, channelPermissions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
@@ -105,7 +106,7 @@ function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
 
 function Rooms({ server, members }: { server: ServerDetail; members: Map<string, Member> }): ReactNode {
   const thumbnails = useThumbnails((s) => s.byUser)
-  const rooms = server.channels.filter((c) => c.type === 'voice')
+  const rooms = orderedChannels(server).filter((c) => c.type === 'voice')
   if (rooms.length === 0) return null
   return (
     <section>
@@ -243,7 +244,7 @@ function PrivateMark({ server, channel }: { server: ServerDetail; channel: Chann
 function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const openTab = useNav((s) => s.openTab)
   const [adding, setAdding] = useState(false)
-  const channels = server.channels.filter((c) => c.type === 'addon')
+  const channels = orderedChannels(server).filter((c) => c.type === 'addon')
   const perms = basePermissions(server, me.id)
   const canAdd = has(perms, Perm.MANAGE_CHANNELS) && has(perms, Perm.MANAGE_ADDONS)
   if (!channels.length && !canAdd) return null

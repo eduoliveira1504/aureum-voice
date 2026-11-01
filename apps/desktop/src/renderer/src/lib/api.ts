@@ -205,6 +205,7 @@ export interface UserSettings {
   /** Painel de sons: how loud others' sounds play for me (0-100), and "Silenciar sons dos outros". */
   soundboard_volume: number
   soundboard_muted: boolean
+  collapsed_categories: string[]
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
@@ -225,12 +226,25 @@ export interface Override {
   deny: number
 }
 
+/** A named group of a server's channels, of any type. */
+export interface Category {
+  id: string
+  server_id: string
+  name: string
+  position: number
+  overrides: Override[]
+}
+
 export interface Channel {
   id: string
   server_id: string | null
   name: string | null
   type: ChannelType
   position: number
+  /** Server channels only: null = no category, at the top. */
+  category_id?: string | null
+  /** Whether its permissions follow its category's. */
+  permissions_synced?: boolean
   /** Addon channels only: which addon runs it, and its settings (shape set by the addon). */
   addon_key: string | null
   config: Record<string, unknown>
@@ -376,6 +390,8 @@ export interface ServerDetail extends Server {
   roles: Role[]
   /** Only the channels the signed-in user can see. */
   channels: Channel[]
+  /** Those holding a channel the user sees (the empty ones too, to who manages channels). */
+  categories?: Category[]
   members: Member[]
   voice_states: VoiceState[]
   reads: ReadState[]

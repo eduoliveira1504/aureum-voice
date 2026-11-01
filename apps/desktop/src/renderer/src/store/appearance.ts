@@ -30,7 +30,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   read_receipts: true,
   recent_stickers: [],
   soundboard_volume: 100,
-  soundboard_muted: false
+  soundboard_muted: false,
+  collapsed_categories: []
 }
 
 const CACHE_KEY = 'aureum.appearance'

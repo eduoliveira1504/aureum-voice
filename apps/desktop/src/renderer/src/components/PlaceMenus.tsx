@@ -1,14 +1,16 @@
-import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, Link, LogOut, Settings, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, Link, LogOut, Pencil, Plus, Settings, Shield, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
-import { api, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
+import { api, type Category, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
+import { channelGroups } from '../lib/channelOrder'
 import { basePermissions, channelActions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
+import { CategoryNameModal, CategoryPermissionsModal } from './CategoryModals'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { CheckItem, copy, Item, Label, Separator, showDialog, toast } from './ContextMenu'
-import { ConfirmModal, errorText, InviteModal } from './modals'
+import { ConfirmModal, CreateChannelModal, errorText, InviteModal } from './modals'
 import { ServerSettingsModal } from './ServerSettings'
 
 /** Silenced channels and servers (user setting): no unread badges, mentions still count. */
@@ -20,6 +22,59 @@ export function toggleMuted(id: string): void {
   const { settings, update } = useAppearance.getState()
   const muted = settings.muted_places
   update({ muted_places: muted.includes(id) ? muted.filter((x) => x !== id) : [...muted, id] })
+}
+
+/** Rename, permissions, create a channel in it, delete: its channels are never deleted with it. */
+export function CategoryMenu({ server, category, meId }: { server: ServerDetail; category: Category; meId: string }): ReactNode {
+  const perms = basePermissions(server, meId)
+  const canManage = has(perms, Perm.MANAGE_CHANNELS)
+  return (
+    <>
+      <Label>{category.name}</Label>
+      {canManage && (
+        <>
+          <Item icon={Plus} label="Criar canal" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={category.id} onClose={close} />)} />
+          <Item icon={Pencil} label="Renomear" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />
+        </>
+      )}
+      {has(perms, Perm.MANAGE_ROLES) && (
+        <Item
+          icon={Shield}
+          label="Permissões"
+          onClick={() =>
+            showDialog((close) => (
+              <LiveServer id={server.id} onClose={close}>
+                {(live) => {
+                  const current = live.categories?.find((c) => c.id === category.id)
+                  return current ? <CategoryPermissionsModal server={live} category={current} meId={meId} onClose={close} /> : null
+                }}
+              </LiveServer>
+            ))
+          }
+        />
+      )}
+      <Separator />
+      <Item icon={Copy} label="Copiar ID" onClick={() => copy(category.id, 'ID copiado')} />
+      {canManage && (
+        <Item
+          icon={Trash2}
+          label="Excluir categoria"
+          danger
+          onClick={() =>
+            showDialog((close) => (
+              <ConfirmModal
+                title={`Excluir ${category.name}`}
+                message="Os canais dela não são apagados: ficam sem categoria, no topo, com as permissões que têm agora."
+                confirmLabel="Excluir"
+                onConfirm={() => api(`/categories/${category.id}`, { method: 'DELETE' }).then(() => useChat.getState().refreshServer(server.id))}
+                onClose={close}
+              />
+            ))
+          }
+        />
+      )}
+    </>
+  )
 }
 
 /** Creates an invite and copies its code (invites have no web link: the code is what people paste). */
@@ -52,8 +107,9 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
   const text = channel.type === 'text'
   const { canSettings, canDelete } = channelActions(server, channel, meId)
   const label = `${text ? '#' : ''}${channel.name}`
-  // Reordering without dragging (keyboard and precision): one place at a time, within the section.
-  const section = server.channels.filter((c) => c.type === channel.type)
+  // Reordering without dragging (keyboard and precision): one place at a time, within its list.
+  const { loose, groups } = channelGroups(server)
+  const section = groups.find((g) => g.channels.some((c) => c.id === channel.id))?.channels ?? loose
   const index = section.findIndex((c) => c.id === channel.id)
   const canMove = has(basePermissions(server, meId), Perm.MANAGE_CHANNELS) && section.length > 1
   const move = (delta: -1 | 1) => (): void => {
