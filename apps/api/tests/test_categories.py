@@ -223,3 +223,12 @@ async def test_category_overrides_follow_the_channel_rules(client: AsyncClient) 
     res = await owner.delete(everyone)
     assert res.status_code == 200
     assert res.json()["overrides"] == []
+
+
+async def test_collapsed_categories_are_saved_per_person(client: AsyncClient) -> None:
+    owner, member, server = await setup(client)
+    ids = [c["id"] for c in server["categories"]][:2]
+    res = await owner.patch("/users/me/settings", {"collapsed_categories": ids})
+    assert res.status_code == 200, res.text
+    assert (await owner.get("/users/me/settings")).json()["collapsed_categories"] == ids
+    assert (await member.get("/users/me/settings")).json()["collapsed_categories"] == []

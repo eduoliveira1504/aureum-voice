@@ -284,6 +284,8 @@ class UserSettings(Base):
     # Painel de sons: how loud others' sounds play for me (0-100), or not at all.
     soundboard_volume: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=100, server_default="100")
     soundboard_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Channel categories this person keeps collapsed in the sidebar.
+    collapsed_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

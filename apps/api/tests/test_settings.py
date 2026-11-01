@@ -25,6 +25,7 @@ DEFAULTS = {
     "recent_stickers": [],
     "soundboard_volume": 100,
     "soundboard_muted": False,
+    "collapsed_categories": [],
 }
 
 

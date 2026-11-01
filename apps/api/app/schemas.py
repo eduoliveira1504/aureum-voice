@@ -400,6 +400,7 @@ class SettingsOut(BaseModel):
     recent_stickers: list[str] = []
     soundboard_volume: int = 100
     soundboard_muted: bool = False
+    collapsed_categories: list[uuid.UUID] = []
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -439,6 +440,7 @@ class SettingsUpdate(BaseModel):
     # Painel de sons: how loud others' sounds play for me, and "Silenciar sons dos outros".
     soundboard_volume: Annotated[int, Field(ge=0, le=100)] | None = None
     soundboard_muted: bool | None = None
+    collapsed_categories: Annotated[list[uuid.UUID], Field(max_length=500)] | None = None
 
 
 # --- Friends --------------------------------------------------------------
