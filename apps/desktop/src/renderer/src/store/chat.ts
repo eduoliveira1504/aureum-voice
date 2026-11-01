@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type Reaction, type ReadState, type Server, type ServerDetail } from '../lib/api'
+import { messagePreview } from '../lib/attachments'
 import { channelGroups, stepId, withArrangement } from '../lib/channelOrder'
 import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
 import { useAppearance } from './appearance'
 import { useNav } from './nav'
+import { notifyOverlay } from './overlay'
 import { useVoice } from './voice'
 
 const PAGE_SIZE = 50
@@ -26,17 +28,28 @@ const EMPTY_CHANNEL: ChannelMessages = { items: [], hasMore: false, loaded: fals
 const viewing = new Map<string, number>()
 
 /**
- * The message sound, for DMs and groups (unless silenced) and mentions anywhere. Not for the
- * conversation on screen while the app has focus, nor for the chat of the call we're in; quieter
- * during any other call.
+ * The message sound and overlay notification, for DMs and groups (unless silenced) and mentions
+ * anywhere. Not for the conversation on screen while the app has focus, nor for the chat of the
+ * call we're in; the sound is quieter during any other call.
  */
-function messageSound(channelId: string, serverId: string | null, mentioned: boolean): void {
+function messageAlert(message: Message, serverId: string | null, mentioned: boolean): void {
+  const channelId = message.channel_id
   if (!mentioned && (serverId !== null || useAppearance.getState().settings.muted_places.includes(channelId))) return
   if (viewing.has(channelId) && document.hasFocus()) return
   const voice = useVoice.getState()
   const inCall = voice.phase !== 'idle'
   if (inCall && voice.channelId === channelId) return
   playSound('message', { fromOthers: true, volume: inCall ? IN_CALL_MESSAGE_VOLUME : 1 })
+  const author = message.author
+  if (author) {
+    notifyOverlay({
+      kind: serverId === null ? 'dm' : 'mention',
+      name: author.display_name,
+      username: author.username,
+      avatarUrl: author.avatar_url,
+      text: messagePreview(message)
+    })
+  }
 }
 
 /** Registers a channel as on screen; returns the cleanup. */
@@ -401,7 +414,7 @@ export const useChat = create<ChatState>()((set, get) => {
           // A call's line in the conversation has the ringtone instead. An official security
           // notice always sounds, even in a silenced official DM (like a mention does).
           const security = message.official?.category === 'seguranca' && !!message.author?.is_official
-          if (!message.call && !message.system) messageSound(data.channel_id, data.server_id, security || (!!meId && !!mentions?.includes(meId)))
+          if (!message.call && !message.system) messageAlert(message, data.server_id, security || (!!meId && !!mentions?.includes(meId)))
           if (viewing.has(data.channel_id)) {
             get().markRead(data.channel_id, true)
             break

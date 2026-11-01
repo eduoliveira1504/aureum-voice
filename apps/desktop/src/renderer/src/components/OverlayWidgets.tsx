@@ -3,6 +3,7 @@ import { HeadphoneOff, MicOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import type { OverlayCameraLayout, OverlaySize } from '../../../shared/types'
+import type { OverlayNotification } from '../store/overlay'
 import { Avatar, TileRing } from './ui'
 
 export const SCALE: Record<OverlaySize, number> = { small: 0.8, medium: 1, large: 1.3 }
@@ -35,6 +36,44 @@ export function PersonRow({ person, scale }: { person: Person; scale: number }):
       </span>
       <span className="min-w-0 truncate font-semibold">{person.name}</span>
       <StateIcons person={person} />
+    </div>
+  )
+}
+
+/** A notification's lines; with `hideContent`, a message is only who sent it. */
+export function notificationText(n: Omit<OverlayNotification, 'id'>, hideContent: boolean): { title: string; body?: string } {
+  const handle = n.username ? `@${n.username}` : n.name
+  switch (n.kind) {
+    case 'dm':
+      return hideContent ? { title: `${handle} te mandou mensagem` } : { title: n.name, body: n.text }
+    case 'mention':
+      return hideContent ? { title: `${handle} te mencionou` } : { title: `${n.name} te mencionou`, body: n.text }
+    case 'call':
+      return { title: n.name, body: 'está te ligando' }
+    case 'joined':
+      return { title: `${n.name} entrou na call` }
+    case 'left':
+      return { title: `${n.name} saiu da call` }
+  }
+}
+
+export function NotificationCard({
+  notification,
+  hideContent,
+  scale
+}: {
+  notification: Omit<OverlayNotification, 'id'>
+  hideContent: boolean
+  scale: number
+}): ReactNode {
+  const { title, body } = notificationText(notification, hideContent)
+  return (
+    <div role="status" className="flex w-full items-center gap-[0.6em] rounded-control bg-scrim/85 px-[0.7em] py-[0.5em] text-on-scrim shadow">
+      <Avatar name={notification.name} url={notification.avatarUrl} size={Math.round(30 * scale)} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold">{title}</p>
+        {body && <p className="truncate text-[0.9em] opacity-85">{body}</p>}
+      </div>
     </div>
   )
 }

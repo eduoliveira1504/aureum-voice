@@ -5,8 +5,10 @@
  * Privacy rule (docs/decisions/0012-in-game-overlay.md): only the program's file name is read —
  * never the window title or anything inside the program — and it is only compared, in this
  * process, against the game and exception lists. To ask "Isso é um jogo?" about an unknown program
- * that fills the screen, the window's rectangle is compared with its monitor's, and that's all. It never goes to the server, to the app's window
- * or to a log. Asked at most once a second, only while in a call with the overlay on (see overlay.ts).
+ * that fills the screen, the window's rectangle is compared with its monitor's; the same rectangle
+ * tells which monitor the game is on. That's all. It never goes to the server, to the app's window
+ * or to a log. Asked at most once a second, only while in a call with the overlay on or while an
+ * overlay notification is up (see overlay.ts).
  */
 import type koffiModule from 'koffi'
 
@@ -20,6 +22,7 @@ const MONITOR_DEFAULTTONEAREST = 2
 interface Reader {
   name(): string | null
   fillsMonitor(): boolean
+  rect(): Rect | null
 }
 let reader: Reader | null | undefined
 
@@ -84,7 +87,12 @@ function load(): Reader | null {
       const m = info.rcMonitor
       return rect.left === m.left && rect.top === m.top && rect.right === m.right && rect.bottom === m.bottom
     }
-    reader = { name, fillsMonitor }
+    const windowRect = (): Rect | null => {
+      const hwnd = getForegroundWindow()
+      const rect = {} as Rect
+      return hwnd && getWindowRect(hwnd, rect) ? rect : null
+    }
+    reader = { name, fillsMonitor, rect: windowRect }
   } catch (err) {
     console.warn('Foreground app check unavailable', err)
   }
@@ -95,6 +103,16 @@ function load(): Reader | null {
 export function foregroundApp(): string | null {
   try {
     return load()?.name() ?? null
+  } catch {
+    return null
+  }
+}
+
+/** The rectangle of the window in front, in physical pixels; null if it can't be told. */
+export function foregroundBounds(): { x: number; y: number; width: number; height: number } | null {
+  try {
+    const rect = load()?.rect()
+    return rect ? { x: rect.left, y: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top } : null
   } catch {
     return null
   }

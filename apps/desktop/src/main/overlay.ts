@@ -26,7 +26,7 @@ import {
   widgetShows
 } from '../shared/overlayWidgets'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
-import { foregroundApp, foregroundFillsMonitor } from './foregroundApp'
+import { foregroundApp, foregroundBounds, foregroundFillsMonitor } from './foregroundApp'
 import { watchCombos } from './keyWatch'
 
 /** The app opens each widget as window.open(url, 'aureum-overlay-<widget>-<n>'), unique so a window
@@ -80,7 +80,10 @@ let displayId: number | null = null
 let editing = false
 /** A call is going on (told by the app's window). */
 let active = false
-let mainFocused = true
+/** A notification is up (told by the app's window); the only reason to look outside a call. */
+let notifying = false
+/** Starts false: opened hidden at login, the window gets no focus event until it's shown. */
+let mainFocused = false
 let shortcutsPaused = false
 let failedShortcuts: string[] = []
 let notice: string | null = null
@@ -284,11 +287,12 @@ function syncKeyWatch(): void {
 }
 
 /**
- * Asks once a second, only in a call with the overlay on, which program is in front (its file
- * name only), and shows the overlay only over games. The name is compared here and dropped.
+ * Asks once a second, only in a call with the overlay on or while a notification is up, which
+ * program is in front (its file name only), and shows the overlay only over games. The name is
+ * compared here and dropped.
  */
 function syncForegroundWatch(): void {
-  const wanted = active && prefs.enabled && anyWidgetOn(prefs.widgets)
+  const wanted = (active || notifying) && prefs.enabled && anyWidgetOn(prefs.widgets)
   if (wanted && !foregroundTimer) {
     checkForeground()
     foregroundTimer = setInterval(checkForeground, FOREGROUND_POLL_MS)
@@ -308,10 +312,21 @@ function checkForeground(): boolean {
   // The question goes away with the program it's about.
   if (ask !== null && app !== ask) stopAsking()
   if (!game && ask === null && mayAsk(app) && foregroundFillsMonitor()) startAsking(app)
-  if (game === gameInFront && ask === asked) return false
+  const moved = (game || ask !== null) && followWindowInFront()
+  if (game === gameInFront && ask === asked && !moved) return false
   gameInFront = game
   apply()
   if (ask !== asked) changed()
+  return true
+}
+
+/** The widgets go to the monitor of the game in front; returns whether that's a different one. */
+function followWindowInFront(): boolean {
+  const rect = foregroundBounds()
+  if (!rect) return false
+  const id = screen.getDisplayMatching(screen.screenToDipRect(null, rect)).id
+  if (id === displayId) return false
+  displayId = id
   return true
 }
 
@@ -464,7 +479,7 @@ function apply(): void {
     active,
     clear: !mainFocused && !hidden,
     gameInFront,
-    notifying: false,
+    notifying,
     notice: notice !== null,
     asking: ask !== null
   }
@@ -521,6 +536,13 @@ export function setActive(next: boolean): void {
     askedInCall.clear()
   }
   syncKeyWatch()
+  apply()
+}
+
+export function setNotifying(next: boolean): void {
+  if (next === notifying) return
+  notifying = next
+  syncForegroundWatch()
   apply()
 }
 

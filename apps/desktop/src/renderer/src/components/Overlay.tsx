@@ -6,10 +6,11 @@ import { createPortal } from 'react-dom'
 import type { Me } from '../lib/api'
 import { DEFAULT_WIDGETS, splitPeople } from '../../../shared/overlayWidgets'
 import type { OverlayBounds, OverlayWidget, OverlayWidgets } from '../../../shared/types'
-import { useOverlay } from '../store/overlay'
+import { callChanges, notifyOverlay, useOverlay, type OverlayNotification } from '../store/overlay'
+import { useSocial } from '../store/social'
 import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
-import { CameraCard, CameraTiles, PersonRow, SCALE, type Person } from './OverlayWidgets'
+import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 
 /** Prefix of a widget window's name; the main process lets only `aureum-overlay-<widget>-<n>` through (widgetOfFrame). */
 const FRAME_NAME = 'aureum-overlay'
@@ -65,16 +66,23 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
   const enabled = !!state?.prefs.enabled
   const widgets = state?.prefs.widgets ?? DEFAULT_WIDGETS
   const { voice, cameras, preview } = usePeople(me, editing, widgets)
+  const notifications = useOverlay((s) => s.notifications)
+  const notifying = notifications.length > 0
+  useCallNotifications(me)
 
   useEffect(() => {
     void window.aureum.overlay.setActive(inCall)
   }, [inCall])
   useEffect(() => () => void window.aureum.overlay.setActive(false), [])
+  useEffect(() => {
+    void window.aureum.overlay.setNotifying(notifying)
+  }, [notifying])
 
   // The voice window also carries the shortcut's messages and the question, with the widget off too.
   const voicePopup = useWidgetWindow('voice', enabled && ((widgets.voice.enabled && (inCall || editing)) || notice !== null || ask !== null))
   // Only while someone has a camera on.
   const camerasPopup = useWidgetWindow('cameras', enabled && widgets.cameras.enabled && (cameras.length > 0 || editing))
+  const notificationsPopup = useWidgetWindow('notifications', enabled && widgets.notifications.enabled && (notifying || editing))
 
   return (
     <LucideProvider strokeWidth={1.8}>
@@ -92,8 +100,51 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
         )}
       {camerasPopup &&
         createPortal(<CamerasWidget popup={camerasPopup} editing={editing} people={cameras} meId={me.id} />, camerasPopup.document.body)}
+      {notificationsPopup &&
+        createPortal(
+          <NotificationsWidget popup={notificationsPopup} editing={editing} notifications={notifications} />,
+          notificationsPopup.document.body
+        )}
     </LucideProvider>
   )
+}
+
+/** Notifies who joins and leaves the call we're in, and a call ringing for us. */
+function useCallNotifications(me: Me): void {
+  const version = useVoice((s) => s.version)
+  const phase = useVoice((s) => s.phase)
+  const channelId = useVoice((s) => s.channelId)
+  const ringing = useSocial((s) => s.ringing)
+  const info = useCallContext(me.id)
+  const people = useRef(info?.people)
+  people.current = info?.people ?? people.current
+  const room = useRef<{ channelId: string; ids: Set<string> } | null>(null)
+  const ringingCall = ringing?.call
+
+  useEffect(() => {
+    if (phase === 'idle' || !channelId) room.current = null
+    // A reconnecting room looks empty for a moment: compare only once it's back.
+    if (phase !== 'connected' || !channelId) return
+    const ids = new Set(roomIdentities())
+    const before = room.current
+    room.current = { channelId, ids }
+    if (before?.channelId !== channelId) return // just got here: everyone was already in it
+    const { joined, left } = callChanges(before.ids, ids, me.id)
+    const say = (id: string, kind: OverlayNotification['kind']): void => {
+      const user = people.current?.get(id)
+      notifyOverlay({ kind, name: user?.display_name ?? 'Alguém', avatarUrl: user?.avatar_url })
+    }
+    joined.forEach((id) => say(id, 'joined'))
+    left.forEach((id) => say(id, 'left'))
+  }, [version, phase, channelId, me.id])
+
+  useEffect(() => {
+    if (!ringingCall) return
+    const dm = useSocial.getState().dms[ringingCall.channel_id]
+    const caller = dm?.members.find((m) => m.user.id === ringingCall.started_by)?.user
+    notifyOverlay({ kind: 'call', name: caller?.display_name ?? 'Alguém', avatarUrl: caller?.avatar_url })
+    // Once per call, however many times it's updated while ringing.
+  }, [ringingCall?.id])
 }
 
 /** Gives the blank popup the app's styles and theme, and keeps them in sync. */
@@ -372,6 +423,30 @@ function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editin
           </CameraCard>
         ))}
       </CameraTiles>
+    </WidgetBox>
+  )
+}
+
+const SAMPLE_NOTIFICATION: OverlayNotification = { id: 0, kind: 'dm', name: 'Exemplo', username: 'exemplo', text: 'Assim aparece uma mensagem' }
+
+function NotificationsWidget({
+  popup,
+  editing,
+  notifications
+}: {
+  popup: Window
+  editing: boolean
+  notifications: OverlayNotification[]
+}): ReactNode {
+  const { size, hideContent } = useOverlay((s) => s.state!.prefs.widgets.notifications)
+  const shown = editing && !notifications.length ? [SAMPLE_NOTIFICATION] : notifications
+  return (
+    <WidgetBox widget="notifications" popup={popup} editing={editing}>
+      <div className="flex w-[calc(100vw-1.5rem)] max-w-full flex-col gap-1.5">
+        {shown.map((n) => (
+          <NotificationCard key={n.id} notification={n} hideContent={hideContent} scale={SCALE[size]} />
+        ))}
+      </div>
     </WidgetBox>
   )
 }

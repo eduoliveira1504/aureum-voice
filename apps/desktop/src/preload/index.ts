@@ -79,6 +79,7 @@ const bridge: AureumBridge = {
     setPrefs: (patch) => ipcRenderer.invoke('overlay:set-prefs', patch),
     setEditing: (editing) => ipcRenderer.invoke('overlay:set-editing', editing),
     setActive: (active) => ipcRenderer.invoke('overlay:set-active', active),
+    setNotifying: (notifying) => ipcRenderer.invoke('overlay:set-notifying', notifying),
     setBounds: (widget, bounds) => ipcRenderer.invoke('overlay:set-bounds', widget, bounds),
     snap: (widget, corner) => ipcRenderer.invoke('overlay:snap', widget, corner),
     pauseShortcuts: (paused) => ipcRenderer.invoke('overlay:pause-shortcuts', paused),

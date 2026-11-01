@@ -34,6 +34,7 @@ const bridge = {
     setPrefs: vi.fn(),
     setEditing: async () => {},
     setActive: async () => {},
+    setNotifying: async () => {},
     setBounds: async () => {},
     snap: async () => {},
     pauseShortcuts: async () => {},
