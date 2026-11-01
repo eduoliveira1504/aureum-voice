@@ -18,7 +18,8 @@ backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, c
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
 3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
-Próximo: 3.12 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.13, 3.14 e 3.16. 3.17 só com spec do Eduardo.
+3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
+Próximo: 3.13 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.14 e 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -726,7 +727,7 @@ Calendário no lugar:
   rodapé rolando até a última insígnia; Conta dentro do Editar perfil; calendário do Início com 2
   servidores; notificação da beta.9 no sino.
 
-## 3.12 Categorias de canais
+## 3.12 Categorias de canais ✅ concluído (falta produção e teste manual)
 - Quem tem MANAGE_CHANNELS cria categorias livres (ex: "Administração", "Jogos",
   "Trabalho"). Dentro de cada uma: canais de voz, texto e addon misturados.
 - Tabela channel_categories (server_id, name, position) + channels.category_id
