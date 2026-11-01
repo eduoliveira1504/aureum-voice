@@ -222,6 +222,43 @@ describe('dividableTab', () => {
   })
 })
 
+describe('maximizing', () => {
+  const maximized = (): number | null | undefined => useNav.getState().maximized[SID]
+
+  beforeEach(() => {
+    useNav.setState({ maximized: {} })
+    nav.dropTab(SID, tab(1), 0, 'right')
+  })
+
+  it('toggles, focuses the panel and saves nothing', () => {
+    const saved = useAppearance.getState().settings.panel_layouts[SID]
+    nav.toggleMaximize(SID, 0)
+    expect(maximized()).toBe(0)
+    expect(focused()).toBe(0)
+    nav.toggleMaximize(SID, 0)
+    expect(maximized()).toBeNull()
+    expect(useAppearance.getState().settings.panel_layouts[SID]).toBe(saved)
+  })
+
+  it('needs two panels and room for them', () => {
+    nav.closePanel(SID, 1)
+    nav.toggleMaximize(SID, 0)
+    expect(maximized()).toBeFalsy()
+    nav.dropTab(SID, tab(1), 0, 'right')
+    useNav.setState({ narrow: true })
+    nav.toggleMaximize(SID, 0)
+    expect(maximized()).toBeFalsy()
+  })
+
+  it('ends when panels come or go, and survives tab changes', () => {
+    nav.toggleMaximize(SID, 1)
+    nav.openTab(SID, tab(2))
+    expect(maximized()).toBe(1)
+    nav.closePanel(SID, 0)
+    expect(maximized()).toBeNull()
+  })
+})
+
 describe('saved layouts', () => {
   const OLD: PanelLayout = {
     panels: [

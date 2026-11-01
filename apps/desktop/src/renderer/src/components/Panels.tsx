@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Minimize2, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
 import type { Channel, Me, Panel, PanelNode, PanelSplit, PanelTab, ServerDetail } from '../lib/api'
@@ -50,9 +50,24 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
   const focused = useNav((s) => Math.min(s.focusedPanel[server.id] ?? 0, layout.panels.length - 1))
   const narrow = useNav((s) => s.narrow)
 
-  const tree = narrow ? focused : treeOf(layout)
+  const maximized = useNav((s) => s.maximized[server.id] ?? null)
+
+  // Modals, menus, the member drawer and text fields have their own uses for Esc.
+  useEffect(() => {
+    if (maximized === null) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || useNav.getState().membersDrawer) return
+      if (document.querySelector('[aria-modal="true"], [role="dialog"], [role="menu"]')) return
+      if ((e.target as Element | null)?.closest?.('input, textarea, [contenteditable="true"]')) return
+      useNav.getState().toggleMaximize(server.id, maximized)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [maximized, server.id])
+
+  const tree = narrow ? focused : (maximized ?? treeOf(layout))
   const several = typeof tree !== 'number'
-  const canDivide = !narrow && layout.panels.length < MAX_PANELS
+  const canDivide = !narrow && maximized === null && layout.panels.length < MAX_PANELS
 
   const leaf = (index: number, grow: number): ReactNode => (
     <PanelView
@@ -63,6 +78,7 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
       panel={layout.panels[index]}
       canClose={several}
       canDivide={canDivide}
+      maximized={maximized !== null}
       focused={several && focused === index}
       grow={grow}
     />
@@ -193,6 +209,7 @@ function PanelView({
   panel,
   canClose,
   canDivide,
+  maximized,
   focused,
   grow
 }: {
@@ -202,10 +219,11 @@ function PanelView({
   panel: Panel
   canClose: boolean
   canDivide: boolean
+  maximized: boolean
   focused: boolean
   grow: number
 }): ReactNode {
-  const { activateTab, closeTab, closePanel, dropTab, focusPanel } = useNav.getState()
+  const { activateTab, closeTab, closePanel, dropTab, focusPanel, toggleMaximize } = useNav.getState()
   const callRoom = useVoice((s) =>
     s.phase !== 'idle' && s.serverId === server.id ? (server.channels.find((c) => c.id === s.channelId)?.name ?? null) : null
   )
@@ -258,7 +276,11 @@ function PanelView({
       onDrop={onDrop}
     >
       {zone && <div data-drop-zone={zone} className={`pointer-events-none absolute z-30 border-2 border-dashed border-accent bg-accent/15 ${DROP_AREA[zone]}`} />}
-      <div className="flex h-11 shrink-0 items-end gap-1 border-b border-line bg-panel/60 px-2">
+      <div
+        data-testid="panel-header"
+        onDoubleClick={(e) => !(e.target as Element).closest('button') && toggleMaximize(server.id, index)}
+        className="flex h-11 shrink-0 items-end gap-1 border-b border-line bg-panel/60 px-2"
+      >
         <div
           role="tablist"
           className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 self-stretch overflow-x-auto"
@@ -327,6 +349,17 @@ function PanelView({
           {tabLine === panel.tabs.length && <span data-tab-line className="-mx-[3px] mb-1.5 h-6 w-0.5 shrink-0 self-end rounded-full bg-accent" />}
         </div>
         <div className="flex shrink-0 items-center gap-0.5 self-center">
+          {maximized && (
+            <button
+              type="button"
+              title="Voltar ao layout (Esc)"
+              aria-label="Voltar ao layout"
+              onClick={() => toggleMaximize(server.id, index)}
+              className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
+            >
+              <Minimize2 size={16} />
+            </button>
+          )}
           {canDivide && divideButton('right', 'Dividir para o lado', Columns2)}
           {canDivide && divideButton('bottom', 'Dividir para baixo', Rows2)}
           {canClose && (

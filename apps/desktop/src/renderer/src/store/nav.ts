@@ -129,6 +129,8 @@ interface NavState {
   callFullscreen: boolean
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
+  /** Panel filling the server's area for now, per server. Never saved. */
+  maximized: Record<string, number | null>
   /** Server whose member bar is open as a drawer. Only in a narrow window, and never saved: going
    * narrow must not cover the content on its own. */
   membersDrawer: string | null
@@ -160,6 +162,8 @@ interface NavState {
   moveTabBy(serverId: string, panel: number, tab: PanelTab, delta: -1 | 1): void
   closeOtherTabs(serverId: string, panel: number, tab: PanelTab): void
   closePanel(serverId: string, panel: number): void
+  /** Fills the area with a panel, or brings the layout back. */
+  toggleMaximize(serverId: string, panel: number): void
   /** Moves the divider of the split at `path`. */
   setPanelRatio(serverId: string, path: TreePath, ratio: number): void
   /** Gives the panels along the split at `path` the same size. */
@@ -184,13 +188,17 @@ interface NavState {
   setProfileEditor(open: boolean): void
 }
 
-const saveLayout = (serverId: string, layout: PanelLayout): void =>
-  useAppearance.getState().updateLayout(serverId, layout)
-
 export const useNav = create<NavState>()((set, get) => {
   const focused = (serverId: string): number => {
     const panels = layoutOf(serverId).panels.length
     return Math.min(get().focusedPanel[serverId] ?? 0, panels - 1)
+  }
+  const saveLayout = (serverId: string, layout: PanelLayout): void => {
+    // Panels came or went: indexes changed, and the point was to see the whole layout anyway.
+    if (layout.panels.length !== layoutOf(serverId).panels.length) {
+      set((s) => ({ maximized: { ...s.maximized, [serverId]: null } }))
+    }
+    useAppearance.getState().updateLayout(serverId, layout)
   }
   const setFocused = (serverId: string, panel: number): void =>
     set((s) => ({ focusedPanel: { ...s.focusedPanel, [serverId]: panel } }))
@@ -212,6 +220,7 @@ export const useNav = create<NavState>()((set, get) => {
     callFullscreen: false,
     profileEditor: false,
     narrow: false,
+    maximized: {},
     membersDrawer: null,
     addonItem: null,
 
@@ -326,6 +335,12 @@ export const useNav = create<NavState>()((set, get) => {
       const tree = removePanel(treeOf(layout), panel)
       saveLayout(serverId, tidy({ ...layout, panels: layout.panels.filter((_, i) => i !== panel) }, tree))
       setFocused(serverId, 0)
+    },
+
+    toggleMaximize: (serverId, panel) => {
+      if (get().narrow || layoutOf(serverId).panels.length < 2) return
+      set((s) => ({ maximized: { ...s.maximized, [serverId]: s.maximized[serverId] === panel ? null : panel } }))
+      setFocused(serverId, panel)
     },
 
     setPanelRatio: (serverId, path, ratio) => {

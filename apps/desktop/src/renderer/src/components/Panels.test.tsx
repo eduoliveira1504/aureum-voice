@@ -1,6 +1,6 @@
 /** Panels on screen: the tree's dividers, dropping on edges and dividing from the header. */
 
-import { cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Me, PanelLayout, ServerDetail } from '../lib/api'
@@ -47,7 +47,7 @@ function drag(type: 'dragOver' | 'drop', target: HTMLElement, x: number, y: numb
   fireEvent(target, event)
 }
 
-beforeEach(() => useNav.setState({ focusedPanel: {}, narrow: false }))
+beforeEach(() => useNav.setState({ focusedPanel: {}, narrow: false, maximized: {} }))
 afterEach(cleanup)
 
 describe('dividers', () => {
@@ -127,6 +127,48 @@ describe('tab order', () => {
     expect(screen.queryByText('Mover para a esquerda')).toBeNull()
     fireEvent.click(screen.getByText('Mover para a direita'))
     expect(layoutOf(SID).panels[0].tabs).toEqual(['overview', 'channel:c-2', 'channel:c-1'])
+  })
+})
+
+describe('maximizing', () => {
+  const TWO: PanelLayout = { panels: [panel('overview'), panel('channel:c-1')], split: 0.5 }
+
+  beforeEach(() => useNav.setState({ maximized: {}, membersDrawer: null }))
+
+  it('fills the area on a double click on the header, and comes back', () => {
+    show(TWO)
+    fireEvent.doubleClick(within(region(2)).getByTestId('panel-header'))
+    expect(screen.queryByRole('region', { name: 'Painel 1' })).toBeNull()
+    expect(screen.queryByRole('separator', { name: 'Redimensionar painéis' })).toBeNull()
+    fireEvent.doubleClick(within(region(2)).getByTestId('panel-header'))
+    expect(region(1)).toBeTruthy()
+  })
+
+  it('leaves double clicks on the header buttons alone', () => {
+    show(TWO)
+    fireEvent.doubleClick(within(region(2)).getByRole('button', { name: 'Dividir para o lado' }))
+    expect(region(1)).toBeTruthy()
+  })
+
+  it('comes back with Esc or the button', () => {
+    show(TWO)
+    act(() => useNav.getState().toggleMaximize(SID, 0))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(region(2)).toBeTruthy()
+    act(() => useNav.getState().toggleMaximize(SID, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao layout' }))
+    expect(region(2)).toBeTruthy()
+  })
+
+  it('leaves Esc to what is over it, and to text fields', () => {
+    render(<input aria-label="campo" />)
+    show(TWO)
+    act(() => useNav.getState().toggleMaximize(SID, 0))
+    fireEvent.keyDown(screen.getByLabelText('campo'), { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Painel 2' })).toBeNull()
+    act(() => useNav.setState({ membersDrawer: SID }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Painel 2' })).toBeNull()
   })
 })
 
