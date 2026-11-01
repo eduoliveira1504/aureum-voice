@@ -236,7 +236,7 @@ export function CallStage({
     return (
       <div className="flex min-h-0 flex-1 gap-3 px-4 pb-4">
         <div className="flex min-w-0 flex-1">{render(focused, 'focus')}</div>
-        <div className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto p-1">
           {tiles.filter((t) => t.key !== focused.key).map((t) => render(t, 'strip'))}
         </div>
       </div>
