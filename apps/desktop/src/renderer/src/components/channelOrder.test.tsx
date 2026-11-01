@@ -13,7 +13,7 @@ import { Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
-import { ChannelMenu } from './PlaceMenus'
+import { CategoryMenu, ChannelListMenu, ChannelMenu } from './PlaceMenus'
 import { Sidebar } from './Sidebar'
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -249,6 +249,25 @@ describe('sidebar', () => {
     render(<Sidebar server={server(true)} me={ME} />)
     fireEvent.click(within(screen.getByRole('region', { name: 'Conversas' })).getByRole('button', { name: 'Conversas' }))
     expect(update).toHaveBeenCalledWith({ collapsed_categories: ['Conversas'] })
+  })
+
+  it('offers to create things on a right click in the empty part of the list', () => {
+    render(<ChannelListMenu server={server(true)} meId={ME.id} />)
+    for (const label of ['Criar canal de texto', 'Criar canal de voz', 'Criar categoria']) expect(screen.getByText(label)).toBeTruthy()
+  })
+
+  it('creates channels from a category menu, in that category', () => {
+    render(<CategoryMenu server={server(true)} category={CATEGORIES[0]} meId={ME.id} />)
+    expect(screen.getByText('Criar canal de texto')).toBeTruthy()
+    expect(screen.getByText('Criar canal de voz')).toBeTruthy()
+    expect(screen.getByText('Excluir categoria')).toBeTruthy()
+    expect(screen.queryByText('Criar categoria')).toBeNull()
+  })
+
+  it('a member without the permission gets only the safe options', () => {
+    render(<CategoryMenu server={server(false)} category={CATEGORIES[0]} meId={ME.id} />)
+    expect(screen.queryByText('Criar canal de texto')).toBeNull()
+    expect(screen.queryByText('Excluir categoria')).toBeNull()
   })
 
   it('hides the channels of a collapsed category', () => {

@@ -37,7 +37,7 @@ import { ChannelSettingsModal } from './ChannelSettings'
 import { CategoryNameModal } from './CategoryModals'
 import { contextMenu } from './ContextMenu'
 import { ConversationMenu } from './ConversationMenu'
-import { CategoryMenu, ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
+import { CategoryMenu, ChannelListMenu, ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
 import { ConfirmModal, CreateAddonModal, CreateChannelModal, InviteModal } from './modals'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
@@ -522,7 +522,10 @@ function ServerPlaces({
         onCollapse={onCollapse}
       />
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
+      <div
+        className="flex-1 space-y-4 overflow-y-auto px-2 py-3"
+        onContextMenu={canCreateChannels ? contextMenu(() => <ChannelListMenu server={server} meId={me.id} />) : undefined}
+      >
         <Item
           icon={LayoutDashboard}
           label="Visão geral"

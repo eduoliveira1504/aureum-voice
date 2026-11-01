@@ -1,10 +1,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 
-import { api, type Category, type ServerDetail } from '../lib/api'
+import { api, ApiError, type Category, type ServerDetail } from '../lib/api'
 import { PermissionsEditor, categoryAsChannel } from './ChannelSettings'
 import { FormError, Modal } from './Modal'
-import { errorText } from './modals'
 import { Field, PrimaryButton } from './ui'
+
+function categoryError(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) return 'Você não tem permissão para isso.'
+  if (err instanceof ApiError && err.status === 404) return 'Essa categoria não existe mais.'
+  return 'Não foi possível salvar a categoria.'
+}
 
 /** Creates a category, or renames `category`. */
 export function CategoryNameModal({ serverId, category, onClose }: { serverId: string; category?: Category; onClose(): void }): ReactNode {
@@ -21,7 +26,7 @@ export function CategoryNameModal({ serverId, category, onClose }: { serverId: s
       else await api(`/servers/${serverId}/categories`, { method: 'POST', body: { name: name.trim() } })
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Não foi possível salvar a categoria.'))
+      setError(categoryError(err))
       setBusy(false)
     }
   }

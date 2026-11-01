@@ -294,10 +294,10 @@ export function CreateChannelModal({
 
 /** Adds an addon to the server: picks one of the addons both the API and this app know, and
  * creates its channel. */
-export function CreateAddonModal({ serverId, onClose }: { serverId: string; onClose(): void }): ReactNode {
+export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: string; categoryId?: string; onClose(): void }): ReactNode {
   const openTab = useNav((s) => s.openTab)
   const server = useChat((s) => s.servers[serverId])
-  const [category, setCategory] = useState(defaultCategory(server, 'addon'))
+  const [category, setCategory] = useState(categoryId ?? defaultCategory(server, 'addon'))
   const [addons, setAddons] = useState<AddonInfo[] | null>(null)
   const [key, setKey] = useState<string | null>(null)
   const [name, setName] = useState('')

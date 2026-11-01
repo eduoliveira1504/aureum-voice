@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, Link, LogOut, Pencil, Plus, Settings, Shield, SlidersHorizontal, Trash2, UserPlus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, FolderPlus, Hash, Link, LogOut, Pencil, Puzzle, Settings, Shield, SlidersHorizontal, Trash2, UserPlus, Volume2, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Category, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
@@ -10,7 +10,7 @@ import { useNav } from '../store/nav'
 import { CategoryNameModal, CategoryPermissionsModal } from './CategoryModals'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { CheckItem, copy, Item, Label, Separator, showDialog, toast } from './ContextMenu'
-import { ConfirmModal, CreateChannelModal, errorText, InviteModal } from './modals'
+import { ConfirmModal, CreateAddonModal, CreateChannelModal, errorText, InviteModal } from './modals'
 import { ServerSettingsModal } from './ServerSettings'
 
 /** Silenced channels and servers (user setting): no unread badges, mentions still count. */
@@ -24,6 +24,31 @@ export function toggleMuted(id: string): void {
   update({ muted_places: muted.includes(id) ? muted.filter((x) => x !== id) : [...muted, id] })
 }
 
+/** Create a text or voice channel, or add an addon, in `categoryId` (or the suggested place). */
+function CreateItems({ server, meId, categoryId }: { server: ServerDetail; meId: string; categoryId?: string }): ReactNode {
+  const perms = basePermissions(server, meId)
+  if (!has(perms, Perm.MANAGE_CHANNELS)) return null
+  return (
+    <>
+      <Item icon={Hash} label="Criar canal de texto" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={categoryId} onClose={close} />)} />
+      <Item icon={Volume2} label="Criar canal de voz" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="voice" categoryId={categoryId} onClose={close} />)} />
+      {has(perms, Perm.MANAGE_ADDONS) && (
+        <Item icon={Puzzle} label="Adicionar addon" onClick={() => showDialog((close) => <CreateAddonModal serverId={server.id} categoryId={categoryId} onClose={close} />)} />
+      )}
+    </>
+  )
+}
+
+/** Right click on the empty part of the sidebar. */
+export function ChannelListMenu({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
+  return (
+    <>
+      <CreateItems server={server} meId={meId} />
+      <Item icon={FolderPlus} label="Criar categoria" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} onClose={close} />)} />
+    </>
+  )
+}
+
 /** Rename, permissions, create a channel in it, delete: its channels are never deleted with it. */
 export function CategoryMenu({ server, category, meId }: { server: ServerDetail; category: Category; meId: string }): ReactNode {
   const perms = basePermissions(server, meId)
@@ -31,12 +56,8 @@ export function CategoryMenu({ server, category, meId }: { server: ServerDetail;
   return (
     <>
       <Label>{category.name}</Label>
-      {canManage && (
-        <>
-          <Item icon={Plus} label="Criar canal" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={category.id} onClose={close} />)} />
-          <Item icon={Pencil} label="Renomear" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />
-        </>
-      )}
+      <CreateItems server={server} meId={meId} categoryId={category.id} />
+      {canManage && <Item icon={Pencil} label="Renomear" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />}
       {has(perms, Perm.MANAGE_ROLES) && (
         <Item
           icon={Shield}
