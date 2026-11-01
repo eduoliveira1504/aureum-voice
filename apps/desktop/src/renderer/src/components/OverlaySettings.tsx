@@ -2,7 +2,8 @@ import { ArrowDownLeft, ArrowDownRight, ArrowUpLeft, ArrowUpRight, Move, X } fro
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { appKey, gameApps, OVERLAY_EXCEPTIONS } from '../../../shared/overlayRule'
-import type { KnownGame, OverlayCorner, OverlayPrefs } from '../../../shared/types'
+import { anyWidgetOn } from '../../../shared/overlayWidgets'
+import type { KnownGame, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayWidget, OverlayWidgetPrefs } from '../../../shared/types'
 import { setOverlayPrefs, useOverlay } from '../store/overlay'
 import { labelClass, Segmented, ToggleRow } from './ui'
 
@@ -179,7 +180,7 @@ function KnownGames({ known, hidden, onHide }: { known: KnownGame[]; hidden: str
 
 /** "Jogos com overlay" and "Ocultar overlay neste jogo": the overlay shows only over games
  *  (see shared/overlayRule.ts), the known ones plus the ones added here. */
-function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: Partial<OverlayPrefs>): void }): ReactNode {
+function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: OverlayPrefsPatch): void }): ReactNode {
   const [known, setKnown] = useState<KnownGame[]>([])
   useEffect(() => void window.aureum.games.known().then(setKnown), [])
   const knownApps = useMemo(() => gameApps(known, null, []), [known])
@@ -237,12 +238,90 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: Partial<
   )
 }
 
-/** Settings > Overlay: the in-game overlay. Saved on this PC only (its position depends on the monitors). */
+/** One widget: on/off and, while on, its look and corner. `children`: what only this widget has. */
+function WidgetCard({
+  widget,
+  title,
+  description,
+  sizeLabel = 'Tamanho',
+  prefs,
+  set,
+  children
+}: {
+  widget: OverlayWidget
+  title: string
+  description: string
+  sizeLabel?: string
+  prefs: OverlayWidgetPrefs
+  set(patch: Partial<OverlayWidgetPrefs>): void
+  children?: ReactNode
+}): ReactNode {
+  return (
+    <section className="space-y-3">
+      <ToggleRow title={title} description={description} checked={prefs.enabled} onChange={(enabled) => set({ enabled })} />
+      {prefs.enabled && (
+        <div className="space-y-3 border-l-2 border-line pl-3">
+          <div>
+            <span className={labelClass}>{sizeLabel}</span>
+            <Segmented
+              options={[
+                { value: 'small', label: 'Pequeno' },
+                { value: 'medium', label: 'Médio' },
+                { value: 'large', label: 'Grande' }
+              ]}
+              value={prefs.size}
+              onChange={(size) => set({ size })}
+            />
+          </div>
+          <div>
+            <label htmlFor={`overlay-opacity-${widget}`} className={labelClass}>
+              Opacidade
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id={`overlay-opacity-${widget}`}
+                type="range"
+                min={30}
+                max={100}
+                step={5}
+                value={prefs.opacity}
+                onChange={(e) => set({ opacity: Number(e.target.value) })}
+                className="flex-1 accent-accent"
+              />
+              <span className="w-10 text-right text-sm tabular-nums text-fg-muted">{prefs.opacity}%</span>
+            </div>
+          </div>
+          {children}
+          <div>
+            <span className={labelClass}>Canto da tela</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {CORNERS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={label}
+                  aria-label={`${title}: ${label}`}
+                  onClick={() => void window.aureum.overlay.snap(widget, value)}
+                  className="rounded-control border border-line bg-main p-2 text-fg-muted hover:border-fg-subtle hover:text-fg"
+                >
+                  <Icon size={18} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Settings > Overlay: the in-game overlay. Saved on this PC only (its positions depend on the monitors). */
 export function OverlaySettings(): ReactNode {
   const state = useOverlay((s) => s.state)
   if (!state) return null
   const { prefs } = state
-  const set = (patch: Partial<OverlayPrefs>): void => void setOverlayPrefs(patch)
+  const set = (patch: OverlayPrefsPatch): void => void setOverlayPrefs(patch)
+  const { voice, cameras } = prefs.widgets
 
   return (
     <div className="max-w-[480px] space-y-4">
@@ -266,78 +345,57 @@ export function OverlaySettings(): ReactNode {
       </section>
 
       <section>
-        <span className={labelClass}>Posição</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {CORNERS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              type="button"
-              title={label}
-              aria-label={label}
-              onClick={() => void window.aureum.overlay.snap(value)}
-              className="rounded-control border border-line bg-main p-2 text-fg-muted hover:border-fg-subtle hover:text-fg"
-            >
-              <Icon size={18} />
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => void window.aureum.overlay.setEditing(true)}
-            className="flex items-center gap-2 rounded-control border border-line bg-main px-3 py-2 text-sm font-medium hover:border-fg-subtle"
-          >
-            <Move size={16} />
-            Editar posição e tamanho
-          </button>
-        </div>
+        <span className={labelClass}>Widgets</span>
+        <button
+          type="button"
+          disabled={!anyWidgetOn(prefs.widgets)}
+          onClick={() => void window.aureum.overlay.setEditing(true)}
+          className="flex items-center gap-2 rounded-control border border-line bg-main px-3 py-2 text-sm font-medium hover:border-fg-subtle disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Move size={16} />
+          Editar posição e tamanho
+        </button>
         <p className="mt-1.5 text-xs text-fg-subtle">
-          No modo edição, arraste o overlay para mover e puxe o canto para redimensionar. Esc ou Concluir salva a posição.
+          Cada widget tem sua posição e seu tamanho, e o overlay aparece no monitor do jogo. No modo edição, arraste cada
+          widget para mover e puxe o canto para redimensionar; a posição fica salva para aquele monitor. Esc ou Concluir termina.
         </p>
       </section>
 
-      <section>
-        <span className={labelClass}>Tamanho</span>
-        <Segmented
-          options={[
-            { value: 'small', label: 'Pequeno' },
-            { value: 'medium', label: 'Médio' },
-            { value: 'large', label: 'Grande' }
-          ]}
-          value={prefs.size}
-          onChange={(size) => set({ size })}
+      <WidgetCard
+        widget="voice"
+        title="Voz"
+        description="Quem está na chamada, com anel em quem fala e ícones de mudo e ensurdecido."
+        prefs={voice}
+        set={(patch) => set({ widgets: { voice: patch } })}
+      >
+        <ToggleRow
+          title="Mostrar só quem está falando"
+          description="Esconde quem está em silêncio; a pessoa some pouco depois de parar de falar."
+          checked={voice.onlySpeaking}
+          onChange={(onlySpeaking) => set({ widgets: { voice: { onlySpeaking } } })}
         />
-      </section>
+      </WidgetCard>
 
-      <section>
-        <label htmlFor="overlay-opacity" className={labelClass}>
-          Opacidade
-        </label>
-        <div className="flex items-center gap-3">
-          <input
-            id="overlay-opacity"
-            type="range"
-            min={30}
-            max={100}
-            step={5}
-            value={prefs.opacity}
-            onChange={(e) => set({ opacity: Number(e.target.value) })}
-            className="flex-1 accent-accent"
+      <WidgetCard
+        widget="cameras"
+        title="Câmeras"
+        description="Só aparece quando alguém está com a câmera ligada, incluindo você. Quem tem câmera sai da lista de voz e vem pra cá."
+        sizeLabel="Tamanho das câmeras"
+        prefs={cameras}
+        set={(patch) => set({ widgets: { cameras: patch } })}
+      >
+        <div>
+          <span className={labelClass}>Disposição</span>
+          <Segmented
+            options={[
+              { value: 'horizontal', label: 'Horizontal' },
+              { value: 'vertical', label: 'Vertical' }
+            ]}
+            value={cameras.layout}
+            onChange={(layout) => set({ widgets: { cameras: { layout } } })}
           />
-          <span className="w-10 text-right text-sm tabular-nums text-fg-muted">{prefs.opacity}%</span>
         </div>
-      </section>
-
-      <ToggleRow
-        title="Mostrar câmeras"
-        description="Câmeras ligadas aparecem em miniatura, incluindo a sua."
-        checked={prefs.showCameras}
-        onChange={(showCameras) => set({ showCameras })}
-      />
-      <ToggleRow
-        title="Mostrar só quem está falando"
-        description="Esconde quem está em silêncio; a pessoa some pouco depois de parar de falar."
-        checked={prefs.onlySpeaking}
-        onChange={(onlySpeaking) => set({ onlySpeaking })}
-      />
+      </WidgetCard>
 
       <p className="text-xs text-fg-subtle">
         Funciona com jogos em modo janela ou janela sem borda. Em tela cheia exclusiva o Windows não deixa outras janelas

@@ -62,7 +62,7 @@ export interface RunningApp {
 export type OverlaySize = 'small' | 'medium' | 'large'
 export type OverlayCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
-/** Where the overlay box sits, in screen coordinates (DIPs). */
+/** Where an overlay box sits, in screen coordinates (DIPs). */
 export interface OverlayBounds {
   x: number
   y: number
@@ -70,19 +70,34 @@ export interface OverlayBounds {
   height: number
 }
 
-/** In-game overlay preferences. They stay on this PC: the position depends on its monitors. */
+/** The overlay's independent parts, each in a window of its own (see shared/overlayWidgets.ts). */
+export type OverlayWidget = 'voice' | 'cameras' | 'notifications'
+export type OverlayCameraLayout = 'horizontal' | 'vertical'
+
+export interface OverlayWidgetPrefs {
+  enabled: boolean
+  size: OverlaySize
+  /** 30-100 (%). */
+  opacity: number
+  /** Where the box sits for each monitor the game was on, by display id; none: the default place. */
+  positions: Record<string, OverlayBounds>
+}
+
+export interface OverlayWidgets {
+  voice: OverlayWidgetPrefs & { onlySpeaking: boolean }
+  /** `size` is the size of the tiles here. */
+  cameras: OverlayWidgetPrefs & { layout: OverlayCameraLayout }
+  /** `hideContent`: only "@fulano te mandou mensagem", never the message. */
+  notifications: OverlayWidgetPrefs & { hideContent: boolean }
+}
+
+/** In-game overlay preferences. They stay on this PC: the positions depend on its monitors. */
 export interface OverlayPrefs {
   enabled: boolean
   /** Electron accelerators, e.g. "Control+Shift+F9". */
   toggleShortcut: string
   editShortcut: string
-  /** null until placed: the top-left corner of the primary monitor. */
-  bounds: OverlayBounds | null
-  size: OverlaySize
-  /** 30-100 (%). */
-  opacity: number
-  showCameras: boolean
-  onlySpeaking: boolean
+  widgets: OverlayWidgets
   /** Programs (file name without ".exe", lowercase) the overlay never shows over, on top of
    *  the bundled exceptions (browsers etc., see shared/overlayExceptions.json). */
   hiddenApps: string[]
@@ -90,6 +105,11 @@ export interface OverlayPrefs {
   games: string[]
   /** Programs the user said aren't games when asked ("Isso é um jogo?"): never asked again. */
   notGames: string[]
+}
+
+/** A change to the preferences: per widget, only the fields that change. */
+export type OverlayPrefsPatch = Partial<Omit<OverlayPrefs, 'widgets'>> & {
+  widgets?: { [W in OverlayWidget]?: Partial<OverlayWidgets[W]> }
 }
 
 /** What the main process tells the app's window about the overlay. */
@@ -191,14 +211,14 @@ export interface AureumBridge {
   overlay: {
     getState(): Promise<OverlayState>
     /** Saves preferences; rejects when a new shortcut is invalid or taken by another program. */
-    setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlayState>
+    setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState>
     setEditing(editing: boolean): Promise<void>
     /** Whether the app has something to show (a call is going on). */
     setActive(active: boolean): Promise<void>
-    /** Moves/resizes the box while editing (saved when editing ends). */
-    setBounds(bounds: OverlayBounds): Promise<void>
-    /** Puts the box in a corner of the monitor it's on. */
-    snap(corner: OverlayCorner): Promise<void>
+    /** Moves/resizes a widget's box while editing (saved when editing ends). */
+    setBounds(widget: OverlayWidget, bounds: OverlayBounds): Promise<void>
+    /** Puts a widget's box in a corner of the monitor it's on. */
+    snap(widget: OverlayWidget, corner: OverlayCorner): Promise<void>
     /** Pauses the global shortcuts (while Settings records a new one). */
     pauseShortcuts(paused: boolean): Promise<void>
     /** Answers "Isso é um jogo?" about the program in OverlayState.ask. */

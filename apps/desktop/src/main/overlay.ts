@@ -10,16 +10,31 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions, type Display } from 'electron'
 
 import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame } from '../shared/overlayRule'
-import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayState } from '../shared/types'
+import {
+  anyWidgetOn,
+  cleanBounds,
+  cleanWidgets,
+  DEFAULT_WIDGETS,
+  defaultBounds,
+  isOverlayWidget,
+  legacyWidgets,
+  OVERLAY_WIDGETS,
+  rotateBox,
+  widgetShows
+} from '../shared/overlayWidgets'
+import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
 import { foregroundApp, foregroundFillsMonitor } from './foregroundApp'
 import { watchCombos } from './keyWatch'
 
-/** The app opens the overlay as window.open(url, 'aureum-overlay-<n>'), unique so a window still
- *  closing is never reused; any other popup stays denied. */
-export const isOverlayFrame = (frameName: string): boolean => /^aureum-overlay-\d+$/.test(frameName)
+/** The app opens each widget as window.open(url, 'aureum-overlay-<widget>-<n>'), unique so a window
+ *  still closing is never reused; any other popup stays denied. */
+export function widgetOfFrame(frameName: string): OverlayWidget | null {
+  const widget = /^aureum-overlay-([a-z]+)-\d+$/.exec(frameName)?.[1]
+  return isOverlayWidget(widget) ? widget : null
+}
 
 export const OVERLAY_WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   show: false,
@@ -43,11 +58,7 @@ const DEFAULT_PREFS: OverlayPrefs = {
   // Bar) leave them alone, and unlike Ctrl+Alt+letter they don't eat AltGr characters.
   toggleShortcut: 'Control+Shift+F9',
   editShortcut: 'Control+Shift+F10',
-  bounds: null,
-  size: 'medium',
-  opacity: 100,
-  showCameras: true,
-  onlySpeaking: false,
+  widgets: DEFAULT_WIDGETS,
   hiddenApps: [],
   games: [],
   notGames: []
@@ -59,14 +70,13 @@ const MAX_APPS = 100
 const NEVER_OVER = new Set([...OVERLAY_EXCEPTIONS, appKey(process.execPath)])
 
 const MARGIN = 16
-const DEFAULT_SIZE = { width: 260, height: 360 }
-const MIN_SIZE = { width: 160, height: 80 }
-const MAX_SIZE = { width: 900, height: 1000 }
 
 const prefsPath = (): string => join(app.getPath('userData'), 'overlay.json')
 
 let prefs: OverlayPrefs = { ...DEFAULT_PREFS }
-let win: BrowserWindow | null = null
+const windows = new Map<OverlayWidget, BrowserWindow>()
+/** The monitor the widgets are on (see activeDisplay). */
+let displayId: number | null = null
 let editing = false
 /** A call is going on (told by the app's window). */
 let active = false
@@ -122,20 +132,6 @@ export function isSafeShortcut(accelerator: string): boolean {
   return parts.length > 0 || /^F(1[3-9]|2[0-4])$/.test(key)
 }
 
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
-
-function cleanBounds(value: unknown): OverlayBounds | null {
-  if (!value || typeof value !== 'object') return null
-  const { x, y, width, height } = value as Partial<OverlayBounds>
-  if (![x, y, width, height].every(isFiniteNumber)) return null
-  return {
-    x: Math.round(x!),
-    y: Math.round(y!),
-    width: Math.round(Math.min(MAX_SIZE.width, Math.max(MIN_SIZE.width, width!))),
-    height: Math.round(Math.min(MAX_SIZE.height, Math.max(MIN_SIZE.height, height!)))
-  }
-}
-
 /** A list of program names (see appKey), or `fallback` when it isn't a list. */
 function cleanApps(value: unknown, fallback: string[]): string[] {
   if (!Array.isArray(value)) return fallback
@@ -149,18 +145,14 @@ function cleanApps(value: unknown, fallback: string[]): string[] {
   ].slice(0, MAX_APPS)
 }
 
-function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPrefs {
+function cleanPrefs(raw: OverlayPrefsPatch, base: OverlayPrefs): OverlayPrefs {
   const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback)
   const shortcut = (v: unknown, fallback: string): string => (typeof v === 'string' && isSafeShortcut(v) ? v : fallback)
   return {
     enabled: bool(raw.enabled, base.enabled),
     toggleShortcut: shortcut(raw.toggleShortcut, base.toggleShortcut),
     editShortcut: shortcut(raw.editShortcut, base.editShortcut),
-    bounds: raw.bounds === null ? null : raw.bounds !== undefined ? (cleanBounds(raw.bounds) ?? base.bounds) : base.bounds,
-    size: raw.size === 'small' || raw.size === 'medium' || raw.size === 'large' ? raw.size : base.size,
-    opacity: isFiniteNumber(raw.opacity) ? Math.round(Math.min(100, Math.max(30, raw.opacity))) : base.opacity,
-    showCameras: bool(raw.showCameras, base.showCameras),
-    onlySpeaking: bool(raw.onlySpeaking, base.onlySpeaking),
+    widgets: cleanWidgets(raw.widgets, base.widgets),
     hiddenApps: cleanApps(raw.hiddenApps, base.hiddenApps),
     games: cleanApps(raw.games, base.games),
     notGames: cleanApps(raw.notGames, base.notGames)
@@ -169,7 +161,9 @@ function cleanPrefs(raw: Partial<OverlayPrefs>, base: OverlayPrefs): OverlayPref
 
 async function loadPrefs(): Promise<void> {
   try {
-    prefs = cleanPrefs(JSON.parse(await readFile(prefsPath(), 'utf8')), DEFAULT_PREFS)
+    const raw = JSON.parse(await readFile(prefsPath(), 'utf8'))
+    const widgets = raw.widgets ?? legacyWidgets(raw, (bounds) => String(screen.getDisplayMatching(bounds).id))
+    prefs = cleanPrefs({ ...raw, widgets }, DEFAULT_PREFS)
   } catch {
     prefs = { ...DEFAULT_PREFS }
   }
@@ -196,7 +190,7 @@ function changed(): void {
   notify(getState())
 }
 
-export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlayState> {
+export async function setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState> {
   if (!patch || typeof patch !== 'object') throw new Error('Invalid preferences')
   for (const key of ['toggleShortcut', 'editShortcut'] as const) {
     if (patch[key] !== undefined && (typeof patch[key] !== 'string' || !isSafeShortcut(patch[key]))) {
@@ -204,6 +198,7 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
     }
   }
   const next = cleanPrefs(patch, prefs)
+  if (next.widgets.cameras.layout !== prefs.widgets.cameras.layout) next.widgets.cameras = rotateBox(next.widgets.cameras)
   if (next.toggleShortcut === next.editShortcut) throw new Error('Os dois atalhos precisam ser diferentes.')
 
   const shortcutsChanged = next.toggleShortcut !== prefs.toggleShortcut || next.editShortcut !== prefs.editShortcut
@@ -223,7 +218,7 @@ export async function setPrefs(patch: Partial<OverlayPrefs>): Promise<OverlaySta
   // Re-registers the hotkeys and restarts the key watch; turning the overlay off stops the watch.
   if (shortcutsChanged) registerShortcuts()
   else syncKeyWatch()
-  if (!prefs.enabled) editing = false
+  if (!prefs.enabled || !anyWidgetOn(prefs.widgets)) editing = false
   await savePrefs()
   if (foregroundTimer) checkForeground()
   apply()
@@ -293,7 +288,7 @@ function syncKeyWatch(): void {
  * name only), and shows the overlay only over games. The name is compared here and dropped.
  */
 function syncForegroundWatch(): void {
-  const wanted = active && prefs.enabled
+  const wanted = active && prefs.enabled && anyWidgetOn(prefs.widgets)
   if (wanted && !foregroundTimer) {
     checkForeground()
     foregroundTimer = setInterval(checkForeground, FOREGROUND_POLL_MS)
@@ -327,6 +322,7 @@ function mayAsk(app: string | null): app is string {
     active &&
     !mainFocused &&
     !hidden &&
+    anyWidgetOn(prefs.widgets) &&
     !NEVER_OVER.has(app) &&
     !prefs.hiddenApps.includes(app) &&
     !prefs.notGames.includes(app) &&
@@ -425,13 +421,18 @@ export function pauseShortcuts(paused: boolean): void {
 // The window
 // ---------------------------------------------------------------------------
 
-/** Keeps the box inside the monitor it's (mostly) on, or puts it on the primary one. */
-function placed(bounds: OverlayBounds | null): OverlayBounds {
-  const b = bounds ?? { ...screen.getPrimaryDisplay().workArea, ...DEFAULT_SIZE }
-  if (!bounds) {
-    b.x += MARGIN
-    b.y += MARGIN
-  }
+/** The monitor the widgets are on: the one chosen last, or the primary one. */
+function activeDisplay(): Display {
+  return screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay()
+}
+
+/** Placing widgets away from a game: the monitor the pointer is on (the app's, from Settings). */
+function pickDisplay(): void {
+  if (!gameInFront) displayId = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id
+}
+
+/** Keeps the box inside the monitor it's (mostly) on. */
+function placed(b: OverlayBounds): OverlayBounds {
   const area = screen.getDisplayMatching(b).workArea
   const width = Math.min(b.width, area.width)
   const height = Math.min(b.height, area.height)
@@ -443,31 +444,64 @@ function placed(bounds: OverlayBounds | null): OverlayBounds {
   }
 }
 
-/** Shows, hides and switches the window between click-through and edit mode. */
+/** The widget's box on the active monitor: where it was left there, or its default place. */
+function boxOf(widget: OverlayWidget): OverlayBounds {
+  const display = activeDisplay()
+  const saved = prefs.widgets[widget].positions[String(display.id)]
+  return placed(saved ?? defaultBounds(widget, display.workArea, prefs.widgets.cameras.layout))
+}
+
+function savePosition(widget: OverlayWidget, bounds: OverlayBounds): void {
+  const widgetPrefs = prefs.widgets[widget]
+  const positions = { ...widgetPrefs.positions, [String(activeDisplay().id)]: bounds }
+  prefs = { ...prefs, widgets: { ...prefs.widgets, [widget]: { ...widgetPrefs, positions } } }
+}
+
+/** Shows, hides and switches each window between click-through and edit mode. */
 function apply(): void {
-  if (!win || win.isDestroyed()) return
-  // Over a game only: hidden while the app itself, a browser, a launcher or any other app is in front.
-  const show =
-    prefs.enabled &&
-    (editing || notice !== null || (active && !mainFocused && !hidden && (gameInFront || ask !== null)))
-  if (!show) {
-    if (win.isVisible()) win.hide()
-    return
+  const scene = {
+    editing,
+    active,
+    clear: !mainFocused && !hidden,
+    gameInFront,
+    notifying: false,
+    notice: notice !== null,
+    asking: ask !== null
   }
-  win.setBounds(placed(prefs.bounds))
-  // Click-through, except in edit mode and over the question's buttons (taken without focus).
-  win.setIgnoreMouseEvents(!editing && !askHovered, { forward: true })
-  win.setFocusable(editing)
-  // 'screen-saver' is the highest level: above borderless games that set themselves topmost.
-  win.setAlwaysOnTop(true, 'screen-saver')
-  if (!win.isVisible()) win.showInactive()
-  if (editing) win.focus()
+  for (const widget of OVERLAY_WIDGETS) {
+    const win = windows.get(widget)
+    if (!win || win.isDestroyed()) continue
+    if (!prefs.enabled || !widgetShows(widget, prefs.widgets, scene)) {
+      if (win.isVisible()) win.hide()
+      continue
+    }
+    const editable = editing && prefs.widgets[widget].enabled
+    win.setBounds(boxOf(widget))
+    // Click-through, except in edit mode and over the question's buttons (taken without focus).
+    win.setIgnoreMouseEvents(!editable && !(widget === 'voice' && askHovered), { forward: true })
+    win.setFocusable(editable)
+    // 'screen-saver' is the highest level: above borderless games that set themselves topmost.
+    win.setAlwaysOnTop(true, 'screen-saver')
+    if (!win.isVisible()) win.showInactive()
+  }
+  // One of them takes the focus, so Esc ends edit mode; clicking another one moves it.
+  if (editing) {
+    const shown = [...windows.values()].filter((w) => !w.isDestroyed() && w.isVisible())
+    if (!shown.some((w) => w.isFocused())) shown[0]?.focus()
+  }
 }
 
 export function setEditing(next: boolean): void {
   if (next === editing) return
+  if (next && !anyWidgetOn(prefs.widgets)) {
+    flash('Ligue um widget em Configurações › Overlay')
+    return
+  }
   editing = next
-  if (editing) hidden = false
+  if (editing) {
+    hidden = false
+    pickDisplay()
+  }
   if (editing && !prefs.enabled) {
     prefs = { ...prefs, enabled: true }
     saveSoon()
@@ -490,50 +524,51 @@ export function setActive(next: boolean): void {
   apply()
 }
 
-export function setBounds(bounds: unknown): void {
+export function setBounds(widget: OverlayWidget, bounds: unknown): void {
   const clean = cleanBounds(bounds)
   if (!clean || !editing) return
-  prefs = { ...prefs, bounds: placed(clean) }
-  if (win && !win.isDestroyed()) win.setBounds(prefs.bounds!)
+  const box = placed(clean)
+  savePosition(widget, box)
+  const win = windows.get(widget)
+  if (win && !win.isDestroyed()) win.setBounds(box)
   saveSoon()
 }
 
-export async function snap(corner: OverlayCorner): Promise<void> {
-  const current = placed(prefs.bounds)
+export async function snap(widget: OverlayWidget, corner: OverlayCorner): Promise<void> {
+  pickDisplay()
+  const current = boxOf(widget)
   const area = screen.getDisplayMatching(current).workArea
   const left = corner.endsWith('left')
   const top = corner.startsWith('top')
-  prefs = {
-    ...prefs,
-    bounds: {
-      ...current,
-      x: left ? area.x + MARGIN : area.x + area.width - current.width - MARGIN,
-      y: top ? area.y + MARGIN : area.y + area.height - current.height - MARGIN
-    }
-  }
+  savePosition(widget, {
+    ...current,
+    x: left ? area.x + MARGIN : area.x + area.width - current.width - MARGIN,
+    y: top ? area.y + MARGIN : area.y + area.height - current.height - MARGIN
+  })
   await savePrefs()
   apply()
   changed()
 }
 
-/** Takes over the window the app just opened with window.open() (see isOverlayFrame). */
-export function attachWindow(created: BrowserWindow): void {
-  if (win && !win.isDestroyed()) win.close()
-  win = created
+/** Takes over the window the app just opened with window.open() (see widgetOfFrame). */
+export function attachWindow(widget: OverlayWidget, created: BrowserWindow): void {
+  const previous = windows.get(widget)
+  if (previous && !previous.isDestroyed()) previous.close()
+  windows.set(widget, created)
   // Kept out of screenshots and screen sharing (Windows 10 2004+): the overlay shows other
-  // people's cameras, and they didn't agree to be streamed.
-  win.setContentProtection(true)
-  win.on('closed', () => {
-    if (win !== created) return
-    win = null
+  // people's cameras and messages, and they didn't agree to be streamed.
+  created.setContentProtection(true)
+  created.on('closed', () => {
+    if (windows.get(widget) !== created) return
+    windows.delete(widget)
     if (editing) setEditing(false)
   })
   apply()
 }
 
-export function closeWindow(): void {
-  if (win && !win.isDestroyed()) win.close()
-  win = null
+export function closeWindows(): void {
+  for (const win of windows.values()) if (!win.isDestroyed()) win.close()
+  windows.clear()
 }
 
 /** Called when the app's own window gains or loses focus. */

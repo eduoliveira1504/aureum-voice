@@ -16,7 +16,8 @@ import {
 } from 'electron'
 
 import appIcon from '../../build/icon.ico?asset'
-import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefs, ShareSource, TrayCommand } from '../shared/types'
+import { isOverlayWidget } from '../shared/overlayWidgets'
+import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefsPatch, OverlayWidget, ShareSource, TrayCommand } from '../shared/types'
 import { currentApiUrl } from './apiUrl'
 import * as attachmentCache from './attachmentCache'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
@@ -182,13 +183,17 @@ handle('games:current', currentGame)
 const syncOverlayGames = async (): Promise<void> => overlay.setGames(await knownGames(), currentGame())
 const CORNERS = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
 handle('overlay:get-state', overlay.getState)
-handle('overlay:set-prefs', (patch: Partial<OverlayPrefs>) => overlay.setPrefs(patch))
+handle('overlay:set-prefs', (patch: OverlayPrefsPatch) => overlay.setPrefs(patch))
 handle('overlay:set-editing', (editing: unknown) => overlay.setEditing(editing === true))
 handle('overlay:set-active', (active: unknown) => overlay.setActive(active === true))
-handle('overlay:set-bounds', overlay.setBounds)
-handle('overlay:snap', (corner: unknown) => {
+const widgetOf = (widget: unknown): OverlayWidget => {
+  if (!isOverlayWidget(widget)) throw new Error('Invalid widget')
+  return widget
+}
+handle('overlay:set-bounds', (widget: unknown, bounds: unknown) => overlay.setBounds(widgetOf(widget), bounds))
+handle('overlay:snap', (widget: unknown, corner: unknown) => {
   if (typeof corner !== 'string' || !CORNERS.has(corner)) throw new Error('Invalid corner')
-  return overlay.snap(corner as OverlayCorner)
+  return overlay.snap(widgetOf(widget), corner as OverlayCorner)
 })
 // Push-to-talk (see pushToTalk.ts): only while the window asks for it.
 handle('ptt:watch', (key: unknown) => {
@@ -309,13 +314,14 @@ function createWindow(): void {
   mainWindow.on('focus', () => overlay.setMainFocused(true))
   mainWindow.on('blur', () => overlay.setMainFocused(false))
   mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
-    if (overlay.isOverlayFrame(frameName)) overlay.attachWindow(created)
+    const widget = overlay.widgetOfFrame(frameName)
+    if (widget) overlay.attachWindow(widget, created)
   })
   mainWindow.on('closed', () => {
     mainWindow = null
     watchPushToTalk(null, () => {})
     // Not a child window (it would minimize along with the app), so close it by hand.
-    overlay.closeWindow()
+    overlay.closeWindows()
   })
 
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
@@ -339,8 +345,8 @@ app.on('web-contents-created', (_, contents) => {
     if (!(devUrl && url.startsWith(devUrl))) event.preventDefault()
   })
   contents.setWindowOpenHandler(({ url, frameName }) => {
-    // The app's window opens the overlay as a blank page and renders into it itself.
-    if (contents === mainWindow?.webContents && overlay.isOverlayFrame(frameName) && url === 'about:blank') {
+    // The app's window opens each overlay widget as a blank page and renders into it itself.
+    if (contents === mainWindow?.webContents && overlay.widgetOfFrame(frameName) && url === 'about:blank') {
       return { action: 'allow', overrideBrowserWindowOptions: overlay.OVERLAY_WINDOW_OPTIONS }
     }
     if (url.startsWith('https://')) shell.openExternal(url)

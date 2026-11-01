@@ -1,50 +1,31 @@
-import { LucideProvider, HeadphoneOff, MicOff, MoveDiagonal2 } from 'lucide-react'
+import { LucideProvider, MoveDiagonal2 } from 'lucide-react'
 import { RemoteVideoTrack, type ElementInfo, type Track } from 'livekit-client'
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { Me } from '../lib/api'
-import type { OverlayBounds, OverlaySize } from '../../../shared/types'
+import { DEFAULT_WIDGETS, splitPeople } from '../../../shared/overlayWidgets'
+import type { OverlayBounds, OverlayWidget, OverlayWidgets } from '../../../shared/types'
 import { useOverlay } from '../store/overlay'
 import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
-import { Avatar, TileRing } from './ui'
+import { CameraCard, CameraTiles, PersonRow, SCALE, type Person } from './OverlayWidgets'
 
-/** Prefix of the popup's name; the main process lets only `aureum-overlay-<n>` through (isOverlayFrame). */
+/** Prefix of a widget window's name; the main process lets only `aureum-overlay-<widget>-<n>` through (widgetOfFrame). */
 const FRAME_NAME = 'aureum-overlay'
-const SCALE: Record<OverlaySize, number> = { small: 0.8, medium: 1, large: 1.3 }
 /** "Only who's speaking" keeps a person up this long after they stop, so pauses don't flicker. */
 const SPEAKING_HOLD_MS = 1500
 
-/**
- * Opens the in-game overlay window while it has something to show, and renders into it.
- *
- * It's a popup of this window (window.open), so it lives in this same process: it reads the
- * same stores and plays the call's video tracks directly, without a second LiveKit connection
- * (which would count twice against the media quota). The main process owns the window itself
- * (always on top, click-through, hidden while this app is focused).
- */
-export function OverlayHost({ me }: { me: Me }): ReactNode {
-  const state = useOverlay((s) => s.state)
-  const phase = useVoice((s) => s.phase)
-  const inCall = phase === 'connected' || phase === 'reconnecting'
-  const editing = state?.editing ?? false
-  const notice = state?.notice ?? null
-  const ask = state?.ask ?? null
-  const wanted = !!state?.prefs.enabled && (inCall || editing || notice !== null)
+/** Opens a widget's window while it has something to show; null while it's closed. */
+function useWidgetWindow(widget: OverlayWidget, wanted: boolean): Window | null {
   const [popup, setPopup] = useState<Window | null>(null)
   // Bumped when the window is closed from outside, to open a new one if it's still wanted.
   const [reopen, setReopen] = useState(0)
 
   useEffect(() => {
-    void window.aureum.overlay.setActive(inCall)
-  }, [inCall])
-  useEffect(() => () => void window.aureum.overlay.setActive(false), [])
-
-  useEffect(() => {
     if (!wanted) return
     // A unique name, so a window still closing is never reused.
-    const child = window.open('about:blank', `${FRAME_NAME}-${Date.now()}`)
+    const child = window.open('about:blank', `${FRAME_NAME}-${widget}-${Date.now()}`)
     if (!child) return
     const stopSync = prepareDocument(child.document)
     setPopup(child)
@@ -61,14 +42,57 @@ export function OverlayHost({ me }: { me: Me }): ReactNode {
       child.close()
       setPopup((p) => (p === child ? null : p))
     }
-  }, [wanted, reopen])
+  }, [widget, wanted, reopen])
 
-  if (!popup || !state) return null
-  return createPortal(
+  return popup
+}
+
+/**
+ * Opens the in-game overlay's widgets, one window each, and renders into them.
+ *
+ * They're popups of this window (window.open), so they live in this same process: they read the
+ * same stores and play the call's video tracks directly, without a second LiveKit connection
+ * (which would count twice against the media quota). The main process owns the windows themselves
+ * (always on top, click-through, hidden while this app is focused).
+ */
+export function OverlayHost({ me }: { me: Me }): ReactNode {
+  const state = useOverlay((s) => s.state)
+  const phase = useVoice((s) => s.phase)
+  const inCall = phase === 'connected' || phase === 'reconnecting'
+  const editing = state?.editing ?? false
+  const notice = state?.notice ?? null
+  const ask = state?.ask ?? null
+  const enabled = !!state?.prefs.enabled
+  const widgets = state?.prefs.widgets ?? DEFAULT_WIDGETS
+  const { voice, cameras, preview } = usePeople(me, editing, widgets)
+
+  useEffect(() => {
+    void window.aureum.overlay.setActive(inCall)
+  }, [inCall])
+  useEffect(() => () => void window.aureum.overlay.setActive(false), [])
+
+  // The voice window also carries the shortcut's messages and the question, with the widget off too.
+  const voicePopup = useWidgetWindow('voice', enabled && ((widgets.voice.enabled && (inCall || editing)) || notice !== null || ask !== null))
+  // Only while someone has a camera on.
+  const camerasPopup = useWidgetWindow('cameras', enabled && widgets.cameras.enabled && (cameras.length > 0 || editing))
+
+  return (
     <LucideProvider strokeWidth={1.8}>
-      <OverlayView me={me} popup={popup} editing={editing} notice={notice} ask={ask} />
-    </LucideProvider>,
-    popup.document.body
+      {voicePopup &&
+        createPortal(
+          <VoiceWidget
+            popup={voicePopup}
+            editing={editing && widgets.voice.enabled}
+            people={widgets.voice.enabled ? voice : []}
+            preview={preview}
+            notice={notice}
+            ask={ask}
+          />,
+          voicePopup.document.body
+        )}
+      {camerasPopup &&
+        createPortal(<CamerasWidget popup={camerasPopup} editing={editing} people={cameras} meId={me.id} />, camerasPopup.document.body)}
+    </LucideProvider>
   )
 }
 
@@ -104,18 +128,17 @@ function prepareDocument(doc: Document): () => void {
   }
 }
 
-interface Person {
-  id: string
-  name: string
-  avatarUrl: string | null | undefined
-  speaking: boolean
-  muted: boolean
-  deafened: boolean
+interface CallPerson extends Person {
   camera: Track | undefined
 }
 
-/** People to show: everyone in the call, or a sample while placing the overlay outside a call. */
-function usePeople(me: Me, editing: boolean, onlySpeaking: boolean, showCameras: boolean): { people: Person[]; preview: boolean } {
+const SAMPLE_CAMERA: CallPerson = { id: 'preview-camera', name: 'Exemplo', avatarUrl: null, speaking: false, muted: false, deafened: false, camera: undefined }
+
+/**
+ * Who each widget shows: everyone in the call goes to the voice list or, with a camera on, to the
+ * cameras; a sample while placing the widgets with nobody there.
+ */
+function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: Person[]; cameras: CallPerson[]; preview: boolean } {
   useVoice((s) => s.version) // re-read the room on participant/track changes
   const speaking = useVoice((s) => s.speaking)
   const ownMuted = useVoice((s) => s.muted || !s.allowed.mic)
@@ -123,6 +146,7 @@ function usePeople(me: Me, editing: boolean, onlySpeaking: boolean, showCameras:
   const info = useCallContext(me.id)
   const lastSpoke = useRef(new Map<string, number>())
   const [, setTick] = useState(0)
+  const onlySpeaking = widgets.voice.onlySpeaking
 
   const now = Date.now()
   for (const id of speaking) lastSpoke.current.set(id, now)
@@ -139,17 +163,18 @@ function usePeople(me: Me, editing: boolean, onlySpeaking: boolean, showCameras:
   }, [nextDrop])
 
   if (!info) {
-    if (!editing) return { preview: false, people: [] }
+    if (!editing) return { preview: false, voice: [], cameras: [] }
     return {
       preview: true,
-      people: [
-        { id: me.id, name: me.display_name, avatarUrl: me.avatar_url, speaking: true, muted: false, deafened: false, camera: undefined },
-        { id: 'preview', name: 'Exemplo', avatarUrl: null, speaking: false, muted: true, deafened: false, camera: undefined }
-      ]
+      voice: [
+        { id: me.id, name: me.display_name, avatarUrl: me.avatar_url, speaking: true, muted: false, deafened: false },
+        { id: 'preview', name: 'Exemplo', avatarUrl: null, speaking: false, muted: true, deafened: false }
+      ],
+      cameras: [SAMPLE_CAMERA]
     }
   }
 
-  const people = roomIdentities().map((id): Person => {
+  const people = roomIdentities().map((id): CallPerson => {
     const isMe = id === me.id
     const voice = info.present.find((v) => v.user_id === id)
     const user = isMe ? me : info.people.get(id)
@@ -160,10 +185,15 @@ function usePeople(me: Me, editing: boolean, onlySpeaking: boolean, showCameras:
       speaking: speaking.includes(id),
       muted: isMe ? ownMuted : !!(voice?.muted || voice?.server_muted),
       deafened: isMe ? ownDeafened : !!voice?.deafened,
-      camera: showCameras ? cameraTrackOf(id) : undefined
+      camera: cameraTrackOf(id)
     }
   })
-  return { preview: false, people: onlySpeaking ? people.filter((p) => p.speaking || recentlySpoke(p.id)) : people }
+  const { voice, cameras } = splitPeople(people, widgets.cameras.enabled)
+  return {
+    preview: false,
+    voice: onlySpeaking ? voice.filter((p) => p.speaking || recentlySpoke(p.id)) : voice,
+    cameras: cameras.length || !editing ? cameras : [SAMPLE_CAMERA]
+  }
 }
 
 /** Which screen corner the box is nearest to: content hugs that side, so it grows away from it. */
@@ -175,26 +205,28 @@ function anchorOf(popup: Window): { right: boolean; bottom: boolean } {
   }
 }
 
-function OverlayView({
-  me,
+const WIDGET_NAME: Record<OverlayWidget, string> = { voice: 'Voz', cameras: 'Câmeras', notifications: 'Notificações' }
+
+/** A widget's box: content hugs the nearest screen corner, and edit mode moves and resizes it. */
+function WidgetBox({
+  widget,
   popup,
   editing,
-  notice,
-  ask
+  outside,
+  children
 }: {
-  me: Me
+  widget: OverlayWidget
   popup: Window
   editing: boolean
-  notice: string | null
-  ask: string | null
+  /** Over the widget, not part of it: its opacity doesn't apply. */
+  outside?: ReactNode
+  children: ReactNode
 }): ReactNode {
-  const prefs = useOverlay((s) => s.state!.prefs)
-  const { people, preview } = usePeople(me, editing, prefs.onlySpeaking, prefs.showCameras)
+  const prefs = useOverlay((s) => s.state!.prefs.widgets[widget])
   const [, setMoved] = useState(0)
-  const scale = SCALE[prefs.size]
   const anchor = anchorOf(popup)
 
-  // Esc / Enter end edit mode (the overlay has the focus while editing).
+  // Esc / Enter end edit mode (one of the widgets has the focus while editing).
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent): void => {
@@ -227,7 +259,7 @@ function OverlayView({
         if (!frame) {
           frame = popup.requestAnimationFrame(() => {
             frame = 0
-            void window.aureum.overlay.setBounds(latest)
+            void window.aureum.overlay.setBounds(widget, latest)
           })
         }
       }
@@ -236,7 +268,7 @@ function OverlayView({
         el.removeEventListener('pointerup', up)
         el.removeEventListener('pointercancel', up)
         if (frame) popup.cancelAnimationFrame(frame)
-        void window.aureum.overlay.setBounds(latest).then(() => setMoved((n) => n + 1))
+        void window.aureum.overlay.setBounds(widget, latest).then(() => setMoved((n) => n + 1))
       }
       el.addEventListener('pointermove', move)
       el.addEventListener('pointerup', up)
@@ -249,15 +281,13 @@ function OverlayView({
       className={`relative flex h-full w-full touch-none select-none flex-col gap-1.5 overflow-hidden p-2 ${
         anchor.right ? 'items-end' : 'items-start'
       } ${anchor.bottom ? 'justify-end' : 'justify-start'} ${
-        editing ? 'cursor-move rounded-panel border-2 border-dashed border-accent bg-scrim/50' : ''
+        editing ? 'cursor-move rounded-panel border-2 border-dashed border-accent bg-scrim/50 pt-11' : ''
       }`}
-      style={{ fontSize: 14 * scale }}
+      style={{ fontSize: 14 * SCALE[prefs.size] }}
     >
       {editing && (
         <div className="pointer-events-auto absolute inset-x-2 top-2 z-10 flex items-center gap-2 rounded-control bg-panel/95 px-2.5 py-1.5 text-xs text-fg shadow-lg">
-          <span className="min-w-0 flex-1 truncate">
-            {preview ? 'Prévia · ' : ''}Arraste para mover · Esc para concluir
-          </span>
+          <span className="min-w-0 flex-1 truncate font-semibold">{WIDGET_NAME[widget]}</span>
           <button
             type="button"
             onClick={() => void window.aureum.overlay.setEditing(false)}
@@ -268,16 +298,10 @@ function OverlayView({
         </div>
       )}
 
-      {notice && !editing && (
-        <div role="status" className="max-w-full rounded-control bg-panel/95 px-3 py-1.5 text-[0.85em] font-medium text-fg shadow-lg">
-          {notice}
-        </div>
-      )}
+      {outside}
 
-      {ask && !editing && <AskIfGame app={ask} />}
-
-      <div className={`flex flex-col gap-1.5 ${anchor.right ? 'items-end' : 'items-start'}`} style={{ opacity: prefs.opacity / 100 }}>
-        {people.map((p) => (p.camera ? <CameraCard key={p.id} person={p} mirror={p.id === me.id} scale={scale} /> : <PersonRow key={p.id} person={p} scale={scale} />))}
+      <div className="max-h-full max-w-full" style={{ opacity: prefs.opacity / 100 }}>
+        {children}
       </div>
 
       {editing && (
@@ -291,6 +315,64 @@ function OverlayView({
         </span>
       )}
     </div>
+  )
+}
+
+function VoiceWidget({
+  popup,
+  editing,
+  people,
+  preview,
+  notice,
+  ask
+}: {
+  popup: Window
+  editing: boolean
+  people: Person[]
+  preview: boolean
+  notice: string | null
+  ask: string | null
+}): ReactNode {
+  const size = useOverlay((s) => s.state!.prefs.widgets.voice.size)
+  const anchor = anchorOf(popup)
+  return (
+    <WidgetBox
+      widget="voice"
+      popup={popup}
+      editing={editing}
+      outside={
+        <>
+          {preview && editing && <span className="rounded-item bg-panel/95 px-2 text-xs text-fg-muted">Prévia · Esc para concluir</span>}
+          {notice && !editing && (
+            <div role="status" className="max-w-full rounded-control bg-panel/95 px-3 py-1.5 text-[0.85em] font-medium text-fg shadow-lg">
+              {notice}
+            </div>
+          )}
+          {ask && !editing && <AskIfGame app={ask} />}
+        </>
+      }
+    >
+      <div className={`flex flex-col gap-1.5 ${anchor.right ? 'items-end' : 'items-start'}`}>
+        {people.map((p) => (
+          <PersonRow key={p.id} person={p} scale={SCALE[size]} />
+        ))}
+      </div>
+    </WidgetBox>
+  )
+}
+
+function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editing: boolean; people: CallPerson[]; meId: string }): ReactNode {
+  const { size, layout } = useOverlay((s) => s.state!.prefs.widgets.cameras)
+  return (
+    <WidgetBox widget="cameras" popup={popup} editing={editing}>
+      <CameraTiles layout={layout}>
+        {people.map((p) => (
+          <CameraCard key={p.id} person={p} scale={SCALE[size]}>
+            {p.camera && <OverlayVideo track={p.camera} mirror={p.id === meId} />}
+          </CameraCard>
+        ))}
+      </CameraTiles>
+    </WidgetBox>
   )
 }
 
@@ -327,42 +409,6 @@ function AskIfGame({ app }: { app: string }): ReactNode {
           Não é jogo
         </button>
       </div>
-    </div>
-  )
-}
-
-function StateIcons({ person }: { person: Person }): ReactNode {
-  return (
-    <>
-      {person.muted && <MicOff size="1.1em" className="shrink-0 text-danger" aria-label="Microfone desligado" />}
-      {person.deafened && <HeadphoneOff size="1.1em" className="shrink-0 text-danger" aria-label="Áudio desligado" />}
-    </>
-  )
-}
-
-function PersonRow({ person, scale }: { person: Person; scale: number }): ReactNode {
-  return (
-    <div className="flex max-w-full items-center gap-[0.5em] rounded-full bg-scrim/75 py-[0.25em] pl-[0.25em] pr-[0.85em] text-on-scrim shadow">
-      {/* The padding holds the ring around the picture (letter avatars are the accent color too). */}
-      <span className="relative shrink-0 rounded-full p-[3px]">
-        <Avatar name={person.name} url={person.avatarUrl} size={Math.round(30 * scale)} />
-        <TileRing on={person.speaking} />
-      </span>
-      <span className="min-w-0 truncate font-semibold">{person.name}</span>
-      <StateIcons person={person} />
-    </div>
-  )
-}
-
-function CameraCard({ person, mirror, scale }: { person: Person; mirror: boolean; scale: number }): ReactNode {
-  return (
-    <div className="relative aspect-video shrink-0 overflow-hidden rounded-control bg-scrim shadow" style={{ width: 176 * scale }}>
-      <OverlayVideo track={person.camera!} mirror={mirror} />
-      <span className="absolute bottom-1 left-1 flex max-w-[calc(100%-0.5rem)] items-center gap-1 rounded-item bg-scrim/70 px-1.5 text-[0.8em] text-on-scrim">
-        <span className="truncate">{person.name}</span>
-        <StateIcons person={person} />
-      </span>
-      <TileRing on={person.speaking} />
     </div>
   )
 }

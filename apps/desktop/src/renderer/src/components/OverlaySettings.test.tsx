@@ -3,17 +3,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { OverlayPrefs, OverlayState } from '../../../shared/types'
+import { DEFAULT_WIDGETS } from '../../../shared/overlayWidgets'
+import type { OverlayPrefs, OverlayPrefsPatch, OverlayState } from '../../../shared/types'
 
 const PREFS: OverlayPrefs = {
   enabled: true,
   toggleShortcut: 'Control+Shift+F9',
   editShortcut: 'Control+Shift+F10',
-  bounds: null,
-  size: 'medium',
-  opacity: 100,
-  showCameras: true,
-  onlySpeaking: false,
+  widgets: DEFAULT_WIDGETS,
   hiddenApps: ['r5apex'],
   games: ['myindiegame'],
   notGames: []
@@ -33,7 +30,7 @@ describe('overlay games', () => {
   beforeEach(() => {
     useOverlay.setState({ state: state(PREFS) })
     bridge.setPrefs.mockClear()
-    bridge.setPrefs.mockImplementation(async (patch: Partial<OverlayPrefs>) => state({ ...PREFS, ...patch }))
+    bridge.setPrefs.mockImplementation(async (patch: OverlayPrefsPatch) => state({ ...PREFS, ...patch } as OverlayPrefs))
     window.aureum.games.known = async () => [
       { name: 'Apex Legends', exe: ['r5apex.exe', 'r5apex_dx12.exe'] },
       { name: 'League of Legends', exe: ['League of Legends.exe'] }
@@ -89,5 +86,34 @@ describe('overlay games', () => {
     const row = screen.getByText('League of Legends').closest('li')!
     fireEvent.click(row.querySelector('button')!)
     await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ hiddenApps: ['r5apex', 'league of legends'] }))
+  })
+})
+
+describe('overlay widgets', () => {
+  beforeEach(() => {
+    useOverlay.setState({ state: state(PREFS) })
+    bridge.setPrefs.mockClear()
+    bridge.setPrefs.mockResolvedValue(state(PREFS))
+  })
+
+  it('turns one widget off without touching the others', async () => {
+    render(<OverlaySettings />)
+    const toggle = screen.getByText('Câmeras').closest('label')!.querySelector('input')!
+    fireEvent.click(toggle)
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { enabled: false } } }))
+  })
+
+  it('picks the layout of the cameras', async () => {
+    render(<OverlaySettings />)
+    fireEvent.click(screen.getByText('Horizontal'))
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { layout: 'horizontal' } } }))
+  })
+
+  it('has no way into edit mode with every widget off', () => {
+    const widgets = structuredClone(DEFAULT_WIDGETS)
+    widgets.voice.enabled = widgets.cameras.enabled = widgets.notifications.enabled = false
+    useOverlay.setState({ state: state({ ...PREFS, widgets }) })
+    render(<OverlaySettings />)
+    expect((screen.getByRole('button', { name: 'Editar posição e tamanho' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
