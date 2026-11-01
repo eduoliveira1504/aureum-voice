@@ -122,6 +122,9 @@ Replaced in block 3.6 by "only over games" (0024): the exceptions moved to
 - "Only who's speaking" keeps a person up for 1.5 s after they stop, so they don't flicker between
   sentences.
 
+Block 3.14 replaced the single box with three widgets, with their preferences and positions per
+monitor, and the check of the program in front now also runs while a notification is up (0040).
+
 ## Consequences
 
 - No API change and no migration.

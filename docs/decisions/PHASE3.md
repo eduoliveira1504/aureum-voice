@@ -20,7 +20,8 @@ Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas en
 3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
 3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
 3.13 pronto no código (mudança na API, sem migração: subir antes do app; escolhas em 0038 e 0039).
-Próximo: 3.14 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.16. 3.17 só com spec do Eduardo.
+3.14 pronto no código, sem mudança na API (escolhas em 0040-overlay-widgets.md); teste manual pendente.
+Próximo: 3.16 (a parte C do 3.19 volta quando chegarem os relatórios). 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -817,7 +818,34 @@ redistribui; maximizar e voltar; janela pequena vira abas e volta; call em paine
 janelinha; layout salvo e restaurado por servidor; layout antigo de 2 painéis preservado;
 reordenar abas; uma barra de membros só, em qualquer número de painéis.
 
-## 3.14 Overlay novo: widgets separados
+## 3.14 Overlay novo: widgets separados ✅ concluído (falta teste manual)
+Escolhas em [ADR 0040](0040-overlay-widgets.md). Sem mudança na API e sem migração: o overlay.json
+antigo vira o widget de voz sozinho. Decidido durante o bloco: uma janela por widget; o overlay vai
+para o monitor do jogo; notificações também aparecem fora de call (sobre jogos), e por isso o programa
+em primeiro plano também é conferido enquanto uma notificação está na tela.
+
+### Teste manual do 3.14 (dois PCs ou duas contas; jogo em janela sem borda)
+1. Quem já usava o overlay: depois de atualizar, a lista de voz continua no mesmo lugar e com o mesmo
+   tamanho e opacidade; quem tinha "Mostrar câmeras" desligado continua sem o widget de câmeras.
+2. Câmera: a outra conta liga a câmera e sai da lista de voz para o widget de câmeras; desliga e
+   volta. Sem ninguém com câmera, o widget não aparece.
+3. Horizontal/vertical e tamanho dos tiles, em Configurações e no widget.
+4. Ctrl+Shift+F10: os 3 widgets aparecem com moldura; arrastar e redimensionar cada um; Esc termina.
+   Reabrir o app: as posições continuam.
+5. Dois monitores: o jogo no outro monitor leva os widgets junto; posicionar lá; voltar para o primeiro
+   monitor: cada um guarda a sua posição.
+6. Em jogo, numa call: DM, menção e entrar/sair da call aparecem e somem em ~5 s. Fora de call: DM,
+   menção e chamada recebendo aparecem por cima do jogo. Nada aparece sobre navegador ou launcher, com
+   o app em primeiro plano ou em Não perturbe.
+7. "Esconder o conteúdo": só "@fulano te mandou mensagem".
+8. Desligar cada widget: ele não aparece, nem no modo edição. Todos desligados: nada aparece e o
+   "Editar posição e tamanho" fica desabilitado.
+9. Sem mudança do que já existia: clique passa pro jogo, Ctrl+Shift+F9 esconde tudo, "Isso é um jogo?"
+   aparece e responde (inclusive com o widget de voz desligado), e nada aparece ao transmitir a tela.
+10. Abrir o app pelo login do Windows (minimizado na bandeja), ir para um jogo e receber uma DM: a
+    notificação aparece.
+
+### Spec original
 - O overlay vira até 3 widgets independentes, cada um com posição, tamanho e opacidade
   próprios (modo edição: arrastar e redimensionar cada um; posições salvas por monitor):
   1. Voz: quem está na call, anel em quem fala, mudo/ensurdecido. Opção "só quem está
