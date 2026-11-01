@@ -3,7 +3,7 @@
 import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Me, PanelLayout, ServerDetail } from '../lib/api'
+import type { Me, PanelLayout, PanelSplit, ServerDetail } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { layoutOf, treeOf, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
@@ -240,6 +240,23 @@ describe('small windows', () => {
     expect(region(3)).toBeTruthy()
     expect(within(region(3)).getByRole('tab', { name: 'c-2' }).getAttribute('aria-selected')).toBe('true')
     expect(useNav.getState().shownPanels[SID]).toEqual([2, 1])
+  })
+
+  it('adjusts a saved ratio on screen and leaves it saved', () => {
+    show({ panels: [panel('overview'), panel('channel:c-1')], split: 0.2, tree: { dir: 'row', ratio: 0.1, a: 0, b: 1 } })
+    windowOf(1000, 600)
+    const divider = screen.getByRole('separator', { name: 'Redimensionar painéis' })
+    // 320px of 992 available, not the saved 10%.
+    expect(divider.style.left).toContain(`${(320 / 992) * 100}`.slice(0, 5))
+    expect(treeOf(layoutOf(SID))).toMatchObject({ ratio: 0.1 })
+  })
+
+  it('saves a divider in its place in the full tree while panels are folded', () => {
+    show(FOUR)
+    windowOf(1000, 300)
+    fireEvent.doubleClick(screen.getByRole('separator', { name: 'Redimensionar painéis' }))
+    expect(treeOf(layoutOf(SID))).toMatchObject({ a: { ratio: 0.5 }, b: { ratio: 0.5 } })
+    expect((treeOf(layoutOf(SID)) as PanelSplit).dir).toBe('row')
   })
 
   it('reports what is on screen, for the floating call', () => {

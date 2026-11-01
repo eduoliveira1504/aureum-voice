@@ -6,8 +6,10 @@ import {
   dropEdge,
   evenRatio,
   fitPanels,
+  fitRatios,
   leaves,
   matches,
+  MIN_PANEL,
   minSize,
   nodeAt,
   pathBetween,
@@ -136,6 +138,45 @@ describe('fitting a small window', () => {
 
   it('leaves the panels on screen where they were', () => {
     expect(fitPanels(row(0, col(1, 2)), 700, 300)).toEqual({ tree: row(0, 1), folded: { 1: [2] } })
+  })
+})
+
+describe('ratios in a small window', () => {
+  const widths = (tree: Parameters<typeof placePanels>[0], area: number): number[] =>
+    placePanels(tree).panels.map((p) => Math.round(pixels(p.box.w, area)))
+
+  it('leaves ratios that respect the minimum', () => {
+    const tree = row(0, 1, 0.4)
+    expect(fitRatios(tree, 1000, 600)).toEqual(tree)
+  })
+
+  it('raises a side under the minimum', () => {
+    expect(widths(fitRatios(row(0, 1, 0.1), 1000, 600), 1000)).toEqual([320, 672])
+    expect(widths(fitRatios(row(0, 1, 0.9), 1000, 600), 1000)).toEqual([672, 320])
+  })
+
+  it('handles the height the same way', () => {
+    const { panels } = placePanels(fitRatios(col(0, 1, 0.05), 800, 600))
+    expect(Math.round(pixels(panels[0].box.h, 600))).toBe(240)
+  })
+
+  it('reaches nested divisions, with the size they ended up with', () => {
+    const tree = fitRatios(row(0, row(1, 2, 0.1), 0.1), 1100, 600)
+    expect(widths(tree, 1100).every((w) => w >= 320)).toBe(true)
+  })
+
+  it('holds for what fitPanels leaves, at any size', () => {
+    const grid = row(col(0, 2, 0.1), col(1, 3, 0.9), 0.15)
+    for (const width of [400, 660, 700, 1000, 1400]) {
+      for (const height of [250, 500, 700]) {
+        const fitted = fitPanels(grid, width, height)
+        const { panels } = placePanels(fitRatios(fitted.tree, width, height))
+        for (const { box } of panels) {
+          expect(pixels(box.w, width)).toBeGreaterThanOrEqual(MIN_PANEL.width - 0.001)
+          expect(pixels(box.h, height)).toBeGreaterThanOrEqual(MIN_PANEL.height - 0.001)
+        }
+      }
+    }
   })
 })
 

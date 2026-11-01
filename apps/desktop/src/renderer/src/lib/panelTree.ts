@@ -195,7 +195,24 @@ export function fitPanels(tree: PanelNode, width: number, height: number): { tre
   return { tree: node, folded }
 }
 
-/** Keeps a dragged divider from squeezing either side below its minimum. */
+/** A tree that already fits the size, with its ratios adjusted so no panel is under the minimum.
+ * For the screen only: the saved ratios are back in force when there's room for them. */
+export function fitRatios(node: PanelNode, width: number, height: number): PanelNode {
+  if (typeof node === 'number') return node
+  const row = node.dir === 'row'
+  const size = row ? width : height
+  const ratio = clampRatio(node, node.ratio, size)
+  const first = (size - PANEL_GAP) * ratio
+  const second = size - PANEL_GAP - first
+  return {
+    ...node,
+    ratio,
+    a: fitRatios(node.a, row ? first : width, row ? height : first),
+    b: fitRatios(node.b, row ? second : width, row ? height : second)
+  }
+}
+
+/** Keeps a divider from squeezing either side below its minimum. */
 export function clampRatio(split: PanelSplit, ratio: number, size: number): number {
   const room = size - PANEL_GAP
   const low = Math.max(0.1, minSize(split.a, split.dir) / room)

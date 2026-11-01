@@ -7,6 +7,7 @@ import {
   clampRatio,
   dropEdge,
   fitPanels,
+  fitRatios,
   leaves,
   PANEL_GAP,
   pathBetween,
@@ -114,7 +115,8 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
   const fitted = useMemo(() => {
     const full = treeOf(layout)
     if (narrow || maximized !== null || !size) return { tree: narrow ? focused : (maximized ?? full), folded: {} as Record<number, number[]> }
-    return fitPanels(full, size.width, size.height)
+    const { tree: rest, folded: over } = fitPanels(full, size.width, size.height)
+    return { tree: fitRatios(rest, size.width, size.height), folded: over }
   }, [layout, narrow, focused, maximized, size])
   const { tree: fittedTree, folded } = fitted
   const [live, setLive] = useState<{ path: TreePath; ratio: number } | null>(null)
