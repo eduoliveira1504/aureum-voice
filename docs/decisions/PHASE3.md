@@ -19,7 +19,8 @@ Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
 3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
 3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
-Próximo: 3.13 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.14 e 3.16. 3.17 só com spec do Eduardo.
+3.13: barra de membros pronta (mudança na API: subir antes do app); falta o resto do bloco.
+Próximo: resto do 3.13 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.14 e 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -774,7 +775,8 @@ Base: painéis do 2.L (hoje até 2, abertos arrastando). Ampliar para até 4, po
 - Ordem salva junto com o layout (por servidor e por usuário).
 - Testes: reordenar no mesmo painel; mover entre painéis na posição solta; ordem restaurada ao reabrir.
 
-### Barra de membros única (fazer ANTES de ampliar para 4 painéis)
+### Barra de membros única (fazer ANTES de ampliar para 4 painéis) ✅ concluída (teste manual pendente)
+Atalho: Ctrl+Shift+U. O botão ficou na direita da barra superior. Escolhas em 0038-single-member-bar.md.
 - Problema: hoje o "Membros" fica no cabeçalho de cada painel e o aberto/fechado é guardado por aba
   (panel_layouts[...].members), então com 2+ painéis a lista aparece repetida.
 - Passa a existir UMA barra de membros por servidor, na direita da área do servidor, fora dos

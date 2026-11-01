@@ -32,7 +32,7 @@ Two practical gaps showed up along the way:
   server id, so each server keeps its own pattern. It's SVG with no stored image, and it follows the
   accent live. An uploaded banner replaces it.
 
-**Member list per tab**
+**Member list per tab** (replaced by one bar per server, see 0038)
 - `PanelLayout` gets `members`, the tabs that show the member list. It's stored with the rest of the
   server's layout in `panel_layouts`, so no migration is needed and it syncs like the panels. The
   list follows the focused panel's active tab. The overview never shows it, nor the button. Tabs that
