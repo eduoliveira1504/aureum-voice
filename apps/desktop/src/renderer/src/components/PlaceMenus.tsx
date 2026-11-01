@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Copy, FolderPlus, Hash, Link, LogOut, Pencil, Puzzle, Settings, Shield, SlidersHorizontal, Trash2, UserPlus, Volume2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Columns2, Copy, FolderPlus, Hash, Link, LogOut, Pencil, Puzzle, Settings, Shield, SlidersHorizontal, Trash2, UserPlus, Volume2, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Category, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
@@ -6,7 +6,7 @@ import { channelGroups } from '../lib/channelOrder'
 import { basePermissions, channelActions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
-import { useNav } from '../store/nav'
+import { channelTab, useNav } from '../store/nav'
 import { CategoryNameModal, CategoryPermissionsModal } from './CategoryModals'
 import { ChannelSettingsModal } from './ChannelSettings'
 import { CheckItem, copy, Item, Label, Separator, showDialog, toast } from './ContextMenu'
@@ -144,6 +144,7 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
         <Item icon={CheckCheck} label="Marcar como lido" onClick={() => useChat.getState().markRead(channel.id, true)} />
       ) : null}
       {text && <CheckItem label="Silenciar canal" checked={muted} onChange={() => toggleMuted(channel.id)} />}
+      <Item icon={Columns2} label="Abrir em novo painel" onClick={() => useNav.getState().openTab(server.id, channelTab(channel.id), true)} />
       {canSettings && (
         <Item
           icon={SlidersHorizontal}

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 
-import type { Panel, PanelLayout, PanelTab } from '../lib/api'
+import { toast } from '../components/ContextMenu'
+import type { Panel, PanelLayout, PanelNode, PanelTab } from '../lib/api'
+import { evenRatio, matches, nodeAt, removePanel, rowOf, setRatio, splitPanel, type Edge, type TreePath } from '../lib/panelTree'
 import { useAppearance } from './appearance'
 import { useVoice } from './voice'
 
@@ -15,7 +17,7 @@ export type Place = 'home' | string // 'home' or a server id
 export type HomePage = 'hub' | 'friends' | string
 export type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
-export const MAX_PANELS = 2
+export const MAX_PANELS = 4
 export const DEFAULT_LAYOUT: PanelLayout = { panels: [{ tabs: ['overview'], active: 'overview' }], split: 0.5 }
 
 export type TabRef =
@@ -58,6 +60,25 @@ export function pinOverview(saved: PanelLayout): PanelLayout {
 export function layoutOf(serverId: string): PanelLayout {
   const saved = useAppearance.getState().settings.panel_layouts[serverId]
   return pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT)
+}
+
+/** Where a layout's panels go; panels saved without a tree, or by an older app, sit in a row. */
+export function treeOf(layout: PanelLayout): PanelNode {
+  return layout.tree && matches(layout.tree, layout.panels.length) ? layout.tree : rowOf(layout.panels.length, layout.split)
+}
+
+/** The tab "Dividir" moves to a new panel; none if the panel would be left empty. */
+export function dividableTab(panel: Panel): PanelTab | null {
+  const movable = panel.tabs.filter((t) => t !== 'overview')
+  if (!movable.length || panel.tabs.length === 1) return null
+  return panel.active && movable.includes(panel.active) ? panel.active : movable[movable.length - 1]
+}
+
+/** Sets the tree, and the split older apps read: the root's ratio, within what they accept. */
+function withTree(layout: PanelLayout, tree: PanelNode): PanelLayout {
+  if (typeof tree === 'number') return { ...layout, tree: null }
+  const split = tree.dir === 'row' ? Math.min(0.8, Math.max(0.2, tree.ratio)) : layout.split
+  return { ...layout, tree, split }
 }
 
 /** Whether the server's member bar is open. Until it's chosen, a layout saved when the list was
@@ -130,10 +151,16 @@ interface NavState {
   openTab(serverId: string, tab: PanelTab, side?: boolean): void
   activateTab(serverId: string, panel: number, tab: PanelTab): void
   closeTab(serverId: string, panel: number, tab: PanelTab): void
-  /** Drags a tab into another panel, or to the side to split. */
-  moveTab(serverId: string, from: number, tab: PanelTab, to: number | 'side'): void
+  /**
+   * Drops a tab (moved if it's open, opened if not) in a panel, or on one of the panel's edges to
+   * split it. `index` is its place among the panel's tabs, counted before the tab leaves them.
+   */
+  dropTab(serverId: string, tab: PanelTab, panel: number, edge?: Edge | null, index?: number): void
   closePanel(serverId: string, panel: number): void
-  setSplit(serverId: string, split: number): void
+  /** Moves the divider of the split at `path`. */
+  setPanelRatio(serverId: string, path: TreePath, ratio: number): void
+  /** Gives the panels along the split at `path` the same size. */
+  evenPanels(serverId: string, path: TreePath): void
   focusPanel(serverId: string, panel: number): void
   /** Removes a deleted channel's tab from the server's panels. */
   dropChannelTab(serverId: string, channelId: string): void
@@ -165,10 +192,12 @@ export const useNav = create<NavState>()((set, get) => {
   const setFocused = (serverId: string, panel: number): void =>
     set((s) => ({ focusedPanel: { ...s.focusedPanel, [serverId]: panel } }))
 
-  /** Drops empty panels and keeps the overview pinned. */
-  const tidy = (layout: PanelLayout): PanelLayout => {
+  /** Drops empty panels from the layout and from `tree`, and keeps the overview pinned. */
+  const tidy = (layout: PanelLayout, tree: PanelNode): PanelLayout => {
     const panels = layout.panels.filter((p) => p.tabs.length > 0)
-    return pinOverview(panels.length ? { ...layout, panels } : DEFAULT_LAYOUT)
+    if (!panels.length) return DEFAULT_LAYOUT
+    const fitted = layout.panels.reduceRight((t, p, i) => (p.tabs.length ? t : removePanel(t, i)), tree)
+    return pinOverview(withTree({ ...layout, panels }, fitted))
   }
 
   return {
@@ -224,21 +253,7 @@ export const useNav = create<NavState>()((set, get) => {
       const existing = layout.panels.findIndex((p) => p.tabs.includes(tab))
       if (existing >= 0) return get().activateTab(serverId, existing, tab)
 
-      const target = focused(serverId)
-      const panels = layout.panels.map((p) => ({ ...p, tabs: [...p.tabs] }))
-      let into = target
-      if (side && !get().narrow) {
-        if (panels.length < MAX_PANELS) {
-          panels.push({ tabs: [], active: null })
-          into = panels.length - 1
-        } else {
-          into = target === 0 ? 1 : 0
-        }
-      }
-      panels[into].tabs.push(tab)
-      panels[into].active = tab
-      saveLayout(serverId, { ...layout, panels })
-      setFocused(serverId, into)
+      get().dropTab(serverId, tab, focused(serverId), side ? 'right' : null)
     },
 
     activateTab: (serverId, panel, tab) => {
@@ -252,45 +267,55 @@ export const useNav = create<NavState>()((set, get) => {
     closeTab: (serverId, panel, tab) => {
       if (tab === 'overview') return // pinned
       const layout = layoutOf(serverId)
-      const next = tidy({ ...layout, panels: layout.panels.map((p, i) => (i === panel ? without(p, tab) : p)) })
+      const next = tidy({ ...layout, panels: layout.panels.map((p, i) => (i === panel ? without(p, tab) : p)) }, treeOf(layout))
       saveLayout(serverId, next)
       setFocused(serverId, Math.min(focused(serverId), next.panels.length - 1))
     },
 
-    moveTab: (serverId, from, tab, to) => {
+    dropTab: (serverId, tab, panel, edge = null, index) => {
       if (tab === 'overview') return // pinned
       const layout = layoutOf(serverId)
-      const alone = layout.panels.length === 1 && layout.panels[from].tabs.length === 1
-      if (to === from || (to === 'side' && (get().narrow || alone))) return
-      let panels = layout.panels.map((p, i) => (i === from ? without(p, tab) : p))
-      let into: number
-      if (to === 'side') {
-        if (panels.length < MAX_PANELS) {
-          panels = [...panels, { tabs: [], active: null }]
-          into = panels.length - 1
-        } else {
-          into = from === 0 ? 1 : 0
-        }
-      } else {
-        into = to
+      const from = layout.panels.findIndex((p) => p.tabs.includes(tab))
+      const alone = from >= 0 && layout.panels[from].tabs.length === 1
+      if (edge && alone && from === panel) return // nothing would be left to divide
+      if (!edge && index === undefined && from === panel) return get().activateTab(serverId, panel, tab)
+      // Taking the only tab of a panel frees a place, so a full layout can still be rearranged.
+      const full = layout.panels.length >= MAX_PANELS && !alone
+      if (edge && full && !get().narrow) toast(`Máximo de ${MAX_PANELS} painéis`)
+      const split = !!edge && !full && !get().narrow
+
+      let tree = treeOf(layout)
+      const panels = layout.panels.map((p, i) => (i === from ? without(p, tab) : p))
+      if (split) {
+        tree = splitPanel(tree, panel, edge, panels.length)
+        panels.push({ tabs: [], active: null })
       }
-      panels[into] = { tabs: [...panels[into].tabs, tab], active: tab }
-      // Index of the destination after empty panels are dropped.
-      const emptied = panels[from].tabs.length === 0
-      const next = tidy({ ...layout, panels })
-      saveLayout(serverId, next)
-      setFocused(serverId, emptied && into > from ? into - 1 : into)
+      const into = split ? panels.length - 1 : panel
+      const tabs = [...panels[into].tabs]
+      const before = from === into ? layout.panels[from].tabs.indexOf(tab) : -1
+      const at = index === undefined ? tabs.length : index - (before >= 0 && before < index ? 1 : 0)
+      tabs.splice(at, 0, tab)
+      panels[into] = { tabs, active: tab }
+      saveLayout(serverId, tidy({ ...layout, panels }, tree))
+      // Index of the destination after the emptied panel is dropped.
+      setFocused(serverId, from >= 0 && from < into && panels[from].tabs.length === 0 ? into - 1 : into)
     },
 
     closePanel: (serverId, panel) => {
       const layout = layoutOf(serverId)
-      saveLayout(serverId, tidy({ ...layout, panels: layout.panels.filter((_, i) => i !== panel) }))
+      const tree = removePanel(treeOf(layout), panel)
+      saveLayout(serverId, tidy({ ...layout, panels: layout.panels.filter((_, i) => i !== panel) }, tree))
       setFocused(serverId, 0)
     },
 
-    setSplit: (serverId, split) => {
+    setPanelRatio: (serverId, path, ratio) => {
       const layout = layoutOf(serverId)
-      saveLayout(serverId, { ...layout, split: Math.min(0.8, Math.max(0.2, split)) })
+      saveLayout(serverId, withTree(layout, setRatio(treeOf(layout), path, ratio)))
+    },
+
+    evenPanels: (serverId, path) => {
+      const split = nodeAt(treeOf(layoutOf(serverId)), path)
+      if (typeof split === 'object') get().setPanelRatio(serverId, path, evenRatio(split))
     },
 
     focusPanel: (serverId, panel) => {
@@ -301,7 +326,8 @@ export const useNav = create<NavState>()((set, get) => {
       const layout = useAppearance.getState().settings.panel_layouts[serverId]
       const tab = channelTab(channelId)
       if (!layout?.panels.some((p) => p.tabs.includes(tab))) return
-      saveLayout(serverId, tidy({ ...layout, panels: layout.panels.map((p) => without(p, tab)) }))
+      const next = { ...layout, panels: layout.panels.map((p) => without(p, tab)) }
+      saveLayout(serverId, tidy(next, treeOf(layout)))
     },
 
     toggleMembers: (serverId) => {

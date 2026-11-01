@@ -1,11 +1,12 @@
-import { Columns2, Hash, LayoutDashboard, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Columns2, Hash, LayoutDashboard, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
+import { useMemo, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
-import type { Channel, Me, Panel, PanelTab, ServerDetail } from '../lib/api'
+import type { Channel, Me, Panel, PanelNode, PanelSplit, PanelTab, ServerDetail } from '../lib/api'
+import { clampRatio, dropEdge, type Edge, type TreePath } from '../lib/panelTree'
 import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
-import { DEFAULT_LAYOUT, parseTab, pinOverview, useNav, visiblePanels } from '../store/nav'
+import { DEFAULT_LAYOUT, dividableTab, MAX_PANELS, parseTab, pinOverview, treeOf, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { ServerOverview } from './ServerOverview'
@@ -30,104 +31,117 @@ function readDrag(e: DragEvent): DragPayload | null {
 
 const isPanelDrag = (e: DragEvent): boolean => e.dataTransfer.types.includes(PANEL_DRAG_TYPE)
 
-/** True while a tab or sidebar item is being dragged anywhere in the window. */
-function usePanelDragging(): boolean {
-  const [dragging, setDragging] = useState(false)
-  useEffect(() => {
-    const start = (e: globalThis.DragEvent): void => {
-      if (e.dataTransfer?.types.includes(PANEL_DRAG_TYPE)) setDragging(true)
-    }
-    const end = (): void => setDragging(false)
-    window.addEventListener('dragstart', start)
-    window.addEventListener('dragend', end)
-    window.addEventListener('drop', end)
-    return () => {
-      window.removeEventListener('dragstart', start)
-      window.removeEventListener('dragend', end)
-      window.removeEventListener('drop', end)
-    }
-  }, [])
-  return dragging
+/** Where a drag would land in a panel: on an edge, or in the middle as a tab. */
+type DropZone = Edge | 'center'
+
+const DROP_AREA: Record<DropZone, string> = {
+  left: 'inset-y-0 left-0 w-1/2',
+  right: 'inset-y-0 right-0 w-1/2',
+  top: 'inset-x-0 top-0 h-1/2',
+  bottom: 'inset-x-0 bottom-0 h-1/2',
+  center: 'inset-0'
 }
 
-/** The server's content area: one or two panels side by side, each with its own tabs. */
+/** The server's content area: up to four panels divided by a tree, each with its own tabs. */
 export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const saved = useAppearance((s) => s.settings.panel_layouts[server.id])
   const layout = useMemo(() => pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT), [saved])
   const focused = useNav((s) => Math.min(s.focusedPanel[server.id] ?? 0, layout.panels.length - 1))
   const narrow = useNav((s) => s.narrow)
-  const { openTab, moveTab, setSplit } = useNav.getState()
-  const dragging = usePanelDragging()
-  const [liveSplit, setLiveSplit] = useState<number | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
 
-  const visible = visiblePanels(layout, focused, narrow)
-  const split = liveSplit ?? layout.split
-  const canSplit = !narrow && visible.length === 1
+  const tree = narrow ? focused : treeOf(layout)
+  const several = typeof tree !== 'number'
+  const canDivide = !narrow && layout.panels.length < MAX_PANELS
 
-  const onDividerDown = (e: ReactPointerEvent): void => {
-    const rect = ref.current?.getBoundingClientRect()
-    if (!rect) return
+  const leaf = (index: number, grow: number): ReactNode => (
+    <PanelView
+      key={index}
+      server={server}
+      me={me}
+      index={index}
+      panel={layout.panels[index]}
+      canClose={several}
+      canDivide={canDivide}
+      focused={several && focused === index}
+      grow={grow}
+    />
+  )
+
+  return (
+    <div className="relative flex min-w-0 flex-1 py-2 pr-2">
+      <PanelBranch serverId={server.id} node={tree} path="" grow={1} leaf={leaf} />
+    </div>
+  )
+}
+
+/** One side of a division: a panel, or two sides with a divider between them. */
+function PanelBranch({
+  serverId,
+  node,
+  path,
+  grow,
+  leaf
+}: {
+  serverId: string
+  node: PanelNode
+  path: TreePath
+  grow: number
+  leaf(index: number, grow: number): ReactNode
+}): ReactNode {
+  const [live, setLive] = useState<number | null>(null)
+  if (typeof node === 'number') return leaf(node, grow)
+  const ratio = live ?? node.ratio
+  return (
+    <div style={{ flex: `${grow} 1 0` }} className={`flex min-h-0 min-w-0 ${node.dir === 'row' ? '' : 'flex-col'}`}>
+      <PanelBranch serverId={serverId} node={node.a} path={`${path}a`} grow={ratio} leaf={leaf} />
+      <Divider serverId={serverId} split={node} path={path} onLive={setLive} />
+      <PanelBranch serverId={serverId} node={node.b} path={`${path}b`} grow={1 - ratio} leaf={leaf} />
+    </div>
+  )
+}
+
+function Divider({
+  serverId,
+  split,
+  path,
+  onLive
+}: {
+  serverId: string
+  split: PanelSplit
+  path: TreePath
+  onLive(ratio: number | null): void
+}): ReactNode {
+  const row = split.dir === 'row'
+
+  const onPointerDown = (e: ReactPointerEvent): void => {
     const target = e.currentTarget as HTMLElement
+    const rect = target.parentElement?.getBoundingClientRect()
+    if (!rect) return
     target.setPointerCapture(e.pointerId)
-    const at = (x: number): number => Math.min(0.8, Math.max(0.2, (x - rect.left) / rect.width))
-    const move = (ev: PointerEvent): void => setLiveSplit(at(ev.clientX))
+    const size = row ? rect.width : rect.height
+    const at = (ev: PointerEvent): number =>
+      clampRatio(split, ((row ? ev.clientX - rect.left : ev.clientY - rect.top) / size), size)
+    const move = (ev: PointerEvent): void => onLive(at(ev))
     const up = (ev: PointerEvent): void => {
       target.removeEventListener('pointermove', move)
       target.removeEventListener('pointerup', up)
-      setLiveSplit(null)
-      setSplit(server.id, at(ev.clientX))
+      onLive(null)
+      useNav.getState().setPanelRatio(serverId, path, at(ev))
     }
     target.addEventListener('pointermove', move)
     target.addEventListener('pointerup', up)
   }
 
   return (
-    <div ref={ref} className="relative flex min-w-0 flex-1 py-2 pr-2">
-      {visible.map((index, n) => (
-        <Fragment key={index}>
-          {n === 1 && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Redimensionar painéis"
-              onPointerDown={onDividerDown}
-              onDoubleClick={() => setSplit(server.id, 0.5)}
-              className="group flex w-2 shrink-0 cursor-col-resize items-center justify-center"
-            >
-              <span className="h-10 w-1 rounded-full bg-line transition-colors group-hover:bg-accent" />
-            </div>
-          )}
-          <PanelView
-            server={server}
-            me={me}
-            index={index}
-            panel={layout.panels[index]}
-            canClose={visible.length > 1}
-            focused={visible.length > 1 && focused === index}
-            grow={visible.length > 1 ? (n === 0 ? split : 1 - split) : 1}
-          />
-        </Fragment>
-      ))}
-
-      {/* While dragging, the right side of a single panel opens what's dropped in a second one. */}
-      {dragging && canSplit && (
-        <div
-          onDragOver={(e) => isPanelDrag(e) && e.preventDefault()}
-          onDrop={(e) => {
-            const data = readDrag(e)
-            if (!data) return
-            if (data.from === undefined) openTab(server.id, data.tab, true)
-            else moveTab(server.id, data.from, data.tab, 'side')
-          }}
-          className="absolute bottom-2 right-2 top-2 z-20 flex w-[38%] items-center justify-center rounded-panel border-2 border-dashed border-accent bg-accent/10 text-accent-text"
-        >
-          <span className="flex items-center gap-2 rounded-control bg-main px-3 py-2 text-sm font-semibold shadow">
-            <Columns2 size={18} />
-            Abrir ao lado
-          </span>
-        </div>
-      )}
+    <div
+      role="separator"
+      aria-orientation={row ? 'vertical' : 'horizontal'}
+      aria-label="Redimensionar painéis"
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => useNav.getState().evenPanels(serverId, path)}
+      className={`group flex shrink-0 items-center justify-center ${row ? 'w-2 cursor-col-resize' : 'h-2 cursor-row-resize'}`}
+    >
+      <span className={`rounded-full bg-line transition-colors group-hover:bg-accent ${row ? 'h-10 w-1' : 'h-1 w-10'}`} />
     </div>
   )
 }
@@ -153,6 +167,7 @@ function PanelView({
   index,
   panel,
   canClose,
+  canDivide,
   focused,
   grow
 }: {
@@ -161,43 +176,61 @@ function PanelView({
   index: number
   panel: Panel
   canClose: boolean
+  canDivide: boolean
   focused: boolean
   grow: number
 }): ReactNode {
-  const { activateTab, closeTab, closePanel, focusPanel, moveTab, openTab } = useNav.getState()
+  const { activateTab, closeTab, closePanel, dropTab, focusPanel } = useNav.getState()
   const callRoom = useVoice((s) =>
     s.phase !== 'idle' && s.serverId === server.id ? (server.channels.find((c) => c.id === s.channelId)?.name ?? null) : null
   )
-  const [dropHere, setDropHere] = useState(false)
+  const narrow = useNav((s) => s.narrow)
+  const [zone, setZone] = useState<DropZone | null>(null)
+  const divisible = dividableTab(panel)
+
+  const zoneAt = (e: DragEvent): DropZone => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const edge = narrow ? null : dropEdge((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height)
+    return edge ?? 'center'
+  }
 
   const onDrop = (e: DragEvent): void => {
-    setDropHere(false)
+    const edge = zoneAt(e)
+    setZone(null)
     const data = readDrag(e)
-    if (!data) return
-    if (data.from === undefined) {
-      focusPanel(server.id, index)
-      openTab(server.id, data.tab)
-    } else if (data.from !== index) {
-      moveTab(server.id, data.from, data.tab, index)
-    }
+    if (data) dropTab(server.id, data.tab, index, edge === 'center' ? null : edge)
   }
+
+  const divideButton = (edge: Edge, label: string, Icon: LucideIcon): ReactNode => (
+    <button
+      type="button"
+      title={divisible ? label : 'Abra outra aba para dividir'}
+      aria-label={label}
+      disabled={!divisible}
+      onClick={() => divisible && dropTab(server.id, divisible, index, edge)}
+      className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent"
+    >
+      <Icon size={16} />
+    </button>
+  )
 
   return (
     <section
       aria-label={`Painel ${index + 1}`}
       onMouseDownCapture={() => focusPanel(server.id, index)}
       style={{ flex: `${grow} 1 0` }}
-      className={`flex min-w-0 flex-col overflow-hidden rounded-panel border bg-main ${
+      className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-panel border bg-main ${
         focused ? 'border-accent/40' : 'border-line'
-      } ${dropHere ? 'ring-2 ring-accent' : ''}`}
+      }`}
       onDragOver={(e) => {
         if (!isPanelDrag(e)) return
         e.preventDefault()
-        setDropHere(true)
+        setZone(zoneAt(e))
       }}
-      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropHere(false)}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setZone(null)}
       onDrop={onDrop}
     >
+      {zone && <div data-drop-zone={zone} className={`pointer-events-none absolute z-30 border-2 border-dashed border-accent bg-accent/15 ${DROP_AREA[zone]}`} />}
       <div className="flex h-11 shrink-0 items-end gap-1 border-b border-line bg-panel/60 px-2">
         <div role="tablist" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
           {panel.tabs.map((tab) => {
@@ -245,6 +278,8 @@ function PanelView({
           })}
         </div>
         <div className="flex shrink-0 items-center gap-0.5 self-center">
+          {canDivide && divideButton('right', 'Dividir para o lado', Columns2)}
+          {canDivide && divideButton('bottom', 'Dividir para baixo', Rows2)}
           {canClose && (
             <button
               type="button"
