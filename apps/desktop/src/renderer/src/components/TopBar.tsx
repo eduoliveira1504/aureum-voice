@@ -1,11 +1,11 @@
-import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Volume2, X } from 'lucide-react'
+import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Users, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
-import { serverTabs, useNav } from '../store/nav'
+import { membersBarOpen, serverTabs, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { contextMenu } from './ContextMenu'
 import { Logo } from './Logo'
@@ -78,6 +78,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
         >
           <Search size={18} />
         </button>
+        {place !== 'home' && <MembersButton serverId={place} />}
         <UpdateButton />
         <NotificationsButton me={me} />
         <ProfileButton me={me} />
@@ -85,6 +86,23 @@ export function TopBar({ me }: { me: Me }): ReactNode {
 
       {searching && <SearchPlaceholder onClose={() => setSearching(false)} />}
     </header>
+  )
+}
+
+/** Opens the current server's member bar; its fixed place, whatever the panels show. */
+function MembersButton({ serverId }: { serverId: string }): ReactNode {
+  const open = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[serverId]))
+  return (
+    <button
+      type="button"
+      title="Membros (Ctrl Shift U)"
+      aria-label="Membros"
+      aria-pressed={open}
+      onClick={() => useNav.getState().toggleMembers(serverId)}
+      className={`rounded-item p-2 hover:bg-elevated hover:text-fg ${open ? 'text-fg' : 'text-fg-muted'}`}
+    >
+      <Users size={18} />
+    </button>
   )
 }
 

@@ -1,14 +1,15 @@
 import { Crown, Volume2, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '../lib/api'
 import { memberName } from '../lib/members'
 import { roleColor } from '../lib/permissions'
-import { useReadableColor } from '../store/appearance'
+import { useAppearance, useReadableColor } from '../store/appearance'
+import { membersBarOpen, useNav } from '../store/nav'
 import { NameMarks } from './Badge'
 import { useProfilePopover } from './ProfileCard'
 import { ActivityLine, StatusBubble } from './profileBits'
-import { COLUMNS, useColumnWidth } from './Resizer'
+import { COLUMNS, useResizable } from './Resizer'
 import { PresenceAvatar } from './ui'
 import { userContextMenu } from './UserMenu'
 
@@ -39,11 +40,43 @@ export function groupMembers(server: ServerDetail): MemberGroup[] {
   return [...groups.values(), online, offline].filter((g) => g.members.length).map((g) => ({ ...g, members: g.members.sort(byName) }))
 }
 
-/** Collapsible side panel, opened from the "Membros" button of a panel. */
+/** Toggles the member bar from anywhere inside a server, even while typing. */
+const isMembersShortcut = (e: KeyboardEvent): boolean =>
+  e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'u'
+
+/** The server's one member bar, to the right of its panels, and the shortcut that toggles it. */
+export function MembersBar({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
+  const open = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[server.id]))
+  const narrow = useNav((s) => s.narrow)
+  const { toggleMembers } = useNav.getState()
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!isMembersShortcut(e) || e.repeat || document.querySelector('[aria-modal="true"]')) return
+      e.preventDefault()
+      toggleMembers(server.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [server.id, toggleMembers])
+
+  if (!open) return null
+  return (
+    <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
+      <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
+        <MemberList server={server} meId={meId} onClose={() => toggleMembers(server.id)} />
+      </div>
+    </div>
+  )
+}
+
+/** Member list of a server: the column shown inside the member bar. */
 export function MemberList({ server, meId, onClose }: { server: ServerDetail; meId: string; onClose(): void }): ReactNode {
   const profile = useProfilePopover()
   const roles = new Map(server.roles.map((r) => [r.id, r]))
-  const { width, handle } = useColumnWidth(COLUMNS.members, 'left')
+  // Each server keeps its own width, starting from the one set before the bar was per server.
+  const saved = useAppearance((s) => s.settings.panel_layouts[server.id]?.members_width ?? s.settings.column_sizes[COLUMNS.members.key])
+  const { width, handle } = useResizable(COLUMNS.members, 'left', saved, (w) => useNav.getState().setMembersWidth(server.id, w))
 
   return (
     <aside aria-label="Membros" style={{ width }} className="relative flex h-full shrink-0 flex-col bg-panel">

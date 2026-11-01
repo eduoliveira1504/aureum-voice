@@ -19,13 +19,23 @@ export const COLUMNS = {
 
 const clamp = (spec: ColumnSpec, width: number): number => Math.round(Math.min(spec.max, Math.max(spec.min, width)))
 
-/**
- * A column's width (saved per user) and the handle that resizes it. `edge` is the side of the
- * column the handle sits on: dragging it away from the column makes the column wider.
- * Double click goes back to the default width.
- */
+/** A column's width saved in the user's column_sizes, and the handle that resizes it. */
 export function useColumnWidth(spec: ColumnSpec, edge: 'left' | 'right'): { width: number; handle: ReactNode } {
   const saved = useAppearance((s) => s.settings.column_sizes[spec.key])
+  return useResizable(spec, edge, saved, (width) => useAppearance.getState().updateEntry('column_sizes', spec.key, width))
+}
+
+/**
+ * A resizable column: its width and the handle, with the saving left to the caller. `edge` is the
+ * side of the column the handle sits on: dragging it away from the column makes the column wider.
+ * Double click clears the saved width.
+ */
+export function useResizable(
+  spec: ColumnSpec,
+  edge: 'left' | 'right',
+  saved: number | null | undefined,
+  save: (width: number | null) => void
+): { width: number; handle: ReactNode } {
   const [live, setLive] = useState<number | null>(null)
   const width = live ?? clamp(spec, saved ?? spec.initial)
 
@@ -41,7 +51,7 @@ export function useColumnWidth(spec: ColumnSpec, edge: 'left' | 'right'): { widt
       el.removeEventListener('pointermove', move)
       el.removeEventListener('pointerup', up)
       setLive(null)
-      useAppearance.getState().updateEntry('column_sizes', spec.key, at(ev.clientX))
+      save(at(ev.clientX))
     }
     el.addEventListener('pointermove', move)
     el.addEventListener('pointerup', up)
@@ -56,7 +66,7 @@ export function useColumnWidth(spec: ColumnSpec, edge: 'left' | 'right'): { widt
       aria-valuemin={spec.min}
       aria-valuemax={spec.max}
       onPointerDown={onPointerDown}
-      onDoubleClick={() => useAppearance.getState().updateEntry('column_sizes', spec.key, null)}
+      onDoubleClick={() => save(null)}
       className={`group absolute inset-y-0 z-10 w-2 cursor-col-resize ${edge === 'right' ? '-right-1' : '-left-1'}`}
     >
       <span className={`absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors ${live !== null ? 'bg-accent' : 'group-hover:bg-accent/60'}`} />

@@ -8,7 +8,7 @@ import { EmojiPickerHost } from '../components/Emoji'
 import { EditProfileHost } from '../components/EditProfileModal'
 import { IncomingCall, MissedCallNotice, useOutgoingCall } from '../components/CallRinging'
 import { HomeView } from '../components/HomeView'
-import { MemberList } from '../components/MemberList'
+import { MembersBar } from '../components/MemberList'
 import { OverlayHost } from '../components/Overlay'
 import { Panels } from '../components/Panels'
 import { openReportProblem } from '../components/ReportProblem'
@@ -28,7 +28,7 @@ import { useHome } from '../store/home'
 import { useGifs } from '../store/gifs'
 import { useSoundboard } from '../store/soundboard'
 import { useStickers } from '../store/stickers'
-import { layoutOf, membersOpenFor, useNav } from '../store/nav'
+import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
@@ -42,11 +42,6 @@ export function AppShell({ user }: { user: Me }): ReactNode {
   const server = useChat((s) => (place === 'home' ? undefined : s.servers[place]))
   const loaded = useChat((s) => s.loaded)
   const status = useChat((s) => s.status)
-  const focusedPanel = useNav((s) => (server ? (s.focusedPanel[server.id] ?? 0) : 0))
-  // Re-render when the server's panels change; the rest is read from the layout.
-  useAppearance((s) => (server ? s.settings.panel_layouts[server.id] : undefined))
-  const membersOpen = !!server && membersOpenFor(layoutOf(server.id), focusedPanel)
-  const narrow = useNav((s) => s.narrow)
   const { setUser } = useAuth()
   useOutgoingCall(user.id)
 
@@ -130,13 +125,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <div className="relative flex min-h-0 flex-1 bg-panel">
         <Sidebar server={server ?? null} me={user} />
         {server ? <Panels server={server} me={user} /> : <HomeView me={user} />}
-        {server && membersOpen && (
-          <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
-            <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
-              <MemberList server={server} meId={user.id} onClose={() => useNav.getState().toggleMembers(server.id)} />
-            </div>
-          </div>
-        )}
+        {server && <MembersBar server={server} meId={user.id} />}
       </div>
       <CallPip meId={user.id} />
       <OverlayHost me={user} />

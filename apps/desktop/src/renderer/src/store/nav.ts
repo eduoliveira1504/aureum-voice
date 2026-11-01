@@ -60,11 +60,10 @@ export function layoutOf(serverId: string): PanelLayout {
   return pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT)
 }
 
-/** Whether the member list shows next to a server's panels: it's remembered per tab, follows the
- * focused panel's tab, and never shows with the overview (which has its own members block). */
-export function membersOpenFor(layout: PanelLayout, focused: number): boolean {
-  const active = layout.panels[Math.min(focused, layout.panels.length - 1)]?.active
-  return !!active && active !== 'overview' && !!layout.members?.includes(active)
+/** Whether the server's member bar is open. Until it's chosen, a layout saved when the list was
+ * per tab opens it if any tab had the list. */
+export function membersBarOpen(layout: PanelLayout | undefined): boolean {
+  return layout?.members_open ?? !!layout?.members?.length
 }
 
 /** The panels on screen: all of them, or only the focused one in a narrow window. */
@@ -131,8 +130,10 @@ interface NavState {
   /** Removes a deleted channel's tab from the server's panels. */
   dropChannelTab(serverId: string, channelId: string): void
 
-  /** Shows or hides the member list for the active tab of one of the server's panels. */
-  toggleMembers(serverId: string, panel?: number): void
+  /** Opens or closes the server's member bar. */
+  toggleMembers(serverId: string): void
+  /** Saves the member bar's width for the server; null goes back to the general one. */
+  setMembersWidth(serverId: string, width: number | null): void
   setPipMinimized(minimized: boolean): void
   setPipCorner(corner: Corner): void
   /** Shows the call in a panel of its server. */
@@ -156,12 +157,10 @@ export const useNav = create<NavState>()((set, get) => {
   const setFocused = (serverId: string, panel: number): void =>
     set((s) => ({ focusedPanel: { ...s.focusedPanel, [serverId]: panel } }))
 
-  /** Drops empty panels and keeps the overview pinned; forgets the member list of closed tabs. */
+  /** Drops empty panels and keeps the overview pinned. */
   const tidy = (layout: PanelLayout): PanelLayout => {
     const panels = layout.panels.filter((p) => p.tabs.length > 0)
-    const open = new Set(panels.flatMap((p) => p.tabs))
-    const members = layout.members?.filter((t) => open.has(t))
-    return pinOverview(panels.length ? { ...layout, panels, members } : DEFAULT_LAYOUT)
+    return pinOverview(panels.length ? { ...layout, panels } : DEFAULT_LAYOUT)
   }
 
   return {
@@ -296,14 +295,12 @@ export const useNav = create<NavState>()((set, get) => {
       saveLayout(serverId, tidy({ ...layout, panels: layout.panels.map((p) => without(p, tab)) }))
     },
 
-    toggleMembers: (serverId, panel = focused(serverId)) => {
+    toggleMembers: (serverId) => {
       const layout = layoutOf(serverId)
-      const tab = layout.panels[panel]?.active
-      if (!tab || tab === 'overview') return
-      const members = layout.members ?? []
-      const next = members.includes(tab) ? members.filter((t) => t !== tab) : [...members, tab]
-      saveLayout(serverId, tidy({ ...layout, members: next }))
+      saveLayout(serverId, { ...layout, members_open: !membersBarOpen(layout) })
     },
+
+    setMembersWidth: (serverId, width) => saveLayout(serverId, { ...layoutOf(serverId), members_width: width }),
 
     setPipMinimized: (pipMinimized) => set({ pipMinimized }),
 
