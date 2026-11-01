@@ -66,6 +66,11 @@ export function membersBarOpen(layout: PanelLayout | undefined): boolean {
   return layout?.members_open ?? !!layout?.members?.length
 }
 
+/** The tab of the panel in focus. */
+export function focusedTab(layout: PanelLayout, focused: number): PanelTab | null {
+  return layout.panels[Math.min(focused, layout.panels.length - 1)]?.active ?? null
+}
+
 /** The panels on screen: all of them, or only the focused one in a narrow window. */
 export function visiblePanels(layout: PanelLayout, focused: number, narrow: boolean): number[] {
   const all = layout.panels.map((_, i) => i)

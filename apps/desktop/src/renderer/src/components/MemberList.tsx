@@ -1,11 +1,12 @@
 import { Crown, Volume2, X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
-import { mediaUrl, type Member, type Role, type ServerDetail, type User } from '../lib/api'
+import { mediaUrl, type Channel, type Member, type Role, type ServerDetail, type User } from '../lib/api'
 import { memberName } from '../lib/members'
-import { roleColor } from '../lib/permissions'
+import { channelMembers, isPrivate, roleColor } from '../lib/permissions'
 import { useAppearance, useReadableColor } from '../store/appearance'
-import { membersBarOpen, useNav } from '../store/nav'
+import { focusedTab, layoutOf, membersBarOpen, parseTab, useNav } from '../store/nav'
+import { useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
 import { useProfilePopover } from './ProfileCard'
 import { ActivityLine, StatusBubble } from './profileBits'
@@ -21,15 +22,15 @@ export interface MemberGroup {
 
 /**
  * Online members under their strongest role shown separately (hoist), the rest under
- * "Online", and everyone offline at the end (key 'offline').
+ * "Online", and everyone offline at the end (key 'offline'). `members` narrows who's listed.
  */
-export function groupMembers(server: ServerDetail): MemberGroup[] {
+export function groupMembers(server: ServerDetail, members: Member[] = server.members): MemberGroup[] {
   const byName = (a: Member, b: Member): number => memberName(a).localeCompare(memberName(b))
   const hoisted = server.roles.filter((r) => r.hoist && r.id !== server.id) // strongest first
   const groups = new Map<string, MemberGroup>(hoisted.map((r) => [r.id, { key: r.id, title: r.name, members: [] }]))
   const online: MemberGroup = { key: 'online', title: 'Online', members: [] }
   const offline: MemberGroup = { key: 'offline', title: 'Offline', members: [] }
-  for (const member of server.members) {
+  for (const member of members) {
     if (!member.online) {
       offline.members.push(member)
       continue
@@ -40,6 +41,17 @@ export function groupMembers(server: ServerDetail): MemberGroup[] {
   return [...groups.values(), online, offline].filter((g) => g.members.length).map((g) => ({ ...g, members: g.members.sort(byName) }))
 }
 
+/** The channel the panel in focus is on: its channel tab, or the room of the call tab. */
+function useFocusedChannel(server: ServerDetail): Channel | null {
+  const focused = useNav((s) => s.focusedPanel[server.id] ?? 0)
+  useAppearance((s) => s.settings.panel_layouts[server.id]) // re-render when panels change
+  const callRoom = useVoice((s) => (s.phase !== 'idle' && s.serverId === server.id ? s.channelId : null))
+  const tab = focusedTab(layoutOf(server.id), focused)
+  const ref = tab ? parseTab(tab) : null
+  const id = ref?.kind === 'channel' ? ref.id : ref?.kind === 'call' ? callRoom : null
+  return server.channels.find((c) => c.id === id) ?? null
+}
+
 /** Toggles the member bar from anywhere inside a server, even while typing. */
 const isMembersShortcut = (e: KeyboardEvent): boolean =>
   e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'u'
@@ -48,6 +60,7 @@ const isMembersShortcut = (e: KeyboardEvent): boolean =>
 export function MembersBar({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
   const open = useAppearance((s) => membersBarOpen(s.settings.panel_layouts[server.id]))
   const narrow = useNav((s) => s.narrow)
+  const channel = useFocusedChannel(server)
   const { toggleMembers } = useNav.getState()
 
   useEffect(() => {
@@ -64,25 +77,40 @@ export function MembersBar({ server, meId }: { server: ServerDetail; meId: strin
   return (
     <div className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
       <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
-        <MemberList server={server} meId={meId} onClose={() => toggleMembers(server.id)} />
+        <MemberList server={server} channel={channel} meId={meId} onClose={() => toggleMembers(server.id)} />
       </div>
     </div>
   )
 }
 
-/** Member list of a server: the column shown inside the member bar. */
-export function MemberList({ server, meId, onClose }: { server: ServerDetail; meId: string; onClose(): void }): ReactNode {
+/** Who's in the server, or only who can see `channel`: the column shown inside the member bar. */
+export function MemberList({
+  server,
+  channel = null,
+  meId,
+  onClose
+}: {
+  server: ServerDetail
+  channel?: Channel | null
+  meId: string
+  onClose(): void
+}): ReactNode {
   const profile = useProfilePopover()
   const roles = new Map(server.roles.map((r) => [r.id, r]))
   // Each server keeps its own width, starting from the one set before the bar was per server.
   const saved = useAppearance((s) => s.settings.panel_layouts[server.id]?.members_width ?? s.settings.column_sizes[COLUMNS.members.key])
   const { width, handle } = useResizable(COLUMNS.members, 'left', saved, (w) => useNav.getState().setMembersWidth(server.id, w))
+  const members = channel ? channelMembers(server, channel) : server.members
+  // A channel that hides nobody lists the whole server, so it isn't named.
+  const scoped = !!channel && (isPrivate(server, channel) || members.length < server.members.length)
 
   return (
     <aside aria-label="Membros" style={{ width }} className="relative flex h-full shrink-0 flex-col bg-panel">
       {handle}
       <header className="flex h-12 shrink-0 items-center border-b border-line pl-4 pr-2">
-        <h2 className="flex-1 font-display text-[15px] font-semibold">Membros</h2>
+        <h2 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold">
+          Membros{scoped && ` · ${channel.type === 'text' ? '#' : ''}${channel.name}`}
+        </h2>
         <button
           type="button"
           title="Fechar membros"
@@ -94,7 +122,7 @@ export function MemberList({ server, meId, onClose }: { server: ServerDetail; me
         </button>
       </header>
       <div className="flex-1 overflow-y-auto px-2 py-4">
-        {groupMembers(server).map((group) => (
+        {groupMembers(server, members).map((group) => (
           <section key={group.key} className="mb-5">
             <h3 className="mb-1 truncate px-2 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">
               {group.title} — {group.members.length}
