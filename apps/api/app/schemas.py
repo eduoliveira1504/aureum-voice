@@ -353,11 +353,34 @@ class Panel(BaseModel):
     active: PanelTab | None = None
 
 
-class PanelLayout(BaseModel):
-    """Up to two panels side by side; `split` is the first panel's share of the width."""
+MAX_PANELS = 4
+PanelIndex = Annotated[int, Field(ge=0, lt=MAX_PANELS)]
 
-    panels: Annotated[list[Panel], Field(min_length=1, max_length=2)]
+
+class PanelSplit(BaseModel):
+    """A division of the panel area: `a` gets `ratio` of it; each side is a panel index or a split."""
+
+    dir: Literal["row", "col"]
+    ratio: Annotated[float, Field(ge=0.05, le=0.95)] = 0.5
+    a: "PanelSplit | PanelIndex"
+    b: "PanelSplit | PanelIndex"
+
+
+def _panel_leaves(node: "PanelSplit | int") -> int:
+    return 1 if isinstance(node, int) else _panel_leaves(node.a) + _panel_leaves(node.b)
+
+
+class PanelLayout(BaseModel):
+    """Up to four panels. `tree` says where they go; `split` is the first panel's share of the width,
+    which is all that app versions from before the tree understand.
+
+    `tree` isn't checked against `panels`: those versions save `panels` and keep the old tree, so
+    they would be refused for no fault of theirs. The app rebuilds a tree that doesn't match.
+    """
+
+    panels: Annotated[list[Panel], Field(min_length=1, max_length=MAX_PANELS)]
     split: Annotated[float, Field(ge=0.2, le=0.8)] = 0.5
+    tree: PanelSplit | None = None
     # Tabs that showed the member list when it was per tab. Only read to seed `members_open`;
     # still accepted because older app versions keep sending it.
     members: Annotated[list[PanelTab], Field(max_length=24)] = []
@@ -365,6 +388,12 @@ class PanelLayout(BaseModel):
     # width falls back to the user's general column size).
     members_open: bool | None = None
     members_width: Annotated[int, Field(ge=200, le=420)] | None = None
+
+    @model_validator(mode="after")
+    def _small_tree(self) -> "PanelLayout":
+        if self.tree is not None and _panel_leaves(self.tree) > MAX_PANELS:
+            raise ValueError("too many panels in the tree")
+        return self
 
 
 TabList = Annotated[list[uuid.UUID], Field(max_length=200)]

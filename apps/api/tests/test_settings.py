@@ -68,7 +68,11 @@ async def test_validation(client: AsyncClient) -> None:
         {"sounds": {"events": {"Not A Key": True}}},
         {"tab_order": ["not-a-uuid"]},
         {"panel_layouts": {SERVER_A: {"panels": []}}},
-        {"panel_layouts": {SERVER_A: {"panels": [{}, {}, {}]}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}, {}, {}, {}, {}]}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "diagonal", "a": 0, "b": 1}}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "row", "a": 0, "b": 4}}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "row", "ratio": 0.99, "a": 0, "b": 1}}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "row", "a": 0, "b": DEEP_TREE}}}},
         {"panel_layouts": {SERVER_A: {"panels": [{"tabs": ["javascript:alert(1)"]}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "split": 0.95}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "members": ["javascript:alert(1)"]}}},
@@ -91,6 +95,8 @@ async def test_update_reaches_the_users_other_devices(client: AsyncClient) -> No
         assert (await next_event(ws, "settings.updated"))["accent_color"] == "#4f8cc9"
 
 
+# Five leaves: more than the four panels a layout can have.
+DEEP_TREE = {"dir": "row", "a": 0, "b": {"dir": "col", "a": 1, "b": {"dir": "row", "a": 2, "b": 3}}}
 SERVER_A = "11111111-1111-4111-8111-111111111111"
 SERVER_B = "22222222-2222-4222-8222-222222222222"
 CHANNEL = "33333333-3333-4333-8333-333333333333"
@@ -129,6 +135,7 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
         "members_open": None,
         "members_width": None,
     }
+    split["tree"] = single["tree"] = None
     await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: split}})
     # Another PC arranges a different server: the first layout survives.
     await user.patch("/users/me/settings", {"panel_layouts": {SERVER_B: single}})
@@ -137,6 +144,29 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
     # null drops one server's layout.
     res = await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: None}})
     assert res.json()["panel_layouts"] == {SERVER_B: single}
+
+
+async def test_panel_tree_round_trip(client: AsyncClient) -> None:
+    user = await make_user(client, "tree")
+    grid = {
+        "panels": [{"tabs": ["overview"], "active": "overview"}, *({"tabs": ["call"], "active": "call"} for _ in range(3))],
+        "split": 0.5,
+        "tree": {
+            "dir": "row",
+            "ratio": 0.4,
+            "a": {"dir": "col", "ratio": 0.5, "a": 0, "b": 2},
+            "b": {"dir": "col", "ratio": 0.6, "a": 1, "b": 3},
+        },
+    }
+    res = await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: grid}})
+    assert res.status_code == 200, res.text
+    saved = (await user.get("/users/me/settings")).json()["panel_layouts"][SERVER_A]
+    assert saved["tree"] == grid["tree"]
+    assert len(saved["panels"]) == 4
+
+    # An older app rewrites the panels and carries the tree along: not refused, the app fixes it.
+    old = {**saved, "panels": saved["panels"][:2]}
+    assert (await user.patch("/users/me/settings", {"panel_layouts": {SERVER_A: old}})).status_code == 200
 
 
 async def test_call_audio_and_columns_merge(client: AsyncClient) -> None:
