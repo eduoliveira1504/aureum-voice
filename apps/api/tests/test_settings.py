@@ -74,6 +74,7 @@ async def test_validation(client: AsyncClient) -> None:
         {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "row", "ratio": 0.99, "a": 0, "b": 1}}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "tree": {"dir": "row", "a": 0, "b": DEEP_TREE}}}},
         {"panel_layouts": {SERVER_A: {"panels": [{"tabs": ["javascript:alert(1)"]}]}}},
+        {"panel_layouts": {SERVER_A: {"panels": [{"id": "<script>"}]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "split": 0.95}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "members": ["javascript:alert(1)"]}}},
         {"panel_layouts": {SERVER_A: {"panels": [{}], "members_width": 199}}},
@@ -118,8 +119,8 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
     user = await make_user(client, "panels")
     split = {
         "panels": [
-            {"tabs": [f"channel:{CHANNEL}", "overview"], "active": f"channel:{CHANNEL}"},
-            {"tabs": ["addon:board"], "active": "addon:board"},
+            {"id": "abc123", "tabs": [f"channel:{CHANNEL}", "overview"], "active": f"channel:{CHANNEL}"},
+            {"id": "p1", "tabs": ["addon:board"], "active": "addon:board"},
         ],
         "split": 0.6,
         "members": [],
@@ -129,7 +130,7 @@ async def test_panel_layouts_merge_per_server(client: AsyncClient) -> None:
     }
     # An older app sends only the per-tab list: it survives, and the new fields stay unset.
     single = {
-        "panels": [{"tabs": ["call"], "active": "call"}],
+        "panels": [{"id": None, "tabs": ["call"], "active": "call"}],
         "split": 0.5,
         "members": ["call"],
         "members_open": None,

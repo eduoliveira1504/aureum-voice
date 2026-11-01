@@ -349,6 +349,8 @@ PanelTab = Annotated[
 
 
 class Panel(BaseModel):
+    # Follows the panel while its place among `panels` changes. Older apps don't send it.
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,16}$")] | None = None
     tabs: Annotated[list[PanelTab], Field(max_length=12)] = []
     active: PanelTab | None = None
 
