@@ -8,7 +8,7 @@ import type { OverlayBounds, OverlaySize } from '../../../shared/types'
 import { useOverlay } from '../store/overlay'
 import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
-import { Avatar } from './ui'
+import { Avatar, TileRing } from './ui'
 
 /** Prefix of the popup's name; the main process lets only `aureum-overlay-<n>` through (isOverlayFrame). */
 const FRAME_NAME = 'aureum-overlay'
@@ -343,8 +343,10 @@ function StateIcons({ person }: { person: Person }): ReactNode {
 function PersonRow({ person, scale }: { person: Person; scale: number }): ReactNode {
   return (
     <div className="flex max-w-full items-center gap-[0.5em] rounded-full bg-scrim/75 py-[0.25em] pl-[0.25em] pr-[0.85em] text-on-scrim shadow">
-      <span className={`shrink-0 rounded-full ${person.speaking ? 'ring-[3px] ring-accent' : 'ring-[3px] ring-transparent'}`}>
+      {/* The padding holds the ring around the picture (letter avatars are the accent color too). */}
+      <span className="relative shrink-0 rounded-full p-[3px]">
         <Avatar name={person.name} url={person.avatarUrl} size={Math.round(30 * scale)} />
+        <TileRing on={person.speaking} />
       </span>
       <span className="min-w-0 truncate font-semibold">{person.name}</span>
       <StateIcons person={person} />
@@ -354,17 +356,13 @@ function PersonRow({ person, scale }: { person: Person; scale: number }): ReactN
 
 function CameraCard({ person, mirror, scale }: { person: Person; mirror: boolean; scale: number }): ReactNode {
   return (
-    <div
-      className={`relative aspect-video shrink-0 overflow-hidden rounded-control bg-scrim shadow ${
-        person.speaking ? 'ring-[3px] ring-accent' : ''
-      }`}
-      style={{ width: 176 * scale }}
-    >
+    <div className="relative aspect-video shrink-0 overflow-hidden rounded-control bg-scrim shadow" style={{ width: 176 * scale }}>
       <OverlayVideo track={person.camera!} mirror={mirror} />
       <span className="absolute bottom-1 left-1 flex max-w-[calc(100%-0.5rem)] items-center gap-1 rounded-item bg-scrim/70 px-1.5 text-[0.8em] text-on-scrim">
         <span className="truncate">{person.name}</span>
         <StateIcons person={person} />
       </span>
+      <TileRing on={person.speaking} />
     </div>
   )
 }

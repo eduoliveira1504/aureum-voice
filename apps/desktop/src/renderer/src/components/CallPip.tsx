@@ -4,7 +4,7 @@ import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { useCallOnScreen, useNav, type Corner } from '../store/nav'
 import { cameraTrackOf, roomIdentities, screenTrackOf, useVoice } from '../store/voice'
 import { CallButtons, useCallContext } from './CallCard'
-import { Avatar } from './ui'
+import { Avatar, TileRing } from './ui'
 import { userContextMenu } from './UserMenu'
 import { VideoTrackView } from './VoiceView'
 
@@ -86,15 +86,12 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         drag ? '' : CORNER_CLASS[corner]
       }`}
     >
-      <div className="relative flex aspect-video items-center justify-center bg-scrim">
+      <div className="relative flex aspect-video items-center justify-center rounded-t-panel bg-scrim">
         {track ? (
           <VideoTrackView track={track} mirror={subject?.identity === meId && subject.kind === 'person'} fit={subject?.kind === 'screen' ? 'contain' : 'cover'} />
         ) : (
           subject && (
-            <span
-              onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}
-              className={`rounded-full ${speaking.includes(subject.identity) ? 'ring-[3px] ring-accent' : ''}`}
-            >
+            <span onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}>
               <Avatar name={person?.display_name ?? name} url={person?.avatar_url} size={64} />
             </span>
           )
@@ -107,6 +104,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
             {subject.kind === 'screen' ? `Tela de ${name}` : name}
           </span>
         )}
+        <TileRing on={subject?.kind === 'person' && speaking.includes(subject.identity)} />
       </div>
       <div className="px-3 pb-2 pt-2.5">
         <div className="truncate text-sm font-semibold">{info.room}</div>

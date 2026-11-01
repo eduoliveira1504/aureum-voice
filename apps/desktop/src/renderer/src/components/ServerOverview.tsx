@@ -16,7 +16,7 @@ import { CreateAddonModal, InviteModal } from './modals'
 import { useProfilePopover } from './ProfileCard'
 import { ServerBannerLayer } from './ServerBanner'
 import { COLUMNS, useColumnWidth } from './Resizer'
-import { Avatar, CountBadge, ServerIcon } from './ui'
+import { Avatar, CountBadge, ServerIcon, TileRing } from './ui'
 import { userContextMenu } from './UserMenu'
 
 const FEED_SIZE = 30
@@ -198,9 +198,11 @@ function RoomCard({
                 key={v.user_id}
                 title={nameOf(v.user_id)}
                 onContextMenu={user && meId ? userContextMenu(user, meId, server.id) : undefined}
-                className={`rounded-full ring-offset-2 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-[3px] ring-accent' : ''}`}
+                // The padding is the ring plus its gap around the picture.
+                className="relative rounded-full p-[5px]"
               >
                 <Avatar name={nameOf(v.user_id)} url={user?.avatar_url} size={52} />
+                <TileRing on={!!speaking?.includes(v.user_id)} />
               </span>
             )
           })}

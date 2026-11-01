@@ -140,6 +140,23 @@ export function Avatar({
   )
 }
 
+/**
+ * Highlight ring of a tile, drawn inside its box so no scrolling or clipping container cuts it.
+ * Goes last in a `relative` parent and follows its corners; `interactive` also shows hover and
+ * keyboard focus of the parent `group`.
+ */
+export function TileRing({ on, interactive = false }: { on: boolean; interactive?: boolean }): ReactNode {
+  return (
+    <span
+      aria-hidden
+      data-tile-ring={on ? 'on' : 'off'}
+      className={`pointer-events-none absolute inset-0 rounded-[inherit] ring-inset transition-shadow ${on ? 'ring-[3px] ring-accent' : 'ring-0'} ${
+        interactive ? 'group-hover:ring-2 group-hover:ring-line group-focus-visible:ring-2 group-focus-visible:ring-accent' : ''
+      }`}
+    />
+  )
+}
+
 /** A group conversation's picture, or a people icon when it has none. */
 export function GroupAvatar({ url, size = 28 }: { url: string | null; size?: number }): ReactNode {
   if (url) return <img src={mediaUrl(url)} alt="" style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover" />

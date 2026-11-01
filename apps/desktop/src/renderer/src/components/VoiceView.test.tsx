@@ -5,7 +5,43 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
-import { CallControls, useIdle } from './VoiceView'
+import { CallControls, CallStage, useIdle } from './VoiceView'
+
+const tiles = ['ana', 'bia', 'caio'].map((identity) => ({ key: `${identity}:person`, identity, kind: 'person' as const }))
+const stage = (layout: 'grid' | 'focus'): void => {
+  render(<CallStage tiles={tiles} layout={layout} focused={tiles[0]} people={new Map()} meId="me" onFocus={() => {}} />)
+}
+
+// Rings outside the tile get cut by the scrolling strip and stage, so they're drawn inside it.
+describe('call tile ring', () => {
+  beforeEach(() => useVoice.setState({ speaking: ['ana', 'bia'] } as never))
+
+  const ringOf = (tile: HTMLElement): HTMLElement => tile.querySelector('[data-tile-ring]') as HTMLElement
+
+  it('sits inside the tile in the grid', () => {
+    stage('grid')
+    const ring = ringOf(screen.getAllByRole('button', { name: 'Colocar Alguém em foco' })[0])
+    expect(ring.dataset.tileRing).toBe('on')
+    expect(ring.className).toContain('ring-inset')
+    expect(ring.className).toContain('pointer-events-none')
+  })
+
+  it('sits inside the tile in the strip and in focus', () => {
+    stage('focus')
+    const strip = screen.getAllByRole('button', { name: 'Colocar Alguém em foco' })
+    expect(ringOf(strip[0]).dataset.tileRing).toBe('on')
+    expect(ringOf(strip[1]).dataset.tileRing).toBe('off')
+    expect(ringOf(screen.getByLabelText('Alguém')).dataset.tileRing).toBe('on')
+  })
+
+  it('shows hover and keyboard focus inside the tile too', () => {
+    stage('grid')
+    const tile = screen.getAllByRole('button', { name: 'Colocar Alguém em foco' })[2]
+    expect(tile.className).not.toMatch(/\bring-|hover:ring/)
+    expect(ringOf(tile).className).toContain('group-hover:ring-2')
+    expect(ringOf(tile).className).toContain('group-focus-visible:ring-2')
+  })
+})
 
 describe('useIdle', () => {
   beforeEach(() => vi.useFakeTimers())

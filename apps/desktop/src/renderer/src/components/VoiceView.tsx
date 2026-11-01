@@ -36,7 +36,7 @@ import { CallPopover, DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
 import { SoundboardGrid, SoundboardPrefs } from './Soundboard'
-import { Avatar } from './ui'
+import { Avatar, TileRing } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
 
 type Layout = 'grid' | 'focus'
@@ -196,7 +196,7 @@ export function CallView({
   )
 }
 
-function CallStage({
+export function CallStage({
   tiles,
   layout,
   focused,
@@ -298,11 +298,12 @@ function TileFrame({
       onClick={onClick}
       onContextMenu={onContextMenu}
       onKeyDown={(e) => onClick && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick())}
-      className={`group relative flex items-center justify-center overflow-hidden rounded-control transition-shadow ${shape} ${
+      className={`group relative flex items-center justify-center overflow-hidden rounded-control ${shape} ${
         dark ? 'bg-scrim' : 'bg-panel'
-      } ${ring ? 'ring-[3px] ring-accent' : 'ring-0'} ${onClick ? 'cursor-pointer outline-none hover:ring-2 hover:ring-line focus-visible:ring-2 focus-visible:ring-accent' : ''}`}
+      } ${onClick ? 'cursor-pointer outline-none' : ''}`}
     >
       {children}
+      <TileRing on={ring} interactive={!!onClick} />
     </div>
   )
 }
