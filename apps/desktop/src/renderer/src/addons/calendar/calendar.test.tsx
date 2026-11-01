@@ -23,7 +23,9 @@ const server = {
 const channel = { id: 'cal', type: 'addon', addon_key: 'calendar', name: 'Calendário' } as unknown as Channel
 const me = { id: 'u1' } as Me
 
-const today = new Date()
+// A Wednesday in the middle of a month: yesterday and tomorrow are in the same grid. The clock is
+// fixed so the tests don't depend on the day they run.
+const today = new Date(2026, 9, 14, 12)
 const at = (dayOffset: number, hour: number): string => {
   const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, hour)
   return d.toISOString()
@@ -63,10 +65,14 @@ function show(items: AgendaItem[]): void {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: today })
   useCalendar.setState({ views: {} })
   vi.mocked(api).mockReset()
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 describe('calendar dates', () => {
   it('lays a month out in six weeks from Sunday', () => {
@@ -139,7 +145,7 @@ describe('calendar panel', () => {
   it('reloads when a due date changes elsewhere', async () => {
     show([card])
     await screen.findByText('Entrega')
-    vi.useFakeTimers()
+    vi.useFakeTimers({ now: today })
     try {
       vi.mocked(api).mockClear()
       dispatchAddonEvent({ type: 'addon.kanban.card.updated', data: { channel_id: 'kb' } })
@@ -148,7 +154,7 @@ describe('calendar panel', () => {
       expect(api).toHaveBeenCalledTimes(1)
       expect(vi.mocked(api).mock.calls[0][0]).toMatch(/^\/addons\/calendar\/channels\/cal\/items\?/)
     } finally {
-      vi.useRealTimers()
+      vi.useFakeTimers({ toFake: ['Date'], now: today })
     }
   })
 })
