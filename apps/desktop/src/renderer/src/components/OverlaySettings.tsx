@@ -5,6 +5,7 @@ import { appKey, gameApps, OVERLAY_EXCEPTIONS } from '../../../shared/overlayRul
 import { anyWidgetOn } from '../../../shared/overlayWidgets'
 import type { KnownGame, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayWidget, OverlayWidgetPrefs } from '../../../shared/types'
 import { setOverlayPrefs, useOverlay } from '../store/overlay'
+import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 import { labelClass, Segmented, ToggleRow } from './ui'
 
 const CORNERS: { value: OverlayCorner; label: string; icon: typeof ArrowUpLeft }[] = [
@@ -200,7 +201,8 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: OverlayP
         <p className="mb-2 text-xs text-fg-subtle">
           O overlay só aparece sobre jogos: os conhecidos pelo Aureum, os que você adicionou em Atividade e os que você
           adicionar aqui. Launchers e clients (Steam, Riot Client, Epic etc.) nunca contam. Para isso o Aureum confere só o
-          nome do programa em primeiro plano, uma vez por segundo durante a chamada; o nome não sai do seu PC.
+          nome do programa em primeiro plano e o monitor em que ele está, uma vez por segundo durante a chamada ou enquanto
+          uma notificação está na tela; nada disso sai do seu PC.
         </p>
         <AppChips
           apps={prefs.games}
@@ -238,7 +240,14 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: OverlayP
   )
 }
 
-/** One widget: on/off and, while on, its look and corner. `children`: what only this widget has. */
+const SAMPLE_PEOPLE: Person[] = [
+  { id: 'a', name: 'Ana', avatarUrl: null, speaking: true, muted: false, deafened: false },
+  { id: 'b', name: 'Beto', avatarUrl: null, speaking: false, muted: true, deafened: false }
+]
+/** Two tiles side by side have to fit the settings column. */
+const PREVIEW_CAMERA_SCALE = 0.8
+
+/** One widget: on/off and, while on, a preview, its look and corner. `children`: what only it has. */
 function WidgetCard({
   widget,
   title,
@@ -246,6 +255,7 @@ function WidgetCard({
   sizeLabel = 'Tamanho',
   prefs,
   set,
+  preview,
   children
 }: {
   widget: OverlayWidget
@@ -254,6 +264,7 @@ function WidgetCard({
   sizeLabel?: string
   prefs: OverlayWidgetPrefs
   set(patch: Partial<OverlayWidgetPrefs>): void
+  preview: ReactNode
   children?: ReactNode
 }): ReactNode {
   return (
@@ -261,6 +272,10 @@ function WidgetCard({
       <ToggleRow title={title} description={description} checked={prefs.enabled} onChange={(enabled) => set({ enabled })} />
       {prefs.enabled && (
         <div className="space-y-3 border-l-2 border-line pl-3">
+          {/* Fixed tones, like a game behind the widget: the same in light and dark themes. */}
+          <div data-testid={`overlay-preview-${widget}`} className="rounded-control bg-scrim/60 p-3" style={{ fontSize: 14 * SCALE[prefs.size] }}>
+            <div style={{ opacity: prefs.opacity / 100 }}>{preview}</div>
+          </div>
           <div>
             <span className={labelClass}>{sizeLabel}</span>
             <Segmented
@@ -321,7 +336,7 @@ export function OverlaySettings(): ReactNode {
   if (!state) return null
   const { prefs } = state
   const set = (patch: OverlayPrefsPatch): void => void setOverlayPrefs(patch)
-  const { voice, cameras } = prefs.widgets
+  const { voice, cameras, notifications } = prefs.widgets
 
   return (
     <div className="max-w-[480px] space-y-4">
@@ -367,6 +382,13 @@ export function OverlaySettings(): ReactNode {
         description="Quem está na chamada, com anel em quem fala e ícones de mudo e ensurdecido."
         prefs={voice}
         set={(patch) => set({ widgets: { voice: patch } })}
+        preview={
+          <div className="flex flex-col items-start gap-1.5">
+            {SAMPLE_PEOPLE.filter((p) => !voice.onlySpeaking || p.speaking).map((p) => (
+              <PersonRow key={p.id} person={p} scale={SCALE[voice.size]} />
+            ))}
+          </div>
+        }
       >
         <ToggleRow
           title="Mostrar só quem está falando"
@@ -383,6 +405,12 @@ export function OverlaySettings(): ReactNode {
         sizeLabel="Tamanho das câmeras"
         prefs={cameras}
         set={(patch) => set({ widgets: { cameras: patch } })}
+        preview={
+          <CameraTiles layout={cameras.layout}>
+            <CameraCard person={SAMPLE_PEOPLE[0]} scale={SCALE[cameras.size] * PREVIEW_CAMERA_SCALE} />
+            <CameraCard person={SAMPLE_PEOPLE[1]} scale={SCALE[cameras.size] * PREVIEW_CAMERA_SCALE} />
+          </CameraTiles>
+        }
       >
         <div>
           <span className={labelClass}>Disposição</span>
@@ -395,6 +423,28 @@ export function OverlaySettings(): ReactNode {
             onChange={(layout) => set({ widgets: { cameras: { layout } } })}
           />
         </div>
+      </WidgetCard>
+
+      <WidgetCard
+        widget="notifications"
+        title="Notificações"
+        description="Mensagens privadas, menções, chamada recebendo e quem entra ou sai da call, por cerca de 5 segundos. Fora de chamada também, sobre jogos. Nada aparece em Não perturbe."
+        prefs={notifications}
+        set={(patch) => set({ widgets: { notifications: patch } })}
+        preview={
+          <NotificationCard
+            notification={{ kind: 'dm', name: 'Ana', username: 'ana', text: 'Bora mais uma partida?' }}
+            hideContent={notifications.hideContent}
+            scale={SCALE[notifications.size]}
+          />
+        }
+      >
+        <ToggleRow
+          title="Esconder o conteúdo da mensagem"
+          description="Mostra só quem mandou, como “@fulano te mandou mensagem”."
+          checked={notifications.hideContent}
+          onChange={(hideContent) => set({ widgets: { notifications: { hideContent } } })}
+        />
       </WidgetCard>
 
       <p className="text-xs text-fg-subtle">

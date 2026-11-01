@@ -109,6 +109,21 @@ describe('overlay widgets', () => {
     await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { layout: 'horizontal' } } }))
   })
 
+  it('previews each widget that is on, at its own opacity, and hides the content when asked', () => {
+    const widgets = structuredClone(DEFAULT_WIDGETS)
+    widgets.voice.opacity = 40
+    widgets.cameras.enabled = false
+    widgets.notifications.hideContent = true
+    useOverlay.setState({ state: state({ ...PREFS, widgets }) })
+    render(<OverlaySettings />)
+    const voice = screen.getByTestId('overlay-preview-voice')
+    expect((voice.firstElementChild as HTMLElement).style.opacity).toBe('0.4')
+    expect(screen.queryByTestId('overlay-preview-cameras')).toBeNull()
+    const notification = screen.getByTestId('overlay-preview-notifications')
+    expect(notification.textContent).toContain('@ana te mandou mensagem')
+    expect(notification.textContent).not.toContain('partida')
+  })
+
   it('has no way into edit mode with every widget off', () => {
     const widgets = structuredClone(DEFAULT_WIDGETS)
     widgets.voice.enabled = widgets.cameras.enabled = widgets.notifications.enabled = false
