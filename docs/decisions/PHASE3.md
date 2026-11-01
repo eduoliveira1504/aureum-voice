@@ -1,9 +1,9 @@
 # Aureum Voice — Fase 3
 
-Base: Fase 2 concluída. Beta fechado no ar desde 19/10/2026, plano B (LiveKit Cloud +
-Tailscale Funnel), com usuários reais.
-Regras do CLAUDE.md continuam valendo (custo R$0, segredos só no .env, commits em inglês,
-sem IA no produto, nada copiado do Discord, regras de privacidade do teclado/overlay).
+Base: Fase 2 concluída. Beta fechado no ar desde 19/10/2026, com usuários reais. Desde 27/10 tudo
+roda na VPS da Hostinger (3.18); o PC do Eduardo não é mais servidor.
+Regras do CLAUDE.md continuam valendo (custo R$0 fora das exceções autorizadas, segredos só no .env,
+commits em inglês, sem IA no produto, nada copiado do Discord, regras de privacidade do teclado/overlay).
 Executar UM bloco por vez, na ordem. Dentro do bloco: um item por vez, commit por item,
 sem push (push só quando o Eduardo pedir). Plano curto antes de começar. Migrações
 Alembic, testes da API, README e docs/decisions quando houver escolha de arquitetura.
@@ -11,35 +11,13 @@ O Eduardo decide quando gerar release; uma release pode juntar um ou mais blocos
 Ao terminar um bloco, marcar ✅ neste arquivo e atualizar a linha de Status (no mesmo commit
 de docs do bloco).
 
-Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.3 publicados na 0.2.0-beta.3 e
-o bot @aureum ligado em produção; 3.4 na 0.2.0-beta.4 (API e migração news_dismissed em produção
-desde 21/10, backup backups/aureum-2026-10-21.dump) e o ajuste de "Seus servidores" na
-0.2.0-beta.5. 3.5 na 0.2.0-beta.5.5 (API em produção desde 21/10, sem migração; backup
-backups/aureum-2026-10-21b.dump). Reorganização em 24/10/2026: blocos a partir do 3.6 renumerados.
-3.6 ao 3.9 publicados na 0.2.0-beta.6 em 25/10, com a API em produção (migrações do 3.9, badges
-grant-all do 3.8 e `bot enable --acao dm-eventos` feitos). Depois da beta.6, a pedido do Eduardo:
-excluir quadros brancos (só API e app, sem migração), ainda não publicado. Testes manuais pendentes
-listados no 3.1, no 3.2, no 3.4, no 3.5, no 3.6, no 3.7 e em cada parte do 3.9.
-3.10 ✅ pronto em 25/10 (API com 2 migrações core, c6e1a9d4f357 e d7f2b4e8a913, e o Pillow novo no
-requirements; app), ainda não em produção nem publicado; passos de produção e teste manual no 3.10.
-3.11 parte A ✅ pronta em 26/10 (com as correções da imagem com faixa cinza e da enquete; API com 4
-migrações core, e3a9c5b1d742 a b6d2f8a4c975; app com Twemoji e emojibase), ainda não em produção
-nem publicada; passos de produção e teste manual no 3.11.
-3.11 parte B ✅ pronta em 26/10 (visto nas DMs e preview de links; API com 2 migrações core,
-c7e3a9f5d186 e d8f4b0a6e297, sem dependência Python nova; app), ainda não em produção nem publicada.
-3.11 parte C ✅ pronta em 27/10 (figurinhas, pacote "Aureum básico" e GIFs do Klipy na integração
-padrão dele; API com 2 migrações core, a9c5e1f7b308 e b0d6f2a8c419; app), ainda não em produção nem
-publicada. Com isso o 3.11 inteiro ✅; passos de produção (inclusive a conta grátis no Klipy) e teste
-manual no 3.11.
-3.15 ✅ pronto em 25/10, feito antes do 3.12–3.14 a pedido do Eduardo (Painel de sons: API com 1
-migração core, c1e7a3b9d520, e a dependência nova tinytag no requirements; app), ainda não em
-produção nem publicado; passos de produção e teste manual no 3.15.
-Depois da beta.7, a pedido do Eduardo: correção da saída da call em tela cheia (só app), na
-0.2.0-beta.7.b.
-Em 26/10 a voz parou (cota grátis do LiveKit Cloud estourou); o Eduardo decidiu migrar para uma VPS
-paga da Hostinger (3.18), que passa na frente do 3.12. Escolhas de deploy em 0036-vps-deploy.md.
-Próximo: 3.18 (migração para a VPS da Hostinger); depois 3.12 (categorias de canais), 3.13, 3.14
-e 3.16.
+Status: blocos com ✅ estão prontos; NÃO refazer. 3.0 a 3.11 e 3.15 publicados (até a
+0.2.0-beta.7.b) e em produção. Testes manuais pendentes listados no 3.1, 3.2, 3.4 a 3.7, 3.9 a 3.11
+e 3.15. 3.18: virada para a VPS feita em 27/10 com a 0.2.0-beta.8; faltam o item 8 (monitoramento,
+backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, com OK do Eduardo).
+Escolhas de deploy em 0036-vps-deploy.md.
+Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
+Próximo: 3.19 (partes A a E); depois 3.12, 3.13, 3.14 e 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -53,7 +31,7 @@ e 3.16.
 - `npm run release` gera um RASCUNHO no GitHub, no mesmo canal do beta.2 (latest.yml
   padrão; NÃO criar canal "beta" separado). O Eduardo publica com o label "None", não
   "Pre-release".
-- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.7; nada de .5.5).
+- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.9).
   Antes do release: confirmar que um app da versão anterior instalado vai encontrar a nova.
 - CHANGELOG em linguagem simples (vai pra galera do beta).
 - Depois de publicar: passos para o Eduardo testar no PC dele, com a versão anterior
@@ -634,6 +612,119 @@ direto no Klipy com chave, customer_id, filtro e idioma (ver ADR 0034; sem cache
 nossos); só URLs do Klipy aceitas na mensagem; provedor fora do ar mostra erro amigável sem
 quebrar o chat; favoritos.
 
+## 3.A Ajustes do beta (01/11) — antes do 3.12
+Em partes, na ordem (A a E). Uma conversa do Claude Code por parte; um item por vez, commit por
+item, sem push. Diagnóstico antes de corrigir onde está indicado. Release 0.2.0-beta.9 no fim do
+bloco (ou antes, com as partes prontas, se o Eduardo pedir).
+
+### Parte A: tiles da call e cartão de perfil
+Tiles cortados (falando, foco, transmissão):
+- Causa provável (conferir): o anel de "falando" e o de foco são ring (box-shadow) por FORA do tile,
+  cortados pelos contêineres com overflow (faixa do modo Foco com overflow-y-auto, palco, janelinha
+  flutuante, painéis). E câmeras na grade e na faixa usam object-cover, então a imagem perde as bordas.
+- Anel desenhado por DENTRO do tile (camada absoluta por cima do vídeo, pointer-events none), em
+  todo lugar que mostra tile: call, faixa do Foco, janelinha flutuante, overlay e Visão geral. Mesma
+  espessura e cor de hoje; hover e foco do teclado também por dentro.
+- Vídeo inteiro: câmera e tela com object-contain em qualquer tamanho; a sobra fica no fundo escuro do
+  tile (scrim). Tela compartilhada nunca corta.
+- Faixa do Foco e grade com folga para nada encostar na borda de um contêiner que rola.
+- Testes (Vitest): anel interno presente em grid, strip e focus; fit contain nos três tamanhos.
+Inventário de insígnias no cartão de perfil (o seu e o dos outros, aberto do chat, da lista de
+membros, da call etc.):
+- O cartão nunca passa da tela: altura máxima = espaço visível. Ao trocar de aba (Perfil/Insígnias)
+  ou a altura mudar, ele se reposiciona para caber (sobe se abriu perto do fim da tela).
+- A lista de insígnias rola dentro do cartão, com barra de rolagem no tema e roda do mouse; banner,
+  avatar, nome e abas ficam fixos.
+- Teste: cartão aberto no rodapé da janela com 8+ insígnias chega até a última.
+
+### Parte B: Painel de sons
+Os sons não tocam. Diagnóstico PRIMEIRO, sem corrigir no chute; me explicar a causa antes:
+1. VPS: os arquivos dos sons existem no MinIO (vieram na migração?); GET /api/media/sounds/{id}
+   responde 200 com o content-type certo; logs da API no POST /sounds/{id}/play.
+2. App: a prévia em Configurações do servidor › Painel de sons toca? Erro no console ao tocar na
+   call (fetch, decode ou publishTrack)?
+3. LiveKit self-hosted: a segunda track de origem microfone ("soundboard") é aceita? Conferir o
+   canPublishSources do token, os logs do livekit-server e se o outro lado recebe a track.
+Se faltarem arquivos da migração, mostrar como recuperar do backup do PC (com OK do Eduardo).
+Recortar áudio maior:
+- Ao adicionar um som, aceitar arquivo de até 10 MB e 10 min (mp3, ogg, wav; m4a se o Chromium
+  decodificar).
+- Editor de recorte: forma de onda, janela de seleção arrastável pelas duas pontas, máximo 5 s
+  (padrão: os primeiros 5 s), "Ouvir trecho", zoom em áudio longo, início e fim em texto editável.
+  Fade de ~10 ms nas pontas pra não estalar.
+- O app corta e envia só o trecho em WAV mono 48 kHz 16 bits (5 s ≈ 480 KB). A API continua
+  validando ≤ 5 s e ≤ 1 MB como hoje. O arquivo original não sobe nem fica guardado.
+- Arquivo de até 5 s pode ir direto, sem editor (o editor abre se a pessoa quiser ajustar).
+- Testes: o recorte gera WAV com a duração escolhida; a seleção nunca passa de 5 s; arquivo grande
+  demais ou que não decodifica dá aviso legível.
+
+### Parte C: microfone e câmera
+Dois problemas do beta: (1) o microfone de algumas pessoas não capta nada; (2) ao ligar a câmera,
+o app passa a usar o mic da câmera em vez do headset. Caso real: "Microfone (AB13X USB Audio)";
+o Eduardo manda mais casos.
+Diagnóstico primeiro: com o log de getSettings do 3.2 e o Reportar problema, levantar por caso o
+aparelho escolhido, o aparelho realmente em uso, sample rate e canais, e se o sinal morre antes ou
+depois do pipeline (RNNoise, channel picker, gate).
+Câmera roubando o microfone:
+- Causa provável (conferir): quem está em "Padrão do sistema" segue o padrão do Windows, que muda
+  quando a webcam com mic é ativada, e o devicechange troca junto.
+- Ligar a câmera pede só vídeo, nunca áudio junto.
+- "Padrão do sistema" é resolvido para o aparelho concreto quando a call começa. Se o Windows trocar
+  o padrão no meio da call, o app fica no que estava e avisa: "O Windows trocou o microfone padrão
+  para X. Usar X?" (Usar / Manter).
+- Escolha automática (primeira vez, ou o aparelho escolhido sumiu): preferir headset/USB/fone e
+  evitar o mic da própria câmera (mesmo groupId da câmera, ou nome com câmera/webcam/cam).
+- Troca sozinha só quando o aparelho em uso some de verdade, com aviso do nome do novo.
+Microfone que não capta:
+- Se o sinal cru tem nível e o processado fica mudo por ~3 s com a pessoa desmutada, cair sozinho
+  pro caminho sem processamento e avisar ("Ativamos o modo compatível do microfone"), com atalho
+  pra Configurações › Voz.
+- "Modo compatível" visível em Configurações › Voz (desliga RNNoise, picker e gate).
+- Em Configurações › Voz, aviso quando o aparelho em uso for diferente do escolhido.
+- O Reportar problema anexa o diagnóstico de áudio (aparelhos, escolhido x em uso, getSettings,
+  modo do pipeline), sem gravar áudio.
+- Testes: a escolha automática ignora o mic da câmera; a troca do padrão do Windows não muda nada no
+  meio da call; fallback quando o pipeline fica mudo.
+
+### Parte D: Perfil e Configurações
+- Configurações perde as abas "Meu perfil" e "Conta" (repetidas). Perfil fica só no Editar perfil
+  (Ver perfil › Editar perfil, e o cartão).
+- O Editar perfil ganha o botão "Conta", que abre tudo o que hoje está em Configurações › Conta
+  (e-mail, senha, sessões, excluir conta etc.), sem perder nada. Alteração de perfil não salva
+  pergunta antes de trocar.
+- Todo link ou atalho que levava a Configurações › Meu perfil ou › Conta (menu do perfil, avisos,
+  bot, e-mails, dicas) passa a abrir o Editar perfil no lugar certo.
+- Testes: as abas sumiram; Conta abre e salva; os links antigos caem no lugar novo.
+
+### Parte E: Início — calendário e novidades no sino
+Novidades saem do Início:
+- O card "Novidades do Aureum" sai do hub. Cada versão nova vira uma notificação no sino (ao lado
+  do avatar): "Aureum 0.2.0-beta.N: veja as novidades", não lida até abrir, e conta no número do
+  sino. Abrir mostra o mesmo modal do CHANGELOG de hoje. Reaproveitar news_dismissed como "visto"
+  (sem migração, se der).
+Calendário no lugar:
+- Calendário pessoal com os eventos e prazos de TODOS os servidores da pessoa juntos, com a mesma
+  cara e os mesmos componentes do addon Calendário (3.9 D).
+- No hub: mini mês com pontinhos nos dias com itens + lista dos próximos 7 dias. "Abrir calendário"
+  expande para a vista completa (mês, semana, lista) dentro do Início.
+- Filtros: por servidor e "Só meus" (cards em que sou responsável e eventos em que respondi
+  Vou/Talvez). Ícone/cor do servidor em cada item.
+- Clicar abre o item onde ele está (aba do servidor + canal do Kanban/Eventos).
+- API: rota nova que junta o hook dated_items de todos os servidores e canais que a pessoa enxerga,
+  por intervalo de datas, com as mesmas permissões do addon (canal privado sem acesso nunca
+  aparece). Sem migração, se der.
+- Tempo real: item criado, mudado ou apagado em qualquer servidor atualiza o calendário do Início.
+- Testes: junta 2+ servidores; canal sem permissão não vaza (API e WS); "Só meus"; clicar abre no
+  lugar certo; a notificação da versão aparece uma vez e some ao abrir.
+
+### Release do 3.19
+- 0.2.0-beta.9 pelo ritual. Produção na VPS: backup antes de qualquer migração (se houver);
+  comandos com OK do Eduardo.
+- Teste manual: call com 3 pessoas em grade, Foco e janelinha (anel inteiro); câmera e tela sem
+  corte; som recortado tocando pros dois; ligar a câmera sem trocar o mic; cartão de perfil no
+  rodapé rolando até a última insígnia; Conta dentro do Editar perfil; calendário do Início com 2
+  servidores; notificação da beta.9 no sino.
+
 ## 3.12 Categorias de canais
 - Quem tem MANAGE_CHANNELS cria categorias livres (ex: "Administração", "Jogos",
   "Trabalho"). Dentro de cada uma: canais de voz, texto e addon misturados.
@@ -673,6 +764,13 @@ Base: painéis do 2.L (hoje até 2, abertos arrastando). Ampliar para até 4, po
 - Tentou abrir o 5º: aviso "Máximo de 4 painéis" e abre como aba no painel atual.
 - X no cabeçalho fecha o painel; o espaço vai para os vizinhos.
 - Cada painel continua com suas próprias abas.
+
+### Ordem das abas
+- Arrastar uma aba no cabeçalho do painel muda a ordem (uma linha mostra onde ela cai). Arrastar pra
+  outro painel continua movendo, na posição onde soltar. Visão geral continua fixa em primeiro.
+- Botão direito na aba: "Mover para a esquerda", "Mover para a direita" e "Fechar outras".
+- Ordem salva junto com o layout (por servidor e por usuário).
+- Testes: reordenar no mesmo painel; mover entre painéis na posição solta; ordem restaurada ao reabrir.
 
 ### Detalhes
 - Divisores arrastáveis na horizontal e na vertical; duplo clique no divisor iguala os tamanhos.
@@ -787,15 +885,15 @@ Contas novas: começa sozinho depois do primeiro login. Contas que já existem: 
 único "Quer fazer um tour rápido pelo Aureum?" (Sim / Agora não).
 1. Boas-vindas: "Bem-vindo ao Aureum! Bora dar uma volta rápida?" (Começar / Pular)
 2. Abas no topo: Início sempre primeiro, uma aba por servidor, "+" pra criar ou entrar.
-3. Início: seu hub (quem está ao vivo, seus servidores, o que você perdeu e suas tarefas);
-   amigos e DMs na barra lateral.
+3. Início: seu hub (quem está ao vivo, seus servidores, o que você perdeu, suas tarefas e o
+   calendário de todos os servidores); amigos e DMs na barra lateral.
 4. Barra lateral do servidor: categorias com salas, conversas e addons; dá pra recolher.
 5. Visão geral do servidor: salas ao vivo, quem tá falando e transmitindo, próximos eventos.
 6. Painéis: abra até 4 coisas ao mesmo tempo (chat, call, Kanban...). Arraste um canal
    pra borda de um painel ou use "Dividir".
 7. Addons: Kanban, Quadro, Eventos e Calendário (o calendário junta prazos e eventos).
-8. Perfil (avatar no topo): ver e editar perfil, status, configurações e "Reportar problema"
-   (Ctrl+Shift+R).
+8. Perfil (avatar no topo): ver e editar perfil (com Conta), status, configurações e "Reportar
+   problema" (Ctrl+Shift+R). O sino ao lado mostra notificações e as novidades de cada versão.
 Fim: "Pronto! Quando você usar algo pela primeira vez, a gente mostra uma dica."
 Passos 4 a 7 abrem o servidor oficial; se a pessoa não estiver em nenhum servidor, pular.
 
@@ -830,7 +928,7 @@ NÃO começar sem spec detalhada do Eduardo. Escopo previsto:
   original de verdade, legível de 24px a ilustração grande. Usos: guia do tour (3.16),
   estados vazios, carregamento, erro de conexão, e-mails, figurinhas.
 
-## 3.18 Migração para a VPS da Hostinger (PRIORIDADE: antes do 3.12)
+## 3.18 Migração para a VPS da Hostinger ✅ virada feita em 27/10 (faltam os itens 8 e 10)
 Contexto: em 26/10 a voz parou (o plano grátis do LiveKit Cloud estourou os 5.000 min do mês)
 e a VM da Oracle não saiu. Decisão do Eduardo: VPS paga Hostinger KVM 4 (4 vCPU, 16 GB, datacenter
 Brasil), custo dividido com os sócios, e abrir o beta a mais gente depois. A Oracle fica como
@@ -921,7 +1019,6 @@ Regras deste bloco:
 - Convite de grupo do WhatsApp (invites create --usos 15 --dias 7); a landing já está no
   ar, só falta gerar com OK do Eduardo.
 - Visto em grupos ("Visto por N").
-- Calendário pessoal no Início (todos os servidores juntos).
 - "Área de trabalho": painéis misturando canais de servidores diferentes.
 - Emojis próprios por servidor (além das figurinhas).
 - Addon "Jogos Riot": status rico de LoL e TFT pela API local do cliente, "chamar pro duo";
@@ -960,3 +1057,9 @@ Regras deste bloco:
 - Painel de sons funcionando na call, exclusivo de cada servidor.
 - Conta nova faz o tour inicial; dicas aparecem uma vez em cada recurso.
 - App rodando na VPS da Hostinger, sem depender do PC do Eduardo.
+- Tiles da call com anel inteiro e vídeo sem corte; inventário de insígnias rola no cartão.
+- Painel de sons tocando na VPS, com recorte de áudio maior.
+- Ligar a câmera não troca o microfone; modo compatível pra quem não capta.
+- Perfil e Conta só no Editar perfil.
+- Início com calendário de todos os servidores; novidades no sino.
+- Abas dos painéis reordenáveis.
