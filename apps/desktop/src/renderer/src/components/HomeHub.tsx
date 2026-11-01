@@ -12,6 +12,7 @@ import { channelTab, useNav } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
+import { HomeCalendar, HomeCalendarCard } from './HomeCalendar'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { activityLabel } from './profileBits'
@@ -63,6 +64,7 @@ type Dialog = 'call' | 'friend' | 'create' | 'join'
 /** Home's hub: what matters right now, across servers, conversations and addons. */
 export function HomeHub({ me }: { me: Me }): ReactNode {
   const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [calendar, setCalendar] = useState(false)
   // Loads the hub's own data, and keeps it live while it's on screen.
   useEffect(() => {
     useHome.getState().open()
@@ -83,6 +85,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
             <YourServers onAdd={() => setDialog('create')} />
           </div>
         </div>
+        {calendar && <HomeCalendar onClose={() => setCalendar(false)} />}
         <div className="flex flex-col gap-6 @min-[1000px]:flex-row @min-[1000px]:items-start">
           <div className="flex min-w-0 flex-1 flex-col gap-6">
             <Pending me={me} />
@@ -90,6 +93,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
           </div>
           <aside aria-label="Coluna lateral" className={SIDE_COLUMN}>
             <ActiveFriends me={me} />
+            <HomeCalendarCard onExpand={() => setCalendar(true)} expanded={calendar} />
           </aside>
         </div>
       </div>
