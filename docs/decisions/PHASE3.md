@@ -17,7 +17,7 @@ e 3.15. 3.18: virada para a VPS feita em 27/10 com a 0.2.0-beta.8; faltam o item
 backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, com OK do Eduardo).
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
-3.19 (seção 3.A): partes A, D e E prontas, teste manual pendente (vão na beta.9). Parte B: recorte pronto; os sons não tocam porque a CSP do app bloqueia fetch de blob: (correção aguarda OK do Eduardo; falta conferir a VPS). Parte C: aguarda os casos e relatórios para o diagnóstico.
+3.19 (seção 3.A): partes A, D e E prontas, teste manual pendente (vão na beta.9). Parte B: recorte pronto; os sons não tocavam porque a CSP do app bloqueava fetch de blob: (corrigido, falta confirmar numa call real; a VPS só se continuar sem tocar). Parte C: aguarda os casos e relatórios para o diagnóstico.
 Próximo: 3.19 (partes B e C); depois 3.12, 3.13, 3.14 e 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
