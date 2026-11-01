@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, type ServerDetail, type Sound } from '../lib/api'
 import { channelPermissions, Perm } from '../lib/permissions'
@@ -97,5 +97,53 @@ describe('permissions', () => {
     expect(perms & Perm.USE_SOUNDBOARD).toBe(0)
     const withConnect = { ...detail, roles: [{ id: 's1', permissions: everyone | Perm.CONNECT }] }
     expect(channelPermissions(withConnect as unknown as ServerDetail, room as never, 'me') & Perm.USE_SOUNDBOARD).toBeTruthy()
+  })
+})
+
+describe('adding a sound', () => {
+  const buffer = (duration: number): AudioBuffer =>
+    ({ duration, sampleRate: 100, numberOfChannels: 1, getChannelData: () => new Float32Array(Math.round(duration * 100)) }) as unknown as AudioBuffer
+  const pick = (file: File): void => {
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } })
+  }
+  const stubDecode = (result: () => Promise<unknown>): void => {
+    vi.stubGlobal('OfflineAudioContext', class { decodeAudioData = result })
+  }
+  const file = (name: string, bytes = 10): File => new File([new Uint8Array(bytes)], name)
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('opens the editor on the first 5 seconds of a long sound', async () => {
+    stubDecode(async () => buffer(60))
+    render(<ServerSoundsTab server={server} />)
+    pick(file('musica.mp3'))
+    expect(await screen.findByRole('slider', { name: 'Fim do trecho' })).toBeTruthy()
+    expect((screen.getByLabelText('Fim do trecho', { selector: 'input' }) as HTMLInputElement).value).toBe('0:05.0')
+  })
+
+  it('lets a short sound go straight, with the editor one click away', async () => {
+    stubDecode(async () => buffer(3))
+    render(<ServerSoundsTab server={server} />)
+    pick(file('buzina.mp3'))
+    const scissors = await screen.findByRole('button', { name: 'Recortar o arquivo escolhido' })
+    await waitFor(() => expect((scissors as HTMLButtonElement).disabled).toBe(false))
+    expect(screen.queryByLabelText('Recortar som')).toBeNull()
+    fireEvent.click(scissors)
+    expect(screen.getByLabelText('Recortar som')).toBeTruthy()
+  })
+
+  it('always cuts a format the API does not take', async () => {
+    stubDecode(async () => buffer(3))
+    render(<ServerSoundsTab server={server} />)
+    pick(file('voz.m4a'))
+    expect(await screen.findByLabelText('Recortar som')).toBeTruthy()
+  })
+
+  it('says so when the file is too big or does not decode', async () => {
+    stubDecode(() => Promise.reject(new Error('EncodingError')))
+    render(<ServerSoundsTab server={server} />)
+    pick(file('quebrado.mp3'))
+    expect(await screen.findByText(/Não deu para ler esse áudio/)).toBeTruthy()
+    pick(file('enorme.wav', 10 * 1024 * 1024 + 1))
+    expect(await screen.findByText('O arquivo pode ter até 10 MB.')).toBeTruthy()
   })
 })

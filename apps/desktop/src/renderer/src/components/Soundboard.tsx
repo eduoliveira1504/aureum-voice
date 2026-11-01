@@ -1,16 +1,20 @@
-import { Pencil, Play, Plus, Smile, Square, Trash2, Volume2 } from 'lucide-react'
+import { Pencil, Play, Plus, Scissors, Smile, Square, Trash2, Volume2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { api, ApiError, uploadFile, type ServerDetail, type Sound } from '../lib/api'
+import { clipWav, decodeSoundFile, firstClip, MAX_CLIP_SECONDS, SoundFileError, type Selection } from '../lib/soundTrim'
 import { useAppearance } from '../store/appearance'
 import { MAX_SOUND_BYTES, MAX_SOUNDS, playHere, soundUrl, useSoundboard } from '../store/soundboard'
 import { useVoice } from '../store/voice'
 import { pickEmoji, Emoji } from './Emoji'
 import { ConfirmModal } from './modals'
 import { FormError } from './Modal'
+import { SoundTrimEditor } from './SoundTrimEditor'
 import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from './ui'
 
 const NO_SOUNDS: Sound[] = []
+// What the API takes as it is; anything else has to go up as a cut WAV.
+const AS_UPLOADED = /\.(mp3|ogg|wav)$/i
 
 function soundError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -62,6 +66,9 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
   const [emoji, setEmoji] = useState<string | null>(null)
   const [volume, setVolume] = useState(100)
   const [file, setFile] = useState<File | null>(null)
+  const [decoded, setDecoded] = useState<AudioBuffer | null>(null)
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [trimming, setTrimming] = useState(false)
   const [removing, setRemoving] = useState<Sound | null>(null)
   const filePicker = useRef<HTMLInputElement>(null)
   const preview = usePreview()
@@ -71,18 +78,39 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
   const reload = (): Promise<void> => useSoundboard.getState().load(server.id)
   useEffect(() => void reload().catch(() => {}), [server.id])
 
+  const choose = (picked: File | null): void => {
+    setFile(null)
+    setDecoded(null)
+    setSelection(null)
+    setTrimming(false)
+    setError(null)
+    if (!picked) return
+    setBusy(true)
+    decodeSoundFile(picked)
+      .then((buffer) => {
+        setFile(picked)
+        setDecoded(buffer)
+        setSelection(firstClip(buffer.duration))
+        // A short file that the API takes can go straight; the editor stays one click away.
+        setTrimming(buffer.duration > MAX_CLIP_SECONDS || picked.size > MAX_SOUND_BYTES || !AS_UPLOADED.test(picked.name))
+      })
+      .catch((err) => setError(err instanceof SoundFileError ? err.message : 'Não deu para ler esse áudio.'))
+      .finally(() => setBusy(false))
+  }
+
   async function add(): Promise<void> {
-    if (!file || name.trim().length < 2) return
-    if (file.size > MAX_SOUND_BYTES) return setError('O som pode ter até 1 MB.')
+    if (!file || !decoded || !selection || name.trim().length < 2) return
     setBusy(true)
     setError(null)
     try {
       const fields = { name: name.trim(), volume: String(volume), ...(emoji && { emoji }) }
-      await uploadFile(`/servers/${server.id}/sounds`, file, file.name, () => {}, fields).done
+      const upload = trimming ? clipWav(decoded, selection) : file
+      const uploadName = trimming ? `${file.name.replace(/\.[^.]*$/, '')}.wav` : file.name
+      await uploadFile(`/servers/${server.id}/sounds`, upload, uploadName, () => {}, fields).done
       setName('')
       setEmoji(null)
       setVolume(100)
-      setFile(null)
+      choose(null)
       await reload()
     } catch (err) {
       setError(soundError(err))
@@ -120,10 +148,10 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
             <input
               ref={filePicker}
               type="file"
-              accept="audio/mpeg,audio/ogg,audio/wav,.mp3,.ogg,.wav"
+              accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,.mp3,.ogg,.wav,.m4a"
               hidden
               onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null)
+                choose(e.target.files?.[0] ?? null)
                 e.target.value = ''
               }}
             />
@@ -137,7 +165,19 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
             >
               {preview.playing === 'new' ? <Square size={14} /> : <Play size={16} />}
             </button>
+            <button
+              type="button"
+              disabled={!decoded}
+              title="Recortar"
+              aria-label="Recortar o arquivo escolhido"
+              aria-pressed={trimming}
+              onClick={() => setTrimming(true)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-line text-fg-subtle hover:text-fg disabled:opacity-40"
+            >
+              <Scissors size={16} />
+            </button>
           </div>
+          {trimming && decoded && selection && <SoundTrimEditor buffer={decoded} selection={selection} volume={volume} onChange={setSelection} />}
           <div className="flex gap-2">
             <input
               value={name}
@@ -167,7 +207,7 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
           </PrimaryButton>
         </div>
         <p className="text-xs text-fg-subtle">
-          MP3, OGG ou WAV, até 5 segundos e 1 MB. {sounds.length}/{MAX_SOUNDS} usados. Só tocam nas salas deste servidor.
+          MP3, OGG, WAV ou M4A de até 10 MB e 10 minutos; o som fica com até 5 segundos, escolhidos no recorte. {sounds.length}/{MAX_SOUNDS} usados. Só tocam nas salas deste servidor.
         </p>
       </div>
 
