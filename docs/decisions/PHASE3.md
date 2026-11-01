@@ -774,15 +774,37 @@ Base: painéis do 2.L (hoje até 2, abertos arrastando). Ampliar para até 4, po
 - Ordem salva junto com o layout (por servidor e por usuário).
 - Testes: reordenar no mesmo painel; mover entre painéis na posição solta; ordem restaurada ao reabrir.
 
+### Barra de membros única (fazer ANTES de ampliar para 4 painéis)
+- Problema: hoje o "Membros" fica no cabeçalho de cada painel e o aberto/fechado é guardado por aba
+  (panel_layouts[...].members), então com 2+ painéis a lista aparece repetida.
+- Passa a existir UMA barra de membros por servidor, na direita da área do servidor, fora dos
+  painéis (nunca dentro de um painel). O botão "Membros" sai do cabeçalho dos painéis e vai para um
+  lugar fixo no cabeçalho do servidor (à direita); atalho de teclado próprio para abrir/fechar
+  (propor um que não brigue com os atalhos que já existem).
+- Acompanha o painel em foco: canal aberto a todos mostra os membros do servidor; canal privado
+  mostra só quem tem acesso a ele, com o nome do canal no título ("Membros · #canal"). Visão geral e
+  addons sem restrição mostram o servidor inteiro. Trocar o foco de painel atualiza a lista na hora.
+- Aberta/fechada e largura salvas por servidor e por usuário; largura ajustável arrastando a borda
+  (mínimo e máximo razoáveis).
+- Janela estreita (mesmo limite de ~1100px do layout): a barra abre por cima do conteúdo (gaveta),
+  fecha com Esc, clicando fora ou no botão, e não espreme os painéis.
+- Migração do estado salvo: se alguma aba do servidor tinha membros aberto, a barra nova começa
+  aberta; o campo antigo por aba deixa de ser usado (sem quebrar layouts salvos).
+- DMs em grupo continuam com a lista própria delas (fora do escopo).
+- Testes: com 2, 3 e 4 painéis existe uma lista só; botão e atalho abrem/fecham; troca de foco para
+  canal privado filtra a lista (e quem não tem acesso não aparece, inclusive via API/WS); estado e
+  largura restaurados ao reabrir; gaveta em janela estreita; layout antigo com membros por aba vira
+  barra aberta.
+
 ### Detalhes
 - Divisores arrastáveis na horizontal e na vertical; duplo clique no divisor iguala os tamanhos.
 - Maximizar temporário: duplo clique no cabeçalho deixa o painel em tela cheia; duplo
-  clique de novo ou Esc volta ao layout.
+  clique de novo ou Esc volta ao layout. A barra de membros continua disponível pelo botão.
 - Call: se ela estiver visível em algum painel, a janelinha flutuante some; volta quando o
   painel da call fecha ou fica escondido.
-- Tamanho mínimo por painel (~320×240). Se a janela diminuir e não couber, os painéis que
-  sobram viram abas no painel vizinho, sem fechar nada, e voltam ao lugar quando a janela
-  aumenta. Continua valendo: abaixo de ~1100px, só 1 painel.
+- Tamanho mínimo por painel (~320×240), contando a barra de membros aberta. Se a janela diminuir e
+  não couber, os painéis que sobram viram abas no painel vizinho, sem fechar nada, e voltam ao
+  lugar quando a janela aumenta. Continua valendo: abaixo de ~1100px, só 1 painel.
 - Vídeo: tiles em painéis pequenos recebem a camada menor (adaptiveStream); painel
   escondido ou virado aba não recebe vídeo.
 - Layout salvo por servidor e por usuário. Layouts de 2 painéis já salvos continuam iguais.
@@ -790,7 +812,8 @@ Base: painéis do 2.L (hoje até 2, abertos arrastando). Ampliar para até 4, po
 ### Testes
 Montar 1, 2, 3 e 4 painéis por arrastar, por "Dividir" e pelo menu; 5º vira aba; fechar
 redistribui; maximizar e voltar; janela pequena vira abas e volta; call em painel esconde a
-janelinha; layout salvo e restaurado por servidor; layout antigo de 2 painéis preservado.
+janelinha; layout salvo e restaurado por servidor; layout antigo de 2 painéis preservado;
+reordenar abas; uma barra de membros só, em qualquer número de painéis.
 
 ## 3.14 Overlay novo: widgets separados
 - O overlay vira até 3 widgets independentes, cada um com posição, tamanho e opacidade
