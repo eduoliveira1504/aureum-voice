@@ -1,5 +1,35 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.9
+
+- **Categorias de canais:** agora dá pra organizar os canais em categorias com o nome que você quiser
+  ("Jogos", "Trabalho"), misturando voz, texto e addons. Cada categoria pode ter permissões próprias,
+  recolher, mudar de ordem e receber canais arrastados. Seus servidores continuam iguais até alguém
+  mexer.
+- **Até 4 painéis por servidor:** arraste um canal ou uma aba pra borda de um painel, ou use "Dividir"
+  e o botão direito. Dá pra mudar o tamanho, maximizar com dois cliques e mudar a ordem das abas. Se a
+  janela ficar pequena, os painéis viram abas e voltam ao lugar quando ela aumenta.
+- **Lista de membros única:** agora ela fica na direita do servidor (botão no topo ou Ctrl+Shift+U) e
+  acompanha o painel em foco.
+- **Overlay novo:** ele virou até 3 partes separadas, cada uma com posição, tamanho e opacidade
+  próprios:
+  - **Voz:** quem está na call e quem está falando.
+  - **Câmeras:** só aparece quando alguém liga a câmera. Pode ficar na horizontal ou na vertical.
+  - **Notificações:** mensagens privadas, menções, chamada recebendo e quem entra ou sai da call, por
+    cerca de 5 segundos. Aparecem por cima do jogo mesmo fora de uma call, e dá pra esconder o
+    conteúdo da mensagem.
+  
+  Em Configurações › Overlay você liga e desliga cada uma. O overlay aparece no monitor do jogo e
+  guarda uma posição pra cada monitor.
+- **Painel de sons:** agora você pode cortar um trecho de um áudio maior (até 10 MB) direto no app.
+  Corrigimos também os sons que não estavam tocando.
+- **Calendário no Início:** eventos e prazos de todos os seus servidores juntos, com filtro por
+  servidor e "Só meus".
+- **Novidades no sino:** cada versão nova agora aparece nas notificações, em vez de ficar no Início.
+- **Conta:** e-mail, senha e sessões foram pra dentro de Editar perfil, junto com o resto do seu perfil.
+- **Call:** o anel de quem fala não é mais cortado, câmeras e telas aparecem inteiras em qualquer
+  tamanho, e o cartão de perfil não passa mais do fim da tela.
+
 ## 0.2.0-beta.8
 
 - **O Aureum mudou de servidor.** Agora ele roda num servidor só dele, no Brasil, e a voz não

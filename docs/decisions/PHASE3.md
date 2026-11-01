@@ -21,6 +21,7 @@ Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas en
 3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
 3.13 pronto no código (mudança na API, sem migração: subir antes do app; escolhas em 0038 e 0039).
 3.14 pronto no código, sem mudança na API (escolhas em 0040-overlay-widgets.md); teste manual pendente.
+Release 0.2.0-beta.9 (3.19 A, B, D e E, 3.12, 3.13 e 3.14): API na VPS primeiro, depois publicar.
 Próximo: 3.16 (a parte C do 3.19 volta quando chegarem os relatórios). 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
@@ -35,7 +36,7 @@ Próximo: 3.16 (a parte C do 3.19 volta quando chegarem os relatórios). 3.17 s�
 - `npm run release` gera um RASCUNHO no GitHub, no mesmo canal do beta.2 (latest.yml
   padrão; NÃO criar canal "beta" separado). O Eduardo publica com o label "None", não
   "Pre-release".
-- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.9).
+- Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.10).
   Antes do release: confirmar que um app da versão anterior instalado vai encontrar a nova.
 - CHANGELOG em linguagem simples (vai pra galera do beta).
 - Depois de publicar: passos para o Eduardo testar no PC dele, com a versão anterior
