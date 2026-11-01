@@ -141,7 +141,7 @@ _image_routes("avatar")
 _image_routes("banner")
 
 
-# --- E-mail and invites (Configurações › Conta / Convites) ----------------------------
+# --- E-mail and invites (Editar perfil › Conta, Configurações › Convites) ----------------------------
 
 
 @router.post("/me/email", status_code=status.HTTP_202_ACCEPTED)

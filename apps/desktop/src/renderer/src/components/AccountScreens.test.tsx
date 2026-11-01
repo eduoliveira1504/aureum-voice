@@ -130,7 +130,7 @@ describe('temporary password', () => {
   })
 })
 
-describe('Configurações › Conta', () => {
+describe('Editar perfil › Conta', () => {
   it('changes the e-mail only after the code from the new address', async () => {
     const request = vi.spyOn(api, 'requestEmailChange').mockResolvedValue()
     const confirm = vi.spyOn(api, 'confirmEmailChange').mockResolvedValue({ ...ME, email: 'novo@exemplo.com' })

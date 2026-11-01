@@ -794,7 +794,7 @@ class CallParticipant(Base):
 class EmailCodePurpose(str, enum.Enum):
     verify = "verify"  # confirm the sign-up e-mail
     reset = "reset"  # forgot the password
-    change_email = "change_email"  # confirm a new address (Configurações › Conta)
+    change_email = "change_email"  # confirm a new address (Editar perfil › Conta)
 
 
 class EmailCode(Base):

@@ -8,7 +8,7 @@ import { CodeInput } from './AccountScreens'
 import { FormError, SecondaryButton } from './Modal'
 import { Field, labelClass, PrimaryButton } from './ui'
 
-/** Configurações › Conta: the sign-in e-mail and the password. */
+/** Editar perfil › Conta: the sign-in e-mail and the password. */
 export function AccountSettings({ user }: { user: Me }): ReactNode {
   return (
     <div className="max-w-[440px] space-y-8">

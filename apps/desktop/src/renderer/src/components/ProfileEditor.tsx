@@ -99,7 +99,7 @@ function bodyOf(form: Form, previous: CustomStatus | null): Partial<Me> {
 
 /**
  * The profile editor with a live preview of the card, the same in "Editar perfil" (opened from
- * the card) and in Configurações › Meu perfil. `onDirtyChange` lets the one hosting it ask before
+ * the card). `onDirtyChange` lets the one hosting it ask before
  * closing with changes that weren't saved.
  */
 export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange?: (dirty: boolean) => void }): ReactNode {

@@ -92,12 +92,44 @@ describe('Editar perfil', () => {
     expect(screen.queryByText('Você tem alterações não salvas.')).toBeNull()
   })
 
-  it('Configurações › Meu perfil is the same editor and asks before leaving the tab', () => {
+  it('Configurações no longer has the profile or the account', () => {
     render(<SettingsModal onClose={() => {}} />)
+    expect(screen.queryByRole('tab', { name: 'Meu perfil' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Conta' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Convites', selected: true })).toBeTruthy()
+    expect(screen.queryByLabelText('Pronomes')).toBeNull()
+  })
+
+  it('"Conta" opens the account in the same modal and comes back', () => {
+    useNav.setState({ profileEditor: true })
+    render(<EditProfileHost me={ME} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Conta' }))
+    expect(screen.getByRole('dialog', { name: 'Conta' })).toBeTruthy()
+    expect(screen.queryByLabelText('Pronomes')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao perfil' }))
+    expect(screen.getByLabelText('Pronomes')).toBeTruthy()
+  })
+
+  it('asks before leaving unsaved changes for "Conta"', async () => {
+    useNav.setState({ profileEditor: true })
+    render(<EditProfileHost me={ME} />)
     fireEvent.change(screen.getByLabelText('Pronomes'), { target: { value: 'ela/dela' } })
-    fireEvent.click(screen.getByRole('tab', { name: 'Aparência' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Conta' }))
     expect(screen.getByRole('dialog', { name: 'Descartar alterações?' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect((screen.getByLabelText('Pronomes') as HTMLInputElement).value).toBe('ela/dela')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Conta' }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Descartar' })))
+    expect(screen.getByRole('dialog', { name: 'Conta' })).toBeTruthy()
+  })
+
+  it('opens on the profile again after closing from the account', () => {
+    useNav.setState({ profileEditor: true })
+    render(<EditProfileHost me={ME} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Conta' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    act(() => useNav.setState({ profileEditor: true }))
+    expect(screen.getByLabelText('Pronomes')).toBeTruthy()
   })
 })
