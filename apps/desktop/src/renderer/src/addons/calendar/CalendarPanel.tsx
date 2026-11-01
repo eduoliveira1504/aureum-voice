@@ -1,5 +1,5 @@
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { Segmented } from '../../components/ui'
 import type { AgendaItem, ServerDetail } from '../../lib/api'
@@ -38,28 +38,25 @@ function sourceName(source: AgendaSource, sources: AgendaSource[]): string {
 
 /** Month, week and list views of the server's dates (events, due dates), with filters. */
 export function CalendarPanel({ server, channel, me }: AddonViewProps): ReactNode {
-  const [view, setView] = useState<View>('month')
-  const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [onlyMine, setOnlyMine] = useState(false)
   const [error, setError] = useState(false)
   const data = useCalendar((s) => s.views[channel.id])
-  const days = useMemo(() => viewDays(view, view === 'list' ? startOfDay(new Date()) : anchor), [view, anchor])
-  const today = startOfDay(new Date())
   const eventsChannel = eventsChannelFor(server, me.id)
 
-  useEffect(() => {
-    setError(false)
-    useCalendar.getState().load(channel.id, days[0], addDays(days[days.length - 1], 1)).catch(() => setError(true))
-  }, [channel.id, days])
+  const load = useCallback(
+    (start: Date, end: Date) => {
+      setError(false)
+      useCalendar.getState().load(channel.id, start, end).catch(() => setError(true))
+    },
+    [channel.id]
+  )
   // Off screen, nothing to keep fresh.
-  useEffect(() => () => useCalendar.setState((s) => ({ views: Object.fromEntries(Object.entries(s.views).filter(([id]) => id !== channel.id)) })), [channel.id])
+  useEffect(() => () => useCalendar.getState().drop(channel.id), [channel.id])
 
   const sources = data?.sources ?? []
   const colors = useMemo(() => sourceColors(sources.map((s) => s.channel_id)), [sources])
   const items = (data?.items ?? []).filter((i) => !hidden.has(i.channel_id) && (!onlyMine || i.mine))
-  const open = (item: AgendaItem): void => useNav.getState().openAddonItem(server.id, item.channel_id, item.item_id)
-  const createOn = eventsChannel ? (day: Date) => useNav.getState().openAddonItem(server.id, eventsChannel, `new:${ymd(day)}`) : undefined
   const toggle = (id: string): void =>
     setHidden((h) => {
       const next = new Set(h)
@@ -68,8 +65,93 @@ export function CalendarPanel({ server, channel, me }: AddonViewProps): ReactNod
       return next
     })
 
+  return (
+    <CalendarBoard
+      items={items}
+      error={error}
+      onRange={load}
+      colorOf={(item) => colors[item.channel_id] ?? 'gray'}
+      onOpen={(item) => useNav.getState().openAddonItem(server.id, item.channel_id, item.item_id)}
+      onCreate={eventsChannel ? (day) => useNav.getState().openAddonItem(server.id, eventsChannel, `new:${ymd(day)}`) : undefined}
+      filters={
+        <>
+          {sources.map((source) => (
+            <FilterChip
+              key={source.channel_id}
+              on={!hidden.has(source.channel_id)}
+              color={colors[source.channel_id]}
+              label={sourceName(source, sources)}
+              onToggle={() => toggle(source.channel_id)}
+            />
+          ))}
+          {!sources.length && data && <span className="text-fg-subtle">Adicione Eventos ou um Kanban a este servidor para ver datas aqui.</span>}
+          <OnlyMine checked={onlyMine} onChange={setOnlyMine} />
+        </>
+      }
+    />
+  )
+}
+
+/** One source of items, on or off. */
+export function FilterChip({ on, color, label, onToggle }: { on: boolean; color: string; label: ReactNode; onToggle(): void }): ReactNode {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onToggle}
+      style={on ? colorStyle(color) : undefined}
+      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-semibold ${on ? 'border-transparent' : 'border-line text-fg-subtle line-through'}`}
+    >
+      {label}
+    </button>
+  )
+}
+
+export function OnlyMine({ checked, onChange }: { checked: boolean; onChange(checked: boolean): void }): ReactNode {
+  return (
+    <label className="ml-auto flex cursor-pointer items-center gap-1.5 font-medium text-fg-muted">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-accent" />
+      Só meus
+    </label>
+  )
+}
+
+/**
+ * The calendar itself, for a server's channel and for Home: view switch, navigation, filters row
+ * and the items. It asks `onRange` for the days on screen; what to show comes in `items`.
+ */
+export function CalendarBoard({
+  items,
+  error,
+  filters,
+  onRange,
+  colorOf,
+  onOpen,
+  onCreate,
+  placeOf = (item) => item.channel_name,
+  leading
+}: {
+  items: AgendaItem[]
+  error: boolean
+  filters: ReactNode
+  onRange(start: Date, end: Date): void
+  colorOf(item: AgendaItem): string
+  onOpen(item: AgendaItem): void
+  onCreate?: (day: Date) => void
+  /** Where the item lives, in full rows and tooltips. */
+  placeOf?(item: AgendaItem): string
+  /** Goes before the item's title (the server's icon, in Home). */
+  leading?(item: AgendaItem): ReactNode
+}): ReactNode {
+  const [view, setView] = useState<View>('month')
+  const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
+  const days = useMemo(() => viewDays(view, view === 'list' ? startOfDay(new Date()) : anchor), [view, anchor])
+  const today = startOfDay(new Date())
+
+  useEffect(() => onRange(days[0], addDays(days[days.length - 1], 1)), [onRange, days])
+
   const chip = (item: AgendaItem, compact: boolean): ReactNode => (
-    <ItemChip key={item.id} item={item} color={colors[item.channel_id] ?? 'gray'} compact={compact} overdue={isOverdue(item, today)} onOpen={open} />
+    <ItemChip key={item.id} item={item} color={colorOf(item)} compact={compact} overdue={isOverdue(item, today)} onOpen={onOpen} place={placeOf(item)} leading={leading?.(item)} />
   )
 
   return (
@@ -96,31 +178,12 @@ export function CalendarPanel({ server, channel, me }: AddonViewProps): ReactNod
       </header>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-xs">
-        {sources.map((source) => {
-          const on = !hidden.has(source.channel_id)
-          return (
-            <button
-              key={source.channel_id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(source.channel_id)}
-              style={on ? colorStyle(colors[source.channel_id]) : undefined}
-              className={`rounded-full border px-2.5 py-1 font-semibold ${on ? 'border-transparent' : 'border-line text-fg-subtle line-through'}`}
-            >
-              {sourceName(source, sources)}
-            </button>
-          )
-        })}
-        {!sources.length && data && <span className="text-fg-subtle">Adicione Eventos ou um Kanban a este servidor para ver datas aqui.</span>}
-        <label className="ml-auto flex cursor-pointer items-center gap-1.5 font-medium text-fg-muted">
-          <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="accent-accent" />
-          Só meus
-        </label>
+        {filters}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {view === 'list' ? (
-          <ListView days={days} items={items} chip={chip} onCreate={createOn} />
+          <ListView days={days} items={items} chip={chip} onCreate={onCreate} />
         ) : (
           <div className="grid min-h-full grid-cols-7 border-l border-line" style={{ gridAutoRows: view === 'month' ? 'minmax(96px, 1fr)' : 'minmax(320px, 1fr)' }}>
             {WEEKDAYS.map((d) => (
@@ -137,7 +200,7 @@ export function CalendarPanel({ server, channel, me }: AddonViewProps): ReactNod
                 today={ymd(day) === ymd(today)}
                 limit={view === 'month' ? CELL_ITEMS : Infinity}
                 chip={chip}
-                onCreate={createOn}
+                onCreate={onCreate}
               />
             ))}
           </div>
@@ -235,18 +298,22 @@ function ItemChip({
   color,
   compact,
   overdue,
-  onOpen
+  onOpen,
+  place,
+  leading
 }: {
   item: AgendaItem
   color: string
   compact: boolean
   overdue: boolean
   onOpen(item: AgendaItem): void
+  place: string
+  leading?: ReactNode
 }): ReactNode {
   const time = item.starts_at ? timeFmt.format(new Date(item.starts_at)) : null
   const struck = item.done || item.cancelled
   const label = [time, item.title].filter(Boolean).join(' ')
-  const title = `${label}${item.cancelled ? ' (cancelado)' : ''}${item.done ? ' (feito)' : ''}${overdue ? ' (atrasado)' : ''} · ${item.channel_name}`
+  const title = `${label}${item.cancelled ? ' (cancelado)' : ''}${item.done ? ' (feito)' : ''}${overdue ? ' (atrasado)' : ''} · ${place}`
   return (
     <button
       type="button"
@@ -257,10 +324,11 @@ function ItemChip({
         overdue ? 'bg-danger/15 text-danger ring-1 ring-danger/50' : ''
       } ${struck ? 'opacity-60' : ''}`}
     >
+      {leading}
       {time && <span className="shrink-0 tabular-nums">{time}</span>}
       <span className={`min-w-0 truncate ${struck ? 'line-through' : ''}`}>{item.title}</span>
       {overdue && <span className="shrink-0 text-[10px] font-bold uppercase">atrasado</span>}
-      {!compact && <span className="ml-auto shrink-0 text-xs opacity-75">{item.channel_name}</span>}
+      {!compact && <span className="ml-auto shrink-0 text-xs opacity-75">{place}</span>}
     </button>
   )
 }

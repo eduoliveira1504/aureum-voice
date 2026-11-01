@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { api, type AgendaItem } from '../../lib/api'
+import { agendaPath, api, type AgendaItem } from '../../lib/api'
 
 export interface AgendaSource {
   channel_id: string
@@ -16,7 +16,13 @@ interface CalendarData {
 interface Loaded extends CalendarData {
   start: string
   end: string
+  /** Home's calendars: every server of the user (GET /users/me/agenda), not one channel. */
+  home?: boolean
 }
+
+/** Home's views, by the name it gives them. */
+export const HOME_MINI = 'home:mini'
+export const HOME_FULL = 'home:full'
 
 export const calendarPath = (channelId: string, start: Date, end: Date): string =>
   `/addons/calendar/channels/${channelId}/items?${new URLSearchParams({ start: start.toISOString(), end: end.toISOString() })}`
@@ -31,6 +37,9 @@ interface CalendarState {
   /** What each calendar channel shows now, with the range it was asked for. */
   views: Record<string, Loaded>
   load(channelId: string, start: Date, end: Date): Promise<void>
+  loadHome(key: string, start: Date, end: Date): Promise<void>
+  /** A view that left the screen: nothing to keep fresh. */
+  drop(key: string): void
   /** Reloads every calendar on screen, shortly after a change that may move its items. */
   onEvent(type: string): void
 }
@@ -43,12 +52,20 @@ export const useCalendar = create<CalendarState>()((set, get) => ({
     set((s) => ({ views: { ...s.views, [channelId]: { ...data, start: start.toISOString(), end: end.toISOString() } } }))
   },
 
+  loadHome: async (key, start, end) => {
+    const items = await api<AgendaItem[]>(agendaPath(start, end))
+    set((s) => ({ views: { ...s.views, [key]: { items, sources: [], start: start.toISOString(), end: end.toISOString(), home: true } } }))
+  },
+
+  drop: (key) => set((s) => ({ views: Object.fromEntries(Object.entries(s.views).filter(([id]) => id !== key)) })),
+
   onEvent: (type) => {
     if (type !== 'ready' && !RELEVANT.test(type)) return
     clearTimeout(refreshTimer)
     refreshTimer = setTimeout(() => {
-      for (const [channelId, view] of Object.entries(get().views)) {
-        void get().load(channelId, new Date(view.start), new Date(view.end)).catch(() => {})
+      for (const [key, view] of Object.entries(get().views)) {
+        const load = view.home ? get().loadHome : get().load
+        void load(key, new Date(view.start), new Date(view.end)).catch(() => {})
       }
     }, REFRESH_MS)
   }
