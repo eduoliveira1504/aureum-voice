@@ -164,10 +164,21 @@ export interface Panel {
   active: PanelTab | null
 }
 
-/** One or two panels side by side; split is the first panel's share of the width. */
+/** A division of the panel area; each side is a panel index or another division. */
+export interface PanelSplit {
+  dir: 'row' | 'col'
+  ratio: number
+  a: PanelNode
+  b: PanelNode
+}
+
+export type PanelNode = number | PanelSplit
+
+/** Up to four panels. `tree` says where they go; `split` is for app versions without it. */
 export interface PanelLayout {
   panels: Panel[]
   split: number
+  tree?: PanelSplit | null
   /** Tabs that showed the member list when it was per tab; only seeds `members_open`. */
   members?: PanelTab[]
   /** The server's single member bar; null until chosen. */
