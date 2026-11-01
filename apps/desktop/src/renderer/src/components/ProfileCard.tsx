@@ -303,6 +303,12 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
   )
 }
 
+/** Beside the anchor: to the left if there's no room on the right, and as high as it takes to fit. */
+export function placeCard(anchor: DOMRect, width: number, height: number): { left: number; top: number } {
+  const left = anchor.right + 8 + width > window.innerWidth ? anchor.left - width - 8 : anchor.right + 8
+  return { left: Math.max(8, left), top: Math.max(8, Math.min(anchor.top, window.innerHeight - height - 8)) }
+}
+
 /** Popover with a user's profile, positioned next to the element that opened it. */
 export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: DOMRect; onClose(): void }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
@@ -310,14 +316,23 @@ export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: 
   // Follow live profile changes (user.updated) while the card is open.
   const fresh = useFreshUser(user)
 
-  // Keep the card on screen: open to the left if there's no room on the right, clamp vertically.
+  // Keep it on screen when it opens and whenever its height changes (tabs, a slow image) or the
+  // window does.
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const { width, height } = el.getBoundingClientRect()
-    const left = anchor.right + 8 + width > window.innerWidth ? anchor.left - width - 8 : anchor.right + 8
-    const top = Math.max(8, Math.min(anchor.top, window.innerHeight - height - 8))
-    setPos({ left: Math.max(8, left), top })
+    const place = (): void => {
+      const { width, height } = el.getBoundingClientRect()
+      setPos(placeCard(anchor, width, height))
+    }
+    place()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place)
+    observer?.observe(el)
+    window.addEventListener('resize', place)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', place)
+    }
   }, [anchor])
 
   useEffect(() => {

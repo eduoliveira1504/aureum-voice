@@ -1,12 +1,12 @@
 /** The profile card stays on screen; its top stays put while the badge list scrolls inside it. */
 
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '../lib/api'
 import type { Badge, HeldBadge, Me } from '../lib/api'
 import { useBadges } from '../store/badges'
-import { ProfilePopover } from './ProfileCard'
+import { placeCard, ProfilePopover } from './ProfileCard'
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ state: { status: 'signedIn', user: ME }, logout: async () => {}, setUser: () => {} })
@@ -18,7 +18,7 @@ const badge = (key: string, priority: number): Badge => ({
   key,
   name: `Insígnia ${key}`,
   description: '',
-  how_to_get: null,
+  how_to_get: '',
   available: true,
   rarity: 'comum',
   priority,
@@ -78,5 +78,57 @@ describe('the card near the bottom of the window', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog.className).toContain('max-h-[calc(100vh-16px)]')
     expect(dialog.className).not.toContain('overflow-y-auto')
+  })
+})
+
+describe('placing the card', () => {
+  const anchor = new DOMRect(100, 700, 40, 20) // height 768 in jsdom
+
+  it('stays beside the anchor while it fits', () => {
+    expect(placeCard(anchor, 340, 60)).toEqual({ left: 148, top: 700 })
+  })
+
+  it('goes up as far as it takes, never past the top', () => {
+    expect(placeCard(anchor, 340, 500).top).toBe(260)
+    expect(placeCard(anchor, 340, 752).top).toBe(8)
+  })
+
+  it('opens to the left without room on the right', () => {
+    expect(placeCard(new DOMRect(900, 100, 40, 20), 340, 60).left).toBe(552)
+  })
+})
+
+describe('when the card changes height', () => {
+  let resized: () => void
+  let height = 300
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resized = callback
+        }
+        observe(): void {}
+        disconnect(): void {}
+      }
+    )
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, 340, height))
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('moves up to fit and back down when it shrinks', () => {
+    height = 300
+    open()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.style.top).toBe('460px')
+
+    height = 600
+    act(() => resized())
+    expect(dialog.style.top).toBe('160px')
+
+    height = 40
+    act(() => resized())
+    expect(dialog.style.top).toBe('700px')
   })
 })
