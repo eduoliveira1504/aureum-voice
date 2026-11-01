@@ -99,7 +99,7 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
   }
   const button = 'flex flex-1 items-center justify-center gap-2 rounded-control px-3 py-2 text-sm font-semibold'
   return (
-    <div className="flex gap-2">
+    <div className="flex shrink-0 gap-2">
       {friend?.kind === 'friend' ? (
         <>
           <button type="button" onClick={() => run(social.openDm(user.id))} className={`${button} bg-accent text-on-accent hover:bg-accent-hover`}>
@@ -145,7 +145,7 @@ function CardTabs({ tab, count, onSelect }: { tab: CardTab; count: number; onSel
     </button>
   )
   return (
-    <div role="tablist" aria-label="Seções do perfil" className="flex gap-1 rounded-control border border-line p-0.5">
+    <div role="tablist" aria-label="Seções do perfil" className="flex shrink-0 gap-1 rounded-control border border-line p-0.5">
       {item('profile', 'Perfil')}
       {item('badges', count ? `Insígnias (${count})` : 'Insígnias')}
     </div>
@@ -180,14 +180,14 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
     <div
       // The popover's card (not the settings preview) has the person's menu.
       onContextMenu={onClose && meId ? userContextMenu(user, meId, place === 'home' ? null : place) : undefined}
-      className="w-[340px] overflow-hidden rounded-panel border border-line bg-panel shadow-2xl"
+      className="flex min-h-0 w-[340px] flex-col overflow-hidden rounded-panel border border-line bg-panel shadow-2xl"
     >
       {/* Without a profile color the banner falls back to the app accent. */}
-      <div className="h-[120px] bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
+      <div className="h-[120px] shrink-0 bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
         {banner && <img src={banner} alt="" className="h-full w-full object-cover" />}
       </div>
-      <div className="relative px-4 pb-4">
-        <div className="flex items-end gap-3">
+      <div className="relative flex min-h-0 flex-col px-4 pb-4">
+        <div className="flex shrink-0 items-end gap-3">
           <div className="-mt-12 shrink-0 rounded-full bg-panel p-1.5">
             <FramedAvatar user={user} size={88} status={status} />
           </div>
@@ -199,8 +199,8 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
           <BadgeList badges={user.badges} onMore={() => setTab('badges')} />
         </div>
 
-        <div className="mt-3 space-y-3 rounded-control bg-main p-3">
-          <div>
+        <div className="mt-3 flex min-h-0 flex-col gap-3 rounded-control bg-main p-3">
+          <div className="shrink-0">
             <div className="flex min-w-0 items-center gap-1.5">
               <div
                 title={user.display_name}
@@ -220,66 +220,69 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
 
           <CardTabs tab={tab} count={user.badges.length} onSelect={setTab} />
 
-          {tab === 'profile' ? (
-            <>
-            {user.bio && (
+          {/* Only this part scrolls: the card's top and its actions stay in place. */}
+          <div data-testid="profile-card-body" className="min-h-0 space-y-3 overflow-y-auto">
+            {tab === 'profile' ? (
+              <>
+              {user.bio && (
+                <section>
+                  <Heading>Sobre mim</Heading>
+                  <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
+                </section>
+              )}
+
+              <NowBlock user={user} />
+
+              {roles.length > 0 && (
+                <section>
+                  <Heading>Cargos</Heading>
+                  <div className="flex flex-wrap gap-1.5">
+                    {roles.map((r) => (
+                      <span key={r.id} className="flex items-center gap-1.5 rounded-item bg-elevated px-2 py-0.5 text-xs font-medium">
+                        <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle" style={r.color ? { background: r.color } : undefined} />
+                        {r.name}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {user.links.length > 0 && (
+                <section>
+                  <Heading>Links</Heading>
+                  <div className="space-y-1">
+                    {user.links.map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={link.url}
+                        className="flex items-center gap-2 rounded-item px-1 py-0.5 text-sm hover:bg-elevated"
+                      >
+                        <Link2 size={14} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
+                        <span className="truncate text-accent-text">{link.label}</span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <section>
-                <Heading>Sobre mim</Heading>
-                <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
+                <Heading>Membro desde</Heading>
+                <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
               </section>
+
+              </>
+            ) : (
+              <BadgeInventory
+                badges={user.badges}
+                compact
+                featured={own ? featuredBadges(shownBadges).map((s) => s.key) : undefined}
+                onFeature={own && onClose ? feature : undefined}
+              />
             )}
-
-            <NowBlock user={user} />
-
-            {roles.length > 0 && (
-              <section>
-                <Heading>Cargos</Heading>
-                <div className="flex flex-wrap gap-1.5">
-                  {roles.map((r) => (
-                    <span key={r.id} className="flex items-center gap-1.5 rounded-item bg-elevated px-2 py-0.5 text-xs font-medium">
-                      <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle" style={r.color ? { background: r.color } : undefined} />
-                      {r.name}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {user.links.length > 0 && (
-              <section>
-                <Heading>Links</Heading>
-                <div className="space-y-1">
-                  {user.links.map((link) => (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={link.url}
-                      className="flex items-center gap-2 rounded-item px-1 py-0.5 text-sm hover:bg-elevated"
-                    >
-                      <Link2 size={14} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
-                      <span className="truncate text-accent-text">{link.label}</span>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section>
-              <Heading>Membro desde</Heading>
-              <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
-            </section>
-
-            </>
-          ) : (
-            <BadgeInventory
-              badges={user.badges}
-              compact
-              featured={own ? featuredBadges(shownBadges).map((s) => s.key) : undefined}
-              onFeature={own && onClose ? feature : undefined}
-            />
-          )}
+          </div>
 
           {onClose && meId && user.id !== meId && <Actions user={user} meId={meId} onDone={onClose} />}
           {onClose && user.id === meId && (
@@ -289,7 +292,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
                 onClose()
                 useNav.getState().setProfileEditor(true)
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-control bg-accent px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
             >
               <Pencil size={16} strokeWidth={1.8} /> Editar perfil
             </button>
@@ -334,7 +337,7 @@ export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: 
   }, [onClose])
 
   return (
-    <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-50 max-h-[calc(100vh-16px)] overflow-y-auto rounded-panel" style={pos}>
+    <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-50 flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
       <ProfileView user={fresh} onClose={onClose} />
     </div>
   )
