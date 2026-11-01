@@ -19,8 +19,8 @@ Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
 3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
 3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
-3.13: barra de membros pronta (mudança na API: subir antes do app); falta o resto do bloco.
-Próximo: resto do 3.13 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.14 e 3.16. 3.17 só com spec do Eduardo.
+3.13 pronto no código (mudança na API, sem migração: subir antes do app; escolhas em 0038 e 0039).
+Próximo: 3.14 (a parte C do 3.19 volta quando chegarem os relatórios); depois, 3.16. 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -749,7 +749,7 @@ Calendário no lugar:
   (inclusive canais dentro, via API/WS); mover canal entre categorias; excluir categoria
   não apaga canais; sincronizar/dessincronizar permissões.
 
-## 3.13 Painéis: até 4 por servidor
+## 3.13 Painéis: até 4 por servidor ✅ concluído (falta produção e teste manual)
 Base: painéis do 2.L (hoje até 2, abertos arrastando). Ampliar para até 4, por servidor
 (só canais do próprio servidor; nada do Início ou de outros servidores).
 
