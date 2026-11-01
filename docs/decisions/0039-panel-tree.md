@@ -25,6 +25,22 @@ but never a tab.
 
 With four panels saved, the previous version shows them all in one row. That's ugly but works.
 
+### Panels are siblings, in the order of their ids
+
+The tree is not the page's structure. Panels used to be nested in one element per division, and a
+React key only keeps a component among siblings, so dividing a panel moved it to a new parent and
+rebuilt it: the chat lost its scroll, and calls, shares and whiteboards started over. Now every
+panel is a child of one area, with a box computed from the tree (`placePanels`), so a change in the
+tree is only a change of position and size.
+
+Each panel has an `id`, saved in the layout, which is its key. An index wouldn't do, since closing a
+panel shifts the ones after it. Layouts from before ids, and panels saved by an older app (which
+drops the field), get one from their place on read, the same on every read until it's saved.
+
+Keys alone still let React move nodes when the order changes, and taking a video out of the page
+restarts it. So panels are kept in the order of their ids, not of the tree: rearranging them, even
+from another device, moves no node. Tab order follows the ids too, not the positions on screen.
+
 ### Leaves don't say where a panel is
 
 Panel 0 is the one with the overview, wherever it sits: splitting it on the left puts a new panel
@@ -55,6 +71,18 @@ a real move, though, and it stays where it was dropped.
 `shownPanels` records what is really on screen. The floating call and the sidebar read it instead of
 working out the same thing again.
 
+### Minimum size on every size
+
+The window and the member bar can change the room after a ratio was saved, so the ratios on screen
+go through `fitRatios` whenever the area is measured: on opening, on resizing and when the bar
+changes. Each side gets at least what its panels need, and what's left of the saved ratio. Only what
+doesn't fit even then is folded. Nothing is written back, so the saved ratios return when there's
+room for them.
+
+A divider's place on screen isn't its place in the saved tree when panels are folded. `pathBetween`
+finds the split in the saved tree from the panels on each side of it, so a drag saves to the right
+one.
+
 ### Video needs nothing new
 
 `adaptiveStream` already sizes each subscription to its element, and a tab or panel that isn't shown
@@ -62,7 +90,10 @@ is unmounted, which detaches its video.
 
 ## Consequences
 
-- Dividers only respect the minimum size while dragged. A ratio saved in a big window can leave a
-  panel under 320px in a smaller one that still fits the layout as a whole.
-- Splitting or closing a panel remounts the panels around it, so a chat there reloads its position.
+- A panel that isn't shown is unmounted, so maximizing, folding or narrowing the window rebuilds the
+  panels hidden by it when they return. That's on purpose: hidden panels must not receive video.
+- With panels folded, picking one of the tabs swaps what the host shows, which is a different panel
+  and so a different instance.
+- While an older app rewrites the layout, its panels lose their ids and get them back from their
+  place. A panel can then be rebuilt once.
 - `split` can only go when no one is on a version that reads it, like `members` in 0038.
