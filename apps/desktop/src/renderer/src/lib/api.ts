@@ -168,8 +168,11 @@ export interface Panel {
 export interface PanelLayout {
   panels: Panel[]
   split: number
-  /** Tabs that show the member list next to them (remembered per tab). */
+  /** Tabs that showed the member list when it was per tab; only seeds `members_open`. */
   members?: PanelTab[]
+  /** The server's single member bar; null until chosen. */
+  members_open?: boolean | null
+  members_width?: number | null
 }
 
 /** Per-user preferences synced through the server (GET/PATCH /users/me/settings). */

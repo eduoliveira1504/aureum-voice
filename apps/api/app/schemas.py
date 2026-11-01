@@ -358,8 +358,13 @@ class PanelLayout(BaseModel):
 
     panels: Annotated[list[Panel], Field(min_length=1, max_length=2)]
     split: Annotated[float, Field(ge=0.2, le=0.8)] = 0.5
-    # Tabs that show the member list next to them (it's remembered per tab).
+    # Tabs that showed the member list when it was per tab. Only read to seed `members_open`;
+    # still accepted because older app versions keep sending it.
     members: Annotated[list[PanelTab], Field(max_length=24)] = []
+    # The server's single member bar. None: not chosen yet (open if `members` has tabs; the
+    # width falls back to the user's general column size).
+    members_open: bool | None = None
+    members_width: Annotated[int, Field(ge=200, le=420)] | None = None
 
 
 TabList = Annotated[list[uuid.UUID], Field(max_length=200)]
