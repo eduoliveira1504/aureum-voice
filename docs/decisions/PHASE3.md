@@ -18,10 +18,10 @@ backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, c
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
 3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
-3.12 pronto no código: tem 3 migrações, ainda não aplicadas na VPS (escolhas em 0037-channel-categories.md).
-3.13 pronto no código (mudança na API, sem migração: subir antes do app; escolhas em 0038 e 0039).
+3.12 pronto, com as 3 migrações aplicadas na VPS em 01/11 (escolhas em 0037-channel-categories.md).
+3.13 pronto, com a API na VPS desde 01/11 (escolhas em 0038 e 0039).
 3.14 pronto no código, sem mudança na API (escolhas em 0040-overlay-widgets.md); teste manual pendente.
-Release 0.2.0-beta.9 (3.19 A, B, D e E, 3.12, 3.13 e 3.14): API na VPS primeiro, depois publicar.
+Release 0.2.0-beta.9 (3.19 A, B, D e E, 3.12, 3.13 e 3.14): API na VPS em 01/11; rascunho aguardando o Eduardo publicar.
 Próximo: 3.16 (a parte C do 3.19 volta quando chegarem os relatórios). 3.17 só com spec do Eduardo.
 
 ## Regras de produção (valem para todos os blocos)
