@@ -37,7 +37,7 @@ function without(panel: Panel, tab: PanelTab): Panel {
   const index = panel.tabs.indexOf(tab)
   const tabs = panel.tabs.filter((t) => t !== tab)
   const active = panel.active === tab ? (tabs[Math.min(index, tabs.length - 1)] ?? null) : panel.active
-  return { tabs, active }
+  return { ...panel, tabs, active }
 }
 
 /** Placeholder addon tabs from before addons were channels (`addon:<key>`). */
@@ -54,12 +54,33 @@ export function pinOverview(saved: PanelLayout): PanelLayout {
   const tabs = ['overview', ...(first?.tabs ?? []).filter((t) => t !== 'overview')]
   const moved = rest.some((p) => p.active === 'overview')
   const active = moved ? 'overview' : (first?.active ?? 'overview')
-  return { ...layout, panels: [{ tabs, active }, ...others] }
+  return { ...layout, panels: [{ ...first, tabs, active }, ...others] }
+}
+
+/**
+ * Gives every panel an id. Layouts from before ids, or saved by an older app, get one from their
+ * place: always the same one until it's saved, so they're stable from the first read.
+ */
+function withPanelIds(layout: PanelLayout): PanelLayout {
+  const used = new Set<string>()
+  const panels = layout.panels.map((panel, i) => {
+    let id = panel.id ?? `p${i}`
+    while (used.has(id)) id += 'x'
+    used.add(id)
+    return panel.id === id ? panel : { ...panel, id }
+  })
+  return { ...layout, panels }
+}
+
+const newPanelId = (): string => Math.random().toString(36).slice(2, 10) || 'n'
+
+/** A saved layout ready to use: overview pinned, and every panel with its id. */
+export function readLayout(saved: PanelLayout | undefined): PanelLayout {
+  return withPanelIds(pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT))
 }
 
 export function layoutOf(serverId: string): PanelLayout {
-  const saved = useAppearance.getState().settings.panel_layouts[serverId]
-  return pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT)
+  return readLayout(useAppearance.getState().settings.panel_layouts[serverId])
 }
 
 /** Where a layout's panels go; panels saved without a tree, or by an older app, sit in a row. */
@@ -304,14 +325,14 @@ export const useNav = create<NavState>()((set, get) => {
       const panels = layout.panels.map((p, i) => (i === from ? without(p, tab) : p))
       if (split) {
         tree = splitPanel(tree, panel, edge, panels.length)
-        panels.push({ tabs: [], active: null })
+        panels.push({ id: newPanelId(), tabs: [], active: null })
       }
       const into = split ? panels.length - 1 : panel
       const tabs = [...panels[into].tabs]
       const before = from === into ? layout.panels[from].tabs.indexOf(tab) : -1
       const at = index === undefined ? tabs.length : index - (before >= 0 && before < index ? 1 : 0)
       tabs.splice(at, 0, tab)
-      panels[into] = { tabs, active: tab }
+      panels[into] = { ...panels[into], tabs, active: tab }
       saveLayout(serverId, tidy({ ...layout, panels }, tree))
       // Index of the destination after the emptied panel is dropped.
       setFocused(serverId, from >= 0 && from < into && panels[from].tabs.length === 0 ? into - 1 : into)
@@ -328,7 +349,7 @@ export const useNav = create<NavState>()((set, get) => {
     closeOtherTabs: (serverId, panel, tab) => {
       const layout = layoutOf(serverId)
       const panels = layout.panels.map((p, i) =>
-        i === panel ? { tabs: p.tabs.filter((t) => t === tab || t === 'overview'), active: tab } : p
+        i === panel ? { ...p, tabs: p.tabs.filter((t) => t === tab || t === 'overview'), active: tab } : p
       )
       saveLayout(serverId, { ...layout, panels })
       setFocused(serverId, panel)

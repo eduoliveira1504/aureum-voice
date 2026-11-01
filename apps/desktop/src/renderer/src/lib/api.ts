@@ -160,6 +160,8 @@ export type Presence = 'online' | 'idle' | 'dnd' | 'offline'
 export type PanelTab = string
 
 export interface Panel {
+  /** Follows the panel while its index changes; older app versions don't keep it. */
+  id?: string | null
   tabs: PanelTab[]
   active: PanelTab | null
 }

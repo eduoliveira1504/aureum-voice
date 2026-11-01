@@ -1,12 +1,27 @@
 import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Minimize2, Rows2, Volume2, X, type LucideIcon } from 'lucide-react'
-import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
-import type { Channel, Me, Panel, PanelNode, PanelSplit, PanelTab, ServerDetail } from '../lib/api'
-import { clampRatio, dropEdge, fitPanels, leaves, type Edge, type TreePath } from '../lib/panelTree'
+import type { Channel, Me, Panel, PanelTab, ServerDetail } from '../lib/api'
+import {
+  clampRatio,
+  dropEdge,
+  fitPanels,
+  leaves,
+  PANEL_GAP,
+  pathBetween,
+  pixels,
+  placePanels,
+  setRatio,
+  type Box,
+  type Edge,
+  type PlacedDivider,
+  type Span,
+  type TreePath
+} from '../lib/panelTree'
 import { channelPermissions, has, Perm, roleColor } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
-import { DEFAULT_LAYOUT, dividableTab, layoutOf, MAX_PANELS, parseTab, pinOverview, treeOf, useNav } from '../store/nav'
+import { dividableTab, layoutOf, MAX_PANELS, parseTab, readLayout, treeOf, useNav } from '../store/nav'
 import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { contextMenu, Item } from './ContextMenu'
@@ -43,8 +58,13 @@ const DROP_AREA: Record<DropZone, string> = {
   center: 'inset-0'
 }
 
-/** The padding around the panels, which they don't get to use. */
-const AREA_PADDING = { width: 8, height: 16 }
+const cssLength = ({ share, px }: Span): string => `calc(${share * 100}% + ${px}px)`
+const boxStyle = ({ x, y, w, h }: Box): CSSProperties => ({
+  left: cssLength(x),
+  top: cssLength(y),
+  width: cssLength(w),
+  height: cssLength(h)
+})
 
 /** The element's size, once it's known (never in tests, where nothing has a size). */
 function useSize<T extends HTMLElement>(): [React.RefObject<T | null>, { width: number; height: number } | null] {
@@ -60,10 +80,14 @@ function useSize<T extends HTMLElement>(): [React.RefObject<T | null>, { width: 
   return [ref, size]
 }
 
-/** The server's content area: up to four panels divided by a tree, each with its own tabs. */
+/**
+ * The server's content area: up to four panels divided by a tree, each with its own tabs. They're
+ * all children of one element, kept in the order of their ids: changing the tree only changes
+ * their boxes, so the chat keeps its scroll and video keeps playing in the panels around a change.
+ */
 export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const saved = useAppearance((s) => s.settings.panel_layouts[server.id])
-  const layout = useMemo(() => pinOverview(saved?.panels.length ? saved : DEFAULT_LAYOUT), [saved])
+  const layout = useMemo(() => readLayout(saved), [saved])
   const focused = useNav((s) => Math.min(s.focusedPanel[server.id] ?? 0, layout.panels.length - 1))
   const narrow = useNav((s) => s.narrow)
 
@@ -90,9 +114,11 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
   const fitted = useMemo(() => {
     const full = treeOf(layout)
     if (narrow || maximized !== null || !size) return { tree: narrow ? focused : (maximized ?? full), folded: {} as Record<number, number[]> }
-    return fitPanels(full, size.width - AREA_PADDING.width, size.height - AREA_PADDING.height)
+    return fitPanels(full, size.width, size.height)
   }, [layout, narrow, focused, maximized, size])
-  const { tree, folded } = fitted
+  const { tree: fittedTree, folded } = fitted
+  const [live, setLive] = useState<{ path: TreePath; ratio: number } | null>(null)
+  const tree = live ? setRatio(fittedTree, live.path, live.ratio) : fittedTree
   const several = typeof tree !== 'number'
 
   /** A panel with others folded into it shows whichever of them has the focus. */
@@ -103,66 +129,55 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
   }, [server.id, shownKey])
   const canDivide = !narrow && maximized === null && layout.panels.length < MAX_PANELS
 
-  const leaf = (host: number, grow: number): ReactNode => (
-    <PanelView
-      key={host}
-      server={server}
-      me={me}
-      index={showing(host)}
-      panel={layout.panels[showing(host)]}
-      tabs={[host, ...(folded[host] ?? [])].flatMap((owner) => layout.panels[owner].tabs.map((tab) => ({ tab, owner })))}
-      canClose={several}
-      canDivide={canDivide}
-      maximized={maximized !== null}
-      focused={several && showing(host) === focused}
-      grow={grow}
-    />
-  )
+  const placed = placePanels(tree)
+  const byId = (index: number): string => layout.panels[showing(index)].id as string
+  const inOrder = [...placed.panels].sort((a, b) => (byId(a.index) < byId(b.index) ? -1 : 1))
 
   return (
-    <div ref={area} className="relative flex min-w-0 flex-1 py-2 pr-2">
-      <PanelBranch serverId={server.id} node={tree} path="" grow={1} leaf={leaf} />
-    </div>
-  )
-}
-
-/** One side of a division: a panel, or two sides with a divider between them. */
-function PanelBranch({
-  serverId,
-  node,
-  path,
-  grow,
-  leaf
-}: {
-  serverId: string
-  node: PanelNode
-  path: TreePath
-  grow: number
-  leaf(index: number, grow: number): ReactNode
-}): ReactNode {
-  const [live, setLive] = useState<number | null>(null)
-  if (typeof node === 'number') return leaf(node, grow)
-  const ratio = live ?? node.ratio
-  return (
-    <div style={{ flex: `${grow} 1 0` }} className={`flex min-h-0 min-w-0 ${node.dir === 'row' ? '' : 'flex-col'}`}>
-      <PanelBranch serverId={serverId} node={node.a} path={`${path}a`} grow={ratio} leaf={leaf} />
-      <Divider serverId={serverId} split={node} path={path} onLive={setLive} />
-      <PanelBranch serverId={serverId} node={node.b} path={`${path}b`} grow={1 - ratio} leaf={leaf} />
+    <div className="relative min-w-0 flex-1">
+      <div ref={area} className="absolute bottom-2 left-0 right-2 top-2">
+        {inOrder.map(({ index: host, box }) => (
+          <PanelView
+            key={byId(host)}
+            server={server}
+            me={me}
+            index={showing(host)}
+            panel={layout.panels[showing(host)]}
+            tabs={[host, ...(folded[host] ?? [])].flatMap((owner) => layout.panels[owner].tabs.map((tab) => ({ tab, owner })))}
+            canClose={several}
+            canDivide={canDivide}
+            maximized={maximized !== null}
+            focused={several && showing(host) === focused}
+            box={box}
+          />
+        ))}
+        {placed.dividers.map((divider) => (
+          <Divider
+            key={divider.path}
+            serverId={server.id}
+            divider={divider}
+            savedPath={pathBetween(treeOf(layout), leaves(divider.split.a)[0], leaves(divider.split.b)[0])}
+            onLive={(ratio) => setLive(ratio === null ? null : { path: divider.path, ratio })}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
 function Divider({
   serverId,
-  split,
-  path,
+  divider,
+  savedPath,
   onLive
 }: {
   serverId: string
-  split: PanelSplit
-  path: TreePath
+  divider: PlacedDivider
+  /** Its split in the saved tree, which differs from the one on screen with panels folded. */
+  savedPath: TreePath
   onLive(ratio: number | null): void
 }): ReactNode {
+  const { split, box, whole } = divider
   const row = split.dir === 'row'
 
   const onPointerDown = (e: ReactPointerEvent): void => {
@@ -170,15 +185,19 @@ function Divider({
     const rect = target.parentElement?.getBoundingClientRect()
     if (!rect) return
     target.setPointerCapture(e.pointerId)
-    const size = row ? rect.width : rect.height
-    const at = (ev: PointerEvent): number =>
-      clampRatio(split, ((row ? ev.clientX - rect.left : ev.clientY - rect.top) / size), size)
+    const area = row ? rect.width : rect.height
+    const start = pixels(row ? whole.x : whole.y, area)
+    const size = pixels(row ? whole.w : whole.h, area)
+    const at = (ev: PointerEvent): number => {
+      const pointer = (row ? ev.clientX - rect.left : ev.clientY - rect.top) - start - PANEL_GAP / 2
+      return clampRatio(split, pointer / (size - PANEL_GAP), size)
+    }
     const move = (ev: PointerEvent): void => onLive(at(ev))
     const up = (ev: PointerEvent): void => {
       target.removeEventListener('pointermove', move)
       target.removeEventListener('pointerup', up)
       onLive(null)
-      useNav.getState().setPanelRatio(serverId, path, at(ev))
+      useNav.getState().setPanelRatio(serverId, savedPath, at(ev))
     }
     target.addEventListener('pointermove', move)
     target.addEventListener('pointerup', up)
@@ -190,8 +209,9 @@ function Divider({
       aria-orientation={row ? 'vertical' : 'horizontal'}
       aria-label="Redimensionar painéis"
       onPointerDown={onPointerDown}
-      onDoubleClick={() => useNav.getState().evenPanels(serverId, path)}
-      className={`group flex shrink-0 items-center justify-center ${row ? 'w-2 cursor-col-resize' : 'h-2 cursor-row-resize'}`}
+      onDoubleClick={() => useNav.getState().evenPanels(serverId, savedPath)}
+      style={boxStyle(box)}
+      className={`group absolute flex items-center justify-center ${row ? 'cursor-col-resize' : 'cursor-row-resize'}`}
     >
       <span className={`rounded-full bg-line transition-colors group-hover:bg-accent ${row ? 'h-10 w-1' : 'h-1 w-10'}`} />
     </div>
@@ -248,7 +268,7 @@ function PanelView({
   canDivide,
   maximized,
   focused,
-  grow
+  box
 }: {
   server: ServerDetail
   me: Me
@@ -260,7 +280,7 @@ function PanelView({
   canDivide: boolean
   maximized: boolean
   focused: boolean
-  grow: number
+  box: Box
 }): ReactNode {
   const { activateTab, closeTab, closePanel, dropTab, focusPanel, toggleMaximize } = useNav.getState()
   const callRoom = useVoice((s) =>
@@ -302,8 +322,8 @@ function PanelView({
     <section
       aria-label={`Painel ${index + 1}`}
       onMouseDownCapture={() => focusPanel(server.id, index)}
-      style={{ flex: `${grow} 1 0` }}
-      className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-panel border bg-main ${
+      style={boxStyle(box)}
+      className={`absolute flex flex-col overflow-hidden rounded-panel border bg-main ${
         focused ? 'border-accent/40' : 'border-line'
       }`}
       onDragOver={(e) => {

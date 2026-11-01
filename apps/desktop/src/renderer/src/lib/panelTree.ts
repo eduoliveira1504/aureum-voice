@@ -71,6 +71,70 @@ export function setRatio(node: PanelNode, path: TreePath, ratio: number): PanelN
   return { ...node, [side]: setRatio(node[side], path.slice(1), ratio) }
 }
 
+/** The split that divides two panels: where a divider on screen sits in the saved tree. */
+export function pathBetween(node: PanelNode, x: number, y: number): TreePath {
+  if (typeof node === 'number') return ''
+  const inA = leaves(node.a)
+  if (inA.includes(x) && inA.includes(y)) return `a${pathBetween(node.a, x, y)}`
+  if (!inA.includes(x) && !inA.includes(y)) return `b${pathBetween(node.b, x, y)}`
+  return ''
+}
+
+/** A length in the panel area: a share of it plus some pixels. Works without knowing its size. */
+export interface Span {
+  share: number
+  px: number
+}
+
+export interface Box {
+  x: Span
+  y: Span
+  w: Span
+  h: Span
+}
+
+const plus = (a: Span, b: Span): Span => ({ share: a.share + b.share, px: a.px + b.px })
+const times = (a: Span, ratio: number): Span => ({ share: a.share * ratio, px: a.px * ratio })
+const GAP: Span = { share: 0, px: PANEL_GAP }
+
+export const pixels = (span: Span, area: number): number => span.share * area + span.px
+
+export interface PlacedDivider {
+  split: PanelSplit
+  path: TreePath
+  box: Box
+  /** The whole division, which the ratio is a share of. */
+  whole: Box
+}
+
+/** Where every panel and divider goes. They're all placed in one area, so that a change in the
+ * tree never moves a panel to another parent in the page, which would rebuild what it shows. */
+export function placePanels(tree: PanelNode): { panels: { index: number; box: Box }[]; dividers: PlacedDivider[] } {
+  const panels: { index: number; box: Box }[] = []
+  const dividers: PlacedDivider[] = []
+  const walk = (node: PanelNode, box: Box, path: TreePath): void => {
+    if (typeof node === 'number') {
+      panels.push({ index: node, box })
+      return
+    }
+    const row = node.dir === 'row'
+    const length = plus(row ? box.w : box.h, { share: 0, px: -PANEL_GAP })
+    const first = times(length, node.ratio)
+    const second = times(length, 1 - node.ratio)
+    const start = row ? box.x : box.y
+    const at = plus(start, first)
+    const after = plus(at, GAP)
+    const part = (pos: Span, size: Span): Box => (row ? { ...box, x: pos, w: size } : { ...box, y: pos, h: size })
+    dividers.push({ split: node, path, box: part(at, GAP), whole: box })
+    walk(node.a, part(start, first), `${path}a`)
+    walk(node.b, part(after, second), `${path}b`)
+  }
+  const full: Span = { share: 1, px: 0 }
+  const zero: Span = { share: 0, px: 0 }
+  walk(tree, { x: zero, y: zero, w: full, h: full }, '')
+  return { panels, dividers }
+}
+
 export function nodeAt(node: PanelNode, path: TreePath): PanelNode | undefined {
   if (!path) return node
   return typeof node === 'number' ? undefined : nodeAt(node[path[0] as 'a' | 'b'], path.slice(1))
@@ -133,7 +197,8 @@ export function fitPanels(tree: PanelNode, width: number, height: number): { tre
 
 /** Keeps a dragged divider from squeezing either side below its minimum. */
 export function clampRatio(split: PanelSplit, ratio: number, size: number): number {
-  const low = Math.max(0.1, minSize(split.a, split.dir) / size)
-  const high = Math.min(0.9, 1 - minSize(split.b, split.dir) / size)
+  const room = size - PANEL_GAP
+  const low = Math.max(0.1, minSize(split.a, split.dir) / room)
+  const high = Math.min(0.9, 1 - minSize(split.b, split.dir) / room)
   return low > high ? 0.5 : Math.min(high, Math.max(low, ratio))
 }

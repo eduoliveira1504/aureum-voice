@@ -1,7 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PanelSplit } from './api'
-import { clampRatio, dropEdge, evenRatio, fitPanels, leaves, matches, minSize, nodeAt, removePanel, rowOf, setRatio, splitPanel } from './panelTree'
+import {
+  clampRatio,
+  dropEdge,
+  evenRatio,
+  fitPanels,
+  leaves,
+  matches,
+  minSize,
+  nodeAt,
+  pathBetween,
+  pixels,
+  placePanels,
+  removePanel,
+  rowOf,
+  setRatio,
+  splitPanel
+} from './panelTree'
 
 const row = (a: PanelSplit['a'], b: PanelSplit['b'], ratio = 0.5): PanelSplit => ({ dir: 'row', ratio, a, b })
 const col = (a: PanelSplit['a'], b: PanelSplit['b'], ratio = 0.5): PanelSplit => ({ dir: 'col', ratio, a, b })
@@ -50,6 +66,41 @@ describe('changing the tree', () => {
     expect((nodeAt(next, 'b') as PanelSplit).ratio).toBe(0.7)
     expect((nodeAt(next, 'a') as PanelSplit).ratio).toBe(0.5)
     expect((setRatio(tree, '', 0.3) as PanelSplit).ratio).toBe(0.3)
+  })
+})
+
+describe('placing panels', () => {
+  const area = 1000
+
+  it('fills the area with one panel', () => {
+    const { panels, dividers } = placePanels(0)
+    expect(dividers).toEqual([])
+    expect(pixels(panels[0].box.w, area)).toBe(area)
+  })
+
+  it('shares the room left by the divider', () => {
+    const { panels, dividers } = placePanels(row(0, 1, 0.25))
+    const [a, b] = panels
+    expect(pixels(a.box.w, area)).toBe(248)
+    expect(pixels(dividers[0].box.x, area)).toBe(248)
+    expect(pixels(b.box.x, area)).toBe(256)
+    expect(pixels(b.box.w, area)).toBe(744)
+  })
+
+  it('nests, keeping each panel inside its division', () => {
+    const { panels, dividers } = placePanels(row(0, col(1, 2)))
+    expect(panels.map((p) => p.index)).toEqual([0, 1, 2])
+    expect(dividers.map((d) => d.path)).toEqual(['', 'b'])
+    expect(pixels(panels[2].box.x, area)).toBe(504)
+    expect(pixels(panels[2].box.y, area)).toBe(504)
+    expect(pixels(dividers[1].whole.w, area)).toBe(496)
+  })
+
+  it('finds a divider of a folded tree in the saved one', () => {
+    const saved = row(col(0, 2), col(1, 3))
+    expect(pathBetween(saved, 0, 1)).toBe('')
+    expect(pathBetween(saved, 1, 3)).toBe('b')
+    expect(pathBetween(saved, 2, 0)).toBe('a')
   })
 })
 
@@ -102,8 +153,8 @@ describe('sizes', () => {
   })
 
   it('keeps a divider from squeezing a side', () => {
-    expect(clampRatio(row(0, 1), 0.05, 1000)).toBe(0.32)
-    expect(clampRatio(row(0, 1), 0.95, 1000)).toBeCloseTo(0.68)
+    expect(clampRatio(row(0, 1), 0.05, 1000)).toBeCloseTo(320 / 992)
+    expect(clampRatio(row(0, 1), 0.95, 1000)).toBeCloseTo(1 - 320 / 992)
     expect(clampRatio(row(0, 1), 0.5, 1000)).toBe(0.5)
     expect(clampRatio(row(0, 1), 0.2, 500)).toBe(0.5) // no room for both
   })

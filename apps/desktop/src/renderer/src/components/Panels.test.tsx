@@ -6,12 +6,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Me, PanelLayout, ServerDetail } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { layoutOf, treeOf, useNav } from '../store/nav'
+import { useVoice } from '../store/voice'
 import { ContextMenuHost } from './ContextMenu'
 import { PANEL_DRAG_TYPE, Panels } from './Panels'
 
-vi.mock('./ChatView', () => ({ ChatView: () => <div>chat</div> }))
+const mounts = vi.hoisted(() => ({ chat: {} as Record<string, number>, voice: 0 }))
+
+vi.mock('./ChatView', async () => {
+  const { useEffect } = await import('react')
+  return {
+    ChatView: ({ channel }: { channel: { id: string } }) => {
+      useEffect(() => {
+        mounts.chat[channel.id] = (mounts.chat[channel.id] ?? 0) + 1
+      }, [channel.id])
+      return <div data-testid={`chat-${channel.id}`}>chat</div>
+    }
+  }
+})
 vi.mock('./ServerOverview', () => ({ ServerOverview: () => <div>overview</div> }))
-vi.mock('./VoiceView', () => ({ VoiceView: () => <div>voice</div> }))
+vi.mock('./VoiceView', async () => {
+  const { useEffect } = await import('react')
+  return {
+    VoiceView: () => {
+      useEffect(() => void mounts.voice++, [])
+      return <video data-testid="video" />
+    }
+  }
+})
 
 const SID = 's-1'
 const ME = { id: 'u-me' } as Me
@@ -226,6 +247,68 @@ describe('small windows', () => {
     expect(useNav.getState().shownPanels[SID]).toEqual([0, 2, 1, 3])
     act(() => useNav.getState().toggleMaximize(SID, 1))
     expect(useNav.getState().shownPanels[SID]).toEqual([1])
+  })
+})
+
+describe('neighbors of a change', () => {
+  const nav = useNav.getState()
+
+  beforeEach(() => {
+    mounts.chat = {}
+    mounts.voice = 0
+    useVoice.setState({ phase: 'connected', serverId: SID, channelId: 'c-3' } as never)
+    show({ panels: [{ tabs: ['overview', 'channel:c-2'], active: 'overview' }, panel('channel:c-1'), panel('call')], split: 0.5 })
+  })
+  afterEach(() => useVoice.setState({ phase: 'idle', serverId: null, channelId: null }))
+
+  /** Runs `change` and checks that the chat and the call came through it untouched. */
+  function untouched(change: () => void): void {
+    const chat = screen.getByTestId('chat-c-1')
+    const video = screen.getByTestId('video')
+    chat.scrollTop = 120
+    const area = chat.closest('section')!.parentElement!
+    const moves = new MutationObserver(() => {})
+    moves.observe(area, { childList: true })
+
+    act(change)
+
+    expect(screen.getByTestId('chat-c-1')).toBe(chat)
+    expect(screen.getByTestId('video')).toBe(video)
+    expect(chat.scrollTop).toBe(120)
+    expect(mounts.chat['c-1']).toBe(1)
+    expect(mounts.voice).toBe(1)
+    // Taking a node out and back in would restart the video, even with the same element.
+    const gone = moves.takeRecords().flatMap((r) => [...r.removedNodes])
+    expect(gone.some((n) => n.contains(chat) || n.contains(video))).toBe(false)
+    moves.disconnect()
+  }
+
+  it('keeps them when another panel is divided', () => {
+    untouched(() => nav.dropTab(SID, 'channel:c-2', 0, 'bottom'))
+  })
+
+  it('keeps them when a panel opens on an edge of theirs', () => {
+    untouched(() => nav.dropTab(SID, 'channel:c-2', 1, 'left'))
+    expect(treeOf(layoutOf(SID))).toMatchObject({ dir: 'row' })
+  })
+
+  it('keeps them when a panel next to them closes', () => {
+    untouched(() => nav.dropTab(SID, 'channel:c-2', 0, 'bottom'))
+    untouched(() => nav.closePanel(SID, 3))
+  })
+
+  it('keeps them when a panel before them closes and their indexes change', () => {
+    untouched(() => nav.closePanel(SID, 0))
+    expect(layoutOf(SID).panels[0].tabs).toEqual(['overview', 'channel:c-1'])
+  })
+
+  it('keeps them when another device swaps the panels around', () => {
+    const layout = layoutOf(SID)
+    untouched(() => setLayout({ ...layout, tree: { dir: 'row', ratio: 0.5, a: 2, b: { dir: 'col', ratio: 0.5, a: 1, b: 0 } } }))
+  })
+
+  it('keeps them when a panel opens beside the call', () => {
+    untouched(() => nav.dropTab(SID, 'channel:c-2', 2, 'right'))
   })
 })
 

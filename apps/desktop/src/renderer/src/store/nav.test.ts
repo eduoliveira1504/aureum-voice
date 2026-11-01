@@ -190,6 +190,44 @@ describe('closing', () => {
   })
 })
 
+describe('panel ids', () => {
+  const ids = (): (string | null | undefined)[] => layoutOf(SID).panels.map((p) => p.id)
+
+  it('follow each panel through every change', () => {
+    nav.dropTab(SID, tab(1), 0, 'right')
+    nav.dropTab(SID, tab(2), 0, 'bottom')
+    nav.dropTab(SID, tab(3), 1, 'bottom')
+    const [first, second, third, fourth] = ids()
+    expect(new Set(ids()).size).toBe(4)
+
+    nav.openTab(SID, tab(4))
+    nav.dropTab(SID, tab(4), 2)
+    nav.closeOtherTabs(SID, 2, tab(4))
+    expect(ids()).toEqual([first, second, third, fourth])
+    nav.closePanel(SID, 1)
+    expect(ids()).toEqual([first, third, fourth])
+    nav.closeTab(SID, 1, tab(4))
+    expect(ids()).toEqual([first, fourth])
+  })
+
+  it('are the same on every read of a layout saved without them', () => {
+    setLayout({ panels: [{ tabs: ['overview'], active: 'overview' }, { tabs: [tab(1)], active: tab(1) }], split: 0.5 })
+    expect(ids()).toEqual(['p0', 'p1'])
+    expect(ids()).toEqual(['p0', 'p1'])
+  })
+
+  it('never repeat, even after an older app left some out', () => {
+    setLayout({
+      panels: [
+        { id: 'p1', tabs: ['overview'], active: 'overview' },
+        { tabs: [tab(1)], active: tab(1) }
+      ],
+      split: 0.5
+    })
+    expect(new Set(ids()).size).toBe(2)
+  })
+})
+
 describe('sizes', () => {
   it('saves a divider, and mirrors the root for older apps', () => {
     nav.dropTab(SID, tab(1), 0, 'right')
