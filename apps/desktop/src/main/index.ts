@@ -409,9 +409,9 @@ function startWithSplash(): void {
         installUpdate()
       }
     },
-    { checkUpdates: false }
+    // Same as the updater: never in development.
+    { checkUpdates: app.isPackaged }
   )
-  startup.update({ kind: 'none' })
 }
 
 function showWindow(): void {
@@ -480,7 +480,10 @@ if (!app.requestSingleInstanceLock()) {
       mainWindow?.webContents.send('games:changed', game)
       void syncOverlayGames()
     }).then(syncOverlayGames)
-    startUpdater((state) => mainWindow?.webContents.send('updates:ready', state))
+    startUpdater(
+      (state) => mainWindow?.webContents.send('updates:ready', state),
+      (phase) => startup?.update(phase)
+    )
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CHECK_LIMIT_MS, createStartup, DOWNLOAD_MAX_MS, MAX_MS, MIN_MS, STALL_MS, TEXT } from './startup'
+import { CHECK_LIMIT_MS, createStartup, isOfflineError, DOWNLOAD_MAX_MS, MAX_MS, MIN_MS, STALL_MS, TEXT } from './startup'
 
 function setup(checkUpdates: boolean) {
   const hooks = { status: vi.fn(), open: vi.fn(), install: vi.fn() }
@@ -160,5 +160,15 @@ describe('loading screen', () => {
     startup.appReady(true)
     vi.advanceTimersByTime(MAX_MS)
     expect(hooks.open).toHaveBeenCalledOnce()
+  })
+})
+
+describe('offline errors', () => {
+  it('tells no internet apart from other update failures', () => {
+    expect(isOfflineError(new Error('net::ERR_INTERNET_DISCONNECTED'))).toBe(true)
+    expect(isOfflineError(new Error('getaddrinfo ENOTFOUND github.com'))).toBe(true)
+    expect(isOfflineError(Object.assign(new Error('lookup failed'), { code: 'EAI_AGAIN' }))).toBe(true)
+    expect(isOfflineError(new Error('HttpError: 404 Not Found'))).toBe(false)
+    expect(isOfflineError(new Error('sha512 checksum mismatch'))).toBe(false)
   })
 })

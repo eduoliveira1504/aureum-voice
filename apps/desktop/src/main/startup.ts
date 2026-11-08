@@ -35,6 +35,14 @@ export type UpdatePhase =
   | { kind: 'none' }
   | { kind: 'failed'; offline: boolean }
 
+/** Chromium's network errors that mean "no internet here" (not "GitHub had a problem"). */
+const OFFLINE = /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|NETWORK_CHANGED|NETWORK_ACCESS_DENIED|ADDRESS_UNREACHABLE|PROXY_CONNECTION_FAILED)|ENOTFOUND|EAI_AGAIN|ENETUNREACH/
+
+export function isOfflineError(err: unknown): boolean {
+  const text = err instanceof Error ? `${err.message} ${(err as { code?: unknown }).code ?? ''}` : String(err)
+  return OFFLINE.test(text)
+}
+
 export interface StartupHooks {
   status(text: string): void
   /** Fade the loading screen out and show the main window. */
