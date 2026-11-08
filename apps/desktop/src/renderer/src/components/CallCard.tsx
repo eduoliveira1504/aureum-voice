@@ -11,6 +11,7 @@ import {
   VideoOff
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 import type { User, VoiceState } from '../lib/api'
 import { serverPeople } from '../lib/members'
@@ -80,12 +81,27 @@ export function useCallContext(meId: string | null): CallContext | null {
 }
 
 /** Mic, deafen, camera, screen and leave buttons shared by the call card and the floating window,
- * with the device menus' arrows (only mic and leave when `compact`: the collapsed sidebar). */
-export function CallButtons({ size = 18, compact = false }: { size?: number; compact?: boolean }): ReactNode {
+ * with the device menus' arrows (only mic and leave when `compact`: the collapsed sidebar).
+ * `detached` (the call's own window): no arrows, and the screen picker opens in the app's window,
+ * brought to the front, since it doesn't fit a small window. */
+export function CallButtons({
+  size = 18,
+  compact = false,
+  detached = false
+}: {
+  size?: number
+  compact?: boolean
+  detached?: boolean
+}): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, serverMuted, serverDeafened } = useVoice()
   const { toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } = useVoice.getState()
   const [picking, setPicking] = useState(false)
   const micOff = muted || deafened || !allowed.mic
+  const arrows = !compact && !detached
+  const pickScreen = (): void => {
+    if (detached) void window.aureum.window.show()
+    setPicking(true)
+  }
   const micLabel =
     serverMuted || serverDeafened
       ? 'Silenciado pelo servidor'
@@ -102,7 +118,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
       <button type="button" title={micLabel} aria-label={micLabel} disabled={!allowed.mic} onClick={toggleMute} className={`${button} ${tone(micOff)}`}>
         {micOff ? <MicOff size={size} /> : <Mic size={size} />}
       </button>
-      {!compact && <DeviceArrow kind="mic" small />}
+      {arrows && <DeviceArrow kind="mic" small />}
       {!compact && (
         <button
           type="button"
@@ -115,7 +131,7 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
           {deafened || serverDeafened ? <HeadphoneOff size={size} /> : <Headphones size={size} />}
         </button>
       )}
-      {!compact && <DeviceArrow kind="output" small />}
+      {arrows && <DeviceArrow kind="output" small />}
       {!compact && (
         <button
           type="button"
@@ -128,14 +144,14 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
           {camera ? <Video size={size} /> : <VideoOff size={size} />}
         </button>
       )}
-      {!compact && <DeviceArrow kind="camera" small />}
+      {arrows && <DeviceArrow kind="camera" small />}
       {!compact && (
         <button
           type="button"
           title={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
           aria-label={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
           disabled={phase !== 'connected' || (!screen && !allowed.screen)}
-          onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
+          onClick={() => (screen ? void stopScreenShare() : pickScreen())}
           className={`${button} ${screen ? 'text-accent-text' : 'text-fg-muted hover:text-fg'}`}
         >
           {screen ? <MonitorOff size={size} /> : <MonitorUp size={size} />}
@@ -150,7 +166,13 @@ export function CallButtons({ size = 18, compact = false }: { size?: number; com
       >
         <PhoneOff size={size} />
       </button>
-      {picking && <ScreenShareModal onClose={() => setPicking(false)} />}
+      {picking &&
+        (detached ? (
+          // This code runs in the app window's context, so `document` is the app's own page.
+          createPortal(<ScreenShareModal onClose={() => setPicking(false)} />, document.body)
+        ) : (
+          <ScreenShareModal onClose={() => setPicking(false)} />
+        ))}
     </>
   )
 }

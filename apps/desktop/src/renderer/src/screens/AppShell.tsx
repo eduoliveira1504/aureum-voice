@@ -3,6 +3,7 @@ import { useEffect, useMemo, type ReactNode } from 'react'
 import { dispatchAddonEvent } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
+import { DetachedCallHost } from '../components/DetachedCall'
 import { ContextMenuHost } from '../components/ContextMenu'
 import { EmojiPickerHost } from '../components/Emoji'
 import { EditProfileHost } from '../components/EditProfileModal'
@@ -128,6 +129,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         {server && <MembersBar server={server} meId={user.id} />}
       </div>
       <CallPip meId={user.id} />
+      <DetachedCallHost meId={user.id} />
       <OverlayHost me={user} />
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />

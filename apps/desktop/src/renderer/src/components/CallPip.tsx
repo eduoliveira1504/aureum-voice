@@ -1,4 +1,4 @@
-import { Expand, Maximize2, Minimize2 } from 'lucide-react'
+import { Expand, Maximize2, Minimize2, SquareArrowOutUpRight } from 'lucide-react'
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 
 import { useCallOnScreen, useNav, type Corner } from '../store/nav'
@@ -15,8 +15,8 @@ const CORNER_CLASS: Record<Corner, string> = {
   'bottom-right': 'bottom-4 right-4'
 }
 
-/** Picks what the floating window shows: someone else's screen, else who's speaking. */
-function useSubject(meId: string): { identity: string; kind: 'screen' | 'person' } | null {
+/** Picks what the floating window (and the detached one) shows: someone else's screen, else who's speaking. */
+export function useSubject(meId: string): { identity: string; kind: 'screen' | 'person' } | null {
   useVoice((s) => s.version) // re-render on room changes
   const speaking = useVoice((s) => s.speaking)
   const lastSpeaker = useRef<string | null>(null)
@@ -37,14 +37,16 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
   const info = useCallContext(meId)
   const speaking = useVoice((s) => s.speaking)
   const minimized = useNav((s) => s.pipMinimized)
+  const detached = useNav((s) => s.callDetached)
   const corner = useNav((s) => s.pipCorner)
-  const { setPipCorner, setPipMinimized, setCallFullscreen } = useNav.getState()
+  const { setPipCorner, setPipMinimized, setCallFullscreen, setCallDetached } = useNav.getState()
   const onScreen = useCallOnScreen()
   const subject = useSubject(meId)
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
-  if (!info || minimized || onScreen) return null
+  // Detached, the call's own window takes its place.
+  if (!info || minimized || onScreen || detached) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if ((e.target as HTMLElement).closest('button') || !ref.current) return
@@ -125,6 +127,9 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         <div className="mt-1.5 flex items-center gap-0.5">
           <CallButtons size={16} />
           <span className="flex-1" />
+          <button type="button" title="Destacar chamada" aria-label="Destacar chamada" onClick={() => setCallDetached(true)} className={iconButton}>
+            <SquareArrowOutUpRight size={18} />
+          </button>
           <button type="button" title="Expandir" aria-label="Expandir" onClick={info.open} className={iconButton}>
             <Maximize2 size={18} />
           </button>

@@ -16,6 +16,7 @@ import {
   PhoneOff,
   Presentation,
   Shrink,
+  SquareArrowOutUpRight,
   Video,
   VideoOff,
   Volume2,
@@ -683,6 +684,8 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
   const [picking, setPicking] = useState(false)
   const [menus, setMenus] = useState(0)
   const setCallFullscreen = useNav((s) => s.setCallFullscreen)
+  const detached = useNav((s) => s.callDetached)
+  const setCallDetached = useNav((s) => s.setCallDetached)
   const idle = useIdle(fullscreen, CONTROLS_IDLE_MS)
   const hidden = fullscreen && idle && menus === 0 && !picking
   const menuOpen = (open: boolean): void => setMenus((n) => Math.max(0, n + (open ? 1 : -1)))
@@ -729,6 +732,9 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
         </ControlButton>
         <ControlButton label={fullscreen ? 'Sair da tela cheia (Esc)' : 'Tela cheia'} onClick={() => setCallFullscreen(!fullscreen)}>
           {fullscreen ? <Shrink size={22} /> : <Expand size={22} />}
+        </ControlButton>
+        <ControlButton label={detached ? 'Chamada destacada' : 'Destacar chamada'} active={!detached} onClick={() => setCallDetached(!detached)}>
+          <SquareArrowOutUpRight size={22} />
         </ControlButton>
         <SoundboardControl onOpenChange={menuOpen} />
         <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>

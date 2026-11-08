@@ -148,6 +148,8 @@ interface NavState {
   pipMinimized: boolean
   pipCorner: Corner
   callFullscreen: boolean
+  /** The call is in a window of its own (block 3.20 B); the floating window hides meanwhile. */
+  callDetached: boolean
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
   /** Panels really on screen, per server, as the panel area worked them out. */
@@ -202,6 +204,7 @@ interface NavState {
   setMembersWidth(serverId: string, width: number | null): void
   setPipMinimized(minimized: boolean): void
   setPipCorner(corner: Corner): void
+  setCallDetached(detached: boolean): void
   /** Shows the call in a panel of its server. */
   expandCall(serverId: string): void
   setCallFullscreen(on: boolean): void
@@ -242,6 +245,7 @@ export const useNav = create<NavState>()((set, get) => {
     pipMinimized: false,
     pipCorner: loadPip().corner,
     callFullscreen: false,
+    callDetached: false,
     profileEditor: false,
     narrow: false,
     maximized: {},
@@ -418,6 +422,8 @@ export const useNav = create<NavState>()((set, get) => {
     },
 
     setCallFullscreen: (callFullscreen) => set({ callFullscreen }),
+
+    setCallDetached: (callDetached) => set({ callDetached }),
 
     setNarrow: (narrow) => set({ narrow, membersDrawer: null }),
 
