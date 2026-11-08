@@ -78,7 +78,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   members, online first
 - A call panel at the bottom of the sidebar for the whole call (who's in it, who's talking, mic, deafen,
   camera, screen, leave), people listed under each room, and an optional floating call window that
-  snaps to any corner; the call expands into a panel or fullscreen
+  snaps to any corner; the call expands into a panel or fullscreen, or detaches into a frameless
+  always-on-top window of its own that stays up with the app minimized, sharing the same room (no second
+  connection) ([ADR 0043](decisions/0043-detached-call-window.md))
 - Voice channels with camera, speaking indicator, mute / deafen, and device selection
 - Each person's volume from 0 to 200% and a local mute, saved per user
 - Local mic noise suppression with RNNoise (WebAssembly), free and on by default

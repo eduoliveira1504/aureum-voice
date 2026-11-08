@@ -27,6 +27,8 @@ amigos ou o seu time:
 - **Addons:** Kanban, quadro branco pra desenhar junto, enquetes no chat, eventos com lembretes e um
   calendário com os eventos e prazos do servidor.
 - **Overlay nos jogos:** veja quem está falando sem sair da partida.
+- **Chamada destacada:** tire a call do app numa janela própria, por cima dos outros programas, mesmo
+  com o Aureum minimizado.
 - **Do seu jeito:** avatar e banner animados (com recorte e zoom), pronomes, insígnias em destaque e temas, tudo de graça.
 
 Sem anúncio e sem IA dentro do app.

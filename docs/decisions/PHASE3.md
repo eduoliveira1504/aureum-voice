@@ -30,8 +30,9 @@ Em 07/11 entrou também o 3.24 (correções: overlay na transmissão, copiar ima
 transmissões salvo, chat sem rolagem lateral).
 Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual pendente; escolhas
 em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
-0042-overlay-cameras.md).
-Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 parte B, 3.20 parte B, 3.21
+0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
+0043-detached-call-window.md), então o 3.20 está concluído.
+Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -939,7 +940,7 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Testes: limites de arquivo e duração, permissões, exclusividade do servidor, cooldown,
   silenciar.
 
-## 3.20 Arraste de imagens e janela destacada da call
+## 3.20 Arraste de imagens e janela destacada da call ✅ concluído (teste manual pendente)
 ### Parte A: arrastar a janelinha arrasta a foto ✅ concluída (teste manual pendente)
 - Bug (vídeo do Eduardo, 04/11): ao arrastar a janelinha flutuante da call segurando na foto de
   perfil, o Chromium começa o arraste NATIVO da <img> em vez de mover a janela; a foto pode cair no
@@ -958,7 +959,7 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   janelinha pela foto até o chat (não anexa); arrastar avatar/emoji/figurinha pro chat (não anexa);
   arquivo do Explorer continua anexando; abas, canais e cards do Kanban continuam arrastáveis.
 
-### Parte B: destacar a chamada (janela própria, sempre por cima)
+### Parte B: destacar a chamada (janela própria, sempre por cima) ✅ concluída (teste manual pendente)
 - Botão "Destacar chamada" na barra da call e na janelinha flutuante. Abre a call numa janela
   própria do sistema, sem moldura, SEMPRE POR CIMA (dá pra desligar o "fixar por cima" no próprio
   cabeçalho), que continua visível com o Aureum minimizado ou atrás de outros programas.
@@ -977,6 +978,20 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Não é o overlay: não aparece por cima de jogo em tela cheia exclusiva e não lê nada do jogo.
 - Testes: abrir/fechar destacada sem cair da call; app minimizado e a janela continua; controles
   funcionam; posição e tamanho restaurados; sair da call fecha; sem segunda conexão na sala.
+- Feito (escolhas em 0043-detached-call-window.md): window.open('about:blank', 'aureum-call-<n>') do
+  próprio renderer + React portal, como o overlay; mesmo processo e mesmos stores, então a janela toca
+  as tracks da sala que já existe (nada chama join/connect; teste confere). main/callWindow.ts libera só
+  esse nome, sem moldura, mínimo 240×135, "fixar por cima" no nível 'floating'; posição, tamanho e pin
+  em call-window.json, e fora de qualquer monitor volta pro canto do principal. Cabeçalho e barra
+  compacta aparecem com o mouse por cima; Painel de sons abre dentro da janela; o seletor de tela abre
+  no app (trazido pra frente), e as setinhas de aparelho ficam só no app. Não tem proteção contra
+  captura (é uma janela normal, como a do app).
+- Teste manual: destacar pela barra da call e pela janelinha (a janelinha some); minimizar o Aureum e
+  pôr outro programa na frente (a janela continua por cima); desligar o pin e conferir que outra janela
+  passa por cima; mic, fone, câmera, tela (abre o seletor no app), painel de sons e sair; Foco/Grade com
+  3+ pessoas e com alguém transmitindo; arrastar pela foto; redimensionar até o mínimo; fechar e
+  reabrir (volta no mesmo lugar e tamanho); mover pro segundo monitor, desligar o monitor e reabrir
+  (volta pro principal); X, Alt+F4 e "Voltar ao app" não tiram da call; sair da call fecha a janela.
 
 ## 3.24 Correções do beta (07/11): overlay na transmissão, imagens, volume e chat
 ### Parte A: quadrados pretos do overlay na transmissão
