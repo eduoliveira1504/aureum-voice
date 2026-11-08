@@ -48,16 +48,27 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if ((e.target as HTMLElement).closest('button') || !ref.current) return
+    // Grabbing the photo would start the browser's own image drag (which can drop it in the chat as
+    // an attachment) and select text on the way: moving the window is all this gesture does.
+    e.preventDefault()
     const rect = ref.current.getBoundingClientRect()
     const dx = e.clientX - rect.left
     const dy = e.clientY - rect.top
     const el = e.currentTarget
-    el.setPointerCapture(e.pointerId)
+    el.setPointerCapture?.(e.pointerId)
+    const body = document.body.style
+    const userSelect = body.userSelect
+    body.userSelect = 'none'
     const move = (ev: globalThis.PointerEvent): void => setDrag({ x: ev.clientX - dx, y: ev.clientY - dy })
-    const up = (ev: globalThis.PointerEvent): void => {
+    const stop = (): void => {
       el.removeEventListener('pointermove', move)
       el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', stop)
+      body.userSelect = userSelect
       setDrag(null)
+    }
+    const up = (ev: globalThis.PointerEvent): void => {
+      stop()
       // Snap to the corner nearest to where the window's center was dropped.
       const cx = ev.clientX - dx + rect.width / 2
       const cy = ev.clientY - dy + rect.height / 2
@@ -67,6 +78,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
     }
     el.addEventListener('pointermove', move)
     el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', stop)
   }
 
   const person = subject ? info.people.get(subject.identity) : undefined
@@ -81,6 +93,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
       role="dialog"
       aria-label={`Chamada em ${info.room}`}
       onPointerDown={onPointerDown}
+      onDragStart={(e) => e.preventDefault()}
       style={drag ? { left: drag.x, top: drag.y } : undefined}
       className={`fixed z-30 w-80 cursor-grab touch-none select-none overflow-hidden rounded-panel border border-line bg-panel shadow-2xl active:cursor-grabbing ${
         drag ? '' : CORNER_CLASS[corner]
