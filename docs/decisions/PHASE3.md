@@ -28,8 +28,9 @@ mascote e backlog) saíram deste arquivo e foram para docs/decisions/FUTURO.md. 
 Fase 3 com tudo funcionando.
 Em 07/11 entrou também o 3.24 (correções: overlay na transmissão, copiar imagem, volume das
 transmissões salvo, chat sem rolagem lateral).
-Em 08/11: 3.20 parte A pronta (teste manual pendente).
-Próximo, nesta ordem: 3.24 (A a D), 3.23, 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
+Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual pendente; escolhas
+em 0041-loading-screen.md).
+Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -1095,7 +1096,7 @@ NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e qu
   animado no cartão, no chat e na lista de membros; upload do computador continua igual; GIF que
   sumiu do provedor cai no padrão.
 
-## 3.23 Tela de carregamento ao abrir (moeda girando)
+## 3.23 Tela de carregamento ao abrir (moeda girando) ✅ (teste manual pendente)
 - Ao abrir o app (pelo atalho ou junto com o Windows), aparece primeiro uma janelinha de
   carregamento própria: sem moldura, fundo escuro do tema, cantos arredondados, centralizada
   (~300×360), com o logo do Aureum girando no eixo vertical como uma MOEDA (rotateY em 3D, com

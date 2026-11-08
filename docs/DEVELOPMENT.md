@@ -43,8 +43,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   need a token and access to the conversation, and the app caches what it already fetched (memory +
   disk, wiped on logout) ([ADR 0015](decisions/0015-attachments-and-background.md))
 - Runs in the background: closing the window keeps it connected in the Windows tray (open, mute,
-  deafen, status, quit). It starts with Windows hidden in the tray, only one copy runs at a time, and
-  Settings > Windows changes both
+  deafen, status, quit). It starts with Windows, opening the window or staying in the tray, only one
+  copy runs at a time, and Settings > Windows changes both
+- Opens through a small loading screen (the logo spinning like a coin) that checks for an update,
+  installs it if one downloads in time, and gives way to the window once the session is restored
+  ([ADR 0041](decisions/0041-loading-screen.md))
 - Unread counters and `@username` mention badges per channel, synced across devices
 - Friends by `@username` (requests, accept / decline / cancel, unfriend, block), DMs and group DMs of up
   to 10 people, and an "Active now" list of friends in calls with a join button
@@ -354,7 +357,9 @@ by default; users can still change it on the sign-in screen. The installer is no
 SmartScreen shows a warning on first run (**More info → Run anyway**).
 
 Installed apps update themselves from this repository's GitHub releases (checked at startup and every
-6 hours, on the channel of the version, e.g. `beta`). To ship an update, raise `version` in
+6 hours, on the channel of the version, e.g. `beta`). At startup the loading screen waits up to 5 s
+for the check and installs a version that downloads while it's up; otherwise the download finishes
+in the background and the app offers "Reiniciar para atualizar". To ship an update, raise `version` in
 `apps/desktop/package.json` (e.g. `0.2.0-beta.2`), put a `GH_TOKEN` in the root `.env` (a fine-grained
 token for this repository with "Contents: read and write"), then:
 
