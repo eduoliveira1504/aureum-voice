@@ -12,6 +12,7 @@ import { CallButtons, useCallContext } from './CallCard'
 import { useSubject } from './CallPip'
 import { PopupVideo } from './PopupVideo'
 import { Avatar, TileRing } from './ui'
+import { SoundboardControl } from './VoiceView'
 
 type Layout = 'focus' | 'grid'
 
@@ -186,7 +187,7 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
       </div>
 
       <div className={`${bars} bottom-0 justify-center`}>
-        <CallButtons size={16} detached />
+        <CallButtons size={16} detached beforeLeave={<SoundboardControl small />} />
       </div>
     </div>
   )

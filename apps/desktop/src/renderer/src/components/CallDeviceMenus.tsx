@@ -85,22 +85,24 @@ export function DeviceArrow({
 }
 
 /**
- * Renders into document.body. React events still bubble to the arrow's ancestors through a portal,
- * so they stop here: a click in the popover must not drag the floating window or focus a tile.
+ * Renders into the body of `doc` (the app's page by default; the detached call window's for a
+ * button in it). React events still bubble to the arrow's ancestors through a portal, so they stop
+ * here: a click in the popover must not drag the floating window or focus a tile.
  */
-function Detached({ children }: { children: ReactNode }): ReactNode {
+function Detached({ doc = document, children }: { doc?: Document; children: ReactNode }): ReactNode {
   const stop = (e: { stopPropagation(): void }): void => e.stopPropagation()
   return createPortal(
     <div onPointerDown={stop} onMouseDown={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}>
       {children}
     </div>,
-    document.body
+    doc.body
   )
 }
 
 /** Above the arrow, or below it when there's more room there; always inside the window. It grows
  * away from the arrow (anchored by its bottom when above), so showing the sensitivity slider
- * never covers the button. */
+ * never covers the button. It opens in the window its button is in (the app's, or the detached
+ * call window), narrower if that window is. */
 export function CallPopover({
   anchor,
   label,
@@ -119,26 +121,29 @@ export function CallPopover({
 }): ReactNode {
   const ref = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
+  const doc = anchor.current?.ownerDocument ?? document
+  const win = doc.defaultView ?? window
+  const shown = Math.min(width, win.innerWidth - 2 * GAP)
 
   useLayoutEffect(() => {
     const a = anchor.current?.getBoundingClientRect()
     if (!a) return
-    const left = Math.min(Math.max(GAP, a.left + a.width / 2 - width / 2), window.innerWidth - width - GAP)
-    const above = a.top >= window.innerHeight - a.bottom
+    const left = Math.min(Math.max(GAP, a.left + a.width / 2 - shown / 2), win.innerWidth - shown - GAP)
+    const above = a.top >= win.innerHeight - a.bottom
     setStyle(
       above
         ? {
             left,
-            bottom: window.innerHeight - a.top + GAP,
+            bottom: win.innerHeight - a.top + GAP,
             maxHeight: a.top - 2 * GAP
           }
         : {
             left,
             top: a.bottom + GAP,
-            maxHeight: window.innerHeight - a.bottom - 2 * GAP
+            maxHeight: win.innerHeight - a.bottom - 2 * GAP
           }
     )
-  }, [anchor, width])
+  }, [anchor, shown, win])
 
   useEffect(() => {
     const onDown = (e: MouseEvent): void => {
@@ -151,23 +156,23 @@ export function CallPopover({
       e.stopPropagation()
       onClose()
     }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey, true)
+    win.addEventListener('mousedown', onDown)
+    win.addEventListener('keydown', onKey, true)
     return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey, true)
+      win.removeEventListener('mousedown', onDown)
+      win.removeEventListener('keydown', onKey, true)
     }
-  }, [anchor, onClose])
+  }, [anchor, onClose, win])
 
   useEffect(watchDevices, [])
 
   return (
-    <Detached>
+    <Detached doc={doc}>
       <div
         ref={ref}
         role="dialog"
         aria-label={label}
-        style={{ ...style, width }}
+        style={{ ...style, width: shown }}
         className={`fixed z-[55] space-y-3 overflow-y-auto p-3 text-sm ${menuClass}`}
       >
         {children}

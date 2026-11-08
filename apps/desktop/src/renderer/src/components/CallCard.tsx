@@ -87,11 +87,14 @@ export function useCallContext(meId: string | null): CallContext | null {
 export function CallButtons({
   size = 18,
   compact = false,
-  detached = false
+  detached = false,
+  beforeLeave
 }: {
   size?: number
   compact?: boolean
   detached?: boolean
+  /** More buttons, just before leaving (the detached window's Painel de sons). */
+  beforeLeave?: ReactNode
 }): ReactNode {
   const { muted, deafened, camera, screen, phase, allowed, serverMuted, serverDeafened } = useVoice()
   const { toggleMute, toggleDeafen, toggleCamera, stopScreenShare, leave } = useVoice.getState()
@@ -157,6 +160,7 @@ export function CallButtons({
           {screen ? <MonitorOff size={size} /> : <MonitorUp size={size} />}
         </button>
       )}
+      {beforeLeave}
       <button
         type="button"
         title="Sair da chamada"

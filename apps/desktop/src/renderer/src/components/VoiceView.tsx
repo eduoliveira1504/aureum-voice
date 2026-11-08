@@ -628,8 +628,15 @@ function PushToTalkHint(): ReactNode {
 }
 
 /** "Painel de sons", in server rooms only: opens the grid of the server's sounds. Off without
- * Falar and Usar o painel de sons in the room, while deafened, and when muted by the server. */
-function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void }): ReactNode {
+ * Falar and Usar o painel de sons in the room, while deafened, and when muted by the server.
+ * `small`: the icon button of the detached call window's compact bar. */
+export function SoundboardControl({
+  onOpenChange,
+  small = false
+}: {
+  onOpenChange?(open: boolean): void
+  small?: boolean
+}): ReactNode {
   const serverId = useVoice((s) => s.serverId)
   const channelId = useVoice((s) => s.channelId)
   const deafened = useVoice((s) => s.deafened || s.serverDeafened)
@@ -640,7 +647,7 @@ function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void
   const anchor = useRef<HTMLSpanElement>(null)
   const toggle = (next: boolean): void => {
     setOpen(next)
-    onOpenChange(next)
+    onOpenChange?.(next)
   }
   const blocked = deafened || serverMuted
   useEffect(() => {
@@ -660,9 +667,23 @@ function SoundboardControl({ onOpenChange }: { onOpenChange(open: boolean): void
         : 'Painel de sons'
   return (
     <span ref={anchor} className="flex">
-      <ControlButton label={label} active={!open} disabled={!connected || !allowed || blocked} onClick={() => toggle(!open)}>
-        <AudioWaveform size={22} />
-      </ControlButton>
+      {small ? (
+        <button
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-expanded={open}
+          disabled={!connected || !allowed || blocked}
+          onClick={() => toggle(!open)}
+          className={`rounded-item p-1.5 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40 ${open ? 'text-accent-text' : 'text-fg-muted hover:text-fg'}`}
+        >
+          <AudioWaveform size={16} />
+        </button>
+      ) : (
+        <ControlButton label={label} active={!open} disabled={!connected || !allowed || blocked} onClick={() => toggle(!open)}>
+          <AudioWaveform size={22} />
+        </ControlButton>
+      )}
       {open && (
         <CallPopover anchor={anchor} label="Painel de sons" width={320} onClose={() => toggle(false)}>
           <SoundboardGrid serverId={serverId} canManage={has(perms, Perm.MANAGE_SOUNDBOARD)} />
