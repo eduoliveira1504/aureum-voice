@@ -62,3 +62,14 @@ export function shareCarriesOverlay(
   if (sourceId.startsWith('screen:')) return true
   return sourceId.startsWith('window:') && overGame({ ...target, app: windowApp })
 }
+
+/**
+ * Whether Windows can leave the overlay out of captures (Windows 10 2004, build 19041, and newer).
+ * Older ones draw it as a black box in screenshots and streams (Chromium falls back to WDA_MONITOR).
+ * `release` is os.release(), e.g. "10.0.22631".
+ */
+export function excludesFromCapture(platform: string, release: string): boolean {
+  if (platform !== 'win32') return true
+  const build = Number(release.split('.')[2])
+  return !Number.isFinite(build) || build >= 19041
+}

@@ -343,6 +343,11 @@ export function OverlaySettings(): ReactNode {
 
   return (
     <div className="max-w-[480px] space-y-4">
+      {!state.captureExclusion && (
+        <p role="note" className="rounded-control border border-accent/60 bg-accent/10 px-3 py-2 text-xs">
+          Seu Windows mostra o overlay como quadrado preto em transmissões; ele será escondido enquanto você transmite.
+        </p>
+      )}
       <ToggleRow
         title="Mostrar overlay em jogos"
         description="Durante uma chamada, mostra quem está nela por cima do jogo. Aparece só quando um jogo está em primeiro plano; nunca em navegadores, launchers ou outros apps."
@@ -366,13 +371,16 @@ export function OverlaySettings(): ReactNode {
         <span className={labelClass}>Widgets</span>
         <button
           type="button"
-          disabled={!anyWidgetOn(prefs.widgets)}
+          disabled={!anyWidgetOn(prefs.widgets) || state.hiddenWhileSharing}
           onClick={() => void window.aureum.overlay.setEditing(true)}
           className="flex items-center gap-2 rounded-control border border-line bg-main px-3 py-2 text-sm font-medium hover:border-fg-subtle disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Move size={16} />
           Editar posição e tamanho
         </button>
+        {state.hiddenWhileSharing && (
+          <p className="mt-1.5 text-xs text-fg-subtle">O overlay fica escondido enquanto você transmite a tela.</p>
+        )}
         <p className="mt-1.5 text-xs text-fg-subtle">
           Cada widget tem sua posição e seu tamanho, e o overlay aparece no monitor do jogo. No modo edição, arraste cada
           widget para mover e puxe o canto para redimensionar (nas câmeras, o canto muda o tamanho de cada câmera, e a barra
@@ -438,8 +446,8 @@ export function OverlaySettings(): ReactNode {
 
       <p className="text-xs text-fg-subtle">
         Funciona com jogos em modo janela ou janela sem borda. Em tela cheia exclusiva o Windows não deixa outras janelas
-        aparecerem por cima. O Aureum não mexe no jogo (nada de injeção), e o overlay não aparece em capturas nem quando
-        você compartilha a tela.
+        aparecerem por cima. O Aureum não mexe no jogo (nada de injeção), e o overlay não aparece em capturas. Enquanto você
+        transmite a tela inteira ou o jogo, ele fica escondido.
       </p>
     </div>
   )

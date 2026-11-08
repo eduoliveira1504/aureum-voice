@@ -21,7 +21,8 @@ const state = (enabled: boolean, widgetOn: boolean): OverlayState => ({
   notice: null,
   ask: null,
   cameraCorner: 'top-left',
-  hiddenWhileSharing: false
+  hiddenWhileSharing: false,
+  captureExclusion: true
 })
 
 const DM = { kind: 'dm', name: 'Ana', username: 'ana', text: 'oi' } as const

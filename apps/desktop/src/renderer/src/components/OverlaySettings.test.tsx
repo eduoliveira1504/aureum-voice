@@ -15,7 +15,7 @@ const PREFS: OverlayPrefs = {
   games: ['myindiegame'],
   notGames: []
 }
-const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null, ask: null, cameraCorner: 'top-left', hiddenWhileSharing: false })
+const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null, ask: null, cameraCorner: 'top-left', hiddenWhileSharing: false, captureExclusion: true })
 
 const bridge = vi.hoisted(() => {
   const overlay = window.aureum.overlay as unknown as { getState: ReturnType<typeof vi.fn>; setPrefs: ReturnType<typeof vi.fn> }
@@ -175,5 +175,30 @@ describe('overlay widgets', () => {
     useOverlay.setState({ state: state({ ...PREFS, widgets }) })
     render(<OverlaySettings />)
     expect((screen.getByRole('button', { name: 'Editar posição e tamanho' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
+describe('overlay in screen shares (3.24 A)', () => {
+  const NOTE = 'Seu Windows mostra o overlay como quadrado preto em transmissões; ele será escondido enquanto você transmite.'
+
+  it('warns when this Windows cannot leave the overlay out of captures', async () => {
+    useOverlay.setState({ state: { ...state(PREFS), captureExclusion: false } })
+    render(<OverlaySettings />)
+    expect(await screen.findByText(NOTE)).toBeTruthy()
+  })
+
+  it('says nothing on a Windows that can', async () => {
+    useOverlay.setState({ state: state(PREFS) })
+    render(<OverlaySettings />)
+    await screen.findByText('Editar posição e tamanho')
+    expect(screen.queryByText(NOTE)).toBeNull()
+  })
+
+  it('turns edit mode off while the overlay is hidden for a share', async () => {
+    useOverlay.setState({ state: { ...state(PREFS), hiddenWhileSharing: true } })
+    render(<OverlaySettings />)
+    const edit = (await screen.findByText('Editar posição e tamanho')).closest('button')!
+    expect(edit.disabled).toBe(true)
+    expect(screen.getByText('O overlay fica escondido enquanto você transmite a tela.')).toBeTruthy()
   })
 })

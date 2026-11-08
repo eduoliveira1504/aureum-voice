@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { appKey, gameApps, overGame, shareCarriesOverlay } from './overlayRule'
+import { appKey, excludesFromCapture, gameApps, overGame, shareCarriesOverlay } from './overlayRule'
 
 const known = [
   { name: 'League of Legends', exe: ['League of Legends.exe'] },
@@ -79,5 +79,22 @@ describe('shareCarriesOverlay', () => {
   it('does nothing when nothing is shared', () => {
     expect(shareCarriesOverlay(null, null, target)).toBe(false)
     expect(shareCarriesOverlay('webcam:1', null, target)).toBe(false)
+  })
+})
+
+describe('excludesFromCapture', () => {
+  it('is true from Windows 10 2004 (build 19041) on', () => {
+    expect(excludesFromCapture('win32', '10.0.19041')).toBe(true)
+    expect(excludesFromCapture('win32', '10.0.26100')).toBe(true)
+  })
+
+  it('is false on older Windows, where the overlay would be a black box', () => {
+    expect(excludesFromCapture('win32', '10.0.18363')).toBe(false)
+    expect(excludesFromCapture('win32', '10.0.17763')).toBe(false)
+  })
+
+  it('assumes it works when the version cannot be read, and off Windows', () => {
+    expect(excludesFromCapture('win32', 'unknown')).toBe(true)
+    expect(excludesFromCapture('darwin', '24.1.0')).toBe(true)
   })
 })

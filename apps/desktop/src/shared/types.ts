@@ -146,6 +146,8 @@ export interface OverlayState {
   cameraCorner: OverlayCorner
   /** The whole screen or a game's window is being streamed, so the overlay is hidden (3.24 A). */
   hiddenWhileSharing: boolean
+  /** Windows leaves the overlay out of captures (10 2004+); older ones show it as a black box. */
+  captureExclusion: boolean
 }
 
 /** A downloaded update waiting for a restart. */

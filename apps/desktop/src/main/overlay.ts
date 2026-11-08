@@ -8,11 +8,12 @@
  * its flags, when it shows, edit mode, the global shortcuts and the saved preferences.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { release } from 'node:os'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions, type Display } from 'electron'
 
-import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame, shareCarriesOverlay } from '../shared/overlayRule'
+import { appKey, excludesFromCapture, gameApps, OVERLAY_EXCEPTIONS, overGame, shareCarriesOverlay } from '../shared/overlayRule'
 import {
   anchoredBox,
   anyWidgetOn,
@@ -74,6 +75,8 @@ const MAX_APPS = 100
 const NEVER_OVER = new Set([...OVERLAY_EXCEPTIONS, appKey(process.execPath)])
 
 const MARGIN = 16
+/** Settings warns when this Windows shows the overlay as a black box in captures (3.24 A). */
+const CAPTURE_EXCLUSION = excludesFromCapture(process.platform, release())
 
 const prefsPath = (): string => join(app.getPath('userData'), 'overlay.json')
 
@@ -194,7 +197,16 @@ function saveSoon(): void {
 }
 
 export function getState(): OverlayState {
-  return { prefs, editing, failedShortcuts, notice, ask, cameraCorner: cameraCorner(), hiddenWhileSharing: sharingHides() }
+  return {
+    prefs,
+    editing,
+    failedShortcuts,
+    notice,
+    ask,
+    cameraCorner: cameraCorner(),
+    hiddenWhileSharing: sharingHides(),
+    captureExclusion: CAPTURE_EXCLUSION
+  }
 }
 
 /** The corner the cameras' box is pinned to on the active monitor (see boxOf). */
