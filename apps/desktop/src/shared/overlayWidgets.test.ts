@@ -9,7 +9,6 @@ import {
   DEFAULT_WIDGETS,
   defaultBounds,
   legacyWidgets,
-  rotateBox,
   splitPeople,
   visibleCameras,
   widgetShows,
@@ -44,11 +43,16 @@ describe('cleanWidgets', () => {
   it('drops broken positions, limits the box and remembers a few monitors only', () => {
     const positions = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`d${i}`, BOX]))
     const next = cleanWidgets(
-      { voice: { positions: { ...positions, bad: { x: 'a' } } }, cameras: { positions: { d: { ...BOX, width: 5 } } } },
+      {
+        voice: { positions: { ...positions, bad: { x: 'a' }, small: { ...BOX, width: 5 } } },
+        cameras: { positions: { d: { ...BOX, width: 5 } } }
+      },
       DEFAULT_WIDGETS
     )
-    expect(Object.keys(next.voice.positions)).toEqual(['d4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11'])
-    expect(next.cameras.positions.d.width).toBe(160)
+    expect(Object.keys(next.voice.positions)).toEqual(['d5', 'd6', 'd7', 'd8', 'd9', 'd10', 'd11', 'small'])
+    expect(next.voice.positions.small.width).toBe(160)
+    // The cameras' box can be as small as one small camera.
+    expect(next.cameras.positions.d.width).toBe(48)
   })
 })
 
@@ -69,22 +73,16 @@ describe('legacyWidgets', () => {
 
 describe('defaultBounds', () => {
   it('starts on the monitor asked for, with notifications on the far side', () => {
-    expect(defaultBounds('voice', AREA, 'vertical')).toMatchObject({ x: 1936, y: 16 })
-    expect(defaultBounds('notifications', AREA, 'vertical')).toMatchObject({ x: 1920 + 1920 - 320 - 16, y: 16 })
+    expect(defaultBounds('voice', AREA)).toMatchObject({ x: 1936, y: 16 })
+    expect(defaultBounds('notifications', AREA)).toMatchObject({ x: 1920 + 1920 - 320 - 16, y: 16 })
   })
 
-  it('puts the cameras under the voice list, on its side when horizontal', () => {
-    const voice = defaultBounds('voice', AREA, 'vertical')
-    const vertical = defaultBounds('cameras', AREA, 'vertical')
-    const horizontal = defaultBounds('cameras', AREA, 'horizontal')
-    expect(vertical.y).toBeGreaterThan(voice.y + voice.height)
-    expect([horizontal.width, horizontal.height]).toEqual([vertical.height, vertical.width])
+  it('puts the cameras under the voice list', () => {
+    const voice = defaultBounds('voice', AREA)
+    const cameras = defaultBounds('cameras', AREA)
+    expect(cameras.y).toBeGreaterThan(voice.y + voice.height)
+    expect(cameras.x).toBe(voice.x)
   })
-})
-
-it('rotateBox swaps the box of every monitor', () => {
-  const rotated = rotateBox({ ...DEFAULT_WIDGETS.cameras, positions: { d1: BOX } })
-  expect(rotated.positions.d1).toEqual({ ...BOX, width: 200, height: 300 })
 })
 
 describe('widgetShows', () => {

@@ -2,7 +2,7 @@
 import { HeadphoneOff, MicOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import type { OverlayCameraLayout, OverlaySize } from '../../../shared/types'
+import type { OverlaySize } from '../../../shared/types'
 import type { OverlayNotification } from '../store/overlay'
 import { Avatar, TileRing } from './ui'
 
@@ -78,15 +78,51 @@ export function NotificationCard({
   )
 }
 
-/** The tiles in a row or a column, wrapping to the next one when the box runs out. */
-export function CameraTiles({ layout, children }: { layout: OverlayCameraLayout; children: ReactNode }): ReactNode {
-  return <div className={`flex flex-wrap gap-1.5 ${layout === 'horizontal' ? 'flex-row' : 'flex-col'}`}>{children}</div>
+/** The cameras in `columns` columns of `tileWidth` px (see cameraLayout in shared/overlayWidgets.ts). */
+export function CameraTiles({
+  columns,
+  tileWidth,
+  gap,
+  children
+}: {
+  columns: number
+  tileWidth: number
+  gap: number
+  children: ReactNode
+}): ReactNode {
+  return (
+    <div className="grid" style={{ gridTemplateColumns: `repeat(${columns}, ${tileWidth}px)`, gap }}>
+      {children}
+    </div>
+  )
 }
 
-/** A camera tile; without `children` (a sample) it shows the person's picture instead of video. */
-export function CameraCard({ person, scale, children }: { person: Person; scale: number; children?: ReactNode }): ReactNode {
+/** The width the camera's text and picture are drawn for at 100%. */
+const CAMERA_BASE_WIDTH = 176
+
+/**
+ * A camera tile, `width` px wide (16:9); without `children` (a sample) it shows the person's
+ * picture instead of video. `more`: how many cameras are left out, shown on the last one.
+ */
+export function CameraCard({
+  person,
+  width,
+  rounded = true,
+  more = 0,
+  children
+}: {
+  person: Person
+  width: number
+  rounded?: boolean
+  more?: number
+  children?: ReactNode
+}): ReactNode {
+  const scale = width / CAMERA_BASE_WIDTH
   return (
-    <div className="relative aspect-video max-w-full shrink-0 overflow-hidden rounded-control bg-scrim shadow" style={{ width: 176 * scale }}>
+    <div
+      className={`relative aspect-video shrink-0 overflow-hidden bg-scrim shadow ${rounded ? 'rounded-control' : ''}`}
+      style={{ width, fontSize: 14 * Math.min(1.4, Math.max(0.7, scale)) }}
+    >
       {children ?? (
         <span className="flex h-full items-center justify-center">
           <Avatar name={person.name} url={person.avatarUrl} size={Math.round(40 * scale)} />
@@ -96,6 +132,14 @@ export function CameraCard({ person, scale, children }: { person: Person; scale:
         <span className="truncate">{person.name}</span>
         <StateIcons person={person} />
       </span>
+      {more > 0 && (
+        <span
+          aria-label={`Mais ${more} ${more === 1 ? 'câmera' : 'câmeras'}`}
+          className="absolute right-1 top-1 rounded-item bg-scrim/80 px-1.5 text-[0.85em] font-semibold tabular-nums text-on-scrim"
+        >
+          +{more}
+        </span>
+      )}
       <TileRing on={person.speaking} />
     </div>
   )

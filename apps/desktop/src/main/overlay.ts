@@ -14,7 +14,11 @@ import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstruct
 
 import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame } from '../shared/overlayRule'
 import {
+  anchoredBox,
   anyWidgetOn,
+  CAMERA_LIMITS,
+  CAMERA_MIN_SIZE,
+  cameraLayout,
   cleanBounds,
   cleanWidgets,
   DEFAULT_WIDGETS,
@@ -22,7 +26,6 @@ import {
   isOverlayWidget,
   legacyWidgets,
   OVERLAY_WIDGETS,
-  rotateBox,
   widgetShows
 } from '../shared/overlayWidgets'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
@@ -82,6 +85,8 @@ let editing = false
 let active = false
 /** A notification is up (told by the app's window); the only reason to look outside a call. */
 let notifying = false
+/** How many cameras the cameras widget draws (told by the app's window); its box fits them. */
+let cameraCount = 1
 /** Starts false: opened hidden at login, the window gets no focus event until it's shown. */
 let mainFocused = false
 let shortcutsPaused = false
@@ -201,7 +206,6 @@ export async function setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState> 
     }
   }
   const next = cleanPrefs(patch, prefs)
-  if (next.widgets.cameras.layout !== prefs.widgets.cameras.layout) next.widgets.cameras = rotateBox(next.widgets.cameras)
   if (next.toggleShortcut === next.editShortcut) throw new Error('Os dois atalhos precisam ser diferentes.')
 
   const shortcutsChanged = next.toggleShortcut !== prefs.toggleShortcut || next.editShortcut !== prefs.editShortcut
@@ -459,11 +463,20 @@ function placed(b: OverlayBounds): OverlayBounds {
   }
 }
 
-/** The widget's box on the active monitor: where it was left there, or its default place. */
+/**
+ * The widget's box on the active monitor: where it was left there, or its default place. The
+ * cameras' box is as big as its cameras, pinned to the corner it was left nearest to.
+ */
 function boxOf(widget: OverlayWidget): OverlayBounds {
   const display = activeDisplay()
   const saved = prefs.widgets[widget].positions[String(display.id)]
-  return placed(saved ?? defaultBounds(widget, display.workArea, prefs.widgets.cameras.layout))
+  const box = saved ?? defaultBounds(widget, display.workArea)
+  if (widget !== 'cameras') return placed(box)
+  const cameras = prefs.widgets.cameras
+  const size = cameraLayout(cameras, cameraCount, editing && cameras.enabled, display.workArea)
+  // Never placed: it grows down from its default place, under the voice list.
+  if (!saved) return placed({ ...box, ...size })
+  return placed(anchoredBox(saved, size, screen.getDisplayMatching(saved).workArea))
 }
 
 function savePosition(widget: OverlayWidget, bounds: OverlayBounds): void {
@@ -546,10 +559,21 @@ export function setNotifying(next: boolean): void {
   apply()
 }
 
+export function setCameraCount(count: unknown): void {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return
+  // "+N" goes on the last camera, so this is at most maxVisible, or more when more people are
+  // speaking at once; cameraLayout keeps even a big room inside the monitor.
+  const next = Math.round(Math.min(64, Math.max(CAMERA_LIMITS.maxVisible.min, count)))
+  if (next === cameraCount) return
+  cameraCount = next
+  apply()
+}
+
 export function setBounds(widget: OverlayWidget, bounds: unknown): void {
-  const clean = cleanBounds(bounds)
+  const clean = cleanBounds(bounds, widget === 'cameras' ? CAMERA_MIN_SIZE : undefined)
   if (!clean || !editing) return
-  const box = placed(clean)
+  // The cameras' box only moves: its size is its cameras'.
+  const box = placed(widget === 'cameras' ? { ...clean, width: boxOf(widget).width, height: boxOf(widget).height } : clean)
   savePosition(widget, box)
   const win = windows.get(widget)
   if (win && !win.isDestroyed()) win.setBounds(box)

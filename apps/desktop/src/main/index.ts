@@ -194,6 +194,7 @@ handle('overlay:set-prefs', (patch: OverlayPrefsPatch) => overlay.setPrefs(patch
 handle('overlay:set-editing', (editing: unknown) => overlay.setEditing(editing === true))
 handle('overlay:set-active', (active: unknown) => overlay.setActive(active === true))
 handle('overlay:set-notifying', (notifying: unknown) => overlay.setNotifying(notifying === true))
+handle('overlay:set-camera-count', (count: unknown) => overlay.setCameraCount(count))
 const widgetOf = (widget: unknown): OverlayWidget => {
   if (!isOverlayWidget(widget)) throw new Error('Invalid widget')
   return widget

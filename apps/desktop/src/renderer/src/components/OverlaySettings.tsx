@@ -406,9 +406,9 @@ export function OverlaySettings(): ReactNode {
         prefs={cameras}
         set={(patch) => set({ widgets: { cameras: patch } })}
         preview={
-          <CameraTiles layout={cameras.layout}>
-            <CameraCard person={SAMPLE_PEOPLE[0]} scale={SCALE[cameras.size] * PREVIEW_CAMERA_SCALE} />
-            <CameraCard person={SAMPLE_PEOPLE[1]} scale={SCALE[cameras.size] * PREVIEW_CAMERA_SCALE} />
+          <CameraTiles columns={cameras.layout === 'vertical' ? 1 : 2} tileWidth={cameras.tileWidth * PREVIEW_CAMERA_SCALE} gap={cameras.gap}>
+            <CameraCard person={SAMPLE_PEOPLE[0]} width={cameras.tileWidth * PREVIEW_CAMERA_SCALE} rounded={cameras.rounded} />
+            <CameraCard person={SAMPLE_PEOPLE[1]} width={cameras.tileWidth * PREVIEW_CAMERA_SCALE} rounded={cameras.rounded} />
           </CameraTiles>
         }
       >

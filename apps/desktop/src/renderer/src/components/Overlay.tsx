@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from '
 import { createPortal } from 'react-dom'
 
 import type { Me } from '../lib/api'
-import { DEFAULT_WIDGETS, splitPeople } from '../../../shared/overlayWidgets'
+import { cameraLayout, DEFAULT_WIDGETS, splitPeople, visibleCameras } from '../../../shared/overlayWidgets'
 import type { OverlayBounds, OverlayWidget, OverlayWidgets } from '../../../shared/types'
 import { callChanges, notifyOverlay, useOverlay, type OverlayNotification } from '../store/overlay'
 import { useSocial } from '../store/social'
@@ -181,9 +181,22 @@ function prepareDocument(doc: Document): () => void {
 
 interface CallPerson extends Person {
   camera: Track | undefined
+  /** Speaking now or a moment ago (SPEAKING_HOLD_MS), so pauses don't reshuffle the cameras. */
+  spokeRecently: boolean
 }
 
-const SAMPLE_CAMERA: CallPerson = { id: 'preview-camera', name: 'Exemplo', avatarUrl: null, speaking: false, muted: false, deafened: false, camera: undefined }
+/** Edit mode with nobody's camera on: as many samples as can show, so the box is at its biggest. */
+const sampleCameras = (count: number): CallPerson[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `preview-camera-${i}`,
+    name: count > 1 ? `Exemplo ${i + 1}` : 'Exemplo',
+    avatarUrl: null,
+    speaking: false,
+    spokeRecently: false,
+    muted: false,
+    deafened: false,
+    camera: undefined
+  }))
 
 /**
  * Who each widget shows: everyone in the call goes to the voice list or, with a camera on, to the
@@ -203,10 +216,8 @@ function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: 
   for (const id of speaking) lastSpoke.current.set(id, now)
   const recentlySpoke = (id: string): boolean => now - (lastSpoke.current.get(id) ?? 0) < SPEAKING_HOLD_MS
 
-  // Re-render when the next held speaker should drop off.
-  const nextDrop = onlySpeaking
-    ? Math.min(...[...lastSpoke.current.values()].map((t) => t + SPEAKING_HOLD_MS).filter((t) => t > now))
-    : Infinity
+  // Re-render when the next held speaker should drop off (from the list, or out of the cameras shown).
+  const nextDrop = Math.min(...[...lastSpoke.current.values()].map((t) => t + SPEAKING_HOLD_MS).filter((t) => t > now))
   useEffect(() => {
     if (!Number.isFinite(nextDrop)) return
     const timer = setTimeout(() => setTick((t) => t + 1), nextDrop - Date.now() + 20)
@@ -221,7 +232,7 @@ function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: 
         { id: me.id, name: me.display_name, avatarUrl: me.avatar_url, speaking: true, muted: false, deafened: false },
         { id: 'preview', name: 'Exemplo', avatarUrl: null, speaking: false, muted: true, deafened: false }
       ],
-      cameras: [SAMPLE_CAMERA]
+      cameras: sampleCameras(widgets.cameras.maxVisible)
     }
   }
 
@@ -234,6 +245,7 @@ function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: 
       name: user?.display_name ?? 'Alguém',
       avatarUrl: user?.avatar_url,
       speaking: speaking.includes(id),
+      spokeRecently: recentlySpoke(id),
       muted: isMe ? ownMuted : !!(voice?.muted || voice?.server_muted),
       deafened: isMe ? ownDeafened : !!voice?.deafened,
       camera: cameraTrackOf(id)
@@ -243,7 +255,7 @@ function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: 
   return {
     preview: false,
     voice: onlySpeaking ? voice.filter((p) => p.speaking || recentlySpoke(p.id)) : voice,
-    cameras: cameras.length || !editing ? cameras : [SAMPLE_CAMERA]
+    cameras: cameras.length || !editing ? cameras : sampleCameras(widgets.cameras.maxVisible)
   }
 }
 
@@ -264,6 +276,7 @@ function WidgetBox({
   popup,
   editing,
   outside,
+  resizable = true,
   children
 }: {
   widget: OverlayWidget
@@ -271,6 +284,8 @@ function WidgetBox({
   editing: boolean
   /** Over the widget, not part of it: its opacity doesn't apply. */
   outside?: ReactNode
+  /** The corner handle stretches the box (the cameras' box follows its cameras instead). */
+  resizable?: boolean
   children: ReactNode
 }): ReactNode {
   const prefs = useOverlay((s) => s.state!.prefs.widgets[widget])
@@ -355,7 +370,7 @@ function WidgetBox({
         {children}
       </div>
 
-      {editing && (
+      {editing && resizable && (
         <span
           data-handle
           title="Redimensionar"
@@ -412,13 +427,22 @@ function VoiceWidget({
   )
 }
 
+/**
+ * The cameras, at most `maxVisible` plus whoever is speaking, "+N" on the last one. The main process
+ * sizes the window to them with the same cameraLayout (told how many there are).
+ */
 function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editing: boolean; people: CallPerson[]; meId: string }): ReactNode {
-  const { size, layout } = useOverlay((s) => s.state!.prefs.widgets.cameras)
+  const prefs = useOverlay((s) => s.state!.prefs.widgets.cameras)
+  const { shown, hidden } = visibleCameras(people, prefs.maxVisible, (p) => p.spokeRecently)
+  const count = Math.max(1, shown.length)
+  useEffect(() => void window.aureum.overlay.setCameraCount(count), [count])
+  const screen = popup.screen
+  const layout = cameraLayout(prefs, count, editing, { width: screen.availWidth, height: screen.availHeight })
   return (
-    <WidgetBox widget="cameras" popup={popup} editing={editing}>
-      <CameraTiles layout={layout}>
-        {people.map((p) => (
-          <CameraCard key={p.id} person={p} scale={SCALE[size]}>
+    <WidgetBox widget="cameras" popup={popup} editing={editing} resizable={false}>
+      <CameraTiles columns={layout.columns} tileWidth={layout.tileWidth} gap={prefs.gap}>
+        {shown.map((p, i) => (
+          <CameraCard key={p.id} person={p} width={layout.tileWidth} rounded={prefs.rounded} more={i === shown.length - 1 ? hidden : 0}>
             {p.camera && <OverlayVideo track={p.camera} mirror={p.id === meId} />}
           </CameraCard>
         ))}

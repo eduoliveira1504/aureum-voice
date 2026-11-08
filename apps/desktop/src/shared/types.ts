@@ -239,6 +239,8 @@ export interface AureumBridge {
     setActive(active: boolean): Promise<void>
     /** Whether a notification is up, so its widget can show (outside a call too). */
     setNotifying(notifying: boolean): Promise<void>
+    /** How many cameras the cameras widget draws, so its box fits them. */
+    setCameraCount(count: number): Promise<void>
     /** Moves/resizes a widget's box while editing (saved when editing ends). */
     setBounds(widget: OverlayWidget, bounds: OverlayBounds): Promise<void>
     /** Puts a widget's box in a corner of the monitor it's on. */
