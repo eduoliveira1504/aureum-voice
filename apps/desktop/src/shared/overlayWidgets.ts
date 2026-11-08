@@ -4,6 +4,7 @@
  */
 import type {
   OverlayBounds,
+  OverlayCorner,
   OverlayCameraLayout,
   OverlayCameraPrefs,
   OverlaySize,
@@ -266,13 +267,22 @@ export function visibleCameras<P>(people: P[], max: number, speaking: (p: P) => 
   return { shown, hidden: people.length - shown.length }
 }
 
+/** The screen corner a box is nearest to; none saved yet: top-left, where the cameras start. */
+export function pinnedCorner(saved: OverlayBounds | undefined, area: OverlayBounds): OverlayCorner {
+  if (!saved) return 'top-left'
+  const bottom = saved.y + saved.height / 2 > area.y + area.height / 2
+  const right = saved.x + saved.width / 2 > area.x + area.width / 2
+  return `${bottom ? 'bottom' : 'top'}-${right ? 'right' : 'left'}`
+}
+
 /**
  * A box of `size` pinned where `saved` is: it keeps the edges of the screen corner `saved` is
  * nearest to, so it grows and shrinks away from that corner.
  */
 export function anchoredBox(saved: OverlayBounds, size: { width: number; height: number }, area: OverlayBounds): OverlayBounds {
-  const right = saved.x + saved.width / 2 > area.x + area.width / 2
-  const bottom = saved.y + saved.height / 2 > area.y + area.height / 2
+  const corner = pinnedCorner(saved, area)
+  const right = corner.endsWith('right')
+  const bottom = corner.startsWith('bottom')
   return {
     x: right ? saved.x + saved.width - size.width : saved.x,
     y: bottom ? saved.y + saved.height - size.height : saved.y,

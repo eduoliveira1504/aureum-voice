@@ -19,7 +19,8 @@ const state = (enabled: boolean, widgetOn: boolean): OverlayState => ({
   editing: false,
   failedShortcuts: [],
   notice: null,
-  ask: null
+  ask: null,
+  cameraCorner: 'top-left'
 })
 
 const DM = { kind: 'dm', name: 'Ana', username: 'ana', text: 'oi' } as const

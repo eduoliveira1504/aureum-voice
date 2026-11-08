@@ -9,6 +9,7 @@ import {
   DEFAULT_WIDGETS,
   defaultBounds,
   legacyWidgets,
+  pinnedCorner,
   splitPeople,
   visibleCameras,
   widgetShows,
@@ -246,6 +247,18 @@ describe('visibleCameras', () => {
 
   it('more people speaking than the limit: all of them show', () => {
     expect(visibleCameras(people, 2, (p) => p !== 'a')).toEqual({ shown: ['b', 'c', 'd', 'e'], hidden: 1 })
+  })
+})
+
+describe('pinnedCorner', () => {
+  const area = { x: 0, y: 0, width: 1920, height: 1080 }
+
+  it('is the corner the saved box is nearest to, and top-left before it was ever placed', () => {
+    expect(pinnedCorner(undefined, area)).toBe('top-left')
+    expect(pinnedCorner({ x: 16, y: 16, width: 200, height: 100 }, area)).toBe('top-left')
+    expect(pinnedCorner({ x: 1700, y: 16, width: 200, height: 100 }, area)).toBe('top-right')
+    expect(pinnedCorner({ x: 16, y: 900, width: 200, height: 100 }, area)).toBe('bottom-left')
+    expect(pinnedCorner({ x: 1700, y: 900, width: 200, height: 100 }, area)).toBe('bottom-right')
   })
 })
 

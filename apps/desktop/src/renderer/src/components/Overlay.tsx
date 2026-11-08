@@ -297,8 +297,11 @@ function WidgetBox({
   children: ReactNode
 }): ReactNode {
   const prefs = useOverlay((s) => s.state!.prefs.widgets[widget])
+  const cameraCorner = useOverlay((s) => s.state!.cameraCorner)
   const [, setMoved] = useState(0)
-  const anchor = anchorOf(popup)
+  // The cameras' box is pinned by the main process (it sizes it); the others hug the nearest corner.
+  const anchor =
+    widget === 'cameras' ? { right: cameraCorner.endsWith('right'), bottom: cameraCorner.startsWith('bottom') } : anchorOf(popup)
 
   // Esc / Enter end edit mode (one of the widgets has the focus while editing).
   useEffect(() => {

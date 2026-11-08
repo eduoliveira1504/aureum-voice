@@ -26,6 +26,7 @@ import {
   isOverlayWidget,
   legacyWidgets,
   OVERLAY_WIDGETS,
+  pinnedCorner,
   widgetShows
 } from '../shared/overlayWidgets'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
@@ -191,11 +192,27 @@ function saveSoon(): void {
 }
 
 export function getState(): OverlayState {
-  return { prefs, editing, failedShortcuts, notice, ask }
+  return { prefs, editing, failedShortcuts, notice, ask, cameraCorner: cameraCorner() }
+}
+
+/** The corner the cameras' box is pinned to on the active monitor (see boxOf). */
+function cameraCorner(): OverlayCorner {
+  const display = activeDisplay()
+  const saved = prefs.widgets.cameras.positions[String(display.id)]
+  return pinnedCorner(saved, saved ? screen.getDisplayMatching(saved).workArea : display.workArea)
+}
+
+let toldCorner: OverlayCorner | null = null
+
+/** Tells the app's window when the cameras' box got pinned to another corner (moved, other monitor). */
+function tellCornerIfChanged(): void {
+  if (cameraCorner() !== toldCorner) changed()
 }
 
 function changed(): void {
-  notify(getState())
+  const state = getState()
+  toldCorner = state.cameraCorner
+  notify(state)
 }
 
 export async function setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState> {
@@ -517,6 +534,8 @@ function apply(): void {
     const shown = [...windows.values()].filter((w) => !w.isDestroyed() && w.isVisible())
     if (!shown.some((w) => w.isFocused())) shown[0]?.focus()
   }
+  // The widgets may have gone to another monitor, where the cameras sit in another corner.
+  tellCornerIfChanged()
 }
 
 export function setEditing(next: boolean): void {
@@ -575,6 +594,7 @@ export function setBounds(widget: OverlayWidget, bounds: unknown): void {
   // The cameras' box only moves: its size is its cameras'.
   const box = placed(widget === 'cameras' ? { ...clean, width: boxOf(widget).width, height: boxOf(widget).height } : clean)
   savePosition(widget, box)
+  if (widget === 'cameras') tellCornerIfChanged()
   const win = windows.get(widget)
   if (win && !win.isDestroyed()) win.setBounds(box)
   saveSoon()

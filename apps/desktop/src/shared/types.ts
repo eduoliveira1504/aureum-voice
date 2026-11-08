@@ -142,6 +142,8 @@ export interface OverlayState {
   notice: string | null
   /** An unknown program filling the screen during a call: the overlay asks if it's a game. */
   ask: string | null
+  /** The screen corner the cameras' box is pinned to, on the monitor the widgets are on. */
+  cameraCorner: OverlayCorner
 }
 
 /** A downloaded update waiting for a restart. */
