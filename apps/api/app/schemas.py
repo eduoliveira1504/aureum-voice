@@ -408,6 +408,13 @@ class UserAudio(BaseModel):
     muted: bool = False
 
 
+class ScreenAudio(BaseModel):
+    """How loud one person's screen share plays for the user (0-100), and a mute that keeps it."""
+
+    volume: Annotated[int, Field(ge=0, le=100)] = 50
+    muted: bool = False
+
+
 ColumnKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.-]{0,39}$")]
 ColumnSize = Annotated[int, Field(ge=48, le=2000)]
 
@@ -437,6 +444,8 @@ class SettingsOut(BaseModel):
     soundboard_volume: int = 100
     soundboard_muted: bool = False
     collapsed_categories: list[uuid.UUID] = []
+    screen_audio: dict[uuid.UUID, ScreenAudio] = {}
+    screen_volume_default: int = 50
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -477,6 +486,9 @@ class SettingsUpdate(BaseModel):
     soundboard_volume: Annotated[int, Field(ge=0, le=100)] | None = None
     soundboard_muted: bool | None = None
     collapsed_categories: Annotated[list[uuid.UUID], Field(max_length=500)] | None = None
+    # Merged per user id, like user_audio; the default is for people never adjusted.
+    screen_audio: Annotated[dict[uuid.UUID, ScreenAudio | None], Field(max_length=50)] | None = None
+    screen_volume_default: Annotated[int, Field(ge=0, le=100)] | None = None
 
 
 # --- Friends --------------------------------------------------------------

@@ -26,6 +26,8 @@ DEFAULTS = {
     "soundboard_volume": 100,
     "soundboard_muted": False,
     "collapsed_categories": [],
+    "screen_audio": {},
+    "screen_volume_default": 50,
 }
 
 
@@ -81,6 +83,10 @@ async def test_validation(client: AsyncClient) -> None:
         {"panel_layouts": {SERVER_A: {"panels": [{}], "members_width": 421}}},
         {"user_audio": {SERVER_A: {"volume": 201}}},
         {"user_audio": {"not-a-uuid": {"volume": 50}}},
+        {"screen_audio": {SERVER_A: {"volume": 101}}},
+        {"screen_audio": {"not-a-uuid": {"volume": 50}}},
+        {"screen_volume_default": -1},
+        {"screen_volume_default": 101},
         {"column_sizes": {"Sidebar": 240}},
         {"column_sizes": {"sidebar": 10}},
         {"muted_places": ["nope"]},
@@ -208,3 +214,21 @@ async def test_emoji_tone_and_recents(client: AsyncClient) -> None:
     assert res.status_code == 200 and (res.json()["emoji_tone"], res.json()["recent_emojis"]) == (3, ["🔥", "👍🏽"])
     for bad in [{"emoji_tone": 6}, {"emoji_tone": -1}, {"recent_emojis": ["🔥"] * 37}, {"recent_emojis": [""]}]:
         assert (await user.patch("/users/me/settings", bad)).status_code == 422, bad
+
+
+async def test_screen_volumes_saved_per_person(client: AsyncClient) -> None:
+    """Block 3.24 C: each person's screen share volume follows the account to any PC."""
+    user = await make_user(client, "screens")
+    await user.patch("/users/me/settings", {"screen_audio": {SERVER_A: {"volume": 30}}})
+    # Another PC mutes someone else: both stay, and the mute keeps that person's volume.
+    await user.patch("/users/me/settings", {"screen_audio": {SERVER_B: {"volume": 80, "muted": True}}})
+    saved = (await user.get("/users/me/settings")).json()
+    assert saved["screen_audio"] == {SERVER_A: {"volume": 30, "muted": False}, SERVER_B: {"volume": 80, "muted": True}}
+
+    # A new default doesn't change who was already adjusted.
+    res = await user.patch("/users/me/settings", {"screen_volume_default": 70})
+    assert res.json()["screen_volume_default"] == 70
+    assert res.json()["screen_audio"] == saved["screen_audio"]
+
+    res = await user.patch("/users/me/settings", {"screen_audio": {SERVER_A: None}})
+    assert res.json()["screen_audio"] == {SERVER_B: {"volume": 80, "muted": True}}

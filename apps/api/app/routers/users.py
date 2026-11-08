@@ -34,6 +34,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 MERGED_SETTINGS = {
     "panel_layouts": 200,  # one per server; stale ones (left servers) are cheap to keep
     "user_audio": 1000,
+    "screen_audio": 1000,
     "column_sizes": 30,
     "official_dm": 10,
 }

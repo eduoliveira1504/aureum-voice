@@ -284,6 +284,10 @@ class UserSettings(Base):
     # Painel de sons: how loud others' sounds play for me (0-100), or not at all.
     soundboard_volume: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=100, server_default="100")
     soundboard_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # How loud each person's screen share plays for me, by user id (see schemas.ScreenAudio), and
+    # the volume for people I never adjusted.
+    screen_audio: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    screen_volume_default: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=50, server_default="50")
     # Channel categories this person keeps collapsed in the sidebar.
     collapsed_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(
