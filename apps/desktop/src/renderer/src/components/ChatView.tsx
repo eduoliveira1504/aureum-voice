@@ -36,6 +36,7 @@ import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
 import { LinkPreviews } from './LinkPreviews'
 import { GifMessage } from './Gifs'
+import { MessageMenuContext } from './ImageMenu'
 import { StickerImage, StickerMessage } from './Stickers'
 import { useGifs } from '../store/gifs'
 import { useStickers } from '../store/stickers'
@@ -804,77 +805,82 @@ function MessageRow({
     if (author) onOpenProfile(author, e.currentTarget)
   }
 
+  const menu = (): ReactNode => <MessageMenu message={message} actions={actions} />
+
   return (
-    // Focusable (click or the shortcuts' R / E / Del) but not a tab stop for every message.
-    <div
-      tabIndex={-1}
-      onKeyDown={editing ? undefined : messageKeys(actions)}
-      onContextMenu={editing ? undefined : contextMenu(() => <MessageMenu message={message} actions={actions} />)}
-      className={`group relative flex gap-2.5 px-4 outline-none ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}
-    >
-      {/* Own messages too: the row is mirrored, so the avatar ends up on the right. */}
-      <div className="w-9 shrink-0">
-        {!grouped && (
-          <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
-            <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
-          </button>
-        )}
-      </div>
-      <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
-        {!grouped && (
-          <div className={`mb-1 flex min-w-0 max-w-full items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
-            {/* Own messages too (mirrored): name and marks stay in reading order. */}
-            <span className="flex min-w-0 items-center gap-1 self-center">
-              <button
-                type="button"
-                disabled={!author}
-                onClick={openProfile}
-                onContextMenu={onAuthorMenu}
-                title={name}
-                className="min-w-0 truncate text-sm font-semibold hover:underline disabled:no-underline"
-                style={nameColor ? { color: nameColor } : undefined}
-              >
-                {name}
-              </button>
-              {author && <NameMarks user={author} size={14} />}
-            </span>
-            <span className="shrink-0 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
-          </div>
-        )}
-        {quote}
-        {editing ? (
-          <EditBox message={message} onDone={onStopEditing} />
-        ) : body ? (
-          body
-        ) : (
-          message.content &&
-          (isEmojiOnly(message.content) ? (
-            // Just 1 to 3 emojis: big, without the bubble.
-            <p title={grouped ? formatTimestamp(message.created_at) : undefined} className="select-text py-0.5 leading-none">
-              <EmojiText text={message.content.trim()} size={44} />
-              {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
-            </p>
+    // Its images' right-click menu shows these options too, under the image's (see ImageMenu).
+    <MessageMenuContext.Provider value={editing ? null : menu}>
+      {/* Focusable (click or the shortcuts' R / E / Del) but not a tab stop for every message. */}
+      <div
+        tabIndex={-1}
+        onKeyDown={editing ? undefined : messageKeys(actions)}
+        onContextMenu={editing ? undefined : contextMenu(menu)}
+        className={`group relative flex gap-2.5 px-4 outline-none ${grouped ? 'mt-1' : 'mt-4'} ${own ? 'flex-row-reverse' : ''}`}
+      >
+        {/* Own messages too: the row is mirrored, so the avatar ends up on the right. */}
+        <div className="w-9 shrink-0">
+          {!grouped && (
+            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
+              <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
+            </button>
+          )}
+        </div>
+        <div className={`relative flex min-w-0 max-w-[min(75%,640px)] flex-col ${own ? 'items-end' : 'items-start'} ${editing ? 'w-full' : ''}`}>
+          {!grouped && (
+            <div className={`mb-1 flex min-w-0 max-w-full items-baseline gap-2 ${own ? 'flex-row-reverse' : ''}`}>
+              {/* Own messages too (mirrored): name and marks stay in reading order. */}
+              <span className="flex min-w-0 items-center gap-1 self-center">
+                <button
+                  type="button"
+                  disabled={!author}
+                  onClick={openProfile}
+                  onContextMenu={onAuthorMenu}
+                  title={name}
+                  className="min-w-0 truncate text-sm font-semibold hover:underline disabled:no-underline"
+                  style={nameColor ? { color: nameColor } : undefined}
+                >
+                  {name}
+                </button>
+                {author && <NameMarks user={author} size={14} />}
+              </span>
+              <span className="shrink-0 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
+            </div>
+          )}
+          {quote}
+          {editing ? (
+            <EditBox message={message} onDone={onStopEditing} />
+          ) : body ? (
+            body
           ) : (
-            <div
-              title={grouped ? formatTimestamp(message.created_at) : undefined}
-              className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
-            >
-              <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
-                <Linkified text={message.content} own={own} rich={isOfficialMessage(message)} mention={mention} />
+            message.content &&
+            (isEmojiOnly(message.content) ? (
+              // Just 1 to 3 emojis: big, without the bubble.
+              <p title={grouped ? formatTimestamp(message.created_at) : undefined} className="select-text py-0.5 leading-none">
+                <EmojiText text={message.content.trim()} size={44} />
                 {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
               </p>
-            </div>
-          ))
-        )}
-        {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
-        {!editing && <LinkPreviews message={message} own={own} />}
-        {extra}
-        {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
-        {reactions}
-        {receipt && <ReceiptMark receipt={receipt} />}
+            ) : (
+              <div
+                title={grouped ? formatTimestamp(message.created_at) : undefined}
+                className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
+              >
+                <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+                  <Linkified text={message.content} own={own} rich={isOfficialMessage(message)} mention={mention} />
+                  {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+                </p>
+              </div>
+            ))
+          )}
+          {message.forwarded_from && <ForwardedCard forwarded={message.forwarded_from} own={own} />}
+          {!editing && <LinkPreviews message={message} own={own} />}
+          {extra}
+          {!editing && message.attachments.length > 0 && <MessageAttachments attachments={message.attachments} own={own} />}
+          {reactions}
+          {receipt && <ReceiptMark receipt={receipt} />}
+        </div>
+        {!editing && <MessageActionBar message={message} actions={actions} />}
       </div>
-      {!editing && <MessageActionBar message={message} actions={actions} />}
-    </div>
+    </MessageMenuContext.Provider>
   )
 }
 

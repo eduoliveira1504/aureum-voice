@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { CallPip } from '../components/CallPip'
 import { DetachedCallHost } from '../components/DetachedCall'
 import { ContextMenuHost } from '../components/ContextMenu'
+import { ImageViewerHost } from '../components/ImageViewer'
 import { EmojiPickerHost } from '../components/Emoji'
 import { EditProfileHost } from '../components/EditProfileModal'
 import { IncomingCall, MissedCallNotice, useOutgoingCall } from '../components/CallRinging'
@@ -134,6 +135,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />
       <MissedCallNotice meId={user.id} />
+      <ImageViewerHost />
       <ContextMenuHost />
       <EmojiPickerHost />
       <EditProfileHost me={user} />

@@ -1,5 +1,5 @@
 import { ImageOff, Lock, Pencil, Plus, Search, Smile, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { api, ApiError, uploadFile, type Attachment, type ServerDetail, type Sticker, type StickerPack } from '../lib/api'
 import { useAttachmentUrl } from '../lib/attachments'
@@ -7,17 +7,31 @@ import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { stickerMatches, usableIn, useStickers } from '../store/stickers'
 import { pickEmoji, Emoji } from './Emoji'
+import { useImageMenu } from './ImageMenu'
 import { ConfirmModal } from './modals'
 import { FormError } from './Modal'
 import { cn, inputClass, labelClass, PrimaryButton } from './ui'
 
 /** Stickers come with the token, like attachments (same memory and disk cache: ids are UUIDs). */
+const stickerAttachment = (sticker: { id: string; url: string }): Attachment =>
+  ({ id: sticker.id, url: sticker.url, content_type: 'image/webp' }) as Attachment
+
 function useStickerUrl(sticker: { id: string; url: string }): { url: string | null; failed: boolean } {
-  return useAttachmentUrl({ id: sticker.id, url: sticker.url, content_type: 'image/webp' } as Attachment)
+  return useAttachmentUrl(stickerAttachment(sticker))
 }
 
 /** A sticker's image at `size` px; a "removed" mark when it's gone. */
-export function StickerImage({ sticker, size, className = '' }: { sticker: { id: string; url: string; name: string }; size: number; className?: string }): ReactNode {
+export function StickerImage({
+  sticker,
+  size,
+  className = '',
+  onContextMenu
+}: {
+  sticker: { id: string; url: string; name: string }
+  size: number
+  className?: string
+  onContextMenu?: (e: MouseEvent) => void
+}): ReactNode {
   const { url, failed } = useStickerUrl(sticker)
   const box = { width: size, height: size }
   if (failed) {
@@ -29,7 +43,7 @@ export function StickerImage({ sticker, size, className = '' }: { sticker: { id:
     )
   }
   return url ? (
-    <img src={url} alt={sticker.name} title={sticker.name} draggable={false} style={box} className={cn('object-contain', className)} />
+    <img src={url} alt={sticker.name} title={sticker.name} draggable={false} onContextMenu={onContextMenu} style={box} className={cn('object-contain', className)} />
   ) : (
     <span style={box} className={cn('block animate-pulse rounded-control bg-elevated', className)} />
   )
@@ -37,7 +51,8 @@ export function StickerImage({ sticker, size, className = '' }: { sticker: { id:
 
 /** A sticker message: the sticker on its own, 160 px, no bubble. */
 export function StickerMessage({ sticker }: { sticker: { id: string; url: string; name: string } }): ReactNode {
-  return <StickerImage sticker={sticker} size={160} className="my-0.5" />
+  const onContextMenu = useImageMenu({ kind: 'attachment', attachment: stickerAttachment(sticker), name: sticker.name })
+  return <StickerImage sticker={sticker} size={160} className="my-0.5" onContextMenu={onContextMenu} />
 }
 
 // --- Picker tab ------------------------------------------------------------------------------

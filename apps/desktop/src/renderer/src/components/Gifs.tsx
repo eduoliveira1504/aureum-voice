@@ -5,6 +5,7 @@ import type { Gif } from '../lib/api'
 import { gifOf, GifsUnavailable, prefersReducedMotion, thumbOf, useGifs, type KlipyItem } from '../store/gifs'
 import { fitImage } from './Attachments'
 import { toast } from './ContextMenu'
+import { useImageMenu } from './ImageMenu'
 import { cn, inputClass } from './ui'
 
 /** Plays while on screen, muted and looping; paused when it scrolls away. With reduced motion it
@@ -61,8 +62,16 @@ function StarButton({ gif, className = '' }: { gif: Gif; className?: string }): 
 export function GifMessage({ gif }: { gif: Gif }): ReactNode {
   const box = fitImage(gif.width, gif.height)
   const { ref, hover } = useAutoplay()
+  // Only its link: the app never downloads Klipy's GIFs (ADR 0034).
+  const onContextMenu = useImageMenu({ kind: 'gif', url: gif.url })
   return (
-    <div className="group/gif relative my-0.5 w-fit max-w-full overflow-hidden rounded-control bg-elevated" style={box} {...hover} title={gif.title || 'GIF'}>
+    <div
+      className="group/gif relative my-0.5 w-fit max-w-full overflow-hidden rounded-control bg-elevated"
+      style={box}
+      {...hover}
+      onContextMenu={onContextMenu}
+      title={gif.title || 'GIF'}
+    >
       {gif.format === 'mp4' ? (
         <video
           ref={ref}
