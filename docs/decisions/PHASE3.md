@@ -28,7 +28,8 @@ mascote e backlog) saíram deste arquivo e foram para docs/decisions/FUTURO.md. 
 Fase 3 com tudo funcionando.
 Em 07/11 entrou também o 3.24 (correções: overlay na transmissão, copiar imagem, volume das
 transmissões salvo, chat sem rolagem lateral).
-Próximo, nesta ordem: 3.20 parte A, 3.24 (A a D), 3.23, 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
+Em 08/11: 3.20 parte A pronta (teste manual pendente).
+Próximo, nesta ordem: 3.24 (A a D), 3.23, 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -937,7 +938,7 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   silenciar.
 
 ## 3.20 Arraste de imagens e janela destacada da call
-### Parte A: arrastar a janelinha arrasta a foto (correção, fazer primeiro)
+### Parte A: arrastar a janelinha arrasta a foto ✅ concluída (teste manual pendente)
 - Bug (vídeo do Eduardo, 04/11): ao arrastar a janelinha flutuante da call segurando na foto de
   perfil, o Chromium começa o arraste NATIVO da <img> em vez de mover a janela; a foto pode cair no
   chat como anexo ("Solte para enviar").
@@ -949,6 +950,11 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   (imagem, aba, canal) nunca vira anexo.
 - Testes: pointerdown na foto da janelinha move a janela e não inicia drag nativo; soltar uma
   imagem do próprio app no chat não cria anexo; arquivo do Explorer continua anexando.
+- Feito: CallPip cancela pointerdown e dragstart, sem seleção de texto durante o arraste; regra
+  global img:not([draggable='true']) { -webkit-user-drag: none } no main.css; lib/internalDrag.ts
+  marca arrastes que começam dentro da janela e o chat ignora esses. Teste manual: arrastar a
+  janelinha pela foto até o chat (não anexa); arrastar avatar/emoji/figurinha pro chat (não anexa);
+  arquivo do Explorer continua anexando; abas, canais e cards do Kanban continuam arrastáveis.
 
 ### Parte B: destacar a chamada (janela própria, sempre por cima)
 - Botão "Destacar chamada" na barra da call e na janelinha flutuante. Abre a call numa janela
