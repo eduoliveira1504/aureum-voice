@@ -67,7 +67,8 @@ export function GifMessage({ gif }: { gif: Gif }): ReactNode {
   return (
     <div
       className="group/gif relative my-0.5 w-fit max-w-full overflow-hidden rounded-control bg-elevated"
-      style={box}
+      // Width and ratio, not a fixed height: in a narrow panel it shrinks without being cropped.
+      style={{ width: box.width, aspectRatio: `${box.width} / ${box.height}` }}
       {...hover}
       onContextMenu={onContextMenu}
       title={gif.title || 'GIF'}

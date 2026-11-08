@@ -83,7 +83,7 @@ function ImageThumb({ attachment, single, gallery }: { attachment: Attachment; s
           alt={attachment.filename}
           draggable={false}
           onLoad={(e) => !natural && setLoaded({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
-          className={size ? 'block h-full w-full object-cover' : 'block max-h-80 max-w-[360px]'}
+          className={size ? 'block h-full w-full object-cover' : 'block max-h-80 max-w-[min(360px,100%)]'}
         />
       ) : (
         !size && <span className="block h-48 w-72 max-w-full animate-pulse bg-elevated" />
@@ -99,7 +99,7 @@ function VideoPlayer({ attachment }: { attachment: Attachment }): ReactNode {
   return (
     <div className="w-fit max-w-full overflow-hidden rounded-control border border-line bg-black">
       {url ? (
-        <video src={url} controls preload="metadata" className="block max-h-80 max-w-[420px]" />
+        <video src={url} controls preload="metadata" className="block max-h-80 max-w-[min(420px,100%)]" />
       ) : (
         <span className="block aspect-video w-[420px] max-w-full animate-pulse bg-elevated" />
       )}

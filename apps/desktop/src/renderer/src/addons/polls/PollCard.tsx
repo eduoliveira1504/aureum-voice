@@ -85,7 +85,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
           </span>
         )}
       </p>
-      <p className="mt-1.5 break-words font-display text-[17px] font-semibold leading-snug text-fg">{poll.question}</p>
+      <p className="mt-1.5 wrap-anywhere font-display text-[17px] font-semibold leading-snug text-fg">{poll.question}</p>
       <p className="mt-0.5 text-xs text-fg-subtle">
         {closed ? 'Resultado final' : poll.multiple ? 'Escolha uma ou mais opções' : 'Escolha uma opção'}
       </p>
@@ -118,7 +118,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
                 >
                   {mine && <Check size={11} strokeWidth={3} />}
                 </span>
-                <span className={`relative min-w-0 flex-1 break-words ${winner ? 'font-semibold' : ''}`}>
+                <span className={`relative min-w-0 flex-1 wrap-anywhere ${winner ? 'font-semibold' : ''}`}>
                   {option.emoji && <Emoji emoji={option.emoji} className="mr-1.5" />}
                   {option.text}
                 </span>

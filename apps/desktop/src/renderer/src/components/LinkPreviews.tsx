@@ -59,7 +59,7 @@ function LinkCard({ card, onRemove }: { card: LinkPreview; onRemove?: () => void
   const onImageMenu = useCardImageMenu(card, image)
   const box = imageBox(card, IMAGE_MAX_W, IMAGE_MAX_H)
   return (
-    <div className="group/card relative w-fit min-w-0 max-w-[432px] overflow-hidden rounded-control border border-line bg-elevated p-3 pr-8">
+    <div className="group/card relative w-fit min-w-0 max-w-[min(432px,100%)] overflow-hidden rounded-control border border-line bg-elevated p-3 pr-8 wrap-anywhere">
       <p className="truncate text-xs text-fg-subtle">{card.site}</p>
       {card.title && (
         <a href={card.url} target="_blank" rel="noreferrer" className="mt-0.5 line-clamp-2 font-semibold text-accent-text hover:underline">
@@ -90,7 +90,7 @@ function YouTubeCard({ card, onRemove }: { card: LinkPreview; onRemove?: () => v
   const image = imageOf(card)
   const onImageMenu = useCardImageMenu(card, image)
   return (
-    <div className="group/card relative w-[432px] max-w-full overflow-hidden rounded-control border border-line bg-elevated p-3 pr-8">
+    <div className="group/card relative w-[432px] max-w-full overflow-hidden rounded-control border border-line bg-elevated p-3 pr-8 wrap-anywhere">
       <p className="truncate text-xs text-fg-subtle">
         YouTube{card.channel && <> · {card.channel}</>}
       </p>

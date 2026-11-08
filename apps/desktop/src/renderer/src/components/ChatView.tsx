@@ -479,7 +479,10 @@ export function ChatView({
           <p className="text-sm text-fg-muted">Até {MAX_FILES} arquivos por mensagem</p>
         </div>
       )}
-      <div ref={listRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto pb-4">
+      {/* Never scrolls sideways (3.24 D): long words and links wrap (wrap-anywhere, which unlike
+          break-words also lets their box shrink) and media is at most the column's width; hiding
+          the overflow is only the last guard. */}
+      <div ref={listRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4">
         {entry?.loaded && !entry.hasMore && (
           <div className="px-4 pb-2 pt-10">
             {intro ?? (
@@ -864,7 +867,7 @@ function MessageRow({
                 title={grouped ? formatTimestamp(message.created_at) : undefined}
                 className={`rounded-control px-3 py-2 ${own ? 'rounded-tr-item bg-bubble-own' : 'rounded-tl-item bg-elevated'}`}
               >
-                <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+                <p className="select-text whitespace-pre-wrap wrap-anywhere leading-relaxed text-fg">
                   <Linkified text={message.content} own={own} rich={isOfficialMessage(message)} mention={mention} />
                   {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
                 </p>
@@ -925,7 +928,7 @@ function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['for
         <Forward size={13} /> Encaminhada
       </p>
       {forwarded.content && (
-        <p className="select-text whitespace-pre-wrap break-words leading-relaxed text-fg">
+        <p className="select-text whitespace-pre-wrap wrap-anywhere leading-relaxed text-fg">
           <Linkified text={forwarded.content} own={false} />
         </p>
       )}
@@ -1355,7 +1358,7 @@ function AutoTextarea({
       onKeyDown={onKeyDown}
       onPaste={onPaste}
       onSelect={onSelect}
-      className={`block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60 ${roomRight === 'wide' ? 'pr-20' : roomRight ? 'pr-11' : ''}`}
+      className={`block w-full resize-none rounded-control border border-line bg-elevated px-4 py-2.5 leading-relaxed wrap-anywhere text-fg outline-none placeholder:text-fg-subtle focus:border-accent/60 ${roomRight === 'wide' ? 'pr-20' : roomRight ? 'pr-11' : ''}`}
     />
   )
 }
