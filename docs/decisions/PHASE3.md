@@ -32,7 +32,9 @@ em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
 3.24 pronto (A a D; teste manual pendente; a parte C tem migração).
-Próximo, nesta ordem: 3.22 parte B, 3.21
+3.22 parte B pronta (teste manual pendente; sem migração; escolhas em 0044-profile-gifs.md), então o
+3.22 está concluído.
+Próximo, nesta ordem: 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -1069,7 +1071,7 @@ NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e qu
 - Testes automáticos: o que é só Windows não roda no Mac; atalhos trocam Ctrl/Cmd. Teste manual
   num Mac: instalar, login, voz, câmera, tela, notificações, aviso de versão nova.
 
-## 3.22 Câmeras do overlay e GIF no perfil
+## 3.22 Câmeras do overlay e GIF no perfil ✅ concluído (teste manual pendente)
 ### Parte A: câmeras do overlay personalizáveis ✅ concluída (teste manual pendente)
 Escolhas em [ADR 0042](0042-overlay-cameras.md). Sem mudança na API e sem migração.
 Por que só a quantidade na vertical parecia funcionar (código da beta.9): a caixa tinha tamanho fixo
@@ -1117,7 +1119,12 @@ e a alça muda o tamanho das câmeras.
 - Testes: cada formato com 1, 3 e 8 câmeras; tamanho mínimo e máximo; "+N" quando passa do
   máximo; quem fala entra mesmo além do limite; caixa acompanha; preferências antigas preservadas.
 
-### Parte B: GIF no avatar e no banner do perfil
+### Parte B: GIF no avatar e no banner do perfil ✅ concluída (teste manual pendente)
+Feito (08/11; ADR 0044): os termos atuais do Klipy (integration-requirements) proíbem guardar,
+espelhar ou re-hospedar a mídia sem aprovação por escrito, então valeu o caminho da REFERÊNCIA: a API
+guarda só o GIF (URLs como o Klipy deu) e o recorte, sem MinIO nem migração; cada app carrega do
+Klipy e aplica o recorte na exibição. Apps antigos veem o GIF (ou a still, se for MP4) sem recorte.
+Overlay e cursores do Quadro mostram o GIF sem recorte (só recebem a URL).
 - No Editar perfil, clicar em "Trocar avatar" ou "Trocar banner" abre um menu com duas opções:
   "Enviar imagem" (abre o seletor de arquivos do computador, como hoje) e "Escolher um GIF" (abre o
   seletor de GIFs do chat, do Klipy, com busca, Em alta e Favoritos).

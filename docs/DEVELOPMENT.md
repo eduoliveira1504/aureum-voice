@@ -139,7 +139,9 @@ for real-time media. The whole stack is open source and designed to run at zero 
   drawn in `scripts/build-stickers.mjs`) and each server's own (up to 30, only in that server),
   with USE_STICKERS / MANAGE_EXPRESSIONS. GIFs from Klipy, searched straight from the app as
   Klipy requires (the API only hands out the key and keeps sent GIFs and favorites), playing muted
-  and paused off screen ([ADR 0034](decisions/0034-stickers-and-gifs.md))
+  and paused off screen ([ADR 0034](decisions/0034-stickers-and-gifs.md)). A Klipy GIF can also be
+  the avatar or banner: kept only as a reference with its crop, which the app applies when drawing
+  it, since Klipy's terms forbid storing copies ([ADR 0044](decisions/0044-profile-gifs.md))
 - Painel de sons: each server's short sounds (mp3/ogg/wav, up to 5 s and 1 MB, 24 per server,
   length measured by the API with tinytag), with USE_SOUNDBOARD / MANAGE_SOUNDBOARD. A sound goes
   out as its own LiveKit track named `soundboard` (never through the mic), one at a time and 3 s
