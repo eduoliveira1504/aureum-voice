@@ -17,12 +17,19 @@ e 3.15. 3.18: virada para a VPS feita em 27/10 com a 0.2.0-beta.8; faltam o item
 backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, com OK do Eduardo).
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
-3.19 (seção 3.A): partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C: aguarda os casos e relatórios do Eduardo para o diagnóstico.
-3.12 pronto, com as 3 migrações aplicadas na VPS em 01/11 (escolhas em 0037-channel-categories.md).
-3.13 pronto, com a API na VPS desde 01/11 (escolhas em 0038 e 0039).
-3.14 pronto no código, sem mudança na API (escolhas em 0040-overlay-widgets.md); teste manual pendente.
-Release 0.2.0-beta.9 (3.19 A, B, D e E, 3.12, 3.13 e 3.14): API na VPS em 01/11; rascunho aguardando o Eduardo publicar.
-Próximo: 3.16 (a parte C do 3.19 volta quando chegarem os relatórios). 3.17 só com spec do Eduardo.
+3.19: partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C dividida em
+05/11: C1 (diagnóstico embutido e correções que não dependem dos relatórios) agora; C2 quando
+chegarem os relatórios.
+3.12, 3.13 e 3.14 prontos (escolhas em 0037 a 0040); 0.2.0-beta.9 gerada.
+Em 05/11 entraram o 3.20 (arraste de imagens e janela destacada da call) e o 3.21 (macOS).
+Em 06/11: Painel de sons confirmado funcionando em produção (3.15 e 3.19 B); entrou o 3.22
+(câmeras do overlay personalizáveis e GIF no avatar/banner); ideias futuras (identidade visual,
+mascote e backlog) saíram deste arquivo e foram para docs/decisions/FUTURO.md. Objetivo: fechar a
+Fase 3 com tudo funcionando.
+Em 07/11 entrou também o 3.24 (correções: overlay na transmissão, copiar imagem, volume das
+transmissões salvo, chat sem rolagem lateral).
+Próximo, nesta ordem: 3.20 parte A, 3.24 (A a D), 3.23, 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
+(só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -578,7 +585,7 @@ Teste manual da parte C (dois PCs, ou duas contas; com o pacote e a chave do Kli
   - Pacote inicial "Aureum básico" com ~16 figurinhas desenhadas em SVG próprio no visual
     da marca (reações comuns: "bom dia", "kkkk", "gg", "bora?", "valeu", "triste",
     "brabo", "dormindo" etc., em pt-BR), exportadas em PNG 320×320. Mostrar ao Eduardo
-    antes de fechar. Pacote do mascote entra depois (3.17).
+    antes de fechar. Pacote do mascote: ideia futura (ver FUTURO.md).
   - Pacotes novos entram por CLI de admin (stickers pack-add / sticker-add), sem release.
     Tabelas sticker_packs (id, nome, global bool, server_id nullable) e stickers.
 - Figurinhas do servidor: cada servidor tem as próprias, PNG ou WebP estáticos, máx
@@ -617,7 +624,7 @@ direto no Klipy com chave, customer_id, filtro e idioma (ver ADR 0034; sem cache
 nossos); só URLs do Klipy aceitas na mensagem; provedor fora do ar mostra erro amigável sem
 quebrar o chat; favoritos.
 
-## 3.A Ajustes do beta (01/11) — antes do 3.12
+## 3.19 Ajustes do beta (01/11) — antes do 3.12
 Em partes, na ordem (A a E). Uma conversa do Claude Code por parte; um item por vez, commit por
 item, sem push. Diagnóstico antes de corrigir onde está indicado. Release 0.2.0-beta.9 no fim do
 bloco (ou antes, com as partes prontas, se o Eduardo pedir).
@@ -642,7 +649,7 @@ membros, da call etc.):
   avatar, nome e abas ficam fixos.
 - Teste: cartão aberto no rodapé da janela com 8+ insígnias chega até a última.
 
-### Parte B: Painel de sons ✅ concluída (som testado pelo app em dev ligado à produção; sai com a beta.9)
+### Parte B: Painel de sons ✅ concluída (funcionando em produção, confirmado pelo Eduardo em 06/11)
 Os sons não tocam. Diagnóstico PRIMEIRO, sem corrigir no chute; me explicar a causa antes:
 1. VPS: os arquivos dos sons existem no MinIO (vieram na migração?); GET /api/media/sounds/{id}
    responde 200 com o content-type certo; logs da API no POST /sounds/{id}/play.
@@ -663,13 +670,20 @@ Recortar áudio maior:
 - Testes: o recorte gera WAV com a duração escolhida; a seleção nunca passa de 5 s; arquivo grande
   demais ou que não decodifica dá aviso legível.
 
-### Parte C: microfone e câmera
-Dois problemas do beta: (1) o microfone de algumas pessoas não capta nada; (2) ao ligar a câmera,
-o app passa a usar o mic da câmera em vez do headset. Caso real: "Microfone (AB13X USB Audio)";
-o Eduardo manda mais casos.
-Diagnóstico primeiro: com o log de getSettings do 3.2 e o Reportar problema, levantar por caso o
-aparelho escolhido, o aparelho realmente em uso, sample rate e canais, e se o sinal morre antes ou
-depois do pipeline (RNNoise, channel picker, gate).
+### Parte C1: microfone e câmera, sem depender dos relatórios (fazer agora)
+Ainda acontece (04/11): (1) supressão de ruído parece não estar agindo; (2) ao ligar a câmera, a
+pessoa passa a falar pelo mic da câmera; (3) alguns aparelhos funcionam mal no app (ex: o headset
+Havit do prado; ver 3.2); (4) mic que não capta nada. Os relatórios ainda não chegaram, então a C1
+cria o diagnóstico que faltava e corrige o que não depende dele.
+Diagnóstico embutido:
+- O Reportar problema anexa SEMPRE o diagnóstico de áudio: aparelhos de entrada (nome e groupId),
+  escolhido x realmente em uso, getSettings (sample rate, canais, processamentos do Chromium), estado
+  de cada etapa do pipeline (RNNoise carregou/falhou, channel picker, gate) e nível médio do sinal
+  cru e do processado nos últimos segundos. Sem gravar áudio.
+- Configurações › Voz mostra o estado real: "Supressão de ruído: ativa / falhou ao carregar /
+  desligada", e o aparelho em uso com aviso quando for diferente do escolhido.
+- Erro ao carregar ou ligar o RNNoise (worklet, wasm, CSP, sample rate) vai pro log com a causa e
+  aparece no estado acima, nunca falha em silêncio.
 Câmera roubando o microfone:
 - Causa provável (conferir): quem está em "Padrão do sistema" segue o padrão do Windows, que muda
   quando a webcam com mic é ativada, e o devicechange troca junto.
@@ -685,11 +699,15 @@ Microfone que não capta:
   pro caminho sem processamento e avisar ("Ativamos o modo compatível do microfone"), com atalho
   pra Configurações › Voz.
 - "Modo compatível" visível em Configurações › Voz (desliga RNNoise, picker e gate).
-- Em Configurações › Voz, aviso quando o aparelho em uso for diferente do escolhido.
-- O Reportar problema anexa o diagnóstico de áudio (aparelhos, escolhido x em uso, getSettings,
-  modo do pipeline), sem gravar áudio.
-- Testes: a escolha automática ignora o mic da câmera; a troca do padrão do Windows não muda nada no
-  meio da call; fallback quando o pipeline fica mudo.
+- Testes: escolha automática ignora o mic da câmera; troca do padrão do Windows não muda nada no
+  meio da call; fallback quando o pipeline fica mudo; diagnóstico presente no relatório; falha do
+  RNNoise aparece no estado.
+
+### Parte C2: correções por aparelho (quando chegarem os relatórios da C1)
+- Com os relatórios novos (que já trazem o diagnóstico), achar a causa de cada caso: supressão de
+  ruído sem efeito, headset Havit, AB13X USB Audio e o que mais aparecer.
+- Me explicar a causa de cada um antes de corrigir; ajustes por aparelho só se não houver correção
+  geral.
 
 ### Parte D: Perfil e Configurações ✅ concluída (teste manual pendente)
 - Configurações perde as abas "Meu perfil" e "Conta" (repetidas). Perfil fica só no Editar perfil
@@ -860,7 +878,7 @@ em primeiro plano também é conferido enquanto uma notificação está na tela.
 - Testes: câmera liga e a pessoa muda de widget; horizontal/vertical; posições salvas;
   notificação some sozinha; widget desligado não aparece.
 
-## 3.15 Painel de sons ✅ concluído (falta produção e teste manual)
+## 3.15 Painel de sons ✅ concluído (em produção e funcionando, confirmado pelo Eduardo em 06/11)
 Feito antes do 3.12–3.14, a pedido do Eduardo. Decisões em
 [ADR 0035](0035-soundboard.md): som como segunda track de áudio de origem microfone com o nome
 "soundboard" (o token não permite outra origem), duração medida com tinytag (MIT), trava no Redis
@@ -868,7 +886,7 @@ para "1 por vez" e cooldown, e o anel de fala medindo só o microfone de quem es
 Ajustes do Eduardo antes de começar: o indicador de fala (call, overlay e listas) nunca acende por
 causa de um som; com o próprio mic mutado o painel funciona, ensurdecido fica desligado.
 
-### Produção do 3.15 (nada feito ainda)
+### Produção do 3.15 (✅ feita; fica como referência dos passos)
 Pode ir junto com a do 3.10/3.11, num backup só. Tudo com OK do Eduardo, na ordem. A API nova não
 quebra o app beta.6: só rotas, colunas e um evento novos. Um app beta.6 numa sala ouve os sons de
 quem tem o app novo, no volume daquela pessoa, e o anel dela acende enquanto o som toca. Ele não
@@ -918,9 +936,191 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Testes: limites de arquivo e duração, permissões, exclusividade do servidor, cooldown,
   silenciar.
 
+## 3.20 Arraste de imagens e janela destacada da call
+### Parte A: arrastar a janelinha arrasta a foto (correção, fazer primeiro)
+- Bug (vídeo do Eduardo, 04/11): ao arrastar a janelinha flutuante da call segurando na foto de
+  perfil, o Chromium começa o arraste NATIVO da <img> em vez de mover a janela; a foto pode cair no
+  chat como anexo ("Solte para enviar").
+- CallPip: preventDefault no pointerdown (fora dos botões), user-select none durante o arraste.
+- No app todo: imagens de interface (avatar, ícone e banner de servidor, insígnias, emojis,
+  figurinhas, miniaturas) com draggable={false} (ou -webkit-user-drag: none no componente). Só fica
+  arrastável o que tem arraste próprio (canais, abas, cards do Kanban, anexos se fizer sentido).
+- A área de "Solte para enviar" do chat só aceita arquivos vindos de FORA do app; arraste interno
+  (imagem, aba, canal) nunca vira anexo.
+- Testes: pointerdown na foto da janelinha move a janela e não inicia drag nativo; soltar uma
+  imagem do próprio app no chat não cria anexo; arquivo do Explorer continua anexando.
+
+### Parte B: destacar a chamada (janela própria, sempre por cima)
+- Botão "Destacar chamada" na barra da call e na janelinha flutuante. Abre a call numa janela
+  própria do sistema, sem moldura, SEMPRE POR CIMA (dá pra desligar o "fixar por cima" no próprio
+  cabeçalho), que continua visível com o Aureum minimizado ou atrás de outros programas.
+- Conteúdo: o mesmo da janelinha (quem fala ou a tela em foco, com troca Foco/Grade) e a barra de
+  controles compacta (mic, fone, câmera, tela, painel de sons, sair) e "Voltar ao app".
+- Redimensionável (mínimo ~240×135, proporção livre), arrastável por qualquer parte que não seja
+  botão (mesma regra da parte A). Posição, tamanho e monitor salvos; se o monitor sumir, volta
+  pro principal.
+- A mídia NÃO é duplicada: a janela destacada mostra as tracks da mesma sala (sem segunda conexão
+  no LiveKit). Sugestão a avaliar: window.open do próprio renderer (setWindowOpenHandler com
+  alwaysOnTop, frame false) e React portal, para compartilhar estado e tracks; propor no plano.
+- Enquanto destacada: a janelinha flutuante de dentro do app some; a call num painel continua
+  normal. Fechar a janela destacada (X ou "Voltar ao app") volta pra janelinha, sem sair da call.
+  Sair da call fecha a janela destacada.
+- Tile com o anel interno do 3.19 e vídeo em contain; janela pequena recebe a camada menor de vídeo.
+- Não é o overlay: não aparece por cima de jogo em tela cheia exclusiva e não lê nada do jogo.
+- Testes: abrir/fechar destacada sem cair da call; app minimizado e a janela continua; controles
+  funcionam; posição e tamanho restaurados; sair da call fecha; sem segunda conexão na sala.
+
+## 3.24 Correções do beta (07/11): overlay na transmissão, imagens, volume e chat
+### Parte A: quadrados pretos do overlay na transmissão
+- Bug: quem assiste a tela de alguém vê quadrados pretos onde está o overlay de quem transmite.
+- Causa provável (conferir): as janelas do overlay usam setContentProtection(true). No Windows 10
+  2004+ isso exclui a janela da captura (fica invisível); em Windows mais antigo ou em janela sem a
+  proteção, vira retângulo preto. Me explicar a causa antes de corrigir; perguntar ao Eduardo a
+  versão do Windows (winver) de quem transmitiu.
+- Correção: enquanto a pessoa transmite a TELA INTEIRA ou a janela de um jogo, as janelas do
+  overlay ficam ESCONDIDAS de verdade (hide, não só sem conteúdo) e voltam ao parar; conferir que
+  TODAS as janelas transparentes do app (voz, câmeras, notificações, avisos, janela destacada do
+  3.20 B) têm a proteção ligada antes de aparecer.
+- Se o Windows da pessoa não suporta excluir da captura: avisar uma vez em Configurações › Overlay
+  ("Seu Windows mostra o overlay como quadrado preto em transmissões; ele será escondido enquanto
+  você transmite").
+- Testes: transmitir com o overlay visível e conferir no outro PC que não aparece nada (tela
+  inteira e janela); parar de transmitir e o overlay volta; todas as janelas transparentes com
+  proteção (teste automático).
+
+### Parte B: copiar e salvar imagem pelo botão direito
+- Botão direito numa imagem do chat (anexo, prévia de link, figurinha) abre o menu: "Copiar
+  imagem", "Salvar imagem como…" e "Abrir imagem" (visualizador do app). GIF do Klipy: "Copiar
+  link do GIF" (sem baixar, regra do ADR 0034). As opções de mensagem continuam no mesmo menu,
+  abaixo.
+- Copiar põe a imagem na área de transferência como imagem (clipboard.writeImage pelo processo
+  principal, com os bytes que o app já carregou; GIF animado vira o primeiro quadro, como no
+  navegador). Funciona colando no próprio chat, no WhatsApp e no Paint.
+- Salvar abre o "Salvar como" do Windows com o nome original e a extensão certa.
+- Mesmo menu no visualizador de imagem em tela cheia.
+- Testes: copiar e colar de volta no chat; salvar com nome e extensão certos; imagem de canal sem
+  permissão não é baixada por outra rota; GIF só copia o link.
+
+### Parte C: volume das transmissões salvo por pessoa
+- Hoje o volume da tela de cada pessoa (screenVolume) fica só na memória e volta pra 100% toda vez
+  que alguém entra na call ou começa a assistir: a galera estoura o ouvido.
+- Passa a ser salvo POR PESSOA que transmite (pelo id do usuário, não pela identidade da sala), na
+  conta (user_settings), então vale em qualquer PC: assistir a tela do fulano sempre começa no
+  volume que eu deixei pra ele.
+- Configurações › Voz: "Volume padrão das transmissões" (padrão 50%), usado pra quem eu nunca
+  ajustei. Mudar o controle de volume no tile salva na hora (com debounce).
+- Aproveitar e salvar do mesmo jeito o volume de voz por pessoa, se hoje também não for salvo.
+- Testes: ajustar o volume do fulano, sair e entrar: volta no mesmo; outro PC: mesmo volume;
+  pessoa nova usa o padrão; mudar o padrão não muda quem já foi ajustado; mutar e desmutar volta
+  ao volume salvo.
+
+### Parte D: chat sem barra de rolagem lateral
+- Bug: link ou palavra muito longa (e alguns cards e blocos) estica a mensagem e o chat ganha barra
+  de rolagem pro lado em janela menor.
+- O chat NUNCA rola pro lado, em nenhum tamanho de janela ou painel: links e palavras longas quebram
+  a linha (overflow-wrap: anywhere) em vez de esticar; contêineres flex com min-w-0; imagens,
+  vídeos, GIFs, cards de link, enquetes e citações com largura máxima de 100% da coluna; bloco de
+  código rola só por dentro dele.
+- Não cortar nem limitar o texto de ninguém (nada de limite de caracteres): tudo aparece, só quebra
+  a linha.
+- Mesma regra no campo de digitar, nas DMs, nos painéis estreitos (3.13) e na janela destacada.
+- Testes: URL de 500 caracteres, palavra sem espaço, card de link, imagem larga e bloco de código
+  numa janela de 900 px e num painel de 320 px: sem rolagem lateral no chat.
+
+## 3.21 Versão para macOS
+NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e quem testa num Mac.
+- Build: electron-builder com alvo mac (dmg + zip, Apple Silicon e Intel), gerado num runner macOS
+  do GitHub Actions (grátis em repositório público), disparado pelo ritual de release junto com o
+  Windows. Ícone .icns gerado pelo npm run build:icons a partir do logo oficial.
+- Sem assinatura (padrão do beta): o app abre por "Abrir mesmo assim" (passo a passo na landing e
+  no README) e NÃO se atualiza sozinho; ao abrir, se houver versão nova, aviso "Baixar a versão X"
+  que leva pra página de download. Com assinatura (se o Eduardo decidir pagar): assinar, notarizar e
+  ligar a atualização automática; certificados só em secrets do GitHub, nunca no repositório.
+- Permissões do macOS com textos em pt-BR: microfone, câmera e gravação de tela (transmissão);
+  fluxo que explica e abre os Ajustes quando a permissão foi negada.
+- Recursos só de Windows ficam desligados e escondidos no Mac, sem erro: overlay, detecção de jogo
+  e atalho global de push-to-talk com o app em segundo plano (avaliar o equivalente do Mac, que
+  pede permissão de Acessibilidade, e perguntar antes).
+- Transmissão de tela com som do sistema: testar no Mac (exige permissão de gravação de tela);
+  se não der som do sistema, transmitir sem som com aviso claro.
+- Atalhos com Cmd no lugar de Ctrl no Mac (inclusive os textos de ajuda e do tour); menu do app
+  padrão do macOS; ícone na barra de menus no lugar da bandeja.
+- Landing e README: botão de download para Mac ao lado do Windows.
+- Testes automáticos: o que é só Windows não roda no Mac; atalhos trocam Ctrl/Cmd. Teste manual
+  num Mac: instalar, login, voz, câmera, tela, notificações, aviso de versão nova.
+
+## 3.22 Câmeras do overlay e GIF no perfil
+### Parte A: câmeras do overlay personalizáveis
+- Hoje (relato do Eduardo, 06/11): na prática só dá pra mudar quantas câmeras aparecem na vertical.
+  Primeiro conferir no app instalado (beta.9) se as opções "horizontal/vertical" e "tamanho" do 3.14
+  estão chegando no widget; se não, me explicar o porquê antes de mexer.
+- NÃO mudar o destaque de quem está falando no widget de câmeras: está certo como está.
+- Configurações › Overlay › Câmeras (com prévia ao vivo) e também no modo edição (Ctrl+Shift+F10):
+  - Formato: Vertical (coluna), Horizontal (linha) ou Grade.
+  - Tamanho de cada câmera: controle deslizante contínuo (ex: de ~96 a ~360 px de largura,
+    proporção 16:9), além dos atalhos Pequeno/Médio/Grande.
+  - Quantidade: máximo de câmeras visíveis (1 a 8) e, na Grade, quantas por linha. Passou do
+    máximo: "+N" no fim, e quem está falando sempre entra na lista visível.
+  - Espaço entre as câmeras e cantos arredondados (opcional, se for simples).
+- O tamanho da caixa do widget acompanha o formato, o tamanho e a quantidade (cresce e encolhe
+  sozinho, a partir do canto onde ele está preso); no modo edição, arrastar a borda muda o tamanho
+  das câmeras em vez de esticar a caixa vazia.
+- Salvo por monitor junto com as posições do 3.14; preferências antigas migram sem perder nada.
+- Testes: cada formato com 1, 3 e 8 câmeras; tamanho mínimo e máximo; "+N" quando passa do
+  máximo; quem fala entra mesmo além do limite; caixa acompanha; preferências antigas preservadas.
+
+### Parte B: GIF no avatar e no banner do perfil
+- No Editar perfil, clicar em "Trocar avatar" ou "Trocar banner" abre um menu com duas opções:
+  "Enviar imagem" (abre o seletor de arquivos do computador, como hoje) e "Escolher um GIF" (abre o
+  seletor de GIFs do chat, do Klipy, com busca, Em alta e Favoritos).
+- Depois de escolher o GIF, segue o mesmo fluxo do 3.10: editor de recorte (posição e zoom), prévia
+  no cartão e Salvar.
+- Termos do Klipy (ADR 0034): eles proíbem proxy e cache nossos sem aprovação por escrito. ANTES de
+  implementar, reler os termos atuais do Klipy sobre usar um GIF como imagem de perfil e me explicar
+  o que pode:
+  - Se puder guardar uma cópia: o GIF é baixado pela API e passa pelo mesmo recorte do 3.10
+    (animação mantida), igual a um upload.
+  - Se NÃO puder: guardar só a referência do Klipy (id e URL) mais o recorte, e cada app carrega o
+    GIF direto do Klipy, com o recorte aplicado na exibição (sem cópia no MinIO). Se o GIF sumir do
+    Klipy, mostra as iniciais/banner padrão.
+  - Nunca baixar e guardar GIF do Klipy sem a confirmação de que os termos permitem.
+- Mesma checagem de conteúdo dos GIFs do chat (filtro mais seguro do provedor).
+- Testes: menu com as duas opções no avatar e no banner; GIF escolhido passa pelo recorte e fica
+  animado no cartão, no chat e na lista de membros; upload do computador continua igual; GIF que
+  sumiu do provedor cai no padrão.
+
+## 3.23 Tela de carregamento ao abrir (moeda girando)
+- Ao abrir o app (pelo atalho ou junto com o Windows), aparece primeiro uma janelinha de
+  carregamento própria: sem moldura, fundo escuro do tema, cantos arredondados, centralizada
+  (~300×360), com o logo do Aureum girando no eixo vertical como uma MOEDA (rotateY em 3D, com
+  frente e verso, brilho dourado sutil) e um texto curto embaixo.
+- Textos, na ordem em que acontecem: "Procurando atualizações…", "Baixando atualização (N%)…",
+  "Conectando…", "Abrindo o Aureum…". Sem internet: "Sem conexão, abrindo mesmo assim…".
+- Enquanto a tela gira, a janela principal carrega escondida; quando ela fica pronta (login
+  restaurado e primeira conexão com a API, ou falha), a tela some com fade e a janela principal
+  aparece no mesmo lugar e tamanho de sempre.
+- Tempo: mínimo de ~1,2 s (pra não piscar) e máximo de ~10 s; passou disso, abre de qualquer jeito
+  (o app já sabe lidar com API fora do ar).
+- Atualização (mesmo canal do ritual de release): a tela procura versão nova com limite de ~5 s.
+  Se tiver, baixa com a porcentagem e reinicia já na versão nova antes de abrir. Se a verificação
+  ou o download falhar, segue abrindo normal e tenta de novo depois, como hoje. Nunca trava a
+  pessoa na tela de carregamento. Em dev, não procura atualização.
+- Inicialização com o Windows: hoje o app abre escondido na bandeja (--hidden). Passa a ser uma
+  escolha em Configurações › Windows (ou onde está o "Abrir com o Windows"): "Ao ligar o PC: abrir a
+  janela" (padrão, com a tela de carregamento) ou "Iniciar na bandeja" (sem tela, como hoje).
+  Quem já tem o "Abrir com o Windows" ligado passa pro padrão novo.
+- Uma instância só: abrir o app de novo com ele aberto só traz a janela pra frente (sem outra tela).
+- prefers-reduced-motion: no lugar do giro, o logo só pulsa de leve.
+- Logo: o oficial (docs/design/brand), em SVG; a tela é um HTML local leve, sem React pesado, pra
+  aparecer na hora. No Mac (3.21), a mesma tela.
+- Testes: a tela aparece e some sozinha; tempo mínimo e máximo; falha de rede segue abrindo; com
+  atualização falsa (servidor de update de teste) mostra a porcentagem e reinicia; verificação que
+  passa do limite segue abrindo; "Iniciar na bandeja" não mostra a tela; segunda instância só foca;
+  reduced-motion troca o giro.
+
 ## 3.16 Tour e dicas
 Objetivo: quem chega do Discord entender o layout próprio do Aureum sem se perder.
-Guia do tour: espaço reservado para o mascote (3.17); até lá, usar o logo oficial.
+Guia do tour: o logo oficial (o mascote é ideia futura, em FUTURO.md).
 Fazer depois de todos os blocos de interface acima, pra não refazer a cada mudança de layout.
 
 ### Motor
@@ -950,6 +1150,7 @@ Contas novas: começa sozinho depois do primeiro login. Contas que já existem: 
 7. Addons: Kanban, Quadro, Eventos e Calendário (o calendário junta prazos e eventos).
 8. Perfil (avatar no topo): ver e editar perfil (com Conta), status, configurações e "Reportar
    problema" (Ctrl+Shift+R). O sino ao lado mostra notificações e as novidades de cada versão.
+   Na call, "Destacar" leva a chamada pra uma janela própria, por cima de tudo.
 Fim: "Pronto! Quando você usar algo pela primeira vez, a gente mostra uma dica."
 Passos 4 a 7 abrem o servidor oficial; se a pessoa não estiver em nenhum servidor, pular.
 
@@ -959,7 +1160,8 @@ Passos 4 a 7 abrem o servidor oficial; se a pessoa não estiver em nenhum servid
 - Primeira transmissão de alguém: "Assistir" pra entrar na live.
 - Primeira vez assistindo uma tela: tela cheia, botão de sair e volume da transmissão.
 - Primeiro compartilhamento: modos "Texto nítido" e "Movimento".
-- Primeira call com overlay: só aparece em jogos, widgets separados, editar posição.
+- Primeira call com overlay: só aparece em jogos, widgets separados, editar posição e o
+  formato das câmeras.
 - Primeiro servidor criado: categorias, cargos, canal privado, convites e reordenar.
 - Primeiro addon de cada tipo (Kanban, Quadro, Eventos, Calendário): o que é e o básico.
 - Primeira enquete: como criar pelo "+".
@@ -975,14 +1177,6 @@ Passos 4 a 7 abrem o servidor oficial; se a pessoa não estiver em nenhum servid
 Tour começa sozinho só em conta nova; convite único em conta antiga; pular e Esc salvam
 como visto; "Rever tour" funciona; progresso segue entre PCs; versão nova mostra só os
 passos novos; cada dica aparece uma vez só; passos de servidor pulados sem servidor.
-
-## 3.17 Identidade visual (prazo: fim de 2026)
-NÃO começar sem spec detalhada do Eduardo. Escopo previsto:
-- Logo final (o atual é o oficial até lá; trocar tudo via npm run build:icons).
-- Revisão de cores e tokens do 2.1.
-- Mascote da marca (ideias em aberto: abelha "Zum", "Pepita", vaga-lume "Lume"),
-  original de verdade, legível de 24px a ilustração grande. Usos: guia do tour (3.16),
-  estados vazios, carregamento, erro de conexão, e-mails, figurinhas.
 
 ## 3.18 Migração para a VPS da Hostinger ✅ virada feita em 27/10 (faltam os itens 8 e 10)
 Contexto: em 26/10 a voz parou (o plano grátis do LiveKit Cloud estourou os 5.000 min do mês)
@@ -1071,26 +1265,6 @@ Regras deste bloco:
 - beta.8 publicada e um app antigo atualiza sozinho para o endereço novo.
 - Backup diário rodando e restauração testada. PC e Funnel só como ponte.
 
-## Backlog (não fazer agora)
-- Convite de grupo do WhatsApp (invites create --usos 15 --dias 7); a landing já está no
-  ar, só falta gerar com OK do Eduardo.
-- Visto em grupos ("Visto por N").
-- "Área de trabalho": painéis misturando canais de servidores diferentes.
-- Emojis próprios por servidor (além das figurinhas).
-- Addon "Jogos Riot": status rico de LoL e TFT pela API local do cliente, "chamar pro duo";
-  depois elo, resumo pós-partida opt-in e ranking do grupo pela API web (chave no portal
-  da Riot, sempre pela nossa API); VALORANT só com chave de produção + RSO. Nunca ler
-  memória do jogo nem dar vantagem dentro da partida.
-- Mapa do Minecraft (BlueMap) e status de servidor de Mine.
-- Cinema (assistir junto), fichas de RPG, ouvir junto no Spotify, Notas/Wiki do servidor.
-- Distribuição na Microsoft Store (MSIX) para tirar o aviso do SmartScreen no lançamento
-  público; reservar o nome "Aureum" no Partner Center.
-- Login com Google e Discord; importar servidores do Discord.
-- Bot: comandos /ajuda, /convites e /status, tirar a @aureum dos servidores depois do beta,
-  bots externos com token.
-- Painel de sons: sons padrão próprios (gerados pelo script de síntese).
-- Aureum+ (qualidade de transmissão maior); Kanban como produto separado.
-
 ## Pronto quando (Fase 3)
 - ✅ Release sai com um rascunho só e o app se atualiza sozinho.
 - ✅ Ícone novo em exe, instalador, janela, barra de tarefas, bandeja e insígnia Fundador.
@@ -1110,12 +1284,26 @@ Regras deste bloco:
 - Categorias livres com permissões, inclusive categoria só pra admins.
 - Até 4 painéis por servidor.
 - Overlay com widgets separados de voz, câmeras (horizontal/vertical) e notificações.
-- Painel de sons funcionando na call, exclusivo de cada servidor.
+- ✅ Painel de sons funcionando na call, exclusivo de cada servidor.
 - Conta nova faz o tour inicial; dicas aparecem uma vez em cada recurso.
 - App rodando na VPS da Hostinger, sem depender do PC do Eduardo.
 - Tiles da call com anel inteiro e vídeo sem corte; inventário de insígnias rola no cartão.
-- Painel de sons tocando na VPS, com recorte de áudio maior.
+- ✅ Painel de sons tocando na VPS, com recorte de áudio maior.
 - Ligar a câmera não troca o microfone; modo compatível pra quem não capta.
 - Perfil e Conta só no Editar perfil.
 - Início com calendário de todos os servidores; novidades no sino.
 - Abas dos painéis reordenáveis.
+- Arrastar a janelinha nunca arrasta a foto; imagem interna nunca vira anexo.
+- Call destacada numa janela própria, sempre por cima, sem segunda conexão.
+- Diagnóstico de áudio no Reportar problema; câmera não troca o microfone; estado real da
+  supressão de ruído em Configurações › Voz.
+- Instalador para macOS (com ou sem assinatura, conforme decisão do Eduardo).
+- Câmeras do overlay: horizontal, vertical ou grade, tamanho e quantidade configuráveis.
+- Avatar e banner do perfil: enviar imagem ou escolher um GIF, no mesmo menu.
+- Ao abrir, tela de carregamento com o logo girando como moeda; procura atualização e abre sozinha.
+- Overlay nunca aparece (nem como quadrado preto) na transmissão de quem está com ele.
+- Botão direito na imagem: copiar e salvar.
+- Volume de cada transmissão salvo por pessoa, com padrão configurável.
+- Chat nunca rola pro lado: textos e links longos quebram a linha.
+
+Ideias futuras (identidade visual, mascote, backlog): docs/decisions/FUTURO.md. Não fazer na Fase 3.
