@@ -5,7 +5,8 @@ import { appKey, gameApps, OVERLAY_EXCEPTIONS } from '../../../shared/overlayRul
 import { anyWidgetOn } from '../../../shared/overlayWidgets'
 import type { KnownGame, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayWidget, OverlayWidgetPrefs } from '../../../shared/types'
 import { setOverlayPrefs, useOverlay } from '../store/overlay'
-import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
+import { CameraControls, CamerasPreview } from './OverlayCameras'
+import { NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 import { labelClass, Segmented, ToggleRow } from './ui'
 
 const CORNERS: { value: OverlayCorner; label: string; icon: typeof ArrowUpLeft }[] = [
@@ -244,15 +245,15 @@ const SAMPLE_PEOPLE: Person[] = [
   { id: 'a', name: 'Ana', avatarUrl: null, speaking: true, muted: false, deafened: false },
   { id: 'b', name: 'Beto', avatarUrl: null, speaking: false, muted: true, deafened: false }
 ]
-/** Two tiles side by side have to fit the settings column. */
-const PREVIEW_CAMERA_SCALE = 0.8
-
-/** One widget: on/off and, while on, a preview, its look and corner. `children`: what only it has. */
+/**
+ * One widget: on/off and, while on, a preview, its look and corner. `children`: what only it has;
+ * `ownSize`: it has its own size controls among them, instead of Pequeno/Médio/Grande.
+ */
 function WidgetCard({
   widget,
   title,
   description,
-  sizeLabel = 'Tamanho',
+  ownSize = false,
   prefs,
   set,
   preview,
@@ -261,7 +262,7 @@ function WidgetCard({
   widget: OverlayWidget
   title: string
   description: string
-  sizeLabel?: string
+  ownSize?: boolean
   prefs: OverlayWidgetPrefs
   set(patch: Partial<OverlayWidgetPrefs>): void
   preview: ReactNode
@@ -276,18 +277,20 @@ function WidgetCard({
           <div data-testid={`overlay-preview-${widget}`} className="rounded-control bg-scrim/60 p-3" style={{ fontSize: 14 * SCALE[prefs.size] }}>
             <div style={{ opacity: prefs.opacity / 100 }}>{preview}</div>
           </div>
-          <div>
-            <span className={labelClass}>{sizeLabel}</span>
-            <Segmented
-              options={[
-                { value: 'small', label: 'Pequeno' },
-                { value: 'medium', label: 'Médio' },
-                { value: 'large', label: 'Grande' }
-              ]}
-              value={prefs.size}
-              onChange={(size) => set({ size })}
-            />
-          </div>
+          {!ownSize && (
+            <div>
+              <span className={labelClass}>Tamanho</span>
+              <Segmented
+                options={[
+                  { value: 'small', label: 'Pequeno' },
+                  { value: 'medium', label: 'Médio' },
+                  { value: 'large', label: 'Grande' }
+                ]}
+                value={prefs.size}
+                onChange={(size) => set({ size })}
+              />
+            </div>
+          )}
           <div>
             <label htmlFor={`overlay-opacity-${widget}`} className={labelClass}>
               Opacidade
@@ -402,27 +405,12 @@ export function OverlaySettings(): ReactNode {
         widget="cameras"
         title="Câmeras"
         description="Só aparece quando alguém está com a câmera ligada, incluindo você. Quem tem câmera sai da lista de voz e vem pra cá."
-        sizeLabel="Tamanho das câmeras"
+        ownSize
         prefs={cameras}
         set={(patch) => set({ widgets: { cameras: patch } })}
-        preview={
-          <CameraTiles columns={cameras.layout === 'vertical' ? 1 : 2} tileWidth={cameras.tileWidth * PREVIEW_CAMERA_SCALE} gap={cameras.gap}>
-            <CameraCard person={SAMPLE_PEOPLE[0]} width={cameras.tileWidth * PREVIEW_CAMERA_SCALE} rounded={cameras.rounded} />
-            <CameraCard person={SAMPLE_PEOPLE[1]} width={cameras.tileWidth * PREVIEW_CAMERA_SCALE} rounded={cameras.rounded} />
-          </CameraTiles>
-        }
+        preview={<CamerasPreview prefs={cameras} />}
       >
-        <div>
-          <span className={labelClass}>Disposição</span>
-          <Segmented
-            options={[
-              { value: 'horizontal', label: 'Horizontal' },
-              { value: 'vertical', label: 'Vertical' }
-            ]}
-            value={cameras.layout}
-            onChange={(layout) => set({ widgets: { cameras: { layout } } })}
-          />
-        </div>
+        <CameraControls prefs={cameras} set={(patch) => set({ widgets: { cameras: patch } })} />
       </WidgetCard>
 
       <WidgetCard

@@ -109,6 +109,51 @@ describe('overlay widgets', () => {
     await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { layout: 'horizontal' } } }))
   })
 
+  it('picks the grid, and only then asks how many per row', async () => {
+    render(<OverlaySettings />)
+    expect(screen.queryByLabelText('Câmeras por linha')).toBeNull()
+    fireEvent.click(screen.getByText('Grade'))
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { layout: 'grid' } } }))
+    useOverlay.setState({ state: state({ ...PREFS, widgets: { ...DEFAULT_WIDGETS, cameras: { ...DEFAULT_WIDGETS.cameras, layout: 'grid' } } }) })
+    fireEvent.change(await screen.findByLabelText('Câmeras por linha'), { target: { value: '3' } })
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { perRow: 3 } } }))
+  })
+
+  it('sizes the cameras with the slider or a shortcut, and sets how many show and the spacing', async () => {
+    bridge.setPrefs.mockResolvedValue(state(PREFS))
+    render(<OverlaySettings />)
+    fireEvent.change(screen.getByLabelText('Largura de cada câmera'), { target: { value: '300' } })
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { tileWidth: 300 } } }))
+    // Voz, Câmeras and Notificações each have one.
+    fireEvent.click(screen.getAllByText('Grande')[1])
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { size: 'large' } } }))
+    fireEvent.change(screen.getByLabelText('Câmeras visíveis no máximo'), { target: { value: '6' } })
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { maxVisible: 6 } } }))
+    fireEvent.change(screen.getByLabelText('Espaço entre as câmeras'), { target: { value: '0' } })
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { gap: 0 } } }))
+    fireEvent.click(screen.getByText('Cantos arredondados').closest('label')!.querySelector('input')!)
+    await waitFor(() => expect(bridge.setPrefs).toHaveBeenCalledWith({ widgets: { cameras: { rounded: false } } }))
+  })
+
+  it('previews the cameras box at its biggest, following format, width and count', () => {
+    const cameras = { ...DEFAULT_WIDGETS.cameras, layout: 'horizontal' as const, tileWidth: 100, gap: 4, maxVisible: 3 }
+    useOverlay.setState({ state: state({ ...PREFS, widgets: { ...DEFAULT_WIDGETS, cameras } }) })
+    render(<OverlaySettings />)
+    const preview = screen.getByTestId('overlay-preview-cameras')
+    expect(preview.textContent).toContain('3 câmeras')
+    // Three 100 px cameras in a row, 4 px apart, plus 8 px of padding each side; 56 px tall.
+    expect(preview.textContent).toContain('324 × 72 px')
+    expect(screen.getByTestId('overlay-camera-box').style.width).toBe('324px')
+  })
+
+  it('draws a box too big for the column to scale', () => {
+    const cameras = { ...DEFAULT_WIDGETS.cameras, layout: 'horizontal' as const, tileWidth: 360, maxVisible: 8 }
+    useOverlay.setState({ state: state({ ...PREFS, widgets: { ...DEFAULT_WIDGETS, cameras } }) })
+    render(<OverlaySettings />)
+    expect(screen.getByTestId('overlay-preview-cameras').textContent).toMatch(/prévia em \d+%/)
+    expect(parseFloat(screen.getByTestId('overlay-camera-box').style.width)).toBeLessThanOrEqual(420)
+  })
+
   it('previews each widget that is on, at its own opacity, and hides the content when asked', () => {
     const widgets = structuredClone(DEFAULT_WIDGETS)
     widgets.voice.opacity = 40
