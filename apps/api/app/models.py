@@ -164,6 +164,21 @@ class User(Base):
     def banner_crop(self) -> dict[str, Any] | None:
         return (self.banner_source or {}).get("crop")
 
+    @property
+    def avatar_gif(self) -> dict[str, Any] | None:
+        return _profile_gif(self.avatar_source)
+
+    @property
+    def banner_gif(self) -> dict[str, Any] | None:
+        return _profile_gif(self.banner_source)
+
+
+def _profile_gif(source: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A provider's GIF used as avatar/banner (app/images.py set_gif), with its crop."""
+    if not source or "gif" not in source:
+        return None
+    return {**source["gif"], "crop": source["crop"]}
+
 
 DEFAULT_ACCENT = "#E8B531"  # Aureum gold
 

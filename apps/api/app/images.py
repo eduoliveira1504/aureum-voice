@@ -5,6 +5,11 @@ Avatars, profile banners and server icons/banners can come with a crop from the 
 (ImageCrop): the API crops the original (app/cropping.py) and keeps it under originals/, which
 /api/media never serves, so the owner can re-crop later without uploading it again. The model
 keeps `{kind}_url` (what everyone sees) and `{kind}_source` ({"key", "crop"}; null without a crop).
+
+A profile's avatar or banner can also be a GIF from the provider (block 3.22B). Klipy's terms
+(docs.klipy.com/integration-requirements) forbid storing, mirroring or re-hosting its media, so
+nothing is downloaded: `{kind}_source` is {"gif", "crop"}, a reference with the URLs exactly as
+Klipy gave them, and each app loads the GIF from Klipy and applies the crop when drawing it.
 """
 
 import uuid
@@ -14,8 +19,8 @@ from typing import Any
 from anyio import to_thread
 from fastapi import HTTPException, Response, UploadFile, status
 
-from app import cropping, storage
-from app.schemas import ImageCrop
+from app import cropping, gifs, storage
+from app.schemas import GifIn, ImageCrop
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 # Key prefixes served by /api/media.
@@ -61,7 +66,7 @@ async def _store_cropped(data: bytes, prefix: str, crop: ImageCrop, kind: str) -
 
 
 def _keys(url: str | None, source: dict[str, Any] | None) -> set[str]:
-    keys = {source["key"]} if source else set()
+    keys = {source["key"]} if source and "key" in source else set()  # a provider's GIF has none
     if key := storage.key_from_url(url):
         keys.add(key)
     return keys
@@ -116,9 +121,29 @@ async def set_image(target: Any, kind: str, upload: UploadFile | None, crop: Ima
     await _swap(target, kind, storage.url_for(key), {"key": original, "crop": crop.model_dump()}, save)
 
 
+def _check_inside(crop: ImageCrop, width: int, height: int) -> None:
+    """The crop must fit the GIF once turned: the app draws exactly that rectangle."""
+    w, h = (height, width) if crop.rotate in (90, 270) else (width, height)
+    if crop.x + crop.width > w or crop.y + crop.height > h:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The crop is outside the GIF")
+
+
+async def set_gif(target: Any, kind: str, gif: GifIn, crop: ImageCrop, save: Save) -> None:
+    """A provider's GIF as the image, by reference (see the module docstring). `{kind}_url` gets
+    something an <img> plays, for older apps: the GIF itself, or its still when it's an MP4."""
+    _check_inside(crop, gif.width, gif.height)
+    shown = gif.preview if gif.format == "mp4" else gif.url
+    if shown is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="An MP4 needs its still")
+    await _swap(target, kind, shown, {"gif": gifs.snapshot(gif), "crop": crop.model_dump()}, save)
+
+
 async def set_crop(target: Any, kind: str, crop: ImageCrop, prefix: str, save: Save) -> None:
     """Crops the kept original again ("Ajustar posição")."""
     source = getattr(target, f"{kind}_source")
+    if source and "gif" in source:  # only the reference changes; the app crops when drawing
+        _check_inside(crop, source["gif"]["width"], source["gif"]["height"])
+        return await _swap(target, kind, getattr(target, f"{kind}_url"), {**source, "crop": crop.model_dump()}, save)
     stored = await storage.get(source["key"]) if source else None
     if stored is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This image has no original to crop again")
@@ -127,9 +152,10 @@ async def set_crop(target: Any, kind: str, crop: ImageCrop, prefix: str, save: S
 
 
 async def original(target: Any, kind: str) -> Response:
-    """The kept original, for the crop editor. Callers check who may see it."""
+    """The kept original, for the crop editor. Callers check who may see it. A provider's GIF has
+    none here: the app loads it from the provider."""
     source = getattr(target, f"{kind}_source")
-    stored = await storage.get(source["key"]) if source else None
+    stored = await storage.get(source["key"]) if source and "key" in source else None
     if stored is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     return Response(stored.data, media_type=stored.content_type, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})

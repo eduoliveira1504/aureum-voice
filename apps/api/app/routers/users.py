@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, Response, Upl
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, bot, codes, images, mail, presence, ratelimit, receipts, storage
+from app import account_invites, bot, codes, gifs, images, mail, presence, ratelimit, receipts, storage
 from app.access import audience_ids, get_channel_access
 from app.deps import CurrentUser, SessionDep, SignedInUser
 from app.mail.render import mask
@@ -19,6 +19,7 @@ from app.schemas import (
     CodeRequest,
     ImageCrop,
     InviterOut,
+    ProfileGifIn,
     MyInvite,
     SettingsOut,
     SettingsUpdate,
@@ -130,6 +131,15 @@ def _image_routes(kind: ImageKind) -> None:
     async def recrop(body: ImageCrop, user: CurrentUser, session: SessionDep) -> User:
         """"Ajustar posição": crops the kept original again, without uploading it."""
         await images.set_crop(user, kind, body, f"{kind}s/{user.id}", session.commit)
+        await _broadcast_profile(session, user)
+        return user
+
+    @router.put(f"/me/{kind}/gif", response_model=UserMe, name=f"gif_{kind}")
+    async def use_gif(body: ProfileGifIn, user: CurrentUser, session: SessionDep) -> User:
+        """A GIF from the chat's picker (Klipy) as the image, kept as a reference, never copied."""
+        if not gifs.enabled():
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="GIFs are off")
+        await images.set_gif(user, kind, body.gif, body.crop, session.commit)
         await _broadcast_profile(session, user)
         return user
 

@@ -49,6 +49,22 @@ class ImageCrop(BaseModel):
     rotate: Literal[0, 90, 180, 270] = 0
 
 
+class ProfileGif(BaseModel):
+    """A GIF from the provider as someone's avatar or banner (block 3.22B): only a reference, the
+    media URLs as the provider gave them, and the crop each app applies when showing it. Klipy's
+    terms don't allow us to keep copies, so nothing is stored on MinIO."""
+
+    provider: str
+    id: str
+    title: str = ""
+    url: str
+    format: str
+    preview: str | None = None
+    width: int
+    height: int
+    crop: ImageCrop
+
+
 class RegisterRequest(BaseModel):
     username: Username
     email: LowerEmail
@@ -256,6 +272,10 @@ class UserPublic(BaseModel):
     display_name: str
     avatar_url: str | None
     banner_url: str | None
+    # A provider's GIF chosen as avatar/banner: the app draws it with the crop. avatar_url then
+    # holds its URL (or its still, for MP4) so older apps still show something.
+    avatar_gif: ProfileGif | None = None
+    banner_gif: ProfileGif | None = None
     bio: str | None
     accent_color: str | None
     pronouns: str | None = None
@@ -1039,6 +1059,13 @@ class GifIn(BaseModel):
     preview: KlipyUrl | None = None
     width: Annotated[int, Field(ge=1, le=4096)]
     height: Annotated[int, Field(ge=1, le=4096)]
+
+
+class ProfileGifIn(BaseModel):
+    """A GIF picked in the app as avatar or banner, and the part of it to show."""
+
+    gif: GifIn
+    crop: ImageCrop
 
 
 class GifConfigOut(BaseModel):
