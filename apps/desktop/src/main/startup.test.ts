@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CHECK_LIMIT_MS, createStartup, isOfflineError, DOWNLOAD_MAX_MS, MAX_MS, MIN_MS, STALL_MS, TEXT } from './startup'
+import { CHECK_LIMIT_MS, createStartup, isOfflineError, startsInTray, DOWNLOAD_MAX_MS, MAX_MS, MIN_MS, STALL_MS, TEXT } from './startup'
 
 function setup(checkUpdates: boolean) {
   const hooks = { status: vi.fn(), open: vi.fn(), install: vi.fn() }
@@ -170,5 +170,18 @@ describe('offline errors', () => {
     expect(isOfflineError(Object.assign(new Error('lookup failed'), { code: 'EAI_AGAIN' }))).toBe(true)
     expect(isOfflineError(new Error('HttpError: 404 Not Found'))).toBe(false)
     expect(isOfflineError(new Error('sha512 checksum mismatch'))).toBe(false)
+  })
+})
+
+describe('starting with Windows', () => {
+  it('"Iniciar na bandeja" skips the loading screen only for launches by Windows', () => {
+    expect(startsInTray(['aureum.exe', '--login'], 'tray')).toBe(true)
+    expect(startsInTray(['aureum.exe'], 'tray')).toBe(false)
+    expect(startsInTray(['aureum.exe', '--login'], 'window')).toBe(false)
+  })
+
+  it('the old --hidden registration follows the new choice (window by default)', () => {
+    expect(startsInTray(['aureum.exe', '--hidden'], 'window')).toBe(false)
+    expect(startsInTray(['aureum.exe', '--hidden'], 'tray')).toBe(true)
   })
 })

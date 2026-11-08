@@ -3,7 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { AppSettings } from '../../../shared/types'
 import { labelClass, Segmented, ToggleRow } from './ui'
 
-/** How the app behaves on this PC: what the X does and starting with Windows. Kept on this PC. */
+/** How the app behaves on this PC: what the X does and starting with Windows (window or tray).
+ * Kept on this PC. */
 export function WindowsSettings(): ReactNode {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [error, setError] = useState(false)
@@ -37,10 +38,28 @@ export function WindowsSettings(): ReactNode {
       </div>
       <ToggleRow
         title="Iniciar com o Windows"
-        description="Abre minimizado na bandeja quando você liga o PC (só no app instalado)."
+        description="Abre o Aureum quando você liga o PC (só no app instalado)."
         checked={settings.openAtLogin}
         onChange={(openAtLogin) => update({ openAtLogin })}
       />
+      {settings.openAtLogin && (
+        <div>
+          <span className={labelClass}>Ao ligar o PC</span>
+          <Segmented
+            options={[
+              { value: 'window', label: 'Abrir a janela' },
+              { value: 'tray', label: 'Iniciar na bandeja' }
+            ]}
+            value={settings.loginStart}
+            onChange={(loginStart) => update({ loginStart })}
+          />
+          <p className="mt-1.5 text-xs text-fg-subtle">
+            {settings.loginStart === 'window'
+              ? 'O Aureum abre com a tela de carregamento e já procura atualizações.'
+              : 'O Aureum fica só no ícone da bandeja, conectado, até você abrir.'}
+          </p>
+        </div>
+      )}
       {error && <p className="text-sm text-danger">Não foi possível salvar.</p>}
     </div>
   )

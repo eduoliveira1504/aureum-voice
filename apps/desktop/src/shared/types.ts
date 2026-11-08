@@ -5,11 +5,15 @@ export interface AppSettings {
   apiUrl: string
   /** Closing the window hides it in the tray (the app stays connected) instead of quitting. */
   closeToTray: boolean
-  /** Starts with Windows, hidden in the tray (installed app only). */
+  /** Starts with Windows (installed app only). */
   openAtLogin: boolean
+  /** Started with Windows: open the window (through the loading screen) or stay in the tray. */
+  loginStart: LoginStart
   /** The "still running in the tray" hint was shown once already. */
   trayHintShown: boolean
 }
+
+export type LoginStart = 'window' | 'tray'
 
 export type TrayStatus = 'online' | 'idle' | 'dnd' | 'invisible'
 

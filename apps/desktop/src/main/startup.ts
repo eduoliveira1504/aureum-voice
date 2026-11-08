@@ -35,6 +35,15 @@ export type UpdatePhase =
   | { kind: 'none' }
   | { kind: 'failed'; offline: boolean }
 
+/**
+ * Whether this launch stays in the tray, without the loading screen. Windows starts the app with
+ * --login (--hidden before block 3.23, still in the registry until the app re-registers): it then
+ * follows the "Ao ligar o PC" choice. Opened by hand, the window always shows.
+ */
+export function startsInTray(argv: readonly string[], loginStart: 'window' | 'tray'): boolean {
+  return (argv.includes('--login') || argv.includes('--hidden')) && loginStart === 'tray'
+}
+
 /** Chromium's network errors that mean "no internet here" (not "GitHub had a problem"). */
 const OFFLINE = /net::ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|NAME_RESOLUTION_FAILED|NETWORK_CHANGED|NETWORK_ACCESS_DENIED|ADDRESS_UNREACHABLE|PROXY_CONNECTION_FAILED)|ENOTFOUND|EAI_AGAIN|ENETUNREACH/
 

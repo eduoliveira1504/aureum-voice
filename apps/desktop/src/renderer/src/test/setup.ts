@@ -9,8 +9,8 @@ const unsubscribe = (): (() => void) => () => {}
 const bridge = {
   session: { getRefreshToken: async () => null, setRefreshToken: async () => {}, isPersistent: async () => true },
   settings: {
-    get: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, trayHintShown: true }),
-    set: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, trayHintShown: true })
+    get: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true }),
+    set: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true })
   },
   attachments: { get: async () => null, put: async () => {}, clear: async () => {} },
   window: { setTitleBarColors: async () => {}, capture: async () => new Uint8Array() },

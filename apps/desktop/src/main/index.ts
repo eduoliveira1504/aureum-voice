@@ -24,7 +24,7 @@ import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDete
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
-import { createStartup, type Startup } from './startup'
+import { createStartup, startsInTray, type Startup } from './startup'
 import { createTray, destroyTray, notify, setTrayState } from './tray'
 import { getUpdateState, installUpdate, startUpdater } from './updater'
 
@@ -36,11 +36,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   apiUrl: import.meta.env.MAIN_VITE_API_URL || 'http://localhost:8000',
   closeToTray: true,
   openAtLogin: true,
+  loginStart: 'window',
   trayHintShown: false
 }
-
-// Started by Windows at login: stay in the tray until opened.
-const startHidden = process.argv.includes('--hidden')
 
 // AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
 // accounts can be used side by side on one machine — handy for testing calls locally.
@@ -100,6 +98,7 @@ async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> 
   for (const key of ['closeToTray', 'openAtLogin', 'trayHintShown'] as const) {
     if (patch[key] !== undefined) next[key] = patch[key] === true
   }
+  if (patch.loginStart !== undefined) next.loginStart = patch.loginStart === 'tray' ? 'tray' : 'window'
   await mkdir(app.getPath('userData'), { recursive: true })
   await writeFile(settingsPath(), JSON.stringify(next, null, 2))
   cachedSettings = next
@@ -107,10 +106,11 @@ async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> 
   return next
 }
 
-/** Registers (or not) the app to start with Windows, hidden in the tray. Only the installed
- * app: in development it would register the bare Electron binary. */
+/** Registers (or not) the app to start with Windows. --login marks those launches; whether they
+ * show the window or stay in the tray is read at launch (startsInTray). Only the installed app: in
+ * development it would register the bare Electron binary. */
 function applyLoginItem(open: boolean): void {
-  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: open, args: ['--hidden'] })
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: open, args: ['--login'] })
 }
 
 async function getRefreshToken(): Promise<string | null> {
@@ -452,7 +452,7 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // Same as electron-builder's appId, so the taskbar groups the window with the shortcut's icon.
     app.setAppUserModelId('com.aureum.voice')
     const isAppWindow = (contents: Electron.WebContents | null): boolean =>
@@ -464,8 +464,9 @@ if (!app.requestSingleInstanceLock()) {
       (contents, permission) => isAppWindow(contents) && ALLOWED_PERMISSIONS.has(permission)
     )
     installDisplayMediaHandler(isAppWindow)
-    void readSettings().then((s) => applyLoginItem(s.openAtLogin))
-    if (!startHidden) startWithSplash()
+    const settings = await readSettings()
+    applyLoginItem(settings.openAtLogin)
+    if (!startsInTray(process.argv, settings.loginStart)) startWithSplash()
     createWindow()
     createTray({
       open: showWindow,
