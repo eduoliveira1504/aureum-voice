@@ -18,6 +18,7 @@ import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
 import { api, ApiError, uploadFile, type Attachment, type Channel, type Gif, type Me, type Message, type OfficialEventRef, type Sticker, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
+import { isInternalDrag } from '../lib/internalDrag'
 import type { Recording } from '../lib/voiceRecorder'
 import { useReadableColor } from '../store/appearance'
 import { useChat, viewChannel } from '../store/chat'
@@ -376,7 +377,9 @@ export function ChatView({
       .catch((err) => toast(err instanceof ApiError && err.status === 422 ? 'Essa mensagem já tem reações demais.' : 'Não foi possível reagir.'))
   }
   const acceptsFiles = canSend && canAttach
-  const isFileDrag = (e: DragEvent): boolean => acceptsFiles && e.dataTransfer.types.includes('Files')
+  // Only files brought in from outside the app: dragging its own pictures, tabs or channels over
+  // the chat never turns them into attachments.
+  const isFileDrag = (e: DragEvent): boolean => acceptsFiles && !isInternalDrag() && e.dataTransfer.types.includes('Files')
 
   const listRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
