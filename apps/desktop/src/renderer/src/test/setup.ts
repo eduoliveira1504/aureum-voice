@@ -29,6 +29,7 @@ const bridge = {
     onChange: unsubscribe
   },
   screen: { getSources: async () => [], select: async () => {} },
+  images: { copy: vi.fn(async () => {}), save: vi.fn(async () => true) },
   overlay: {
     // Never answers by default: tests that need the overlay state set the store themselves.
     getState: vi.fn(() => new Promise<never>(() => {})),

@@ -17,6 +17,10 @@ const bridge: AureumBridge = {
     put: (id, data) => ipcRenderer.invoke('attachments:put', id, data),
     clear: () => ipcRenderer.invoke('attachments:clear')
   },
+  images: {
+    copy: (png) => ipcRenderer.invoke('images:copy', png),
+    save: (data, name, contentType) => ipcRenderer.invoke('images:save', data, name, contentType)
+  },
   window: {
     setTitleBarColors: (color, symbolColor) => ipcRenderer.invoke('window:title-bar', color, symbolColor),
     capture: () => ipcRenderer.invoke('window:capture'),

@@ -25,6 +25,7 @@ import * as attachmentCache from './attachmentCache'
 import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
+import * as images from './images'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
@@ -162,6 +163,8 @@ handle('settings:set', writeSettings)
 handle('attachments:get', attachmentCache.get)
 handle('attachments:put', attachmentCache.put)
 handle('attachments:clear', attachmentCache.clear)
+handle('images:copy', images.copyImage)
+handle('images:save', (data: unknown, name: unknown, contentType: unknown) => images.saveImage(mainWindow, data, name, contentType))
 handle('tray:set-state', setTrayState)
 handle('app:recent-logs', recentLogs)
 handle('app:info', (): AppInfo => ({

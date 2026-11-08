@@ -183,6 +183,13 @@ export interface AureumBridge {
     put(id: string, data: Uint8Array): Promise<void>
     clear(): Promise<void>
   }
+  /** Right click on a chat image (3.24 B): the bytes the app already loaded. */
+  images: {
+    /** Puts a PNG on the clipboard as an image. */
+    copy(png: Uint8Array): Promise<void>
+    /** "Salvar como" with the original name and the right extension; false if cancelled. */
+    save(data: Uint8Array, name: string, contentType: string): Promise<boolean>
+  }
   window: {
     /** Colors of the window buttons area over the top bar (hex: background, symbols). */
     setTitleBarColors(color: string, symbolColor: string): Promise<void>
