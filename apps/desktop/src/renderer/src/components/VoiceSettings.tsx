@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { GATE_RANGE, gateOf, inputGainOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { MicProcessor } from '../lib/micProcessor'
+import { useAppearance } from '../store/appearance'
 import { useDevices, watchDevices } from '../store/devices'
 import { micCapture, useVoice } from '../store/voice'
 import { InputModeSettings } from './InputModeSettings'
@@ -135,6 +136,7 @@ export function VoiceSettings(): ReactNode {
       </div>
       {select('Saída de áudio', 'audioOutput', devices?.audiooutput)}
       {select('Câmera', 'videoInput', devices?.videoinput)}
+      <ScreenVolumeDefault />
 
       <section className="space-y-2">
         <span className={labelClass}>Teste de microfone</span>
@@ -217,6 +219,36 @@ export function VoiceSettings(): ReactNode {
 
       <InputModeSettings />
     </div>
+  )
+}
+
+/** "Volume padrão das transmissões" (3.24 C): where watching someone's screen starts when I never
+ * adjusted them. Saved in the account; people with a volume of their own keep it. */
+function ScreenVolumeDefault(): ReactNode {
+  const value = useAppearance((s) => s.settings.screen_volume_default)
+  const update = useAppearance((s) => s.update)
+  return (
+    <section>
+      <label className="block">
+        <span className={labelClass}>Volume padrão das transmissões</span>
+        <span className="flex items-center gap-3">
+          <input
+            type="range"
+            aria-label="Volume padrão das transmissões"
+            min={0}
+            max={100}
+            step={5}
+            value={value}
+            onChange={(e) => update({ screen_volume_default: Number(e.target.value) })}
+            className="flex-1 accent-accent"
+          />
+          <span className="w-10 text-right text-sm tabular-nums text-fg-muted">{value}%</span>
+        </span>
+      </label>
+      <p className="mt-1.5 text-xs text-fg-subtle">
+        Para quem você nunca ajustou. O volume que você deixa na tela de cada pessoa fica salvo na sua conta.
+      </p>
+    </section>
   )
 }
 

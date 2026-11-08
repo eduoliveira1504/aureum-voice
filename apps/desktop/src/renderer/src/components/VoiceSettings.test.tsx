@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loadMediaPrefs } from '../lib/mediaPrefs'
+import { useAppearance } from '../store/appearance'
 import { useVoice } from '../store/voice'
 import { VoiceSettings } from './VoiceSettings'
 
@@ -36,6 +37,15 @@ describe('voice settings', () => {
     useVoice.setState({ applyDevicePrefs: reopen, applyMicProcessing: reprocess } as never)
   })
   afterEach(() => vi.restoreAllMocks())
+
+  it('sets the default screen share volume (50%), kept in the account', () => {
+    render(<VoiceSettings />)
+    const slider = screen.getByLabelText('Volume padrão das transmissões') as HTMLInputElement
+    expect(slider.value).toBe('50')
+    fireEvent.change(slider, { target: { value: '30' } })
+    expect(useAppearance.getState().settings.screen_volume_default).toBe(30)
+    expect(screen.getByText('30%')).toBeTruthy()
+  })
 
   it('has noise suppression, echo cancellation and auto gain on by default, each switched apart', () => {
     render(<VoiceSettings />)
