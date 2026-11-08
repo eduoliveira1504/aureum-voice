@@ -14,7 +14,7 @@ import {
 } from 'livekit-client'
 import { create } from 'zustand'
 
-import { api, ApiError, type Sound } from '../lib/api'
+import { api, ApiError, type ScreenAudio, type Sound, type UserSettings } from '../lib/api'
 import { gateOf, inputGainOf, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import {
   cameraPreset,
@@ -210,8 +210,6 @@ interface VoiceStore {
   speaking: string[]
   /** Bumped on any participant/track change so views re-read the room. */
   version: number
-  /** Volume (0..1) chosen for each participant's screen-share audio; kept while tiles move around. */
-  screenVolume: Record<string, number>
   /** Muted / deafened by a moderator in the current server room. */
   serverMuted: boolean
   serverDeafened: boolean
@@ -242,7 +240,6 @@ interface VoiceStore {
   toggleCamera(): Promise<void>
   startScreenShare(options: ScreenShareOptions): Promise<void>
   stopScreenShare(): Promise<void>
-  setScreenVolume(identity: string, volume: number): void
   /** "Assistir": receives this person's screen share (video and its audio). */
   watchScreen(identity: string): void
   /** "Parar de assistir": stops receiving it. */
@@ -324,11 +321,15 @@ function syncSubscriptions(p: RemoteParticipant): void {
  * muted the person), or the person's volume (0-2) unless muted locally; times the output volume
  * (0-2). */
 function volumeFor(identity: string, pub: Pick<RemoteTrackPublication, 'source' | 'trackName'>): number {
-  const { deafened, serverDeafened, screenVolume } = useVoice.getState()
+  const { deafened, serverDeafened } = useVoice.getState()
   if (deafened || serverDeafened) return 0
   const output = loadMediaPrefs().outputVolume / 100
-  if (pub.source === Track.Source.ScreenShareAudio) return (screenVolume[identity] ?? 1) * output
-  const { user_audio, soundboard_volume } = useAppearance.getState().settings
+  const settings = useAppearance.getState().settings
+  if (pub.source === Track.Source.ScreenShareAudio) {
+    const screen = screenVolumeOf(settings, identity)
+    return screen.muted ? 0 : (screen.volume / 100) * output
+  }
+  const { user_audio, soundboard_volume } = settings
   const audio = user_audio[identity]
   if (isSoundboard(pub)) return audio?.muted ? 0 : (soundboard_volume / 100) * output
   return audio?.muted ? 0 : ((audio?.volume ?? 100) / 100) * output
@@ -346,7 +347,14 @@ function applyVolumes(): void {
 useAppearance.subscribe((s, prev) => {
   const now = s.settings
   const before = prev.settings
-  if (now.user_audio !== before.user_audio || now.soundboard_volume !== before.soundboard_volume) applyVolumes()
+  if (
+    now.user_audio !== before.user_audio ||
+    now.soundboard_volume !== before.soundboard_volume ||
+    now.screen_audio !== before.screen_audio ||
+    now.screen_volume_default !== before.screen_volume_default
+  ) {
+    applyVolumes()
+  }
   if (now.soundboard_muted !== before.soundboard_muted) for (const p of room?.remoteParticipants.values() ?? []) syncSubscriptions(p)
 })
 
@@ -355,6 +363,22 @@ export function setUserAudio(userId: string, change: { volume?: number; muted?: 
   const cur = useAppearance.getState().settings.user_audio[userId] ?? { volume: 100, muted: false }
   const next = { ...cur, ...change }
   useAppearance.getState().updateEntry('user_audio', userId, next.volume === 100 && !next.muted ? null : next)
+}
+
+/**
+ * How loud someone's screen share plays for us (0-100) and whether we muted it: what we left for
+ * that person (by user id, the room identity), on any PC, or the default for people never adjusted
+ * (block 3.24 C).
+ */
+export function screenVolumeOf(settings: Pick<UserSettings, 'screen_audio' | 'screen_volume_default'>, userId: string): ScreenAudio {
+  return settings.screen_audio?.[userId] ?? { volume: settings.screen_volume_default ?? 50, muted: false }
+}
+
+/** Changes it and saves it to the account (shortly after: a slider fires a lot). Muting keeps the
+ * volume, so unmuting goes back to it. */
+export function setScreenVolume(userId: string, change: Partial<ScreenAudio>): void {
+  const settings = useAppearance.getState().settings
+  useAppearance.getState().updateEntry('screen_audio', userId, { ...screenVolumeOf(settings, userId), ...change })
 }
 
 // Test builds (electron-vite build --mode test) expose internals to end-to-end scripts.
@@ -478,7 +502,6 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       serverMuted: false,
       serverDeafened: false,
       speaking: [],
-      screenVolume: {},
       watching: [],
       screenPreviews: {},
       watchers: [],
@@ -626,7 +649,6 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     allowed: ANYTHING,
     speaking: [],
     version: 0,
-    screenVolume: {},
     serverMuted: false,
     serverDeafened: false,
     media: FREE_TIER,
@@ -855,11 +877,6 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         announce()
       }
       bump()
-    },
-
-    setScreenVolume: (identity, volume) => {
-      set((s) => ({ screenVolume: { ...s.screenVolume, [identity]: volume } }))
-      applyVolumes()
     },
 
     watchScreen: (identity) => {

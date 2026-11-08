@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SOUNDBOARD_TRACK } from '../lib/soundboard'
 import { useAppearance } from './appearance'
-import { useVoice, wantsTrack } from './voice'
+import { screenVolumeOf, setScreenVolume, useVoice, wantsTrack } from './voice'
 
 const pub = (source: Track.Source): { source: Track.Source } => ({ source })
 
@@ -73,5 +73,42 @@ describe('volumes and devices outside a call', () => {
     await useVoice.getState().switchDevice('audioinput', 'headset')
     await useVoice.getState().switchDevice('videoinput', 'webcam')
     expect(loadMediaPrefs()).toMatchObject({ audioInput: 'headset', videoInput: 'webcam' })
+  })
+})
+
+describe('screen share volume per person (3.24 C)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111'
+  const BIA = '22222222-2222-4222-8222-222222222222'
+  const settings = () => useAppearance.getState().settings
+
+  beforeEach(() => useAppearance.setState((s) => ({ settings: { ...s.settings, screen_audio: {}, screen_volume_default: 50 } })))
+
+  it('starts at the default for someone never adjusted', () => {
+    expect(screenVolumeOf(settings(), ANA)).toEqual({ volume: 50, muted: false })
+  })
+
+  it("saves each person's volume in the account, by user id", () => {
+    setScreenVolume(ANA, { volume: 20 })
+    expect(settings().screen_audio[ANA]).toEqual({ volume: 20, muted: false })
+    expect(screenVolumeOf(settings(), BIA)).toEqual({ volume: 50, muted: false })
+  })
+
+  it("a new default doesn't change who was already adjusted", () => {
+    setScreenVolume(ANA, { volume: 50 })
+    useAppearance.getState().update({ screen_volume_default: 80 })
+    expect(screenVolumeOf(settings(), ANA).volume).toBe(50)
+    expect(screenVolumeOf(settings(), BIA).volume).toBe(80)
+  })
+
+  it('muting and unmuting goes back to the saved volume', () => {
+    setScreenVolume(ANA, { volume: 35 })
+    setScreenVolume(ANA, { muted: true })
+    expect(screenVolumeOf(settings(), ANA)).toEqual({ volume: 35, muted: true })
+    setScreenVolume(ANA, { muted: false })
+    expect(screenVolumeOf(settings(), ANA)).toEqual({ volume: 35, muted: false })
+  })
+
+  it('works with settings from an older server, without these fields', () => {
+    expect(screenVolumeOf({} as never, ANA)).toEqual({ volume: 50, muted: false })
   })
 })

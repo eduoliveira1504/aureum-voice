@@ -31,7 +31,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   recent_stickers: [],
   soundboard_volume: 100,
   soundboard_muted: false,
-  collapsed_categories: []
+  collapsed_categories: [],
+  screen_audio: {},
+  screen_volume_default: 50
 }
 
 const CACHE_KEY = 'aureum.appearance'
@@ -42,7 +44,7 @@ const NEUTRALS = [...SURFACES, '--border', '--text', '--text-muted'] as const
 
 type Resolved = 'dark' | 'light'
 /** Settings the server merges key by key: only changed keys are sent, null removes one. */
-type Merged = 'panel_layouts' | 'user_audio' | 'column_sizes' | 'official_dm'
+type Merged = 'panel_layouts' | 'user_audio' | 'column_sizes' | 'official_dm' | 'screen_audio'
 type Patch = Partial<Omit<UserSettings, Merged>>
 /** What goes to PATCH /users/me/settings; merged settings only with the keys that changed. */
 type Pending = Patch & { [K in Merged]?: Record<string, UserSettings[K][string] | null> }
@@ -175,7 +177,9 @@ export const useAppearance = create<AppearanceState>()((set, get) => ({
   hydrate: (settings) => {
     // Our own saves echo back as events; ignore them while newer local edits are unsaved.
     if (pending || inFlight) return
-    set({ settings, resolved: resolve(settings.theme) })
+    // Defaults for what an older server doesn't send yet.
+    const full = { ...DEFAULT_SETTINGS, ...settings }
+    set({ settings: full, resolved: resolve(full.theme) })
   },
 
   update: (patch) => {

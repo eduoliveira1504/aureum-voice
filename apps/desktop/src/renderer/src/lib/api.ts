@@ -222,12 +222,21 @@ export interface UserSettings {
   soundboard_volume: number
   soundboard_muted: boolean
   collapsed_categories: string[]
+  /** How loud each person's screen share plays (0-100) and a mute that keeps it, by user id. */
+  screen_audio: Record<string, ScreenAudio>
+  /** The screen share volume for people never adjusted (0-100). */
+  screen_volume_default: number
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
 export type OfficialCategory = 'seguranca' | 'insignias' | 'bugs' | 'convites' | 'novidades' | 'avisos' | 'eventos'
 
 export interface UserAudio {
+  volume: number
+  muted: boolean
+}
+
+export interface ScreenAudio {
   volume: number
   muted: boolean
 }

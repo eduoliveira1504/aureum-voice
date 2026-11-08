@@ -29,9 +29,10 @@ import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import { pttKeyLabel } from '../lib/pushToTalk'
+import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
-import { cameraTrackOf, getRoom, isSharing, micEnabled, roomIdentities, screenAudioOf, screenTrackOf, useVoice } from '../store/voice'
+import { cameraTrackOf, getRoom, isSharing, micEnabled, roomIdentities, screenAudioOf, screenTrackOf, screenVolumeOf, setScreenVolume, useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
 import { CallPopover, DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
@@ -398,8 +399,11 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
   const ref = useRef<HTMLDivElement>(null)
   const track = screenTrackOf(identity)
   const audio = isLocal ? undefined : screenAudioOf(identity)
-  const volume = useVoice((s) => s.screenVolume[identity] ?? 1)
-  const setVolume = useVoice((s) => s.setScreenVolume)
+  // Saved per person in the account (3.24 C): watching them starts where it was left.
+  const saved = useAppearance((s) => s.settings.screen_audio?.[identity])
+  const fallback = useAppearance((s) => s.settings.screen_volume_default)
+  const screenAudio = screenVolumeOf({ screen_audio: saved ? { [identity]: saved } : {}, screen_volume_default: fallback }, identity)
+  const volume = screenAudio.muted ? 0 : screenAudio.volume / 100
   const stopWatching = useVoice((s) => s.stopWatching)
   const watchers = useVoice((s) => (isLocal ? s.watchers.length : 0))
   const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
@@ -477,7 +481,10 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
                   type="button"
                   title={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
                   aria-label={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
-                  onClick={() => setVolume(identity, volume === 0 ? 1 : 0)}
+                  // A volume left at 0 comes back at the default instead of staying silent.
+                  onClick={() =>
+                    setScreenVolume(identity, screenAudio.muted ? { muted: false } : screenAudio.volume === 0 ? { volume: 50 } : { muted: true })
+                  }
                 >
                   {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
@@ -488,7 +495,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
                   max={1}
                   step={0.05}
                   value={volume}
-                  onChange={(e) => setVolume(identity, Number(e.target.value))}
+                  onChange={(e) => setScreenVolume(identity, { volume: Math.round(Number(e.target.value) * 100), muted: false })}
                   className="w-24 accent-accent"
                 />
               </>
