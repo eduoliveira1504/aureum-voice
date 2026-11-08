@@ -20,6 +20,7 @@ import { isCallFrame } from '../shared/callWindow'
 import { isOverlayWidget } from '../shared/overlayWidgets'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefsPatch, OverlayWidget, ShareSource, TrayCommand } from '../shared/types'
 import { currentApiUrl } from './apiUrl'
+import { adoptPopup, protectFromCapture } from './appWindows'
 import * as attachmentCache from './attachmentCache'
 import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
@@ -332,11 +333,7 @@ function createWindow(): void {
   })
   mainWindow.on('focus', () => overlay.setMainFocused(true))
   mainWindow.on('blur', () => overlay.setMainFocused(false))
-  mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
-    const widget = overlay.widgetOfFrame(frameName)
-    if (widget) overlay.attachWindow(widget, created)
-    else if (isCallFrame(frameName)) void callWindow.attachWindow(created)
-  })
+  mainWindow.webContents.on('did-create-window', (created, { frameName }) => adoptPopup(created, frameName))
   mainWindow.on('closed', () => {
     mainWindow = null
     watchPushToTalk(null, () => {})
@@ -379,6 +376,7 @@ function createSplash(): void {
       nodeIntegration: false
     }
   })
+  protectFromCapture(splash)
   splashWindow = splash
   // What was said before the page listened (startup begins while it loads).
   splash.webContents.on('did-finish-load', () => splash.webContents.send('splash:status', splashStatus))

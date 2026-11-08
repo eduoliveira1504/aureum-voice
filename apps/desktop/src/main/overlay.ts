@@ -650,9 +650,7 @@ export function attachWindow(widget: OverlayWidget, created: BrowserWindow): voi
   const previous = windows.get(widget)
   if (previous && !previous.isDestroyed()) previous.close()
   windows.set(widget, created)
-  // Kept out of screenshots and screen sharing (Windows 10 2004+): the overlay shows other
-  // people's cameras and messages, and they didn't agree to be streamed.
-  created.setContentProtection(true)
+  // Already kept out of screenshots and screen sharing (see appWindows.ts).
   created.on('closed', () => {
     if (windows.get(widget) !== created) return
     windows.delete(widget)
