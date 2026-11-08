@@ -53,7 +53,7 @@ export function BugReports(): ReactNode {
       {shown.map((r) => (
         <article key={r.id} className="rounded-control border border-line bg-main p-3">
           <header className="flex items-center gap-2">
-            <Avatar name={r.author?.display_name ?? '?'} url={r.author?.avatar_url ?? null} size={24} />
+            <Avatar name={r.author?.display_name ?? '?'} url={r.author?.avatar_url ?? null} gif={r.author?.avatar_gif} size={24} />
             <span className="truncate text-sm font-semibold">{r.author ? `@${r.author.username}` : 'Conta apagada'}</span>
             <span className="text-xs text-fg-subtle">{dateTime.format(new Date(r.created_at))}</span>
             {closed(r) ? (

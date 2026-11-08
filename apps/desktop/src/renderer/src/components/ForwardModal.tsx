@@ -48,7 +48,7 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
         channelId: dm.id,
         name: dmTitle(dm, meId),
         where: dm.type === 'group_dm' ? 'Grupo' : 'Mensagem direta',
-        icon: peer ? <Avatar name={peer.display_name} url={peer.avatar_url} size={28} /> : <GroupAvatar url={dm.icon_url} size={28} />,
+        icon: peer ? <Avatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} size={28} /> : <GroupAvatar url={dm.icon_url} size={28} />,
         blocked: onlyIn
       })
     }

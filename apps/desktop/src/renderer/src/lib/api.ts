@@ -28,6 +28,9 @@ export interface User {
   display_name: string
   avatar_url: string | null
   banner_url: string | null
+  /** A Klipy GIF as avatar/banner (3.22B): drawn from Klipy with its crop; avatar_url then holds its URL or still. */
+  avatar_gif?: ProfileGif | null
+  banner_gif?: ProfileGif | null
   bio: string | null
   /** Profile card color. */
   accent_color: string | null
@@ -99,6 +102,11 @@ export interface Me extends User {
 }
 
 /** The part of an image to keep, in the original's pixels after turning it `rotate`° clockwise. */
+/** A Klipy GIF used as avatar or banner: only a reference, with the crop the app applies when drawing it. */
+export interface ProfileGif extends Gif {
+  crop: ImageCrop
+}
+
 export interface ImageCrop {
   x: number
   y: number

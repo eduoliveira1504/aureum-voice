@@ -51,7 +51,7 @@ export function ReplyQuote({
       className="mb-1 flex max-w-full items-center gap-1.5 text-xs text-fg-muted hover:text-fg"
     >
       <Reply size={14} className="shrink-0 text-fg-subtle" />
-      <Avatar name={name} url={ref.author?.avatar_url} size={16} />
+      <Avatar name={name} url={ref.author?.avatar_url} gif={ref.author?.avatar_gif} size={16} />
       <span className="shrink-0 font-semibold">{name}</span>
       <span className="min-w-0 truncate">
         <EmojiText text={replySnippet(ref)} />

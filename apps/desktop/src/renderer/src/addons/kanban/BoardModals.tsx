@@ -46,7 +46,7 @@ export function HistoryList({ server, channelId, cardId }: { server: ServerDetai
         const name = actor ? memberName(actor) : 'Alguém'
         return (
           <li key={entry.id} className="flex items-start gap-2.5 text-sm">
-            <Avatar name={name} url={actor?.user.avatar_url} size={24} />
+            <Avatar name={name} url={actor?.user.avatar_url} gif={actor?.user.avatar_gif} size={24} />
             <span className="min-w-0 flex-1 text-fg-muted">
               <span className="font-semibold text-fg">{name}</span> {describe(entry)}
               <span className="ml-2 text-xs text-fg-subtle">{formatWhen(entry.created_at)}</span>

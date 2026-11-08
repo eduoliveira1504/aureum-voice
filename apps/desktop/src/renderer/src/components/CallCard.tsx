@@ -249,7 +249,7 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
                 onContextMenu={user ? userContextMenu(user, meId, useVoice.getState().serverId) : undefined}
                 className={`rounded-full ring-offset-1 ring-offset-panel ${speaking.includes(v.user_id) ? 'ring-2 ring-accent' : ''} ${v.muted ? 'opacity-60' : ''}`}
               >
-                <Avatar name={user?.display_name ?? '?'} url={user?.avatar_url} size={24} />
+                <Avatar name={user?.display_name ?? '?'} url={user?.avatar_url} gif={user?.avatar_gif} size={24} />
               </span>
             )
           })}

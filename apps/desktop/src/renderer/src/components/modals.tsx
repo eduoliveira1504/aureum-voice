@@ -193,7 +193,7 @@ function PrivateAccess({
             {members.map((m) => (
               <label key={m.user.id} className={row}>
                 <input type="checkbox" checked={value.members.includes(m.user.id)} onChange={() => toggle('members', m.user.id)} className="accent-accent" />
-                <Avatar name={memberName(m)} url={m.user.avatar_url} size={18} />
+                <Avatar name={memberName(m)} url={m.user.avatar_url} gif={m.user.avatar_gif} size={18} />
                 <span className="truncate">{memberName(m)}</span>
               </label>
             ))}

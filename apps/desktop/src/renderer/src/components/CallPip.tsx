@@ -107,7 +107,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         ) : (
           subject && (
             <span onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}>
-              <Avatar name={person?.display_name ?? name} url={person?.avatar_url} size={64} />
+              <Avatar name={person?.display_name ?? name} url={person?.avatar_url} gif={person?.avatar_gif} size={64} />
             </span>
           )
         )}

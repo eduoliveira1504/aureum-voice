@@ -198,7 +198,7 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
           kind === 'friend' ? 'cursor-pointer hover:bg-elevated/60' : ''
         }`}
       >
-        <PresenceAvatar name={user.display_name} url={user.avatar_url} status={kind === 'friend' ? status : undefined} size={36} border="border-main" />
+        <PresenceAvatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} status={kind === 'friend' ? status : undefined} size={36} border="border-main" />
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">
             {user.display_name} <span className="font-normal text-fg-subtle">@{user.username}</span>
@@ -356,7 +356,7 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
               <div className="flex -space-x-2">
                 {a.people.slice(0, 4).map((u) => (
                   <span key={u.id} onContextMenu={userContextMenu(u, me.id)} className="rounded-full ring-2 ring-panel">
-                    <Avatar name={u.display_name} url={u.avatar_url} size={26} />
+                    <Avatar name={u.display_name} url={u.avatar_url} gif={u.avatar_gif} size={26} />
                   </span>
                 ))}
               </div>
@@ -393,7 +393,7 @@ function PlayingCard({ user, meId }: { user: User; meId: string }): ReactNode {
   if (!activity) return null
   return (
     <div onContextMenu={userContextMenu(user, meId)} className="flex items-center gap-3 rounded-control border border-line bg-panel p-3">
-      <Avatar name={user.display_name} url={user.avatar_url} size={32} />
+      <Avatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} size={32} />
       <div className="min-w-0 leading-tight">
         <div className="truncate text-sm font-semibold">{user.display_name}</div>
         <div className="truncate text-xs text-fg-muted">{activityLabel(activity)}</div>

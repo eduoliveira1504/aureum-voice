@@ -179,7 +179,7 @@ function VotersModal({
                   const name = nameOf(id)
                   return (
                     <li key={id} className="flex items-center gap-2 text-sm">
-                      <Avatar name={name} url={user?.avatar_url} size={24} />
+                      <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={24} />
                       <span className="truncate">{name}</span>
                     </li>
                   )

@@ -844,7 +844,7 @@ function DmItem({
       >
         <span className="relative shrink-0">
           {peer ? (
-            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border={active ? 'border-elevated' : 'border-panel'} />
+            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} status={status} size={28} border={active ? 'border-elevated' : 'border-panel'} />
           ) : (
             <GroupAvatar url={dm.icon_url} size={28} />
           )}
@@ -906,7 +906,7 @@ function RoomPeople({
             className="flex items-center gap-2 rounded-item px-1.5 py-0.5 text-fg-muted hover:bg-elevated/60 hover:text-fg"
           >
             <span className={`shrink-0 rounded-full ring-offset-1 ring-offset-panel ${speaking?.includes(v.user_id) ? 'ring-2 ring-accent' : ''}`}>
-              <Avatar name={name} url={user?.avatar_url} size={20} />
+              <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={20} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[13px]">{name}</span>
             {v.screen && <span className="shrink-0 rounded bg-danger px-1 text-[9px] font-bold leading-4 text-on-danger">AO VIVO</span>}

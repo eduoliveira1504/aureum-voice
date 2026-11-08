@@ -98,7 +98,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={me.id} />)}
             className="flex min-w-0 items-center gap-2.5 rounded-item py-1 pr-2 text-left hover:bg-elevated/60"
           >
-            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} status={status} size={28} border="border-main" />
+            <PresenceAvatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} status={status} size={28} border="border-main" />
             <span className="min-w-0">
               <span className="block truncate font-semibold leading-tight">{title}</span>
               <span className="block truncate text-xs text-fg-subtle">{`@${peer.username} · ${PRESENCE_LABEL[status ?? 'offline']}`}</span>
@@ -263,7 +263,7 @@ function GroupMembers({ dm, meId, onOpen }: { dm: Dm; meId: string; onOpen(user:
           onContextMenu={userContextMenu(user, meId)}
           className="flex w-full items-center gap-2.5 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60"
         >
-          <PresenceAvatar name={user.display_name} url={user.avatar_url} status={presence[user.id] ?? status} size={32} border="border-main" />
+          <PresenceAvatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} status={presence[user.id] ?? status} size={32} border="border-main" />
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium">{user.display_name}</span>
             <span className="block truncate text-xs text-fg-subtle">@{user.username}</span>
@@ -288,7 +288,7 @@ function DmIntro({ dm, meId, isFriend }: { dm: Dm; meId: string; isFriend: boole
           onContextMenu={userContextMenu(peer, meId)}
           className="rounded-full"
         >
-          <Avatar name={peer.display_name} url={peer.avatar_url} size={72} />
+          <Avatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} size={72} />
         </button>
       ) : (
         <GroupAvatar url={dm.icon_url} size={72} />

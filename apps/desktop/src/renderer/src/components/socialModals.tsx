@@ -106,7 +106,7 @@ export function PickFriendsModal({
                 onClick={() => toggle(f.user.id)}
                 className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left ${on ? 'bg-accent/10' : 'hover:bg-elevated'}`}
               >
-                <PresenceAvatar name={f.user.display_name} url={f.user.avatar_url} status={presence[f.user.id] ?? f.status} />
+                <PresenceAvatar name={f.user.display_name} url={f.user.avatar_url} gif={f.user.avatar_gif} status={presence[f.user.id] ?? f.status} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{f.user.display_name}</span>
                   <span className="block truncate text-xs text-fg-subtle">@{f.user.username}</span>
@@ -314,7 +314,7 @@ export function StartCallModal({ meId, onClose }: { meId: string; onClose(): voi
           ))}
           {people.map((f) => (
             <button key={f.user.id} type="button" disabled={busy} onClick={() => void call({ userId: f.user.id })} className={row}>
-              <PresenceAvatar name={f.user.display_name} url={f.user.avatar_url} status={presence[f.user.id] ?? f.status} />
+              <PresenceAvatar name={f.user.display_name} url={f.user.avatar_url} gif={f.user.avatar_gif} status={presence[f.user.id] ?? f.status} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{f.user.display_name}</span>
                 <span className="block truncate text-xs text-fg-subtle">@{f.user.username}</span>

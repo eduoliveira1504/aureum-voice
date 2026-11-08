@@ -307,7 +307,7 @@ function CardTile({
           {assignee && (
             <span className="ml-auto flex min-w-0 items-center gap-1.5 text-fg-subtle" title={memberName(assignee)}>
               <span className="truncate">{assignee.user.id === meId ? 'Você' : memberName(assignee)}</span>
-              <Avatar name={memberName(assignee)} url={assignee.user.avatar_url} size={20} />
+              <Avatar name={memberName(assignee)} url={assignee.user.avatar_url} gif={assignee.user.avatar_gif} size={20} />
             </span>
           )}
         </span>

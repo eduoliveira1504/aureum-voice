@@ -14,6 +14,7 @@ import { BadgeInventory } from './BadgeInventory'
 import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
 import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
+import { CroppedGif, useGifFailed } from './ProfileGif'
 import { UserContextMenu, userContextMenu } from './UserMenu'
 
 const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -158,10 +159,28 @@ function CardTabs({ tab, count, onSelect }: { tab: CardTab; count: number; onSel
  * tab, the whole badge inventory. With `onClose`
  * (the popover) it also shows the actions (on your own: "Editar perfil"); the editor's preview doesn't.
  */
+const BANNER = { width: 340, height: 120 }
+
+/** The card's banner: the image, a Klipy GIF with its crop, or the profile color (also when the GIF is gone). */
+function ProfileBanner({ user }: { user: User }): ReactNode {
+  const banner = mediaUrl(user.banner_url)
+  const gif = user.banner_gif
+  const [gifFailed, onGifError] = useGifFailed(gif)
+  return (
+    // Without a profile color the banner falls back to the app accent.
+    <div className="relative h-[120px] shrink-0 overflow-hidden bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
+      {gif ? (
+        !gifFailed && <CroppedGif gif={gif} frame={BANNER} onError={onGifError} />
+      ) : (
+        banner && <img src={banner} alt="" className="h-full w-full object-cover" />
+      )}
+    </div>
+  )
+}
+
 export function ProfileView({ user, onClose }: { user: User; onClose?: () => void }): ReactNode {
   const { state, setUser } = useAuth()
   const meId = state.status === 'signedIn' ? state.user.id : undefined
-  const banner = mediaUrl(user.banner_url)
   const nameColor = useReadableColor(user.accent_color)
   const status = usePresence(user.id, meId)
   const roles = useServerRoles(user.id)
@@ -182,10 +201,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
       onContextMenu={onClose && meId ? userContextMenu(user, meId, place === 'home' ? null : place) : undefined}
       className="flex min-h-0 w-[340px] flex-col overflow-hidden rounded-panel border border-line bg-panel shadow-2xl"
     >
-      {/* Without a profile color the banner falls back to the app accent. */}
-      <div className="h-[120px] shrink-0 bg-accent" style={user.accent_color ? { background: user.accent_color } : undefined}>
-        {banner && <img src={banner} alt="" className="h-full w-full object-cover" />}
-      </div>
+      <ProfileBanner user={user} />
       <div className="relative flex min-h-0 flex-col px-4 pb-4">
         <div className="flex shrink-0 items-end gap-3">
           <div className="-mt-12 shrink-0 rounded-full bg-panel p-1.5">

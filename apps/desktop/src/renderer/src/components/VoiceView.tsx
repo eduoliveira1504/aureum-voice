@@ -329,7 +329,7 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
       {camera ? (
         <VideoTrackView track={camera} mirror={isLocal} />
       ) : (
-        <Avatar name={name} url={user?.avatar_url} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
+        <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
       )}
       {user && size !== 'strip' && (
         <div className="absolute bottom-10 left-2 flex max-w-[calc(100%-1rem)]">

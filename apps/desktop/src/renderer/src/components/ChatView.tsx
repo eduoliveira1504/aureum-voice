@@ -824,7 +824,7 @@ function MessageRow({
         <div className="w-9 shrink-0">
           {!grouped && (
             <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
-              <Avatar name={name} url={author?.avatar_url} size={36} shape="rounded" />
+              <Avatar name={name} url={author?.avatar_url} gif={author?.avatar_gif} size={36} shape="rounded" />
             </button>
           )}
         </div>

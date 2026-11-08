@@ -398,7 +398,7 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
               {requests.length > 0 && <p className="px-2 pb-1 pt-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Pedidos de amizade</p>}
               {requests.map((f) => (
                 <div key={f.user.id} onContextMenu={userContextMenu(f.user, me.id)} className="flex items-center gap-2.5 rounded-item px-2 py-1.5">
-                  <Avatar name={f.user.display_name} url={f.user.avatar_url} size={32} />
+                  <Avatar name={f.user.display_name} url={f.user.avatar_url} gif={f.user.avatar_gif} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{f.user.display_name}</div>
                     <div className="truncate text-xs text-fg-subtle">@{f.user.username}</div>
@@ -497,7 +497,7 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
         className="flex items-center gap-2 rounded-control py-1 pl-1 pr-2 hover:bg-elevated"
       >
         <span className="relative">
-          <Avatar name={me.display_name} url={me.avatar_url} size={28} />
+          <Avatar name={me.display_name} url={me.avatar_url} gif={me.avatar_gif} size={28} />
           <span title={connected ? undefined : 'Reconectando…'} className="absolute -bottom-0.5 -right-0.5">
             <StatusDot status={dot} border="border-rail" />
           </span>

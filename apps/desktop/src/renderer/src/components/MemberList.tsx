@@ -189,7 +189,7 @@ export function MemberRow({
       onContextMenu={userContextMenu(m.user, meId, server.id)}
       className={`flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated/60 ${m.online ? '' : 'opacity-40'}`}
     >
-      <PresenceAvatar name={name} url={m.user.avatar_url} status={m.online ? m.status : undefined} />
+      <PresenceAvatar name={name} url={m.user.avatar_url} gif={m.user.avatar_gif} status={m.online ? m.status : undefined} />
       <span className="min-w-0 flex-1 leading-tight">
         <span className="flex min-w-0 items-center gap-1">
           <span className="truncate text-sm font-medium" style={nameColor ? { color: nameColor } : undefined}>

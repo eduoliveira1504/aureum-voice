@@ -202,7 +202,7 @@ function RoomCard({
                 // The padding is the ring plus its gap around the picture.
                 className="relative rounded-full p-[5px]"
               >
-                <Avatar name={nameOf(v.user_id)} url={user?.avatar_url} size={52} />
+                <Avatar name={nameOf(v.user_id)} url={user?.avatar_url} gif={user?.avatar_gif} size={52} />
                 <TileRing on={!!speaking?.includes(v.user_id)} />
               </span>
             )
@@ -370,7 +370,7 @@ function News({ server }: { server: ServerDetail }): ReactNode {
                   return (
                     <button key={m.id} type="button" onClick={open} className="flex w-full gap-2.5 p-2 text-left hover:bg-elevated/60">
                       <span onContextMenu={m.author && meId ? userContextMenu(m.author, meId, server.id) : undefined}>
-                        <Avatar name={name} url={m.author?.avatar_url} size={24} shape="rounded" />
+                        <Avatar name={name} url={m.author?.avatar_url} gif={m.author?.avatar_gif} size={24} shape="rounded" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline gap-1.5 text-xs">

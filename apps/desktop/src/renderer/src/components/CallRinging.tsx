@@ -45,7 +45,7 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
         <span className="relative">
           <span className="absolute inset-0 animate-ping rounded-full bg-accent/40" />
           <span className="relative block rounded-full ring-2 ring-accent">
-            <Avatar name={name} url={caller?.avatar_url} size={52} />
+            <Avatar name={name} url={caller?.avatar_url} gif={caller?.avatar_gif} size={52} />
           </span>
         </span>
         <div className="min-w-0 flex-1">

@@ -276,7 +276,7 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
           <div className="flex h-full flex-wrap content-center items-center justify-center gap-3 p-3">
             {room.states.slice(0, 4).map((v) => (
               <span key={v.user_id} title={nameOf(v.user_id)} className={`rounded-full ring-offset-2 ring-offset-rail ${ringed(v.user_id)}`}>
-                <Avatar name={nameOf(v.user_id)} url={people.get(v.user_id)?.avatar_url} size={48} />
+                <Avatar name={nameOf(v.user_id)} url={people.get(v.user_id)?.avatar_url} gif={people.get(v.user_id)?.avatar_gif} size={48} />
               </span>
             ))}
             {room.states.length > 4 && <span className="text-sm font-semibold text-fg-muted">+{room.states.length - 4}</span>}
@@ -301,7 +301,7 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
           <span className="flex min-w-0 flex-1 items-center">
             {room.states.slice(0, 3).map((v, i) => (
               <span key={v.user_id} className={`rounded-full border-2 border-panel ${i > 0 ? '-ml-2' : ''} ${ringed(v.user_id)}`}>
-                <Avatar name={nameOf(v.user_id)} url={people.get(v.user_id)?.avatar_url} size={24} />
+                <Avatar name={nameOf(v.user_id)} url={people.get(v.user_id)?.avatar_url} gif={people.get(v.user_id)?.avatar_gif} size={24} />
               </span>
             ))}
             {room.states.length > 3 && (
@@ -441,7 +441,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
     }
     return (
       <Row
-        icon={peer ? <Avatar name={peer.display_name} url={peer.avatar_url} size={32} /> : <GroupAvatar url={dm.icon_url} size={32} />}
+        icon={peer ? <Avatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} size={32} /> : <GroupAvatar url={dm.icon_url} size={32} />}
         title={
           peer ? (
             <>
@@ -874,7 +874,7 @@ function ActiveFriendRow({ item }: { item: ActiveFriend }): ReactNode {
   )
   return (
     <div className="flex items-center gap-3 rounded-item px-1 py-1.5">
-      <PresenceAvatar name={user.display_name} url={user.avatar_url} status={status} size={34} />
+      <PresenceAvatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} status={status} size={34} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{user.display_name}</span>
         <span className="block truncate text-xs text-fg-subtle">{line}</span>

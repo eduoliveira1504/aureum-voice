@@ -233,7 +233,7 @@ function CallTile({
       {track ? (
         <PopupVideo track={track} mirror={tile.identity === meId && tile.kind === 'person'} />
       ) : (
-        <Avatar name={user?.display_name ?? name} url={user?.avatar_url} size={avatarSize} />
+        <Avatar name={user?.display_name ?? name} url={user?.avatar_url} gif={user?.avatar_gif} size={avatarSize} />
       )}
       {tile.kind === 'screen' && (
         <span className="absolute left-1.5 top-1.5 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>

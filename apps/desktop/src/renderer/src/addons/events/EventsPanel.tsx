@@ -308,7 +308,7 @@ function Attendees({ event, people }: { event: EventItem; people: Map<string, Us
               const name = user?.display_name ?? 'Alguém'
               return (
                 <li key={id} className="flex items-center gap-2 text-sm">
-                  <Avatar name={name} url={user?.avatar_url} size={20} />
+                  <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={20} />
                   <span className="truncate">{name}</span>
                 </li>
               )

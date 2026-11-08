@@ -440,7 +440,7 @@ function MemberRow({
 
   return (
     <div className="flex items-start gap-3 py-2.5">
-      <Avatar name={m.user.display_name} url={m.user.avatar_url} size={36} />
+      <Avatar name={m.user.display_name} url={m.user.avatar_url} gif={m.user.avatar_gif} size={36} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium">{m.user.display_name}</span>
@@ -526,7 +526,7 @@ function BanRow({ ban, onUnban }: { ban: Ban; onUnban(): void }): ReactNode {
   const nameColor = useReadableColor(ban.user.accent_color)
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <Avatar name={ban.user.display_name} url={ban.user.avatar_url} size={32} />
+      <Avatar name={ban.user.display_name} url={ban.user.avatar_url} gif={ban.user.avatar_gif} size={32} />
       <div className="min-w-0 flex-1">
         <span className="block truncate font-medium" style={nameColor ? { color: nameColor } : undefined}>
           {ban.user.display_name}

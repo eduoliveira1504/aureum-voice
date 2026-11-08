@@ -25,7 +25,7 @@ export function FramedAvatar({
   surface = 'var(--bg-panel)',
   border = 'border-panel'
 }: {
-  user: Pick<User, 'display_name' | 'avatar_url' | 'avatar_frame' | 'accent_color'>
+  user: Pick<User, 'display_name' | 'avatar_url' | 'avatar_gif' | 'avatar_frame' | 'accent_color'>
   size: number
   status?: Presence
   /** Color behind the avatar, used for the gap inside the frame. */
@@ -40,7 +40,7 @@ export function FramedAvatar({
       className="relative inline-block shrink-0 rounded-full"
       style={color ? { boxShadow: `0 0 0 ${ring}px ${surface}, 0 0 0 ${ring * 2}px ${color}` } : undefined}
     >
-      <Avatar name={user.display_name} url={user.avatar_url} size={size} />
+      <Avatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} size={size} />
       {status && (
         <StatusDot status={status} size={dot} border={border} className="absolute bottom-[4%] right-[4%] border-[3px]" />
       )}

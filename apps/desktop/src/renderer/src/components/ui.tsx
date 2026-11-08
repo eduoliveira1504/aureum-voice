@@ -2,7 +2,8 @@ import { Users, type LucideIcon } from 'lucide-react'
 import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type RefObject } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-import { mediaUrl, type Presence } from '../lib/api'
+import { mediaUrl, type Presence, type ProfileGif } from '../lib/api'
+import { CroppedGif, useGifFailed } from './ProfileGif'
 
 export function Field({
   label,
@@ -118,18 +119,29 @@ export function ToggleRow({
 export function Avatar({
   name,
   url,
+  gif,
   size = 32,
   shape = 'circle'
 }: {
   name: string
   url?: string | null
+  /** A Klipy GIF as avatar: drawn with its crop; the initials if it's gone from Klipy. */
+  gif?: ProfileGif | null
   size?: number
   /** 'rounded' is a rounded square (chat). */
   shape?: 'circle' | 'rounded'
 }): ReactNode {
   const style = { width: size, height: size }
   const radius = shape === 'circle' ? 'rounded-full' : 'rounded-item'
-  if (url) return <img src={mediaUrl(url)} alt="" style={style} className={`shrink-0 object-cover ${radius}`} />
+  const [gifFailed, onGifError] = useGifFailed(gif)
+  if (gif && !gifFailed) {
+    return (
+      <span style={style} className={`relative block shrink-0 overflow-hidden bg-elevated ${radius}`}>
+        <CroppedGif gif={gif} frame={style} onError={onGifError} />
+      </span>
+    )
+  }
+  if (url && !gif) return <img src={mediaUrl(url)} alt="" style={style} className={`shrink-0 object-cover ${radius}`} />
   return (
     <div
       style={{ ...style, fontSize: size * 0.42 }}
@@ -286,12 +298,14 @@ export function StatusDot({
 export function PresenceAvatar({
   name,
   url,
+  gif,
   status,
   size = 32,
   border = 'border-panel'
 }: {
   name: string
   url?: string | null
+  gif?: ProfileGif | null
   status?: Presence
   size?: number
   border?: string
@@ -299,7 +313,7 @@ export function PresenceAvatar({
   const dot = Math.max(10, Math.round(size * 0.38))
   return (
     <span className="relative shrink-0">
-      <Avatar name={name} url={url} size={size} />
+      <Avatar name={name} url={url} gif={gif} size={size} />
       {status && <StatusDot status={status} size={dot} border={border} className="absolute -bottom-0.5 -right-0.5" />}
     </span>
   )
