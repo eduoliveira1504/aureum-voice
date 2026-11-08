@@ -191,6 +191,13 @@ textarea {
   user-select: text;
 }
 
+/* Interface pictures (avatars, server icons and banners, badges, emojis, stickers, thumbnails)
+   never start the browser's own image drag: grabbing one would carry it out as a file (into the
+   chat as an attachment, say). Things with a drag of their own set draggable on their element. */
+img:not([draggable='true']) {
+  -webkit-user-drag: none;
+}
+
 ::selection {
   background: color-mix(in oklab, var(--accent) 35%, transparent);
 }
