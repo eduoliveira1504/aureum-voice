@@ -32,8 +32,8 @@ Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual
 em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
-3.24 partes A, B e C prontas (teste manual pendente; a C tem migração).
-Próximo, nesta ordem: 3.24 D, 3.19 C1, 3.22 parte B, 3.21
+3.24 pronto (A a D; teste manual pendente; a parte C tem migração).
+Próximo, nesta ordem: 3.19 C1, 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -994,7 +994,7 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   reabrir (volta no mesmo lugar e tamanho); mover pro segundo monitor, desligar o monitor e reabrir
   (volta pro principal); X, Alt+F4 e "Voltar ao app" não tiram da call; sair da call fecha a janela.
 
-## 3.24 Correções do beta (07/11): overlay na transmissão, imagens, volume e chat
+## 3.24 Correções do beta (07/11): overlay na transmissão, imagens, volume e chat ✅ concluído (teste manual pendente)
 ### Parte A: quadrados pretos do overlay na transmissão ✅ concluída (teste manual pendente)
 - Causa encontrada (08/11; quem transmitiu está no Windows 10 2004+/11): no Electron 44 a proteção
   vira WDA_EXCLUDEFROMCAPTURE, mas o DWM desenha como retângulo preto na captura uma janela
@@ -1060,7 +1060,15 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   pessoa nova usa o padrão; mudar o padrão não muda quem já foi ajustado; mutar e desmutar volta
   ao volume salvo.
 
-### Parte D: chat sem barra de rolagem lateral
+### Parte D: chat sem barra de rolagem lateral ✅ concluída (teste manual pendente)
+- Causa: a bolha da mensagem fica com a largura do conteúdo, e break-words quebra a linha mas não
+  deixa a caixa encolher (a palavra inteira vira a largura mínima); medido no Chromium: URL de 500
+  caracteres numa coluna de 320 px rolava 3630 px pro lado, com overflow-wrap: anywhere, nada.
+- Feito: wrap-anywhere no texto da mensagem (vale pra links, menções e código inline), nos cards de
+  link, nas enquetes e no campo de digitar; cards, vídeos e imagens sem tamanho com no máximo 100%
+  da coluna; GIF mantém a proporção quando encolhe; a lista esconde overflow lateral como última
+  proteção. DMs e painéis usam o mesmo ChatView; a janela destacada não tem chat; o chat não tem
+  bloco de código (só código inline).
 - Bug: link ou palavra muito longa (e alguns cards e blocos) estica a mensagem e o chat ganha barra
   de rolagem pro lado em janela menor.
 - O chat NUNCA rola pro lado, em nenhum tamanho de janela ou painel: links e palavras longas quebram
