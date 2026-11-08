@@ -24,6 +24,7 @@ import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDete
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
+import { createStartup, type Startup } from './startup'
 import { createTray, destroyTray, notify, setTrayState } from './tray'
 import { getUpdateState, installUpdate, startUpdater } from './updater'
 
@@ -56,6 +57,10 @@ const settingsPath = (): string => join(app.getPath('userData'), 'settings.json'
 const sessionPath = (): string => join(app.getPath('userData'), 'session.bin')
 
 let mainWindow: BrowserWindow | null = null
+// The loading screen (block 3.23) and what decides when it gives way to the main window.
+let splashWindow: BrowserWindow | null = null
+let startup: Startup | null = null
+let splashStatus = ''
 // Last settings read or written, for decisions that can't wait for the disk (closing the window).
 let cachedSettings: AppSettings = { ...DEFAULT_SETTINGS }
 // Set when the app really quits (tray menu, Windows shutdown): closing then doesn't just hide.
@@ -160,6 +165,8 @@ handle('app:info', (): AppInfo => ({
   version: app.getVersion(),
   os: `${process.platform === 'win32' ? 'Windows' : process.platform} ${release()} (${arch()})`
 }))
+// The window restored the session (or knows it can't): the loading screen may give way.
+handle('app:ready', (online: unknown) => startup?.appReady(online === true))
 handle('updates:get-state', getUpdateState)
 handle('updates:install', () => {
   quitting = true
@@ -291,9 +298,7 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.once('ready-to-show', () => {
-    if (!startHidden) mainWindow?.show()
-  })
+  // Shown by the loading screen when it's done (openFromSplash), or from the tray.
   // The X hides the window: calls, messages and notifications keep going in the background.
   mainWindow.on('close', (event) => {
     if (quitting || !cachedSettings.closeToTray) return
@@ -332,7 +337,90 @@ function createWindow(): void {
   }
 }
 
+const rendererPage = (page: string): [kind: 'url' | 'file', target: string] =>
+  !app.isPackaged && process.env['ELECTRON_RENDERER_URL']
+    ? ['url', `${process.env['ELECTRON_RENDERER_URL']}/${page}`]
+    : ['file', join(__dirname, '../renderer', page)]
+
+/** The small loading screen with the spinning coin (splash.html), shown while the main window
+ * loads hidden. Closing it by hand quits: nothing else of the app is on screen yet. */
+function createSplash(): void {
+  const splash = new BrowserWindow({
+    width: 300,
+    height: 360,
+    center: true,
+    frame: false,
+    transparent: true, // the page draws the rounded card
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    show: false,
+    title: 'Aureum Voice',
+    icon: appIcon,
+    webPreferences: {
+      preload: join(__dirname, '../preload/splash.js'),
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false
+    }
+  })
+  splashWindow = splash
+  // What was said before the page listened (startup begins while it loads).
+  splash.webContents.on('did-finish-load', () => splash.webContents.send('splash:status', splashStatus))
+  splash.once('ready-to-show', () => {
+    // Very late (past the maximum time), the app already opened: then the screen never shows.
+    if (startup?.done) return
+    splash.show()
+    startup?.shown()
+  })
+  splash.on('closed', () => {
+    if (splashWindow === splash) splashWindow = null
+    if (startup && !startup.done) app.quit()
+  })
+  const [kind, target] = rendererPage('splash.html')
+  void (kind === 'url' ? splash.loadURL(target) : splash.loadFile(target))
+}
+
+const SPLASH_FADE_MS = 230 // the page's fade (splash.css)
+
+function openFromSplash(): void {
+  const splash = splashWindow
+  splash?.webContents.send('splash:leave')
+  setTimeout(() => {
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+    splash?.destroy()
+  }, splash ? SPLASH_FADE_MS : 0)
+}
+
+function startWithSplash(): void {
+  createSplash()
+  startup = createStartup(
+    {
+      status: (text) => {
+        splashStatus = text
+        splashWindow?.webContents.send('splash:status', text)
+      },
+      open: openFromSplash,
+      install: () => {
+        quitting = true
+        installUpdate()
+      }
+    },
+    { checkUpdates: false }
+  )
+  startup.update({ kind: 'none' })
+}
+
 function showWindow(): void {
+  // Opening the app again during the loading screen just brings the screen forward.
+  if (splashWindow && startup && !startup.done) {
+    splashWindow.show()
+    splashWindow.focus()
+    return
+  }
   if (!mainWindow) return createWindow()
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
@@ -377,6 +465,7 @@ if (!app.requestSingleInstanceLock()) {
     )
     installDisplayMediaHandler(isAppWindow)
     void readSettings().then((s) => applyLoginItem(s.openAtLogin))
+    if (!startHidden) startWithSplash()
     createWindow()
     createTray({
       open: showWindow,

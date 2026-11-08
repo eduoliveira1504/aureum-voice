@@ -42,10 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }): ReactNode {
         } else {
           setState({ status: 'signedOut' })
         }
+        void window.aureum.app.ready(true)
       } catch (err) {
         // Network error or server out of service: keep the stored session, let the user retry
         // or change the server.
         setState({ status: 'signedOut', serverUnreachable: true, serverMessage: serverNotice(err) ?? undefined })
+        void window.aureum.app.ready(false)
       }
     })()
   }, [loadMe])

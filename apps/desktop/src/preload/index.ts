@@ -23,6 +23,7 @@ const bridge: AureumBridge = {
   },
   app: {
     info: () => ipcRenderer.invoke('app:info'),
+    ready: (online) => ipcRenderer.invoke('app:ready', online),
     recentLogs: () => ipcRenderer.invoke('app:recent-logs'),
     onReportProblem: (listener) => {
       const wrapped = (): void => listener()

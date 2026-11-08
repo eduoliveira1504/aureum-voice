@@ -170,6 +170,9 @@ export interface AureumBridge {
     recentLogs(): Promise<string>
     /** Ctrl+Shift+R anywhere in the window ("Reportar problema"). */
     onReportProblem(listener: () => void): () => void
+    /** The session is restored (or can't be): the loading screen may give way to the window.
+     * online = the API answered. Only the first call counts. */
+    ready(online: boolean): Promise<void>
   }
   /** Push-to-talk key, read while a call needs it (even with a game focused). */
   ptt: {
