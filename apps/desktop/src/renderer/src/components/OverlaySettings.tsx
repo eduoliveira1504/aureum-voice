@@ -375,7 +375,8 @@ export function OverlaySettings(): ReactNode {
         </button>
         <p className="mt-1.5 text-xs text-fg-subtle">
           Cada widget tem sua posição e seu tamanho, e o overlay aparece no monitor do jogo. No modo edição, arraste cada
-          widget para mover e puxe o canto para redimensionar; a posição fica salva para aquele monitor. Esc ou Concluir termina.
+          widget para mover e puxe o canto para redimensionar (nas câmeras, o canto muda o tamanho de cada câmera, e a barra
+          de cima troca o formato e a quantidade); a posição fica salva para aquele monitor. Esc ou Concluir termina.
         </p>
       </section>
 

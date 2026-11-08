@@ -204,7 +204,7 @@ export const CAMERA_PADDING = 8
 const EDIT_TOP = 44
 const EDIT_BORDER = 2
 /** Edit mode: wide enough for the bar's controls even with one small camera. */
-export const EDIT_MIN_WIDTH = 300
+export const EDIT_MIN_WIDTH = 340
 /** A camera never gets smaller than this to fit a monitor. */
 const FIT_MIN_TILE = 48
 

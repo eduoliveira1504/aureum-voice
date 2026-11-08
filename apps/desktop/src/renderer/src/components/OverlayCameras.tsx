@@ -1,5 +1,5 @@
 /** Settings of the overlay's cameras widget, and its live preview (Settings > Overlay > Câmeras). */
-import { Columns3, Grid2x2, Rows3 } from 'lucide-react'
+import { Columns3, Grid2x2, Minus, Plus, Rows3 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { CAMERA_LIMITS, CAMERA_SIZES, cameraLayout } from '../../../shared/overlayWidgets'
@@ -161,4 +161,68 @@ export function CamerasPreview({ prefs }: { prefs: OverlayCameraPrefs }): ReactN
       </p>
     </div>
   )
+}
+
+/** − N + for one number of the cameras, in the edit bar. */
+function Stepper({
+  label,
+  value,
+  limits,
+  onChange
+}: {
+  label: string
+  value: number
+  limits: { min: number; max: number }
+  onChange(value: number): void
+}): ReactNode {
+  const button = 'rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent'
+  return (
+    <span role="group" aria-label={label} title={label} className="flex items-center">
+      <button type="button" aria-label={`${label}: menos`} disabled={value <= limits.min} onClick={() => onChange(value - 1)} className={button}>
+        <Minus size={13} />
+      </button>
+      <span className="w-4 text-center font-semibold tabular-nums">{value}</span>
+      <button type="button" aria-label={`${label}: mais`} disabled={value >= limits.max} onClick={() => onChange(value + 1)} className={button}>
+        <Plus size={13} />
+      </button>
+    </span>
+  )
+}
+
+/** Edit mode (Ctrl+Shift+F10): format and how many show, on the widget's own bar. */
+export function CameraEditBar({ prefs, set }: { prefs: OverlayCameraPrefs; set(patch: Partial<OverlayCameraPrefs>): void }): ReactNode {
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      {CAMERA_LAYOUTS.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          title={label}
+          aria-label={`Formato: ${label}`}
+          aria-pressed={prefs.layout === value}
+          onClick={() => set({ layout: value })}
+          className={`rounded-item p-1 ${prefs.layout === value ? 'bg-elevated text-fg' : 'text-fg-muted hover:text-fg'}`}
+        >
+          <Icon size={14} />
+        </button>
+      ))}
+      <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />
+      <Stepper label="Câmeras visíveis" value={prefs.maxVisible} limits={CAMERA_LIMITS.maxVisible} onChange={(maxVisible) => set({ maxVisible })} />
+      {prefs.layout === 'grid' && (
+        <Stepper label="Por linha" value={prefs.perRow} limits={CAMERA_LIMITS.perRow} onChange={(perRow) => set({ perRow })} />
+      )}
+    </span>
+  )
+}
+
+/**
+ * The width a drag of the edit handle gives the cameras: the pointer moved `grow` px away from the
+ * box's pinned corner, shared by the columns (across) or the rows (down), whichever moved more.
+ */
+export function tileWidthAfterDrag(start: number, grow: { x: number; y: number }, columns: number, rows: number): number {
+  const across = grow.x / columns
+  const down = ((grow.y / rows) * 16) / 9
+  const change = Math.abs(across) >= Math.abs(down) ? across : down
+  const { min, max } = CAMERA_LIMITS.tileWidth
+  return Math.round(Math.min(max, Math.max(min, start + change)))
 }

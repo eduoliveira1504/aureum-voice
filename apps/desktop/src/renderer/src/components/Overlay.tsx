@@ -5,11 +5,12 @@ import { createPortal } from 'react-dom'
 
 import type { Me } from '../lib/api'
 import { cameraLayout, DEFAULT_WIDGETS, splitPeople, visibleCameras } from '../../../shared/overlayWidgets'
-import type { OverlayBounds, OverlayWidget, OverlayWidgets } from '../../../shared/types'
-import { callChanges, notifyOverlay, useOverlay, type OverlayNotification } from '../store/overlay'
+import type { OverlayBounds, OverlayCameraPrefs, OverlayWidget, OverlayWidgets } from '../../../shared/types'
+import { callChanges, notifyOverlay, setOverlayPrefs, useOverlay, type OverlayNotification } from '../store/overlay'
 import { useSocial } from '../store/social'
 import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
+import { CameraEditBar, tileWidthAfterDrag } from './OverlayCameras'
 import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 
 /** Prefix of a widget window's name; the main process lets only `aureum-overlay-<widget>-<n>` through (widgetOfFrame). */
@@ -270,13 +271,19 @@ function anchorOf(popup: Window): { right: boolean; bottom: boolean } {
 
 const WIDGET_NAME: Record<OverlayWidget, string> = { voice: 'Voz', cameras: 'Câmeras', notifications: 'Notificações' }
 
-/** A widget's box: content hugs the nearest screen corner, and edit mode moves and resizes it. */
+/**
+ * A widget's box: content hugs the nearest screen corner, and edit mode moves and resizes it.
+ * With `resizeContent`, the handle sits on the side away from that corner and resizes what's
+ * inside instead of the box (the cameras' box follows its cameras): called when a drag starts, it
+ * gives what to do as the pointer moves `grow` px away from the corner.
+ */
 function WidgetBox({
   widget,
   popup,
   editing,
   outside,
-  resizable = true,
+  bar,
+  resizeContent,
   children
 }: {
   widget: OverlayWidget
@@ -284,8 +291,9 @@ function WidgetBox({
   editing: boolean
   /** Over the widget, not part of it: its opacity doesn't apply. */
   outside?: ReactNode
-  /** The corner handle stretches the box (the cameras' box follows its cameras instead). */
-  resizable?: boolean
+  /** The widget's own controls on the edit bar. */
+  bar?: ReactNode
+  resizeContent?: () => (grow: { x: number; y: number }) => void
   children: ReactNode
 }): ReactNode {
   const prefs = useOverlay((s) => s.state!.prefs.widgets[widget])
@@ -312,8 +320,15 @@ function WidgetBox({
       el.setPointerCapture(e.pointerId)
       const start = { x: popup.screenX, y: popup.screenY, width: popup.outerWidth, height: popup.outerHeight }
       const from = { x: e.screenX, y: e.screenY }
+      const resizeTo = mode === 'resize' ? resizeContent?.() : undefined
       let frame = 0
       let latest: OverlayBounds = start
+      let grow = { x: 0, y: 0 }
+      const send = (): Promise<void> => {
+        if (!resizeTo) return window.aureum.overlay.setBounds(widget, latest)
+        resizeTo(grow)
+        return Promise.resolve()
+      }
       const move = (ev: globalThis.PointerEvent): void => {
         const dx = ev.screenX - from.x
         const dy = ev.screenY - from.y
@@ -321,11 +336,12 @@ function WidgetBox({
           mode === 'move'
             ? { ...start, x: start.x + dx, y: start.y + dy }
             : { ...start, width: start.width + dx, height: start.height + dy }
+        grow = { x: anchor.right ? -dx : dx, y: anchor.bottom ? -dy : dy }
         // One IPC call per frame at most.
         if (!frame) {
           frame = popup.requestAnimationFrame(() => {
             frame = 0
-            void window.aureum.overlay.setBounds(widget, latest)
+            void send()
           })
         }
       }
@@ -334,7 +350,7 @@ function WidgetBox({
         el.removeEventListener('pointerup', up)
         el.removeEventListener('pointercancel', up)
         if (frame) popup.cancelAnimationFrame(frame)
-        void window.aureum.overlay.setBounds(widget, latest).then(() => setMoved((n) => n + 1))
+        void send().then(() => setMoved((n) => n + 1))
       }
       el.addEventListener('pointermove', move)
       el.addEventListener('pointerup', up)
@@ -354,6 +370,7 @@ function WidgetBox({
       {editing && (
         <div className="pointer-events-auto absolute inset-x-2 top-2 z-10 flex items-center gap-2 rounded-control bg-panel/95 px-2.5 py-1.5 text-xs text-fg shadow-lg">
           <span className="min-w-0 flex-1 truncate font-semibold">{WIDGET_NAME[widget]}</span>
+          {bar}
           <button
             type="button"
             onClick={() => void window.aureum.overlay.setEditing(false)}
@@ -370,14 +387,16 @@ function WidgetBox({
         {children}
       </div>
 
-      {editing && resizable && (
+      {editing && (
         <span
           data-handle
-          title="Redimensionar"
+          title={resizeContent ? 'Arraste para mudar o tamanho' : 'Redimensionar'}
           onPointerDown={dragWith('resize')}
-          className="absolute bottom-1 right-1 z-10 cursor-nwse-resize rounded-item bg-panel/95 p-1 text-fg-muted"
+          className={`absolute bottom-1 z-10 rounded-item bg-panel/95 p-1 text-fg-muted ${
+            resizeContent && anchor.right ? 'left-1 cursor-nesw-resize' : 'right-1 cursor-nwse-resize'
+          }`}
         >
-          <MoveDiagonal2 size={14} />
+          <MoveDiagonal2 size={14} className={resizeContent && anchor.right ? '-scale-x-100' : undefined} />
         </span>
       )}
     </div>
@@ -438,8 +457,26 @@ function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editin
   useEffect(() => void window.aureum.overlay.setCameraCount(count), [count])
   const screen = popup.screen
   const layout = cameraLayout(prefs, count, editing, { width: screen.availWidth, height: screen.availHeight })
+  const set = (patch: Partial<OverlayCameraPrefs>): void => void setOverlayPrefs({ widgets: { cameras: patch } })
+  // The handle changes the cameras' width; the box follows them.
+  const resizeContent = (): ((grow: { x: number; y: number }) => void) => {
+    const start = layout.tileWidth
+    let sent = prefs.tileWidth
+    return (grow: { x: number; y: number }): void => {
+      const tileWidth = tileWidthAfterDrag(start, grow, layout.columns, layout.rows)
+      if (tileWidth === sent) return
+      sent = tileWidth
+      set({ tileWidth })
+    }
+  }
   return (
-    <WidgetBox widget="cameras" popup={popup} editing={editing} resizable={false}>
+    <WidgetBox
+      widget="cameras"
+      popup={popup}
+      editing={editing}
+      bar={<CameraEditBar prefs={prefs} set={set} />}
+      resizeContent={resizeContent}
+    >
       <CameraTiles columns={layout.columns} tileWidth={layout.tileWidth} gap={prefs.gap}>
         {shown.map((p, i) => (
           <CameraCard key={p.id} person={p} width={layout.tileWidth} rounded={prefs.rounded} more={i === shown.length - 1 ? hidden : 0}>
