@@ -184,6 +184,16 @@ export interface AureumBridge {
     setTitleBarColors(color: string, symbolColor: string): Promise<void>
     /** PNG of the app window as it looks right now. */
     capture(): Promise<Uint8Array>
+    /** Brings the app window to the front (also out of the tray or minimized). */
+    show(): Promise<void>
+  }
+  /** The detached call window (block 3.20 B), opened by the app with window.open. */
+  callWindow: {
+    /** Whether it stays above other windows ("fixar por cima", saved). */
+    getPinned(): Promise<boolean>
+    setPinned(pinned: boolean): Promise<void>
+    /** Moves it to this screen position (dragging it by any part that isn't a button). */
+    move(x: number, y: number): Promise<void>
   }
   app: {
     info(): Promise<AppInfo>

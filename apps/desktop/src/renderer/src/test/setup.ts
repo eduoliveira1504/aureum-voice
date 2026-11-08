@@ -13,7 +13,8 @@ const bridge = {
     set: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true })
   },
   attachments: { get: async () => null, put: async () => {}, clear: async () => {} },
-  window: { setTitleBarColors: async () => {}, capture: async () => new Uint8Array() },
+  window: { setTitleBarColors: async () => {}, capture: async () => new Uint8Array(), show: vi.fn(async () => {}) },
+  callWindow: { getPinned: async () => true, setPinned: vi.fn(async () => {}), move: vi.fn(async () => {}) },
   app: { info: async () => ({ version: '0.0.0-test', os: 'Test OS' }), recentLogs: async () => '', onReportProblem: unsubscribe, ready: async () => {} },
   ptt: { watch: async () => true, onHeld: unsubscribe },
   updates: { getState: async () => ({ ready: false, version: null }), install: async () => {}, onReady: unsubscribe },

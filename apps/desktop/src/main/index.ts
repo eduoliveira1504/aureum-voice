@@ -16,10 +16,12 @@ import {
 } from 'electron'
 
 import appIcon from '../../build/icon.ico?asset'
+import { isCallFrame } from '../shared/callWindow'
 import { isOverlayWidget } from '../shared/overlayWidgets'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefsPatch, OverlayWidget, ShareSource, TrayCommand } from '../shared/types'
 import { currentApiUrl } from './apiUrl'
 import * as attachmentCache from './attachmentCache'
+import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as overlay from './overlay'
@@ -273,6 +275,13 @@ handle('window:title-bar', (color: unknown, symbolColor: unknown) => {
 })
 
 handle('window:capture', async () => (await mainWindow!.webContents.capturePage()).toPNG())
+// "Voltar ao app" in the detached call window, and what it opens in the app (the screen picker).
+handle('window:show', showWindow)
+
+// The detached call window (see callWindow.ts).
+handle('call-window:get-pinned', callWindow.getPinned)
+handle('call-window:set-pinned', (pinned: unknown) => callWindow.setPinned(pinned === true))
+handle('call-window:move', callWindow.moveTo)
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -323,12 +332,14 @@ function createWindow(): void {
   mainWindow.webContents.on('did-create-window', (created, { frameName }) => {
     const widget = overlay.widgetOfFrame(frameName)
     if (widget) overlay.attachWindow(widget, created)
+    else if (isCallFrame(frameName)) void callWindow.attachWindow(created)
   })
   mainWindow.on('closed', () => {
     mainWindow = null
     watchPushToTalk(null, () => {})
-    // Not a child window (it would minimize along with the app), so close it by hand.
+    // Not child windows (they would minimize along with the app), so close them by hand.
     overlay.closeWindows()
+    callWindow.closeWindow()
   })
 
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
@@ -438,6 +449,10 @@ app.on('web-contents-created', (_, contents) => {
     // The app's window opens each overlay widget as a blank page and renders into it itself.
     if (contents === mainWindow?.webContents && overlay.widgetOfFrame(frameName) && url === 'about:blank') {
       return { action: 'allow', overrideBrowserWindowOptions: overlay.OVERLAY_WINDOW_OPTIONS }
+    }
+    // The detached call window, rendered the same way (see callWindow.ts).
+    if (contents === mainWindow?.webContents && isCallFrame(frameName) && url === 'about:blank') {
+      return { action: 'allow', overrideBrowserWindowOptions: callWindow.CALL_WINDOW_OPTIONS }
     }
     if (url.startsWith('https://')) shell.openExternal(url)
     return { action: 'deny' }

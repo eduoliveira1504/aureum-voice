@@ -19,7 +19,13 @@ const bridge: AureumBridge = {
   },
   window: {
     setTitleBarColors: (color, symbolColor) => ipcRenderer.invoke('window:title-bar', color, symbolColor),
-    capture: () => ipcRenderer.invoke('window:capture')
+    capture: () => ipcRenderer.invoke('window:capture'),
+    show: () => ipcRenderer.invoke('window:show')
+  },
+  callWindow: {
+    getPinned: () => ipcRenderer.invoke('call-window:get-pinned'),
+    setPinned: (pinned) => ipcRenderer.invoke('call-window:set-pinned', pinned),
+    move: (x, y) => ipcRenderer.invoke('call-window:move', { x, y })
   },
   app: {
     info: () => ipcRenderer.invoke('app:info'),
