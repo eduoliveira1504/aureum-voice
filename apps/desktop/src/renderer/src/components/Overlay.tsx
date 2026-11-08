@@ -1,9 +1,10 @@
 import { LucideProvider, MoveDiagonal2 } from 'lucide-react'
-import { RemoteVideoTrack, type ElementInfo, type Track } from 'livekit-client'
+import type { Track } from 'livekit-client'
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { Me } from '../lib/api'
+import { preparePopup } from '../lib/popupDocument'
 import { cameraLayout, DEFAULT_WIDGETS, splitPeople, visibleCameras } from '../../../shared/overlayWidgets'
 import type { OverlayBounds, OverlayCameraPrefs, OverlayWidget, OverlayWidgets } from '../../../shared/types'
 import { callChanges, notifyOverlay, setOverlayPrefs, useOverlay, type OverlayNotification } from '../store/overlay'
@@ -12,6 +13,7 @@ import { cameraTrackOf, roomIdentities, useVoice } from '../store/voice'
 import { useCallContext } from './CallCard'
 import { CameraEditBar, tileWidthAfterDrag } from './OverlayCameras'
 import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
+import { PopupVideo } from './PopupVideo'
 
 /** Prefix of a widget window's name; the main process lets only `aureum-overlay-<widget>-<n>` through (widgetOfFrame). */
 const FRAME_NAME = 'aureum-overlay'
@@ -29,7 +31,7 @@ function useWidgetWindow(widget: OverlayWidget, wanted: boolean): Window | null 
     // A unique name, so a window still closing is never reused.
     const child = window.open('about:blank', `${FRAME_NAME}-${widget}-${Date.now()}`)
     if (!child) return
-    const stopSync = prepareDocument(child.document)
+    const stopSync = preparePopup(child.document, { title: 'Aureum Voice — overlay', transparent: true })
     setPopup(child)
     // Closed from outside (Alt+F4 in edit mode): forget it; it reopens if still wanted.
     const onGone = (): void => {
@@ -146,38 +148,6 @@ function useCallNotifications(me: Me): void {
     notifyOverlay({ kind: 'call', name: caller?.display_name ?? 'Alguém', avatarUrl: caller?.avatar_url })
     // Once per call, however many times it's updated while ringing.
   }, [ringingCall?.id])
-}
-
-/** Gives the blank popup the app's styles and theme, and keeps them in sync. */
-function prepareDocument(doc: Document): () => void {
-  doc.title = 'Aureum Voice — overlay'
-  const base = doc.createElement('style')
-  base.textContent = 'html, body { background: transparent !important; overflow: hidden; height: 100%; margin: 0; }'
-
-  const syncStyles = (): void => {
-    const copies = [...document.head.querySelectorAll<HTMLElement>('style, link[rel="stylesheet"]')].map((node) => {
-      const copy = node.cloneNode(true) as HTMLElement
-      // Relative URLs would resolve against about:blank.
-      if (copy instanceof HTMLLinkElement) copy.href = (node as HTMLLinkElement).href
-      return copy
-    })
-    doc.head.replaceChildren(...copies, base)
-  }
-  const syncTheme = (): void => {
-    for (const { name } of [...doc.documentElement.attributes]) doc.documentElement.removeAttribute(name)
-    for (const { name, value } of document.documentElement.attributes) doc.documentElement.setAttribute(name, value)
-  }
-  syncStyles()
-  syncTheme()
-  // Theme/accent changes, and stylesheets swapped by hot reload in development.
-  const themeObserver = new MutationObserver(syncTheme)
-  themeObserver.observe(document.documentElement, { attributes: true })
-  const styleObserver = new MutationObserver(syncStyles)
-  styleObserver.observe(document.head, { childList: true, subtree: true, characterData: true })
-  return () => {
-    themeObserver.disconnect()
-    styleObserver.disconnect()
-  }
 }
 
 interface CallPerson extends Person {
@@ -483,7 +453,7 @@ function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editin
       <CameraTiles columns={layout.columns} tileWidth={layout.tileWidth} gap={prefs.gap}>
         {shown.map((p, i) => (
           <CameraCard key={p.id} person={p} width={layout.tileWidth} rounded={prefs.rounded} more={i === shown.length - 1 ? hidden : 0}>
-            {p.camera && <OverlayVideo track={p.camera} mirror={p.id === meId} />}
+            {p.camera && <PopupVideo track={p.camera} mirror={p.id === meId} />}
           </CameraCard>
         ))}
       </CameraTiles>
@@ -549,57 +519,5 @@ function AskIfGame({ app }: { app: string }): ReactNode {
         </button>
       </div>
     </div>
-  )
-}
-
-/**
- * A camera in the overlay. Remote tracks are registered with LiveKit's adaptive stream as a
- * picture-in-picture element: while the overlay is showing, the video keeps flowing (at the
- * small size it's drawn at) even though the app's own window is behind the game and would
- * otherwise pause it.
- */
-function OverlayVideo({ track, mirror }: { track: Track; mirror: boolean }): ReactNode {
-  const ref = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.srcObject = new MediaStream([track.mediaStreamTrack])
-    void el.play().catch(() => {})
-    if (!(track instanceof RemoteVideoTrack) || !track.isAdaptiveStream) return
-    const doc = el.ownerDocument
-    const shown = (): boolean => doc.visibilityState === 'visible'
-    const info: ElementInfo = {
-      element: el,
-      width: () => el.clientWidth,
-      height: () => el.clientHeight,
-      get visible() {
-        return shown()
-      },
-      get pictureInPicture() {
-        return shown()
-      },
-      visibilityChangedAt: Date.now(),
-      observe: () => doc.addEventListener('visibilitychange', onVisibility),
-      stopObserving: () => doc.removeEventListener('visibilitychange', onVisibility)
-    }
-    function onVisibility(): void {
-      info.visibilityChangedAt = Date.now()
-      info.handleVisibilityChanged?.()
-    }
-    track.observeElementInfo(info)
-    return () => {
-      track.stopObservingElementInfo(info)
-      el.srcObject = null
-    }
-  }, [track, track.mediaStreamTrack])
-  return (
-    <video
-      ref={ref}
-      autoPlay
-      playsInline
-      muted
-      className="h-full w-full object-contain"
-      style={mirror ? { transform: 'scaleX(-1)' } : undefined}
-    />
   )
 }
