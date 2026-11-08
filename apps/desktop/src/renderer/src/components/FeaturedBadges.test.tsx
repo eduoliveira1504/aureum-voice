@@ -56,8 +56,9 @@ const ME: Me = {
 const featured = (): string[] => within(screen.getByLabelText('Insígnias em destaque')).getAllByRole('button', { name: /^Tirar/ }).map((b) => b.getAttribute('aria-label')!)
 
 let call: ReturnType<typeof vi.spyOn>
-// The inventory reloads the catalog (GET /badges) when it opens; these are the saves.
-const saves = (): unknown[][] => call.mock.calls.filter((c: unknown[]) => c[0] !== '/badges')
+// The inventory reloads the catalog (GET /badges) and the image rows ask whether GIFs are on
+// (GET /gifs/config) when they open; the rest are the saves.
+const saves = (): unknown[][] => call.mock.calls.filter((c: unknown[]) => c[0] !== '/badges' && c[0] !== '/gifs/config')
 
 beforeEach(() => {
   vi.restoreAllMocks()

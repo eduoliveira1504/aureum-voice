@@ -66,6 +66,9 @@ interface GifsState {
   reset(): void
 }
 
+// One request even when several places ask at once (the avatar and banner rows of the editor).
+let configLoading: Promise<GifConfig> | null = null
+
 export const useGifs = create<GifsState>()((set, get) => ({
   config: null,
   favorites: [],
@@ -74,7 +77,8 @@ export const useGifs = create<GifsState>()((set, get) => ({
   loadConfig: async () => {
     const known = get().config
     if (known) return known
-    const config = await api<GifConfig>('/gifs/config')
+    configLoading ??= api<GifConfig>('/gifs/config').finally(() => (configLoading = null))
+    const config = await configLoading
     set({ config })
     return config
   },

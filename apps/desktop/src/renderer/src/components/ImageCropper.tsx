@@ -1,7 +1,7 @@
-import { RotateCw, ZoomIn, ZoomOut } from 'lucide-react'
+import { Clapperboard, ImageUp, RotateCw, ZoomIn, ZoomOut } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 
-import { api, ApiError, fetchMedia, type ImageCrop } from '../lib/api'
+import { api, ApiError, fetchMedia, type Gif, type ImageCrop, type ProfileGif } from '../lib/api'
 import {
   clampView,
   cropOf,
@@ -16,6 +16,9 @@ import {
   type CropView,
   type Size
 } from '../lib/crop'
+import { useGifs } from '../store/gifs'
+import { Item, openMenuAt } from './ContextMenu'
+import { GifPanel } from './Gifs'
 import { FormError, Modal, SecondaryButton } from './Modal'
 import { labelClass, PrimaryButton } from './ui'
 
@@ -68,25 +71,39 @@ const SHAPES: Record<CropShape, { frame: Size; rounded: string; previews: Previe
 }
 
 /** The image as the view shows it, inside a box of `frame` size (overflowing it). */
-function Placed({ src, view, image, frame }: { src: string; view: CropView; image: Size; frame: Size }): ReactNode {
+function Placed({ src, video, view, image, frame }: { src: string; video?: boolean; view: CropView; image: Size; frame: Size }): ReactNode {
   const { left, top, box, img } = layoutOf(view, image, frame)
+  const style = { ...img, transform: `translate(-50%, -50%) rotate(${view.rotate}deg)` }
+  const className = 'absolute left-1/2 top-1/2 max-w-none select-none'
   return (
     <span className="pointer-events-none absolute" style={{ left, top, ...box }}>
-      <img
-        src={src}
-        alt=""
-        draggable={false}
-        className="absolute left-1/2 top-1/2 max-w-none select-none"
-        style={{ ...img, transform: `translate(-50%, -50%) rotate(${view.rotate}deg)` }}
-      />
+      {video ? (
+        <video src={src} muted loop autoPlay playsInline className={className} style={style} />
+      ) : (
+        <img src={src} alt="" draggable={false} className={className} style={style} />
+      )}
     </span>
   )
 }
 
-function PreviewOf({ preview, src, view, image, name }: { preview: Preview; src: string; view: CropView; image: Size; name: string }): ReactNode {
+function PreviewOf({
+  preview,
+  src,
+  video,
+  view,
+  image,
+  name
+}: {
+  preview: Preview
+  src: string
+  video?: boolean
+  view: CropView
+  image: Size
+  name: string
+}): ReactNode {
   const box = (
     <span className={`relative block shrink-0 overflow-hidden bg-elevated ${preview.rounded}`} style={preview.size}>
-      <Placed src={src} view={view} image={image} frame={preview.size} />
+      <Placed src={src} video={video} view={view} image={image} frame={preview.size} />
     </span>
   )
   return (
@@ -107,9 +124,12 @@ function PreviewOf({ preview, src, view, image, name }: { preview: Preview; src:
 /**
  * The crop editor: drag to place, zoom 1x–4x (slider or mouse wheel), turn 90°, with live
  * previews. GIFs and WebPs keep playing here and stay animated after the crop (done by the API).
+ * A Klipy GIF comes with its size (an MP4 plays as a video); its crop is applied when it's shown.
  */
 export function ImageCropModal({
   src,
+  video = false,
+  size,
   shape,
   initial,
   name,
@@ -117,6 +137,10 @@ export function ImageCropModal({
   onSave
 }: {
   src: string
+  /** An MP4 (Klipy GIF): played in a <video>. */
+  video?: boolean
+  /** Known beforehand (a Klipy GIF): no need to probe the image. */
+  size?: Size
   shape: CropShape
   /** The saved crop, when adjusting an image cropped before. */
   initial?: ImageCrop | null
@@ -134,12 +158,13 @@ export function ImageCropModal({
   const drag = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
-    const probe = new Image()
-    probe.onload = () => {
-      const size = { width: probe.naturalWidth, height: probe.naturalHeight }
-      setImage(size)
-      setView(initial ? viewOf(initial, size, frame) : clampView(initialView(size), size, frame))
+    const start = (known: Size): void => {
+      setImage(known)
+      setView(initial ? viewOf(initial, known, frame) : clampView(initialView(known), known, frame))
     }
+    if (size) return start(size)
+    const probe = new Image()
+    probe.onload = () => start({ width: probe.naturalWidth, height: probe.naturalHeight })
     probe.onerror = () => setError('Não foi possível abrir a imagem.')
     probe.src = src
     // The frame is fixed per shape, and `initial` only matters on open.
@@ -210,7 +235,7 @@ export function ImageCropModal({
             style={{ width: frame.width + PAD * 2, height: frame.height + PAD * 2 }}
           >
             <div className="absolute" style={{ left: PAD, top: PAD, ...frame }}>
-              {image && view && <Placed src={src} view={view} image={image} frame={frame} />}
+              {image && view && <Placed src={src} video={video} view={view} image={image} frame={frame} />}
               <span
                 aria-hidden
                 className={`pointer-events-none absolute inset-0 border-2 border-on-scrim/80 ${rounded}`}
@@ -247,7 +272,7 @@ export function ImageCropModal({
         {image && view && (
           <div className="min-w-0 space-y-4">
             {previews.map((p) => (
-              <PreviewOf key={p.label} preview={p} src={src} view={view} image={image} name={name} />
+              <PreviewOf key={p.label} preview={p} src={src} video={video} view={view} image={image} name={name} />
             ))}
           </div>
         )}
@@ -277,14 +302,31 @@ export function uploadError(err: unknown): string {
 
 interface Editing {
   src: string
-  /** A new file, uploaded with the crop; without it, the kept original is cropped again. */
+  /** A new file, uploaded with the crop; without it (and no `gif`), the kept original is cropped again. */
   file: File | null
+  /** A GIF just picked from Klipy: saved as a reference with the crop (PUT …/gif). */
+  gif?: Gif
+  /** Klipy media: the size is known, and an MP4 plays as a video. */
+  size?: Size
+  video?: boolean
   initial: ImageCrop | null
+}
+
+/** "Escolher um GIF": the chat's GIF picker (Klipy search, Em alta, Favoritos) in a modal. */
+function GifPickerModal({ onPick, onClose }: { onPick(gif: Gif): void; onClose(): void }): ReactNode {
+  return (
+    <Modal title="Escolher um GIF" subtitle="Depois você ajusta a posição e o zoom." onClose={onClose}>
+      <div className="flex h-[420px] flex-col overflow-hidden rounded-control border border-line bg-panel">
+        <GifPanel onPick={onPick} />
+      </div>
+    </Modal>
+  )
 }
 
 /**
  * Change (pick, then crop), Ajustar posição (crop the kept original again) and Remove, for one
  * image at `path` (/users/me/avatar, /servers/{id}/icon...). `onDone` gets the API's answer.
+ * With `gifs` (the profile's avatar and banner), changing asks first: a file or a Klipy GIF.
  */
 export function CroppedImageRow<T>({
   label,
@@ -292,6 +334,8 @@ export function CroppedImageRow<T>({
   path,
   hasImage,
   crop,
+  gifs = false,
+  currentGif,
   name,
   onDone
 }: {
@@ -301,16 +345,33 @@ export function CroppedImageRow<T>({
   hasImage: boolean
   /** The saved crop: the image can be adjusted without uploading it again. */
   crop: ImageCrop | null | undefined
+  /** Offer "Escolher um GIF" (Klipy) next to "Enviar imagem", when GIFs are on. */
+  gifs?: boolean
+  /** The Klipy GIF in use: "Ajustar posição" loads it from Klipy (there's no original of ours). */
+  currentGif?: ProfileGif | null
   name: string
   onDone(result: T): void
 }): ReactNode {
   const input = useRef<HTMLInputElement>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
+  const [choosingGif, setChoosingGif] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const gifsOn = useGifs((s) => gifs && !!s.config?.enabled)
   const lower = label.toLowerCase()
 
-  useEffect(() => () => void (editing && URL.revokeObjectURL(editing.src)), [editing])
+  useEffect(() => {
+    if (gifs) void useGifs.getState().loadConfig().catch(() => {})
+  }, [gifs])
+
+  // Only picked files are blob URLs; Klipy's URLs stay as they are.
+  useEffect(() => () => void (editing?.file && URL.revokeObjectURL(editing.src)), [editing])
+
+  function pickGif(gif: Gif): void {
+    setChoosingGif(false)
+    setError(null)
+    setEditing({ src: gif.url, file: null, gif, size: { width: gif.width, height: gif.height }, video: gif.format === 'mp4', initial: null })
+  }
 
   function pick(e: ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0]
@@ -322,6 +383,10 @@ export function CroppedImageRow<T>({
   }
 
   async function adjust(): Promise<void> {
+    if (currentGif) {
+      const size = { width: currentGif.width, height: currentGif.height }
+      return setEditing({ src: currentGif.url, file: null, size, video: currentGif.format === 'mp4', initial: currentGif.crop })
+    }
     setBusy('adjust')
     setError(null)
     try {
@@ -347,7 +412,9 @@ export function CroppedImageRow<T>({
   }
 
   async function save(next: ImageCrop): Promise<void> {
-    if (editing?.file) {
+    if (editing?.gif) {
+      onDone(await api<T>(`${path}/gif`, { method: 'PUT', body: { gif: editing.gif, crop: next } }))
+    } else if (editing?.file) {
       const body = new FormData()
       body.append('file', editing.file)
       body.append('crop', JSON.stringify(next))
@@ -364,12 +431,21 @@ export function CroppedImageRow<T>({
         <button
           type="button"
           disabled={busy !== null}
-          onClick={() => input.current?.click()}
+          aria-haspopup={gifsOn ? 'menu' : undefined}
+          onClick={(e) => {
+            if (!gifsOn) return input.current?.click()
+            openMenuAt(e.currentTarget, () => (
+              <>
+                <Item icon={ImageUp} label="Enviar imagem" onClick={() => input.current?.click()} />
+                <Item icon={Clapperboard} label="Escolher um GIF" onClick={() => setChoosingGif(true)} />
+              </>
+            ))
+          }}
           className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
         >
           {`Alterar ${lower}`}
         </button>
-        {hasImage && crop && (
+        {hasImage && (crop || currentGif) && (
           <button type="button" disabled={busy !== null} onClick={adjust} className="text-sm text-fg-muted hover:text-fg">
             {busy === 'adjust' ? 'Abrindo…' : 'Ajustar posição'}
           </button>
@@ -382,8 +458,18 @@ export function CroppedImageRow<T>({
         <input ref={input} type="file" accept={ACCEPT} hidden aria-label={`Arquivo de ${lower}`} onChange={pick} />
       </div>
       {error && <p role="alert" className="mt-1.5 text-sm text-danger">{error}</p>}
+      {choosingGif && <GifPickerModal onPick={pickGif} onClose={() => setChoosingGif(false)} />}
       {editing && (
-        <ImageCropModal src={editing.src} shape={shape} initial={editing.initial} name={name} onClose={() => setEditing(null)} onSave={save} />
+        <ImageCropModal
+          src={editing.src}
+          video={editing.video}
+          size={editing.size}
+          shape={shape}
+          initial={editing.initial}
+          name={name}
+          onClose={() => setEditing(null)}
+          onSave={save}
+        />
       )}
     </div>
   )

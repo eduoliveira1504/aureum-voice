@@ -158,10 +158,10 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
       <div className="min-w-0 space-y-5">
         <FormError message={error} />
         <CroppedImageRow<Me> label="Avatar" shape="avatar" path="/users/me/avatar" hasImage={!!user.avatar_url} crop={user.avatar_crop}
-          name={preview.display_name} onDone={setUser} />
+          gifs currentGif={user.avatar_gif} name={preview.display_name} onDone={setUser} />
         <CroppedImageRow<Me> label="Banner" shape="banner" path="/users/me/banner" hasImage={!!user.banner_url} crop={user.banner_crop}
-          name={preview.display_name} onDone={setUser} />
-        <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB. GIFs e WebPs animados continuam animados.</p>
+          gifs currentGif={user.banner_gif} name={preview.display_name} onDone={setUser} />
+        <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB, ou um GIF da busca. GIFs e WebPs animados continuam animados.</p>
 
         <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-3">
           <Field label="Nome de exibição" maxLength={64} value={form.display_name} onChange={(e) => patch({ display_name: e.target.value })} />
