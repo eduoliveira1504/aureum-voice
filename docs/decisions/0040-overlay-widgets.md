@@ -31,7 +31,8 @@ injection, kept out of captures.
   on it. The box is stored in absolute coordinates, so a widget can be left on a second monitor while
   the game runs on the first. Boxes are clamped back onto a monitor if the layout changes, and each
   widget remembers up to 8 monitors.
-- Switching the cameras' layout rotates the saved boxes, so the tiles keep fitting.
+- Switching the cameras' layout rotates the saved boxes, so the tiles keep fitting. (Replaced in
+  [0042](0042-overlay-cameras.md): the cameras' box now sizes itself from its cameras.)
 
 **Preferences**
 - Same `overlay.json`, still local. A file from before this block is migrated on load: the single box

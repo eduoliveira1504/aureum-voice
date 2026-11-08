@@ -29,8 +29,9 @@ Fase 3 com tudo funcionando.
 Em 07/11 entrou também o 3.24 (correções: overlay na transmissão, copiar imagem, volume das
 transmissões salvo, chat sem rolagem lateral).
 Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual pendente; escolhas
-em 0041-loading-screen.md).
-Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 (A e B), 3.20 parte B, 3.21
+em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
+0042-overlay-cameras.md).
+Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 parte B, 3.20 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -1057,7 +1058,35 @@ NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e qu
   num Mac: instalar, login, voz, câmera, tela, notificações, aviso de versão nova.
 
 ## 3.22 Câmeras do overlay e GIF no perfil
-### Parte A: câmeras do overlay personalizáveis
+### Parte A: câmeras do overlay personalizáveis ✅ concluída (teste manual pendente)
+Escolhas em [ADR 0042](0042-overlay-cameras.md). Sem mudança na API e sem migração.
+Por que só a quantidade na vertical parecia funcionar (código da beta.9): a caixa tinha tamanho fixo
+e cortava o que sobrava; a coluna nunca quebrava, então esticar a caixa só mostrava ou cortava
+câmeras; cada câmera ficava limitada à largura da caixa (Grande ≈ Médio na caixa padrão); e o modo
+edição mostrava uma câmera de exemplo só, então horizontal e vertical ficavam iguais.
+Feito: Vertical, Horizontal e Grade (com câmeras por linha); largura contínua de 96 a 360 px com
+Pequeno/Médio/Grande como atalhos (as larguras de antes); máximo de 1 a 8 com "+N" na última câmera e
+quem fala sempre visível; espaço entre as câmeras e cantos arredondados. A caixa é calculada a partir
+das câmeras e fica presa no canto da tela mais próximo de onde foi deixada. Se não couber no monitor,
+as câmeras encolhem. No modo edição: câmeras de exemplo até o máximo, barra com formato e quantidade,
+e a alça muda o tamanho das câmeras.
+
+#### Teste manual da parte A (duas contas, câmera ligada nas duas; jogo em janela sem borda)
+1. Quem já usava: depois de atualizar, o widget de câmeras continua no mesmo lugar, com o mesmo
+   formato e tamanho (Pequeno/Médio/Grande); opacidade e ligado/desligado iguais.
+2. Configurações › Overlay › Câmeras: cada formato com 1, 3 e 8 câmeras na prévia (máximo 1, 3, 8);
+   largura no mínimo e no máximo; espaço 0 e 16; cantos retos. A prévia acompanha na hora.
+3. Na call, sobre o jogo: a caixa cresce e encolhe quando alguém liga ou desliga a câmera, a partir do
+   canto onde está (testar presa em cima à esquerda e embaixo à direita). Nada cortado.
+4. Máximo 1 com duas câmeras: aparece uma com "+1"; a outra pessoa fala e passa a aparecer (as duas,
+   se as duas falarem); para de falar e, ~1,5 s depois, volta a ficar só uma.
+5. Ctrl+Shift+F10: com ninguém de câmera aparecem câmeras de exemplo até o máximo; a barra troca o
+   formato e a quantidade (e por linha, na grade); puxar a alça muda o tamanho das câmeras e a caixa
+   acompanha; arrastar move. Esc termina. Reabrir o app: tudo continua.
+6. Câmeras grandes na horizontal com 8: as câmeras encolhem pra caber no monitor.
+7. Dois monitores: cada um guarda a sua posição; o canto de cada um vale lá.
+8. O destaque de quem fala nas câmeras continua igual.
+
 - Hoje (relato do Eduardo, 06/11): na prática só dá pra mudar quantas câmeras aparecem na vertical.
   Primeiro conferir no app instalado (beta.9) se as opções "horizontal/vertical" e "tamanho" do 3.14
   estão chegando no widget; se não, me explicar o porquê antes de mexer.

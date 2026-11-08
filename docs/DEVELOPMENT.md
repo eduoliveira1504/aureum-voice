@@ -94,8 +94,11 @@ for real-time media. The whole stack is open source and designed to run at zero 
   it and Ctrl+Shift+F10 enters edit mode to drag and resize each widget; both can be changed. They also
   work in games that block Windows hotkeys (such as League of Legends). During a call with the overlay
   on, the app reads only those shortcuts' keys, never any other key, and records nothing. Each widget's
-  on/off, size and opacity are in Settings > Overlay, and positions are saved per monitor
-  ([ADR 0012](decisions/0012-in-game-overlay.md), [ADR 0040](decisions/0040-overlay-widgets.md))
+  on/off, size and opacity are in Settings > Overlay, and positions are saved per monitor. The cameras
+  come in a column, a row or a grid, with their own width, a maximum count ("+N", speakers always
+  shown) and spacing, and their box sizes itself from its cameras
+  ([ADR 0012](decisions/0012-in-game-overlay.md), [ADR 0040](decisions/0040-overlay-widgets.md),
+  [ADR 0042](decisions/0042-overlay-cameras.md))
 - Screen and window sharing with a custom picker and **system audio loopback** on Windows; the call's
   own audio is excluded from the capture ([ADR 0002](decisions/0002-screen-share-system-audio.md))
 - Streaming quality decided by the server: the voice token carries the user's media tier (free: camera
