@@ -230,3 +230,11 @@ export interface AureumBridge {
     onState(listener: (state: OverlayState) => void): () => void
   }
 }
+
+/** API exposed to the loading screen (splash.html) as `window.aureumSplash`: it only listens. */
+export interface SplashBridge {
+  /** The short line under the coin ("Procurando atualizações…"). */
+  onStatus(listener: (text: string) => void): () => void
+  /** Fade out: the main window is about to appear. */
+  onLeave(listener: () => void): () => void
+}

@@ -1,0 +1,162 @@
+@import '@fontsource-variable/figtree';
+
+/* The dark theme's tokens (main.css) and the brand gold: the loading screen paints before the
+   user's settings are read, so it always uses the dark look. */
+:root {
+  color-scheme: dark;
+  --bg-panel: #12110d;
+  --border: #2a261d;
+  --text-muted: #a8a090;
+  --gold: #e8b531;
+  --gold-light: #f7d77a;
+  --gold-deep: #a97d12;
+  --gold-glow: rgb(232 181 49 / 0.22);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  /* The window is transparent: only the rounded card shows. */
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  font-family: 'Figtree Variable', system-ui, sans-serif;
+  transition: opacity 220ms ease;
+  /* The card moves the window, like a title bar. */
+  -webkit-app-region: drag;
+}
+body.leaving {
+  opacity: 0;
+}
+
+.card {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.stage {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  perspective: 700px;
+}
+
+.glow {
+  position: absolute;
+  inset: -36px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--gold-glow), transparent);
+}
+
+.coin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: spin 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* Each layer is the logo cut out of a gold fill (the SVG works as a mask). */
+.face,
+.edge {
+  position: absolute;
+  inset: 0;
+  /* The official logo (docs/design/brand). */
+  -webkit-mask: url('../../../../../../docs/design/brand/logo.svg') center / contain no-repeat;
+  mask: url('../../../../../../docs/design/brand/logo.svg') center / contain no-repeat;
+}
+
+/* The faces: gold with a light band that crosses as the coin turns. */
+.face {
+  backface-visibility: hidden;
+  background: linear-gradient(115deg, var(--gold-deep) 0%, var(--gold) 35%, var(--gold-light) 48%, var(--gold) 60%, var(--gold-deep) 100%);
+  background-size: 260% 100%;
+  animation: shine 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.front {
+  transform: translateZ(3px);
+}
+.back {
+  transform: rotateY(180deg) translateZ(3px);
+}
+
+/* A few darker layers in between give the coin its thickness when it's edge-on. */
+.edge {
+  background: var(--gold-deep);
+}
+.e1 {
+  transform: translateZ(1.5px);
+}
+.e2 {
+  transform: translateZ(0);
+}
+.e3 {
+  transform: translateZ(-1.5px);
+}
+
+.status {
+  margin: 0;
+  padding: 0 24px;
+  min-height: 1.4em;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes shine {
+  0%,
+  100% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+/* Less motion: no turning, the logo just breathes. */
+@media (prefers-reduced-motion: reduce) {
+  .coin {
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  .face {
+    animation: none;
+    background-position: 50% 0;
+  }
+  .back,
+  .edge {
+    display: none;
+  }
+}

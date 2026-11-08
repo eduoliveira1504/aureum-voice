@@ -89,8 +89,13 @@ export function twemojiNames(): Plugin {
 
 export default defineConfig({
   main: {},
-  preload: {},
+  // Two preloads: the app's (index) and the loading screen's (splash, block 3.23).
+  preload: {
+    build: { rollupOptions: { input: { index: resolve(__dirname, 'src/preload/index.ts'), splash: resolve(__dirname, 'src/preload/splash.ts') } } }
+  },
   renderer: {
+    // Two pages: the app and the light loading screen shown while it opens.
+    build: { rollupOptions: { input: { index: resolve(__dirname, 'src/renderer/index.html'), splash: resolve(__dirname, 'src/renderer/splash.html') } } },
     plugins: [base64Import(), excalidrawFonts(), twemoji(), twemojiNames(), react(), tailwindcss()],
     // The repo's CHANGELOG.md is built into the app (Novidades in Home); the dev server may read it.
     server: { fs: { allow: [resolve(__dirname, '../..')] } }
