@@ -32,8 +32,8 @@ Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual
 em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
-3.24 parte A pronta (teste manual pendente).
-Próximo, nesta ordem: 3.24 (B a D), 3.19 C1, 3.22 parte B, 3.21
+3.24 partes A e B prontas (teste manual pendente).
+Próximo, nesta ordem: 3.24 (C e D), 3.19 C1, 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -1022,7 +1022,14 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   inteira e janela); parar de transmitir e o overlay volta; todas as janelas transparentes com
   proteção (teste automático).
 
-### Parte B: copiar e salvar imagem pelo botão direito
+### Parte B: copiar e salvar imagem pelo botão direito ✅ concluída (teste manual pendente)
+- Feito: menu da imagem (ImageMenu.tsx) em anexos, figurinhas e prévias de link, acima das opções
+  da mensagem; GIF do Klipy só copia o link. O visualizador virou um só (ImageViewer.tsx), aberto
+  de qualquer imagem, com o mesmo menu. Copiar decodifica pra PNG no app (GIF vira o primeiro
+  quadro) e o processo principal grava com clipboard.write + ClipboardItem image/png (o Electron 44
+  tirou o clipboard.writeImage). Salvar usa o "Salvar como" com o nome original e a extensão do
+  tipo real do arquivo. Os bytes são os que o app já carregou (cache e token), sem rota nova.
+- Teste manual: colar no próprio chat, no WhatsApp e no Paint.
 - Botão direito numa imagem do chat (anexo, prévia de link, figurinha) abre o menu: "Copiar
   imagem", "Salvar imagem como…" e "Abrir imagem" (visualizador do app). GIF do Klipy: "Copiar
   link do GIF" (sem baixar, regra do ADR 0034). As opções de mensagem continuam no mesmo menu,
