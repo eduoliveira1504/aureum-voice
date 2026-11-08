@@ -197,6 +197,7 @@ handle('overlay:set-editing', (editing: unknown) => overlay.setEditing(editing =
 handle('overlay:set-active', (active: unknown) => overlay.setActive(active === true))
 handle('overlay:set-notifying', (notifying: unknown) => overlay.setNotifying(notifying === true))
 handle('overlay:set-camera-count', (count: unknown) => overlay.setCameraCount(count))
+handle('overlay:stop-sharing', () => overlay.setSharing(null))
 const widgetOf = (widget: unknown): OverlayWidget => {
   if (!isOverlayWidget(widget)) throw new Error('Invalid widget')
   return widget
@@ -255,6 +256,8 @@ function installDisplayMediaHandler(isAppWindow: (contents: Electron.WebContents
     const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] })
     const source = sources.find((s) => s.id === pick.sourceId)
     if (!source) return callback(null)
+    // Hidden before the first frame goes out, when the share would carry it (see overlay.setSharing).
+    overlay.setSharing(source.id)
     // 'loopback' = system audio (Windows only).
     callback({ video: source, ...(pick.audio && request.audioRequested ? { audio: 'loopback' as const } : {}) })
   })

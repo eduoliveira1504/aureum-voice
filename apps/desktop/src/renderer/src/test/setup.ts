@@ -37,6 +37,7 @@ const bridge = {
     setActive: async () => {},
     setNotifying: async () => {},
     setCameraCount: async () => {},
+    stopSharing: async () => {},
     setBounds: async () => {},
     snap: async () => {},
     pauseShortcuts: async () => {},

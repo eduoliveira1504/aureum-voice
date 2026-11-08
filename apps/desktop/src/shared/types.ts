@@ -144,6 +144,8 @@ export interface OverlayState {
   ask: string | null
   /** The screen corner the cameras' box is pinned to, on the monitor the widgets are on. */
   cameraCorner: OverlayCorner
+  /** The whole screen or a game's window is being streamed, so the overlay is hidden (3.24 A). */
+  hiddenWhileSharing: boolean
 }
 
 /** A downloaded update waiting for a restart. */
@@ -253,6 +255,8 @@ export interface AureumBridge {
     setNotifying(notifying: boolean): Promise<void>
     /** How many cameras the cameras widget draws, so its box fits them. */
     setCameraCount(count: number): Promise<void>
+    /** The screen share stopped (the main process hides the overlay when one starts). */
+    stopSharing(): Promise<void>
     /** Moves/resizes a widget's box while editing (saved when editing ends). */
     setBounds(widget: OverlayWidget, bounds: OverlayBounds): Promise<void>
     /** Puts a widget's box in a corner of the monitor it's on. */

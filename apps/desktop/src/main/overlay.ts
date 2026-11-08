@@ -12,7 +12,7 @@ import { join } from 'node:path'
 
 import { app, BrowserWindow, globalShortcut, screen, type BrowserWindowConstructorOptions, type Display } from 'electron'
 
-import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame } from '../shared/overlayRule'
+import { appKey, gameApps, OVERLAY_EXCEPTIONS, overGame, shareCarriesOverlay } from '../shared/overlayRule'
 import {
   anchoredBox,
   anyWidgetOn,
@@ -30,7 +30,7 @@ import {
   widgetShows
 } from '../shared/overlayWidgets'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
-import { foregroundApp, foregroundBounds, foregroundFillsMonitor } from './foregroundApp'
+import { foregroundApp, foregroundBounds, foregroundFillsMonitor, windowApp } from './foregroundApp'
 import { watchCombos } from './keyWatch'
 
 /** The app opens each widget as window.open(url, 'aureum-overlay-<widget>-<n>'), unique so a window
@@ -96,6 +96,8 @@ let notice: string | null = null
 let noticeTimer: NodeJS.Timeout | null = null
 /** Hidden with the show/hide shortcut for the rest of this call (the setting stays on). */
 let hidden = false
+/** The screen-share source going out (see setSharing) and, for a window, its program. */
+let shared: { sourceId: string; app: string | null } | null = null
 /** Stops the key watch (see keyWatch.ts); null while it isn't running. */
 let stopWatch: (() => void) | null = null
 /** Polls the program in front (see foregroundApp.ts); null while it isn't running. */
@@ -192,7 +194,7 @@ function saveSoon(): void {
 }
 
 export function getState(): OverlayState {
-  return { prefs, editing, failedShortcuts, notice, ask, cameraCorner: cameraCorner() }
+  return { prefs, editing, failedShortcuts, notice, ask, cameraCorner: cameraCorner(), hiddenWhileSharing: sharingHides() }
 }
 
 /** The corner the cameras' box is pinned to on the active monitor (see boxOf). */
@@ -504,6 +506,7 @@ function savePosition(widget: OverlayWidget, bounds: OverlayBounds): void {
 
 /** Shows, hides and switches each window between click-through and edit mode. */
 function apply(): void {
+  const hideAll = sharingHides()
   const scene = {
     editing,
     active,
@@ -516,7 +519,7 @@ function apply(): void {
   for (const widget of OVERLAY_WIDGETS) {
     const win = windows.get(widget)
     if (!win || win.isDestroyed()) continue
-    if (!prefs.enabled || !widgetShows(widget, prefs.widgets, scene)) {
+    if (hideAll || !prefs.enabled || !widgetShows(widget, prefs.widgets, scene)) {
       if (win.isVisible()) win.hide()
       continue
     }
@@ -538,8 +541,32 @@ function apply(): void {
   tellCornerIfChanged()
 }
 
+/**
+ * The overlay hides for real while the whole screen or a game's window is streamed (3.24 A), even
+ * though its windows are kept out of captures: after a hide and show, Windows can draw such a window
+ * as a black box in the capture. A hidden window is never captured.
+ */
+function sharingHides(): boolean {
+  return shareCarriesOverlay(shared?.sourceId ?? null, shared?.app ?? null, {
+    games,
+    exceptions: NEVER_OVER,
+    hidden: prefs.hiddenApps,
+    gameRunning: detectedGame !== null
+  })
+}
+
+/** The source handed to a screen share (before it starts), or null when it stops. */
+export function setSharing(sourceId: string | null): void {
+  shared = sourceId ? { sourceId, app: sourceId.startsWith('window:') ? windowApp(sourceId) : null } : null
+  if (shared && editing) setEditing(false)
+  apply()
+  changed()
+}
+
 export function setEditing(next: boolean): void {
   if (next === editing) return
+  // Hidden while streaming: edit mode would have nothing to show (Settings says why).
+  if (next && sharingHides()) return
   if (next && !anyWidgetOn(prefs.widgets)) {
     flash('Ligue um widget em Configurações › Overlay')
     return
@@ -565,10 +592,12 @@ export function setActive(next: boolean): void {
   // A new call starts with the overlay showing again.
   if (!active) {
     hidden = false
+    shared = null
     askedInCall.clear()
   }
   syncKeyWatch()
   apply()
+  changed()
 }
 
 export function setNotifying(next: boolean): void {

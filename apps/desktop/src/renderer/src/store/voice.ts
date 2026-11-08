@@ -785,11 +785,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
             : false
         })
       } catch {
+        // The main process may have hidden the overlay for this source already.
+        void window.aureum.overlay.stopSharing()
         set({ error: 'Não foi possível compartilhar a tela.' })
         return
       }
       if (room !== r) {
         stream.getTracks().forEach((t) => t.stop())
+        void window.aureum.overlay.stopSharing()
         return
       }
 
@@ -838,6 +841,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
 
     stopScreenShare: async () => {
       stopThumbnails()
+      // The overlay comes back (it hid while the screen or a game's window went out).
+      void window.aureum.overlay.stopSharing()
       const tracks = shareTracks
       shareTracks = []
       const r = room

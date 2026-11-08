@@ -15,7 +15,7 @@ const PREFS: OverlayPrefs = {
   games: ['myindiegame'],
   notGames: []
 }
-const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null, ask: null, cameraCorner: 'top-left' })
+const state = (prefs: OverlayPrefs): OverlayState => ({ prefs, editing: false, failedShortcuts: [], notice: null, ask: null, cameraCorner: 'top-left', hiddenWhileSharing: false })
 
 const bridge = vi.hoisted(() => {
   const overlay = window.aureum.overlay as unknown as { getState: ReturnType<typeof vi.fn>; setPrefs: ReturnType<typeof vi.fn> }

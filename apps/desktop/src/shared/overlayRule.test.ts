@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { appKey, gameApps, overGame } from './overlayRule'
+import { appKey, gameApps, overGame, shareCarriesOverlay } from './overlayRule'
 
 const known = [
   { name: 'League of Legends', exe: ['League of Legends.exe'] },
@@ -55,5 +55,29 @@ describe('overGame', () => {
   it('falls back to game detection when the program in front cannot be read', () => {
     expect(overGame({ ...target, app: null })).toBe(false)
     expect(overGame({ ...target, app: null, gameRunning: true })).toBe(true)
+  })
+})
+
+describe('shareCarriesOverlay', () => {
+  const target = { games: gameApps(known, null, []), exceptions, hidden: [] as string[], gameRunning: false }
+
+  it('hides the overlay while the whole screen is shared', () => {
+    expect(shareCarriesOverlay('screen:0:0', null, target)).toBe(true)
+  })
+
+  it('hides it while a game window is shared, not any other window', () => {
+    expect(shareCarriesOverlay('window:1234:0', 'league of legends', target)).toBe(true)
+    expect(shareCarriesOverlay('window:1234:0', 'vivaldi', target)).toBe(false)
+    expect(shareCarriesOverlay('window:1234:0', 'notepad', target)).toBe(false)
+  })
+
+  it('treats an unreadable window as a game while one is running', () => {
+    expect(shareCarriesOverlay('window:1234:0', null, target)).toBe(false)
+    expect(shareCarriesOverlay('window:1234:0', null, { ...target, gameRunning: true })).toBe(true)
+  })
+
+  it('does nothing when nothing is shared', () => {
+    expect(shareCarriesOverlay(null, null, target)).toBe(false)
+    expect(shareCarriesOverlay('webcam:1', null, target)).toBe(false)
   })
 })

@@ -88,6 +88,7 @@ const bridge: AureumBridge = {
     setActive: (active) => ipcRenderer.invoke('overlay:set-active', active),
     setNotifying: (notifying) => ipcRenderer.invoke('overlay:set-notifying', notifying),
     setCameraCount: (count) => ipcRenderer.invoke('overlay:set-camera-count', count),
+    stopSharing: () => ipcRenderer.invoke('overlay:stop-sharing'),
     setBounds: (widget, bounds) => ipcRenderer.invoke('overlay:set-bounds', widget, bounds),
     snap: (widget, corner) => ipcRenderer.invoke('overlay:snap', widget, corner),
     pauseShortcuts: (paused) => ipcRenderer.invoke('overlay:pause-shortcuts', paused),

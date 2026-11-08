@@ -6,7 +6,8 @@
  * never the window title or anything inside the program — and it is only compared, in this
  * process, against the game and exception lists. To ask "Isso é um jogo?" about an unknown program
  * that fills the screen, the window's rectangle is compared with its monitor's; the same rectangle
- * tells which monitor the game is on. That's all. It never goes to the server, to the app's window
+ * tells which monitor the game is on. While a window is screen-shared, its program's file name is
+ * read the same way, to tell whether it's a game (the overlay hides then). That's all. It never goes to the server, to the app's window
  * or to a log. Asked at most once a second, only while in a call with the overlay on or while an
  * overlay notification is up (see overlay.ts).
  */
@@ -21,6 +22,7 @@ const MONITOR_DEFAULTTONEAREST = 2
 
 interface Reader {
   name(): string | null
+  nameOf(hwnd: number): string | null
   fillsMonitor(): boolean
   rect(): Rect | null
 }
@@ -46,6 +48,10 @@ function load(): Reader | null {
     const getWindowThreadProcessId = user32.func(
       'uint32_t __stdcall GetWindowThreadProcessId(void *hWnd, _Out_ uint32_t *lpdwProcessId)'
     )
+    // The same call for a window given by its number (a screen-share source id, see windowApp).
+    const getHandleThreadProcessId = user32.func(
+      'uint32_t __stdcall GetWindowThreadProcessId(intptr_t hWnd, _Out_ uint32_t *lpdwProcessId)'
+    )
     const openProcess = kernel32.func('void * __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)')
     const queryImageName = kernel32.func(
       'int __stdcall QueryFullProcessImageNameW(void *hProcess, uint32_t flags, void *exeName, _Inout_ uint32_t *size)'
@@ -58,13 +64,9 @@ function load(): Reader | null {
     const getMonitorInfo = user32.func('int __stdcall GetMonitorInfoW(void *hMonitor, _Inout_ MONITORINFO *info)')
     const buffer = Buffer.alloc(MAX_PATH_CHARS * 2)
 
-    const name = (): string | null => {
-      const hwnd = getForegroundWindow()
-      if (!hwnd) return null
-      const pid = [0]
-      getWindowThreadProcessId(hwnd, pid)
-      if (!pid[0]) return null
-      const handle = openProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0])
+    const nameOfPid = (pid: number): string | null => {
+      if (!pid) return null
+      const handle = openProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid)
       if (!handle) return null // e.g. a protected program: unknown (see overGame)
       try {
         const size = [MAX_PATH_CHARS]
@@ -73,6 +75,18 @@ function load(): Reader | null {
       } finally {
         closeHandle(handle)
       }
+    }
+    const name = (): string | null => {
+      const hwnd = getForegroundWindow()
+      if (!hwnd) return null
+      const pid = [0]
+      getWindowThreadProcessId(hwnd, pid)
+      return nameOfPid(pid[0])
+    }
+    const nameOf = (hwnd: number): string | null => {
+      const pid = [0]
+      getHandleThreadProcessId(hwnd, pid)
+      return nameOfPid(pid[0])
     }
     // Borderless and exclusive fullscreen windows cover their monitor exactly; a maximized one
     // stops at the taskbar and has invisible borders past the screen's edge.
@@ -92,7 +106,7 @@ function load(): Reader | null {
       const rect = {} as Rect
       return hwnd && getWindowRect(hwnd, rect) ? rect : null
     }
-    reader = { name, fillsMonitor, rect: windowRect }
+    reader = { name, nameOf, fillsMonitor, rect: windowRect }
   } catch (err) {
     console.warn('Foreground app check unavailable', err)
   }
@@ -103,6 +117,20 @@ function load(): Reader | null {
 export function foregroundApp(): string | null {
   try {
     return load()?.name() ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The program of a window being shared ('window:<hwnd>:0', see desktopCapturer), so the overlay can
+ * hide while a game's window is streamed (3.24 A). Same rule as above: only the file name.
+ */
+export function windowApp(sourceId: string): string | null {
+  const hwnd = Number(/^window:(\d+):/.exec(sourceId)?.[1])
+  if (!Number.isSafeInteger(hwnd) || hwnd <= 0) return null
+  try {
+    return load()?.nameOf(hwnd) ?? null
   } catch {
     return null
   }

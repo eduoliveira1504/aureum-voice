@@ -47,3 +47,18 @@ export function overGame({ app, games, exceptions, hidden, gameRunning }: Overla
   if (app === null) return gameRunning
   return games.has(app) && !exceptions.has(app) && !hidden.includes(app)
 }
+
+/**
+ * Whether a screen share would carry the overlay along (3.24 A): the whole screen, or the window of a
+ * game (`windowApp` is its program, null when Windows won't say). The overlay hides while it lasts:
+ * Windows can draw a hidden-and-shown protected window as a black box in the capture.
+ */
+export function shareCarriesOverlay(
+  sourceId: string | null,
+  windowApp: string | null,
+  target: Omit<OverlayTarget, 'app'>
+): boolean {
+  if (!sourceId) return false
+  if (sourceId.startsWith('screen:')) return true
+  return sourceId.startsWith('window:') && overGame({ ...target, app: windowApp })
+}
