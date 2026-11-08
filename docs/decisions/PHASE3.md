@@ -32,7 +32,8 @@ Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual
 em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
-Próximo, nesta ordem: 3.24 (A a D), 3.19 C1, 3.22 parte B, 3.21
+3.24 parte A pronta (teste manual pendente).
+Próximo, nesta ordem: 3.24 (B a D), 3.19 C1, 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -994,7 +995,17 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   (volta pro principal); X, Alt+F4 e "Voltar ao app" não tiram da call; sair da call fecha a janela.
 
 ## 3.24 Correções do beta (07/11): overlay na transmissão, imagens, volume e chat
-### Parte A: quadrados pretos do overlay na transmissão
+### Parte A: quadrados pretos do overlay na transmissão ✅ concluída (teste manual pendente)
+- Causa encontrada (08/11; quem transmitiu está no Windows 10 2004+/11): no Electron 44 a proteção
+  vira WDA_EXCLUDEFROMCAPTURE, mas o DWM desenha como retângulo preto na captura uma janela
+  protegida que foi escondida e mostrada de novo; o Electron tinha um contorno pra isso (PR #31340,
+  WS_EX_LAYERED) que sumiu quando passou a usar a proteção do Chromium, e o overlay esconde e mostra
+  os widgets o tempo todo. Antes do 2004 o Chromium usa WDA_MONITOR, que é preto sempre.
+- Feito: widgets escondidos (hide) desde antes do primeiro quadro enquanto a tela inteira ou a
+  janela de um jogo é transmitida (o nome do programa da janela é lido como no resto do overlay);
+  proteção ligada num ponto só (appWindows.ts) em todas as janelas flutuantes, incluindo a janela
+  destacada, que não tinha; aviso em Configurações › Overlay em Windows antigo e quando o overlay
+  está escondido pela transmissão.
 - Bug: quem assiste a tela de alguém vê quadrados pretos onde está o overlay de quem transmite.
 - Causa provável (conferir): as janelas do overlay usam setContentProtection(true). No Windows 10
   2004+ isso exclui a janela da captura (fica invisível); em Windows mais antigo ou em janela sem a
