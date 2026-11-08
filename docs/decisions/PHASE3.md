@@ -32,8 +32,8 @@ Em 08/11: 3.20 parte A pronta (teste manual pendente); 3.23 pronto (teste manual
 em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas em
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
-3.24 partes A e B prontas (teste manual pendente).
-Próximo, nesta ordem: 3.24 (C e D), 3.19 C1, 3.22 parte B, 3.21
+3.24 partes A, B e C prontas (teste manual pendente; a C tem migração).
+Próximo, nesta ordem: 3.24 D, 3.19 C1, 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -1042,7 +1042,12 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Testes: copiar e colar de volta no chat; salvar com nome e extensão certos; imagem de canal sem
   permissão não é baixada por outra rota; GIF só copia o link.
 
-### Parte C: volume das transmissões salvo por pessoa
+### Parte C: volume das transmissões salvo por pessoa ✅ concluída (teste manual pendente)
+- Feito: user_settings.screen_audio (volume 0-100 e mudo, por id de usuário, mesclado como o
+  user_audio) e screen_volume_default (50%), migração a7c3e9f1b264. O tile lê e salva na conta
+  (com o debounce do store de configurações); mudo separado do volume, então desmutar volta ao
+  salvo. O volume de voz por pessoa já era salvo (user_audio, Fase 2): nada a mudar.
+- Produção: precisa da migração na VPS antes (ou junto) da release; app antigo continua igual.
 - Hoje o volume da tela de cada pessoa (screenVolume) fica só na memória e volta pra 100% toda vez
   que alguém entra na call ou começa a assistir: a galera estoura o ouvido.
 - Passa a ser salvo POR PESSOA que transmite (pelo id do usuário, não pela identidade da sala), na
