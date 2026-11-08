@@ -17,9 +17,8 @@ e 3.15. 3.18: virada para a VPS feita em 27/10 com a 0.2.0-beta.8; faltam o item
 backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, com OK do Eduardo).
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
-3.19: partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C dividida em
-05/11: C1 (diagnóstico embutido e correções que não dependem dos relatórios) agora; C2 quando
-chegarem os relatórios.
+3.19: partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C2 (correções por
+aparelho) fica para quando chegarem os relatórios dos testers.
 3.12, 3.13 e 3.14 prontos (escolhas em 0037 a 0040); 0.2.0-beta.9 gerada.
 Em 05/11 entraram o 3.20 (arraste de imagens e janela destacada da call) e o 3.21 (macOS).
 Em 06/11: Painel de sons confirmado funcionando em produção (3.15 e 3.19 B); entrou o 3.22
@@ -33,7 +32,7 @@ em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas
 0042-overlay-cameras.md); 3.20 parte B pronta (teste manual pendente; escolhas em
 0043-detached-call-window.md), então o 3.20 está concluído.
 3.24 pronto (A a D; teste manual pendente; a parte C tem migração).
-Próximo, nesta ordem: 3.19 C1, 3.22 parte B, 3.21
+Próximo, nesta ordem: 3.22 parte B, 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 
 ## Regras de produção (valem para todos os blocos)
@@ -675,41 +674,8 @@ Recortar áudio maior:
 - Testes: o recorte gera WAV com a duração escolhida; a seleção nunca passa de 5 s; arquivo grande
   demais ou que não decodifica dá aviso legível.
 
-### Parte C1: microfone e câmera, sem depender dos relatórios (fazer agora)
-Ainda acontece (04/11): (1) supressão de ruído parece não estar agindo; (2) ao ligar a câmera, a
-pessoa passa a falar pelo mic da câmera; (3) alguns aparelhos funcionam mal no app (ex: o headset
-Havit do prado; ver 3.2); (4) mic que não capta nada. Os relatórios ainda não chegaram, então a C1
-cria o diagnóstico que faltava e corrige o que não depende dele.
-Diagnóstico embutido:
-- O Reportar problema anexa SEMPRE o diagnóstico de áudio: aparelhos de entrada (nome e groupId),
-  escolhido x realmente em uso, getSettings (sample rate, canais, processamentos do Chromium), estado
-  de cada etapa do pipeline (RNNoise carregou/falhou, channel picker, gate) e nível médio do sinal
-  cru e do processado nos últimos segundos. Sem gravar áudio.
-- Configurações › Voz mostra o estado real: "Supressão de ruído: ativa / falhou ao carregar /
-  desligada", e o aparelho em uso com aviso quando for diferente do escolhido.
-- Erro ao carregar ou ligar o RNNoise (worklet, wasm, CSP, sample rate) vai pro log com a causa e
-  aparece no estado acima, nunca falha em silêncio.
-Câmera roubando o microfone:
-- Causa provável (conferir): quem está em "Padrão do sistema" segue o padrão do Windows, que muda
-  quando a webcam com mic é ativada, e o devicechange troca junto.
-- Ligar a câmera pede só vídeo, nunca áudio junto.
-- "Padrão do sistema" é resolvido para o aparelho concreto quando a call começa. Se o Windows trocar
-  o padrão no meio da call, o app fica no que estava e avisa: "O Windows trocou o microfone padrão
-  para X. Usar X?" (Usar / Manter).
-- Escolha automática (primeira vez, ou o aparelho escolhido sumiu): preferir headset/USB/fone e
-  evitar o mic da própria câmera (mesmo groupId da câmera, ou nome com câmera/webcam/cam).
-- Troca sozinha só quando o aparelho em uso some de verdade, com aviso do nome do novo.
-Microfone que não capta:
-- Se o sinal cru tem nível e o processado fica mudo por ~3 s com a pessoa desmutada, cair sozinho
-  pro caminho sem processamento e avisar ("Ativamos o modo compatível do microfone"), com atalho
-  pra Configurações › Voz.
-- "Modo compatível" visível em Configurações › Voz (desliga RNNoise, picker e gate).
-- Testes: escolha automática ignora o mic da câmera; troca do padrão do Windows não muda nada no
-  meio da call; fallback quando o pipeline fica mudo; diagnóstico presente no relatório; falha do
-  RNNoise aparece no estado.
-
-### Parte C2: correções por aparelho (quando chegarem os relatórios da C1)
-- Com os relatórios novos (que já trazem o diagnóstico), achar a causa de cada caso: supressão de
+### Parte C2: correções por aparelho (quando chegarem os relatórios dos testers)
+- Com os relatórios novos, achar a causa de cada caso: supressão de
   ruído sem efeito, headset Havit, AB13X USB Audio e o que mais aparecer.
 - Me explicar a causa de cada um antes de corrigir; ajustes por aparelho só se não houver correção
   geral.
