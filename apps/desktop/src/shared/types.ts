@@ -76,7 +76,22 @@ export interface OverlayBounds {
 
 /** The overlay's independent parts, each in a window of its own (see shared/overlayWidgets.ts). */
 export type OverlayWidget = 'voice' | 'cameras' | 'notifications'
-export type OverlayCameraLayout = 'horizontal' | 'vertical'
+/** Column, row or grid of `perRow` columns. */
+export type OverlayCameraLayout = 'horizontal' | 'vertical' | 'grid'
+
+/** What only the cameras widget has (see cameraLayout in shared/overlayWidgets.ts). */
+export interface OverlayCameraPrefs {
+  layout: OverlayCameraLayout
+  /** Width of each camera in px (16:9); `size` follows the nearest of the three shortcuts. */
+  tileWidth: number
+  /** Cameras shown at most (1-8); past it, "+N". Whoever is speaking always shows. */
+  maxVisible: number
+  /** Columns of the grid (1-8). */
+  perRow: number
+  /** Space between the cameras, px. */
+  gap: number
+  rounded: boolean
+}
 
 export interface OverlayWidgetPrefs {
   enabled: boolean
@@ -89,8 +104,8 @@ export interface OverlayWidgetPrefs {
 
 export interface OverlayWidgets {
   voice: OverlayWidgetPrefs & { onlySpeaking: boolean }
-  /** `size` is the size of the tiles here. */
-  cameras: OverlayWidgetPrefs & { layout: OverlayCameraLayout }
+  /** The box's size follows the cameras; `positions` only says where it's pinned. */
+  cameras: OverlayWidgetPrefs & OverlayCameraPrefs
   /** `hideContent`: only "@fulano te mandou mensagem", never the message. */
   notifications: OverlayWidgetPrefs & { hideContent: boolean }
 }

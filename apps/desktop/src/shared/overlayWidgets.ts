@@ -5,6 +5,7 @@
 import type {
   OverlayBounds,
   OverlayCameraLayout,
+  OverlayCameraPrefs,
   OverlaySize,
   OverlayWidget,
   OverlayWidgetPrefs,
@@ -19,14 +20,26 @@ export const anyWidgetOn = (widgets: OverlayWidgets): boolean => OVERLAY_WIDGETS
 
 const COMMON: OverlayWidgetPrefs = { enabled: true, size: 'medium', opacity: 100, positions: {} }
 
+/** The width of a camera for each size shortcut: the sizes from before block 3.22 (176 px x scale). */
+export const CAMERA_SIZES: Record<OverlaySize, number> = { small: 141, medium: 176, large: 229 }
+export const CAMERA_LIMITS = {
+  tileWidth: { min: 96, max: 360 },
+  maxVisible: { min: 1, max: 8 },
+  perRow: { min: 1, max: 8 },
+  gap: { min: 0, max: 16 }
+} as const
+
+const DEFAULT_CAMERAS: OverlayCameraPrefs = { layout: 'vertical', tileWidth: CAMERA_SIZES.medium, maxVisible: 4, perRow: 2, gap: 6, rounded: true }
+
 export const DEFAULT_WIDGETS: OverlayWidgets = {
   voice: { ...COMMON, onlySpeaking: false },
-  cameras: { ...COMMON, layout: 'vertical' },
+  cameras: { ...COMMON, ...DEFAULT_CAMERAS },
   notifications: { ...COMMON, hideContent: false }
 }
 
 const MIN_SIZE = { width: 160, height: 80 }
-const MAX_SIZE = { width: 900, height: 1000 }
+/** Up to a 4K monitor: a row of big cameras is wide. Boxes are also kept inside the monitor. */
+const MAX_SIZE = { width: 3840, height: 2160 }
 /** Monitors remembered per widget; a laptop on many docks shouldn't grow the file forever. */
 const MAX_POSITIONS = 8
 
@@ -54,8 +67,40 @@ function cleanPositions(value: unknown, fallback: Record<string, OverlayBounds>)
 }
 
 const isSize = (v: unknown): v is OverlaySize => v === 'small' || v === 'medium' || v === 'large'
-const isLayout = (v: unknown): v is OverlayCameraLayout => v === 'horizontal' || v === 'vertical'
+const isLayout = (v: unknown): v is OverlayCameraLayout => v === 'horizontal' || v === 'vertical' || v === 'grid'
 const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback)
+/** A whole number within `limits`, or `fallback` when it isn't a number. */
+const whole = (v: unknown, limits: { min: number; max: number }, fallback: number): number =>
+  isFiniteNumber(v) ? Math.round(Math.min(limits.max, Math.max(limits.min, v))) : fallback
+
+/** The size shortcut nearest to a camera width. */
+export function sizeOfTile(width: number): OverlaySize {
+  const sizes = Object.entries(CAMERA_SIZES) as [OverlaySize, number][]
+  return sizes.reduce((best, cur) => (Math.abs(cur[1] - width) < Math.abs(best[1] - width) ? cur : best))[0]
+}
+
+/**
+ * The cameras' own fields. The width comes from `tileWidth` or, when only a size is given (a size
+ * shortcut, or an overlay.json from before block 3.22), from that size; `size` then follows it.
+ */
+function cleanCameras(raw: Partial<OverlayWidgets['cameras']>, base: OverlayWidgets['cameras']): OverlayWidgets['cameras'] {
+  const common = cleanCommon(raw, base)
+  const tileWidth = isFiniteNumber(raw.tileWidth)
+    ? whole(raw.tileWidth, CAMERA_LIMITS.tileWidth, base.tileWidth)
+    : isSize(raw.size)
+      ? CAMERA_SIZES[raw.size]
+      : base.tileWidth
+  return {
+    ...common,
+    size: sizeOfTile(tileWidth),
+    layout: isLayout(raw.layout) ? raw.layout : base.layout,
+    tileWidth,
+    maxVisible: whole(raw.maxVisible, CAMERA_LIMITS.maxVisible, base.maxVisible),
+    perRow: whole(raw.perRow, CAMERA_LIMITS.perRow, base.perRow),
+    gap: whole(raw.gap, CAMERA_LIMITS.gap, base.gap),
+    rounded: bool(raw.rounded, base.rounded)
+  }
+}
 
 function cleanCommon(raw: Partial<OverlayWidgetPrefs>, base: OverlayWidgetPrefs): OverlayWidgetPrefs {
   return {
@@ -72,7 +117,7 @@ export function cleanWidgets(raw: unknown, base: OverlayWidgets): OverlayWidgets
   const { voice = {}, cameras = {}, notifications = {} } = given
   return {
     voice: { ...cleanCommon(voice, base.voice), onlySpeaking: bool(voice.onlySpeaking, base.voice.onlySpeaking) },
-    cameras: { ...cleanCommon(cameras, base.cameras), layout: isLayout(cameras.layout) ? cameras.layout : base.cameras.layout },
+    cameras: cleanCameras(cameras, base.cameras),
     notifications: {
       ...cleanCommon(notifications, base.notifications),
       hideContent: bool(notifications.hideContent, base.notifications.hideContent)
@@ -153,4 +198,87 @@ export function widgetShows(widget: OverlayWidget, widgets: OverlayWidgets, s: O
 export function splitPeople<P extends { camera?: unknown }>(people: P[], camerasOn: boolean): { voice: P[]; cameras: P[] } {
   if (!camerasOn) return { voice: people, cameras: [] }
   return { voice: people.filter((p) => !p.camera), cameras: people.filter((p) => p.camera) }
+}
+
+/** The widget box's padding around the cameras (WidgetBox's p-2). */
+export const CAMERA_PADDING = 8
+/** Edit mode: the bar on top (pt-11 instead of the padding) and the dashed border, both sides. */
+const EDIT_TOP = 44
+const EDIT_BORDER = 2
+/** Edit mode: wide enough for the bar's controls even with one small camera. */
+export const EDIT_MIN_WIDTH = 300
+/** A camera never gets smaller than this to fit a monitor. */
+const FIT_MIN_TILE = 48
+
+export interface CameraLayout {
+  columns: number
+  rows: number
+  tileWidth: number
+  tileHeight: number
+  /** The widget's box: the cameras plus padding (and the edit bar). */
+  width: number
+  height: number
+}
+
+/**
+ * Where `count` cameras go and the size of the box around them. Too big for `area` (the monitor's
+ * work area), the cameras shrink to fit instead of being cut off.
+ */
+export function cameraLayout(
+  prefs: OverlayCameraPrefs,
+  count: number,
+  editing: boolean,
+  area?: { width: number; height: number }
+): CameraLayout {
+  const n = Math.max(1, count)
+  const columns = prefs.layout === 'vertical' ? 1 : prefs.layout === 'horizontal' ? n : Math.min(prefs.perRow, n)
+  const rows = Math.ceil(n / columns)
+  const extraW = 2 * CAMERA_PADDING + (editing ? 2 * EDIT_BORDER : 0)
+  const extraH = editing ? EDIT_TOP + CAMERA_PADDING + 2 * EDIT_BORDER : 2 * CAMERA_PADDING
+  let tile = prefs.tileWidth
+  if (area) {
+    const fitWidth = (area.width - extraW - (columns - 1) * prefs.gap) / columns
+    // Whole pixels of height, so rounding the height back up never passes the monitor.
+    const fitHeight = Math.floor((area.height - extraH - (rows - 1) * prefs.gap) / rows) * (16 / 9)
+    tile = Math.max(FIT_MIN_TILE, Math.min(tile, fitWidth, fitHeight))
+  }
+  const tileWidth = Math.floor(tile)
+  const tileHeight = Math.round((tileWidth * 9) / 16)
+  const width = columns * tileWidth + (columns - 1) * prefs.gap + extraW
+  return {
+    columns,
+    rows,
+    tileWidth,
+    tileHeight,
+    width: editing ? Math.max(width, EDIT_MIN_WIDTH) : width,
+    height: rows * tileHeight + (rows - 1) * prefs.gap + extraH
+  }
+}
+
+/**
+ * The cameras that show, in the call's order: up to `max`, always with whoever is speaking (even
+ * past `max`), and how many are left out ("+N").
+ */
+export function visibleCameras<P>(people: P[], max: number, speaking: (p: P) => boolean): { shown: P[]; hidden: number } {
+  if (people.length <= max) return { shown: people, hidden: 0 }
+  const talking = people.filter(speaking)
+  const quiet = people.filter((p) => !speaking(p)).slice(0, Math.max(0, max - talking.length))
+  const keep = new Set([...talking, ...quiet])
+  const shown = people.filter((p) => keep.has(p))
+  return { shown, hidden: people.length - shown.length }
+}
+
+/**
+ * A box of `size` pinned where `saved` is: it keeps the edges of the screen corner `saved` is
+ * nearest to, so it grows and shrinks away from that corner.
+ */
+export function anchoredBox(saved: OverlayBounds, size: { width: number; height: number }, area: OverlayBounds): OverlayBounds {
+  const right = saved.x + saved.width / 2 > area.x + area.width / 2
+  const bottom = saved.y + saved.height / 2 > area.y + area.height / 2
+  return {
+    x: right ? saved.x + saved.width - size.width : saved.x,
+    y: bottom ? saved.y + saved.height - size.height : saved.y,
+    width: size.width,
+    height: size.height
+  }
 }
