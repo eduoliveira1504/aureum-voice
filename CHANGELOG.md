@@ -1,5 +1,33 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.10
+
+- **Aureum no Mac:** agora tem versão pra Mac, tanto com chip Apple quanto Intel. Na primeira vez o
+  Mac pede uma confirmação pra abrir; o passo a passo está na página de download. No Mac os atalhos
+  usam Cmd no lugar de Ctrl. O app avisa quando sai versão nova (ainda não se atualiza sozinho), e
+  overlay e "pressionar para falar" continuam só no Windows por enquanto.
+- **Tour pelo Aureum:** uma volta rápida pelas abas, pelo Início, pelos painéis e pelo seu perfil.
+  Quem já tem conta recebe um convite uma vez só; dá pra pular quando quiser (Esc) e rever no menu
+  do perfil.
+- **Dicas de primeira vez:** quando você usa algo pela primeira vez (call, transmissão, addons,
+  enquetes, reações, mensagens privadas...), aparece um balãozinho explicando. "Entendi" fecha pra
+  sempre, e em Configurações › Dicas dá pra ver todas de novo.
+- **Destacar a chamada:** a call pode ir pra uma janela própria, que fica por cima de tudo, mesmo
+  com o Aureum minimizado. Dá pra mudar o tamanho, arrastar e desligar o "por cima".
+- **GIF no perfil:** avatar e banner agora podem ser um GIF, escolhido direto na busca de GIFs, com
+  recorte como numa imagem.
+- **Câmeras do overlay:** escolha vertical, horizontal ou grade, o tamanho de cada câmera, quantas
+  aparecem, o espaço entre elas e os cantos.
+- **Volume das transmissões salvo:** o volume que você deixa pra tela de cada pessoa fica guardado,
+  em qualquer PC. Pra quem você nunca ajustou, vale o volume padrão (50%, em Configurações › Voz e
+  vídeo). Chega de levar susto com o som no máximo.
+- **Copiar e salvar imagens:** botão direito numa imagem do chat pra copiar, salvar ou abrir.
+- **Tela de carregamento** nova ao abrir o app.
+- **Correções:**
+  - O overlay não aparece mais como quadrados pretos pra quem assiste sua transmissão.
+  - Arrastar a janelinha da call pela foto não manda mais a foto pro chat.
+  - Links e palavras muito longas não fazem mais o chat rolar pro lado.
+
 ## 0.2.0-beta.9
 
 - **Categorias de canais:** agora dá pra organizar os canais em categorias com o nome que você quiser
