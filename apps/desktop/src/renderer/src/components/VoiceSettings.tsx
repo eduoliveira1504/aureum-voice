@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { GATE_RANGE, gateOf, inputGainOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { MicProcessor } from '../lib/micProcessor'
+import { isMac } from '../lib/platform'
 import { useAppearance } from '../store/appearance'
 import { useDevices, watchDevices } from '../store/devices'
 import { micCapture, useVoice } from '../store/voice'
@@ -217,7 +218,8 @@ export function VoiceSettings(): ReactNode {
         </section>
       )}
 
-      <InputModeSettings />
+      {/* No push-to-talk on the Mac (block 3.21). */}
+      {!isMac() && <InputModeSettings />}
     </div>
   )
 }

@@ -1,4 +1,6 @@
 /** Per-device media preferences (kept in localStorage: they only matter on this PC). */
+import { isMac } from './platform'
+
 export interface MediaPrefs {
   audioInput: string
   audioOutput: string
@@ -56,7 +58,9 @@ export const isHandsFree = (label: string): boolean => /hands[- ]?free|viva[- ]?
 
 export function loadMediaPrefs(): MediaPrefs {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    const prefs: MediaPrefs = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    // No push-to-talk on the Mac (block 3.21): always voice detection there.
+    return isMac() ? { ...prefs, inputMode: 'voice' } : prefs
   } catch {
     return { ...DEFAULTS }
   }

@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import type { GamePrefs, KnownGame, RunningApp } from '../../../shared/types'
 import { setManualActivity } from '../lib/gameActivity'
+import { isMac } from '../lib/platform'
 import { cn, inputClass, labelClass, ToggleRow } from './ui'
 
 const games = window.aureum.games
@@ -34,35 +35,40 @@ export function ActivitySettings(): ReactNode {
   const addGame = (game: KnownGame): Promise<void> =>
     update({ custom: [game, ...prefs.custom.filter((g) => g.name.toLowerCase() !== game.name.toLowerCase())] })
 
+  // The Mac has no game detection (block 3.21): only the manual activity.
+  const detection = !isMac()
+
   return (
     <div className="max-w-2xl space-y-6">
-      <section className="space-y-3">
-        <ToggleRow
-          title="Mostrar o jogo que estou jogando"
-          description="O app procura jogos abertos neste PC e mostra “Jogando X” no seu perfil e na lista de membros. Só o nome do jogo é enviado."
-          checked={prefs.enabled}
-          onChange={(enabled) => void update({ enabled })}
-        />
-        <div className="flex items-center gap-3 rounded-control border border-line bg-main p-3">
-          <Gamepad2 size={20} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
-          <div className="min-w-0 flex-1 text-sm">
-            {!prefs.enabled ? (
-              <span className="text-fg-muted">Detecção desligada.</span>
-            ) : current ? (
-              <>
-                Detectado agora: <span className="font-semibold">{current}</span>
-              </>
-            ) : (
-              <span className="text-fg-muted">Nenhum jogo conhecido aberto.</span>
+      {detection && (
+        <section className="space-y-3">
+          <ToggleRow
+            title="Mostrar o jogo que estou jogando"
+            description="O app procura jogos abertos neste PC e mostra “Jogando X” no seu perfil e na lista de membros. Só o nome do jogo é enviado."
+            checked={prefs.enabled}
+            onChange={(enabled) => void update({ enabled })}
+          />
+          <div className="flex items-center gap-3 rounded-control border border-line bg-main p-3">
+            <Gamepad2 size={20} strokeWidth={1.8} className="shrink-0 text-fg-muted" />
+            <div className="min-w-0 flex-1 text-sm">
+              {!prefs.enabled ? (
+                <span className="text-fg-muted">Detecção desligada.</span>
+              ) : current ? (
+                <>
+                  Detectado agora: <span className="font-semibold">{current}</span>
+                </>
+              ) : (
+                <span className="text-fg-muted">Nenhum jogo conhecido aberto.</span>
+              )}
+            </div>
+            {prefs.enabled && current && (
+              <button type="button" onClick={() => void hide(current)} className="flex items-center gap-1.5 rounded-item px-2 py-1 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
+                <EyeOff size={16} /> Esconder
+              </button>
             )}
           </div>
-          {prefs.enabled && current && (
-            <button type="button" onClick={() => void hide(current)} className="flex items-center gap-1.5 rounded-item px-2 py-1 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
-              <EyeOff size={16} /> Esconder
-            </button>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
       <form
         className="space-y-2"
@@ -97,33 +103,37 @@ export function ActivitySettings(): ReactNode {
             </button>
           )}
         </div>
-        <p className="text-xs text-fg-subtle">Enquanto estiver preenchida, aparece no lugar do jogo detectado.</p>
+        <p className="text-xs text-fg-subtle">
+          {detection ? 'Enquanto estiver preenchida, aparece no lugar do jogo detectado.' : 'Aparece no seu perfil e na lista de membros.'}
+        </p>
       </form>
 
-      <section className="space-y-2">
-        <span className={labelClass}>Meus jogos</span>
-        <p className="text-xs text-fg-subtle">Jogos que não estão na lista do Aureum. Ficam salvos só neste PC.</p>
-        {prefs.custom.map((g) => (
-          <div key={g.name} className="flex items-center gap-3 rounded-item bg-main px-3 py-2">
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-sm font-medium">{g.name}</span>
-              <span className="block truncate text-xs text-fg-subtle">{g.exe.join(', ')}</span>
-            </span>
-            <button
-              type="button"
-              title="Remover jogo"
-              aria-label={`Remover ${g.name}`}
-              onClick={() => void update({ custom: prefs.custom.filter((c) => c !== g) })}
-              className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-danger"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-        <AddGame onAdd={addGame} />
-      </section>
+      {detection && (
+        <section className="space-y-2">
+          <span className={labelClass}>Meus jogos</span>
+          <p className="text-xs text-fg-subtle">Jogos que não estão na lista do Aureum. Ficam salvos só neste PC.</p>
+          {prefs.custom.map((g) => (
+            <div key={g.name} className="flex items-center gap-3 rounded-item bg-main px-3 py-2">
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-sm font-medium">{g.name}</span>
+                <span className="block truncate text-xs text-fg-subtle">{g.exe.join(', ')}</span>
+              </span>
+              <button
+                type="button"
+                title="Remover jogo"
+                aria-label={`Remover ${g.name}`}
+                onClick={() => void update({ custom: prefs.custom.filter((c) => c !== g) })}
+                className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-danger"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+          <AddGame onAdd={addGame} />
+        </section>
+      )}
 
-      {prefs.hidden.length > 0 && (
+      {detection && prefs.hidden.length > 0 && (
         <section className="space-y-2">
           <span className={labelClass}>Jogos escondidos</span>
           {prefs.hidden.map((name) => (

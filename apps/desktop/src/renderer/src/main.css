@@ -151,9 +151,13 @@
   -webkit-app-region: no-drag;
 }
 
-/* Room on the right for the window buttons Windows draws over the top bar. */
+/* Room on the right for the window buttons Windows draws over the top bar. On the Mac (no such
+ * area, so 0 there) the traffic lights sit at its left end instead: room on the left. */
 @utility pr-window-controls {
   padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+:root[data-platform='darwin'] .pr-window-controls {
+  padding-left: 80px;
 }
 
 /* Soft accent glow behind full-screen cards (sign-in). */

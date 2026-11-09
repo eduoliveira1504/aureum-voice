@@ -35,6 +35,7 @@ import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 import { AccessNotice } from '../components/AccessNotice'
+import { isMac } from '../lib/platform'
 
 // Below this width the sidebar shows icons only and a single panel fits.
 const NARROW_QUERY = '(max-width: 1099px)'
@@ -132,7 +133,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       </div>
       <CallPip meId={user.id} />
       <DetachedCallHost meId={user.id} />
-      <OverlayHost me={user} />
+      {!isMac() && <OverlayHost me={user} />}
       <FullscreenCall meId={user.id} />
       <IncomingCall meId={user.id} />
       <MissedCallNotice meId={user.id} />

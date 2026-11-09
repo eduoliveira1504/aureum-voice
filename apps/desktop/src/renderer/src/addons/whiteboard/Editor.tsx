@@ -8,6 +8,7 @@ import { Copy, Grid3x3, History, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { User } from '../../lib/api'
+import { shortcut } from '../../lib/platform'
 import { useAppearance } from '../../store/appearance'
 import { BoardSync, type SyncStatus } from './BoardSync'
 import { onLive, useWhiteboard, type BoardScene } from './store'
@@ -76,7 +77,7 @@ export default function Editor({ channelId, board, people, onStatus, onError }: 
         files: excalidraw.getFiles(),
         appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false }
       })
-      excalidraw.setToast({ message: 'Imagem copiada. Cole no chat com Ctrl+V.', duration: 3000 })
+      excalidraw.setToast({ message: `Imagem copiada. Cole no chat com ${shortcut('Ctrl+V')}.`, duration: 3000 })
     } catch {
       onError('Não foi possível copiar a imagem.')
     }

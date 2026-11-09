@@ -13,6 +13,7 @@ import { PrivacySettings } from './PrivacySettings'
 import { SoundSettings } from './SoundSettings'
 import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
+import { isMac } from '../lib/platform'
 
 type Tab =
   | 'invites'
@@ -44,8 +45,9 @@ export function SettingsModal({ onClose, initialTab = 'invites' }: { onClose(): 
             ['sounds', 'Sons'],
             ['notifications', 'Notificações'],
             ['privacy', 'Privacidade'],
-            ['overlay', 'Overlay'],
-            ['windows', 'Windows'],
+            // The overlay is Windows only; the app's own settings are the "Mac" tab there.
+            ...(isMac() ? ([] as const) : ([['overlay', 'Overlay']] as const)),
+            ['windows', isMac() ? 'Mac' : 'Windows'],
             ...(isOwner ? ([['reports', 'Problemas']] as const) : []),
             ['about', 'Sobre']
           ] as const

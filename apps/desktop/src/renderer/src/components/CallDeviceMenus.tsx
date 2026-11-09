@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 
 import { GATE_RANGE, loadMediaPrefs, saveMediaPrefs, VOLUME_RANGE, type MediaPrefs } from '../lib/mediaPrefs'
+import { isMac } from '../lib/platform'
 import { useDevices, watchDevices } from '../store/devices'
 import { cameraTrackOf, getRoom, useVoice, type DeviceKind } from '../store/voice'
 import { SettingsModal } from './SettingsModal'
@@ -255,20 +256,23 @@ function MicOptions(): ReactNode {
     <>
       <DeviceSelect kind="audioinput" label="Microfone" />
       <VolumeSlider which="inputVolume" label="Volume do microfone" />
-      <div>
-        <span className={labelClass}>Modo de entrada</span>
-        <Segmented<'voice' | 'ptt'>
-          options={[
-            { value: 'voice', label: 'Detecção de voz', icon: AudioLines },
-            { value: 'ptt', label: 'Pressionar para falar', icon: Keyboard }
-          ]}
-          value={prefs.inputMode}
-          onChange={(inputMode) => update({ inputMode })}
-        />
-        {ptt && !prefs.pttKey && (
-          <p className="mt-1.5 text-xs text-fg-subtle">Escolha a tecla em Configurações de voz e vídeo.</p>
-        )}
-      </div>
+      {/* No push-to-talk on the Mac (block 3.21). */}
+      {!isMac() && (
+        <div>
+          <span className={labelClass}>Modo de entrada</span>
+          <Segmented<'voice' | 'ptt'>
+            options={[
+              { value: 'voice', label: 'Detecção de voz', icon: AudioLines },
+              { value: 'ptt', label: 'Pressionar para falar', icon: Keyboard }
+            ]}
+            value={prefs.inputMode}
+            onChange={(inputMode) => update({ inputMode })}
+          />
+          {ptt && !prefs.pttKey && (
+            <p className="mt-1.5 text-xs text-fg-subtle">Escolha a tecla em Configurações de voz e vídeo.</p>
+          )}
+        </div>
+      )}
       {!ptt && (
         <div>
           <span className={labelClass}>Sensibilidade</span>

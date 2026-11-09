@@ -156,6 +156,19 @@ describe('MembersBar', () => {
     expect(bar()).toBeNull()
   })
 
+  it('toggles with Cmd+Shift+U on the Mac, not with Ctrl', () => {
+    window.aureum.platform = 'darwin'
+    try {
+      render(<MembersBar server={SERVER} meId={ME.id} />)
+      act(shortcut)
+      expect(bar()).toBeNull()
+      act(() => void fireEvent.keyDown(window, { key: 'U', metaKey: true, shiftKey: true }))
+      expect(bar()).not.toBeNull()
+    } finally {
+      window.aureum.platform = 'win32'
+    }
+  })
+
   it('leaves the shortcut to an open modal', () => {
     render(
       <>

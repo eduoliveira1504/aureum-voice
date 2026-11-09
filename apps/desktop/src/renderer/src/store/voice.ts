@@ -29,7 +29,8 @@ import {
 import { useAppearance } from './appearance'
 import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
-import { ensureAccess, isMac } from '../lib/mediaAccess'
+import { ensureAccess } from '../lib/mediaAccess'
+import { isMac } from '../lib/platform'
 import { NO_SYSTEM_AUDIO } from '../../../shared/mediaAccess'
 import { sendRealtime } from '../lib/realtime'
 import {

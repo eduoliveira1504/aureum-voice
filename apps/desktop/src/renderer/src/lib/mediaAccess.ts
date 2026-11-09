@@ -6,11 +6,10 @@
 import { create } from 'zustand'
 
 import { mayProceed, type MediaAccess, type MediaKind } from '../../../shared/mediaAccess'
+import { isMac } from './platform'
 
 /** The permission whose notice is open, if any. */
 export const useAccessNotice = create<{ kind: MediaKind | null }>(() => ({ kind: null }))
-
-export const isMac = (): boolean => window.aureum.platform === 'darwin'
 
 /** True when the app may use it; false (and the notice opens) when macOS says no. */
 export async function ensureAccess(kind: MediaKind): Promise<boolean> {

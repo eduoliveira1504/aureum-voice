@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEve
 
 import { useAuth } from '../auth/AuthProvider'
 import { type Me, type Presence, type ServerDetail, type UserStatus } from '../lib/api'
+import { shortcut } from '../lib/platform'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { serverTabs, useMembersBar, useNav } from '../store/nav'
@@ -68,11 +69,11 @@ export function TopBar({ me }: { me: Me }): ReactNode {
         >
           <Search size={16} />
           Buscar
-          <kbd className="rounded bg-elevated px-1.5 font-sans text-[11px] text-fg-muted">Ctrl K</kbd>
+          <kbd className="rounded bg-elevated px-1.5 font-sans text-[11px] text-fg-muted">{shortcut('Ctrl K')}</kbd>
         </button>
         <button
           type="button"
-          title="Buscar (Ctrl K)"
+          title={`Buscar (${shortcut('Ctrl K')})`}
           aria-label="Buscar"
           onClick={() => setSearching(true)}
           className="rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg md:hidden"
@@ -97,7 +98,7 @@ function MembersButton({ serverId }: { serverId: string }): ReactNode {
     <button
       type="button"
       data-members-toggle
-      title="Membros (Ctrl Shift U)"
+      title={`Membros (${shortcut('Ctrl Shift U')})`}
       aria-label="Membros"
       aria-pressed={open}
       onClick={() => useNav.getState().toggleMembers(serverId)}
@@ -545,7 +546,7 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
           <MenuItem
             icon={Bug}
             label="Reportar problema"
-            hint="Ctrl+Shift+R"
+            hint={shortcut('Ctrl+Shift+R')}
             onClick={() => {
               setOpen(false)
               void openReportProblem()

@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 
 import { mediaUrl, type Channel, type Member, type Role, type ServerDetail, type User } from '../lib/api'
 import { memberName } from '../lib/members'
+import { modHeld } from '../lib/platform'
 import { channelMembers, isPrivate, roleColor } from '../lib/permissions'
 import { useAppearance, useReadableColor } from '../store/appearance'
 import { focusedTab, layoutOf, parseTab, useMembersBar, useNav } from '../store/nav'
@@ -52,9 +53,9 @@ function useFocusedChannel(server: ServerDetail): Channel | null {
   return server.channels.find((c) => c.id === id) ?? null
 }
 
-/** Toggles the member bar from anywhere inside a server, even while typing. */
+/** Toggles the member bar from anywhere inside a server, even while typing (Ctrl/Cmd+Shift+U). */
 const isMembersShortcut = (e: KeyboardEvent): boolean =>
-  e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'u'
+  modHeld(e) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'u'
 
 /** What's over the drawer: Esc and clicks there are for it, not for the drawer. */
 const OVER_DRAWER = '[aria-modal="true"], [role="dialog"], [role="menu"]'

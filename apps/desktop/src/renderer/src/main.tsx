@@ -8,6 +8,9 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { AuthProvider } from './auth/AuthProvider'
 
+// The Mac's traffic lights sit over the top bar's left end (see main.css).
+document.documentElement.dataset.platform = window.aureum.platform
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LucideProvider strokeWidth={1.8}>
