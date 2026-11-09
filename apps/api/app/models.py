@@ -305,6 +305,10 @@ class UserSettings(Base):
     screen_volume_default: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=50, server_default="50")
     # Channel categories this person keeps collapsed in the sidebar.
     collapsed_categories: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    # Tour and first-time tips (block 3.16, see schemas.Onboarding): the last tour version done
+    # (0 = never), whether to ask first instead of starting it (accounts older than the tour) and
+    # the tips already dismissed. Saved here so they don't repeat on another PC or a reinstall.
+    onboarding: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

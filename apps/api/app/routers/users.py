@@ -38,6 +38,7 @@ MERGED_SETTINGS = {
     "screen_audio": 1000,
     "column_sizes": 30,
     "official_dm": 10,
+    "onboarding": 3,
 }
 ImageKind = Literal["avatar", "banner"]
 # Profile fields where null means "back to the default".

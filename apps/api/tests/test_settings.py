@@ -28,6 +28,7 @@ DEFAULTS = {
     "collapsed_categories": [],
     "screen_audio": {},
     "screen_volume_default": 50,
+    "onboarding": {"tour_version_done": 0, "tour_invite": False, "tips_seen": []},
 }
 
 
@@ -90,6 +91,10 @@ async def test_validation(client: AsyncClient) -> None:
         {"column_sizes": {"Sidebar": 240}},
         {"column_sizes": {"sidebar": 10}},
         {"muted_places": ["nope"]},
+        {"onboarding": {"tour_version_done": -1}},
+        {"onboarding": {"tour_version_done": 1001}},
+        {"onboarding": {"tips_seen": ["Not A Key"]}},
+        {"onboarding": {"tips_seen": [f"tip{i}" for i in range(101)]}},
     ):
         assert (await user.patch("/users/me/settings", body)).status_code == 422, body
 
@@ -232,3 +237,16 @@ async def test_screen_volumes_saved_per_person(client: AsyncClient) -> None:
 
     res = await user.patch("/users/me/settings", {"screen_audio": {SERVER_A: None}})
     assert res.json()["screen_audio"] == {SERVER_B: {"volume": 80, "muted": True}}
+
+
+async def test_onboarding_is_merged_key_by_key(client: AsyncClient) -> None:
+    user = await make_user(client, "tour")
+    await user.patch("/users/me/settings", {"onboarding": {"tips_seen": ["call.controls", "dm.receipts"]}})
+    await user.patch("/users/me/settings", {"onboarding": {"tour_version_done": 1}})
+    saved = (await user.get("/users/me/settings")).json()["onboarding"]
+    assert saved == {"tour_version_done": 1, "tour_invite": False, "tips_seen": ["call.controls", "dm.receipts"]}
+
+    # "Mostrar dicas de novo" sends an empty list; the tour stays done.
+    await user.patch("/users/me/settings", {"onboarding": {"tips_seen": []}})
+    saved = (await user.get("/users/me/settings")).json()["onboarding"]
+    assert saved == {"tour_version_done": 1, "tour_invite": False, "tips_seen": []}

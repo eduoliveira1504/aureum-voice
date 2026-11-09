@@ -438,6 +438,28 @@ class ScreenAudio(BaseModel):
     muted: bool = False
 
 
+TipKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.-]{0,39}$")]
+MAX_TOUR_VERSION = 1000
+MAX_TIPS = 100
+
+
+class Onboarding(BaseModel):
+    """Tour and first-time tips (block 3.16). Missing keys mean "never": a new account starts the
+    tour by itself; tour_invite (set by the migration on accounts older than the tour) asks first."""
+
+    tour_version_done: int = 0
+    tour_invite: bool = False
+    tips_seen: list[str] = []
+
+
+class OnboardingUpdate(BaseModel):
+    """Merged key by key; tips_seen is the whole list (the app sends [] for "Mostrar dicas de novo")."""
+
+    tour_version_done: Annotated[int, Field(ge=0, le=MAX_TOUR_VERSION)] | None = None
+    tour_invite: bool | None = None
+    tips_seen: Annotated[list[TipKey], Field(max_length=MAX_TIPS)] | None = None
+
+
 ColumnKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_.-]{0,39}$")]
 ColumnSize = Annotated[int, Field(ge=48, le=2000)]
 
@@ -469,6 +491,7 @@ class SettingsOut(BaseModel):
     collapsed_categories: list[uuid.UUID] = []
     screen_audio: dict[uuid.UUID, ScreenAudio] = {}
     screen_volume_default: int = 50
+    onboarding: Onboarding = Onboarding()
 
 
 # What the user can turn off in Configurações › Notificações: everything but security.
@@ -512,6 +535,8 @@ class SettingsUpdate(BaseModel):
     # Merged per user id, like user_audio; the default is for people never adjusted.
     screen_audio: Annotated[dict[uuid.UUID, ScreenAudio | None], Field(max_length=50)] | None = None
     screen_volume_default: Annotated[int, Field(ge=0, le=100)] | None = None
+    # Merged key by key, like the ones above.
+    onboarding: OnboardingUpdate | None = None
 
 
 # --- Friends --------------------------------------------------------------
