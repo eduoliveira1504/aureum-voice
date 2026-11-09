@@ -1,0 +1,98 @@
+# Builds the macOS app (dmg + zip, Apple Silicon and Intel) on GitHub's macOS runner, free for
+# public repositories (if the repository ever becomes private, stop: macOS minutes are billed).
+# Started by `npm run release` (scripts/release-desktop.mjs) once the Windows build has created
+# the draft release; it uploads into that same draft. See docs/decisions/0045-macos.md.
+#
+# Run it by hand from the Actions tab with "publish" off for a rehearsal: it builds and signs
+# (ad-hoc) without touching any release, and keeps the files as a workflow artifact for 3 days.
+name: Release (macOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit to build (the one the Windows build came from)
+        required: true
+      version:
+        description: Version in apps/desktop/package.json at that commit (e.g. 0.2.0-beta.10)
+        required: true
+      publish:
+        description: Upload into the draft release v<version> (off = rehearsal)
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # find the draft release and upload into it
+
+# One build per version at a time; a second start waits instead of uploading twice.
+concurrency:
+  group: release-mac-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/desktop
+    env:
+      # No certificate on the runner and none wanted: never search the keychain.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Check the version
+        env:
+          EXPECTED: ${{ inputs.version }}
+        run: |
+          actual=$(node -p "require('./package.json').version")
+          if [ "$actual" != "$EXPECTED" ]; then
+            echo "package.json at this commit says $actual, the release is $EXPECTED." >&2
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (typecheck + bundle)
+        run: npm run build
+
+      - name: Package and upload into the draft
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --mac --publish always
+
+      - name: Package (rehearsal)
+        if: ${{ !inputs.publish }}
+        run: npx electron-builder --mac --publish never
+
+      - name: Check the signatures
+        run: |
+          for app in release/mac-arm64/*.app release/mac/*.app; do
+            codesign --verify --deep --strict "$app"
+            codesign -dv "$app" 2>&1 | grep -q 'Signature=adhoc'
+            echo "ok (ad-hoc): $app"
+          done
+
+      - name: Keep the files (rehearsal)
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aureum-mac-${{ inputs.version }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/latest-mac.yml
+          retention-days: 3
