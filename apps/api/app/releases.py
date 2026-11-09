@@ -1,4 +1,5 @@
-"""The newest Windows installer, from this repository's GitHub releases (RELEASES_REPO).
+"""The newest Windows installer, and the Mac's dmgs of the same release (block 3.21), from this
+repository's GitHub releases (RELEASES_REPO).
 
 Asked of GitHub's public API without a token (free, 60 requests/hour per IP) and cached, so
 the invite page and welcome e-mails cost one request every few minutes at most. Beta builds
@@ -22,6 +23,17 @@ class Release:
     url: str  # the .exe itself, or the releases page when no installer was found
     version: str | None = None
     size_bytes: int | None = None
+    # The Mac's dmgs (Apple Silicon, Intel), when that release has them.
+    mac_arm64_url: str | None = None
+    mac_x64_url: str | None = None
+
+
+# Where the Mac steps ("Abrir mesmo assim", xattr) are explained: the landing page.
+MAC_HELP_URL = "https://eduoliveira1504.github.io/aureum-voice/#mac"
+
+
+def _asset_url(assets: list[dict], suffix: str) -> str | None:
+    return next((a["browser_download_url"] for a in assets if a.get("name", "").lower().endswith(suffix)), None)
 
 
 _cache: tuple[float, Release] | None = None
@@ -43,12 +55,15 @@ async def _fetch() -> Release:
     for release in res.json():
         if release.get("draft"):
             continue
-        for asset in release.get("assets", []):
+        assets = release.get("assets", [])
+        for asset in assets:
             if asset.get("name", "").lower().endswith(".exe"):
                 return Release(
                     url=asset["browser_download_url"],
                     version=(release.get("tag_name") or "").lstrip("v") or None,
                     size_bytes=asset.get("size"),
+                    mac_arm64_url=_asset_url(assets, "-arm64.dmg"),
+                    mac_x64_url=_asset_url(assets, "-x64.dmg"),
                 )
     return Release(url=releases_page())
 

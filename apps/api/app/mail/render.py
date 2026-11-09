@@ -134,6 +134,7 @@ async def _welcome(p: dict[str, Any]) -> tuple[dict[str, Any], str]:
         "numero": p.get("numero"),
         "steps": "".join(_step(i, title, body) for i, (title, body, _) in enumerate(steps, 1)),
         "app_url": download,
+        "mac_url": releases.MAC_HELP_URL,
         "badge_url": f"{get_settings().public_url}/static/email/pioneiro.png",
     }
     values["body"] = fill(_template("welcome"), values)
@@ -141,7 +142,7 @@ async def _welcome(p: dict[str, Any]) -> tuple[dict[str, Any], str]:
     if p.get("numero"):
         lines += [f"Insígnia mítica: Pioneiro nº {p['numero']}. Ela já está no seu perfil e fica lá pra sempre.", ""]
     lines += ["Pra começar:"] + [f"{i}. {title} {text}" for i, (title, _, text) in enumerate(steps, 1)]
-    lines += ["", f"Baixar o Aureum (Windows): {download}", "", "Qualquer coisa, é só responder este e-mail. Quem lê é gente.", "— Eduardo, do Aureum"]
+    lines += ["", f"Baixar o Aureum (Windows): {download}", f"No Mac: {releases.MAC_HELP_URL}", "", "Qualquer coisa, é só responder este e-mail. Quem lê é gente.", "— Eduardo, do Aureum"]
     return values, "\n".join(lines)
 
 

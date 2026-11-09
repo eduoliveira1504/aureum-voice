@@ -41,7 +41,13 @@ async def preview_invite(code: str, request: Request, session: SessionDep) -> Ac
 @api_router.get("/app/latest-release", response_model=LatestRelease)
 async def latest_release() -> LatestRelease:
     release = await releases.latest()
-    return LatestRelease(url=release.url, version=release.version, size_bytes=release.size_bytes)
+    return LatestRelease(
+        url=release.url,
+        version=release.version,
+        size_bytes=release.size_bytes,
+        mac_arm64_url=release.mac_arm64_url,
+        mac_x64_url=release.mac_x64_url,
+    )
 
 
 @cache

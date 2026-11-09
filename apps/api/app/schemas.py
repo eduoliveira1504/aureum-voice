@@ -155,6 +155,9 @@ class LatestRelease(BaseModel):
     url: str
     version: str | None
     size_bytes: int | None
+    # The Mac's dmgs (block 3.21), null when the newest release has none.
+    mac_arm64_url: str | None = None
+    mac_x64_url: str | None = None
 
 
 class PublicStats(BaseModel):

@@ -312,6 +312,11 @@ async function showDone(result) {
     $('download').href = release.data.url
     if (release.data.version) info.push(`Versão ${release.data.version}`)
     if (release.data.size_bytes) info.push(`${Math.round(release.data.size_bytes / 1e6)} MB`)
+    if (release.data.mac_arm64_url && release.data.mac_x64_url) {
+      $('mac-arm64').href = release.data.mac_arm64_url
+      $('mac-x64').href = release.data.mac_x64_url
+      $('download-mac').hidden = false
+    }
   }
   if (result.joined_official) info.push('você já está no servidor do beta')
   $('download-info').textContent = info.join(' · ')
