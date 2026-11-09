@@ -45,6 +45,7 @@ import { COLUMNS, useColumnWidth } from './Resizer'
 import { PickFriendsModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
+import { Tip } from './Tour'
 
 type Dialog =
   | { kind: 'invite' }
@@ -680,6 +681,7 @@ function ServerHeader({
   const settingsButton = (
     <button
       type="button"
+      data-tour="menu-servidor"
       title="Menu do servidor"
       aria-label="Menu do servidor"
       aria-expanded={open}
@@ -692,6 +694,7 @@ function ServerHeader({
 
   return (
     <div ref={ref} onContextMenu={contextMenu(() => <ServerMenu server={server} meId={meId} />)} className="relative border-b border-line">
+      {isOwner && <Tip id="server.owner" />}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-2">
           <span title={server.name}>

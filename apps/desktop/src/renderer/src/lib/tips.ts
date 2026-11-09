@@ -40,7 +40,50 @@ export const TIPS = {
     anchor: 'modo-tela',
     title: 'Texto nítido ou Movimento',
     text: 'Texto nítido deixa letras, código e planilhas legíveis; Movimento prioriza a fluidez, melhor pra jogos e vídeos. Escolha conforme o que você vai mostrar.'
+  },
+  'server.owner': {
+    anchor: 'menu-servidor',
+    title: 'Seu servidor',
+    text: 'Neste menu ficam os convites e as configurações do servidor: categorias, cargos e quem vê cada canal (canal privado). Pra mudar a ordem de canais e categorias, é só arrastar na barra lateral.'
+  },
+  'addon.kanban': {
+    anchor: 'addon',
+    title: 'Kanban',
+    text: 'Organize tarefas em colunas: crie cartões e arraste entre elas, com responsável e prazo. Os prazos aparecem no Calendário e em Minhas tarefas, no Início.'
+  },
+  'addon.whiteboard': {
+    anchor: 'addon',
+    title: 'Quadro',
+    text: 'Um quadro branco pra desenhar junto, em tempo real: formas, setas, texto e imagens. Todo mundo do canal vê as mudanças na hora.'
+  },
+  'addon.events': {
+    anchor: 'addon',
+    title: 'Eventos',
+    text: 'Marque encontros do servidor com data e hora. Cada pessoa responde Vou ou Talvez, e o evento aparece no Calendário e no Início de quem participa.'
+  },
+  'addon.calendar': {
+    anchor: 'addon',
+    title: 'Calendário',
+    text: 'Junta numa vista só os eventos e os prazos do Kanban do servidor, por mês, semana ou lista. Clique num item pra abrir onde ele está.'
+  },
+  'chat.polls': {
+    anchor: 'chat-mais',
+    title: 'Enquetes e anexos',
+    text: 'No + você anexa arquivos ou cria uma enquete pra conversa votar.'
+  },
+  'chat.reactions': {
+    anchor: 'reacoes',
+    title: 'Reações',
+    text: 'Pra reagir, passe o mouse na mensagem e escolha um emoji (lá também ficam responder e encaminhar). Clicar numa reação que já existe soma a sua.'
   }
 } satisfies Record<string, TipDef>
+
+/** The tip of each addon's panel, by addon key. */
+export const ADDON_TIPS: Partial<Record<string, TipKey>> = {
+  kanban: 'addon.kanban',
+  whiteboard: 'addon.whiteboard',
+  events: 'addon.events',
+  calendar: 'addon.calendar'
+}
 
 export type TipKey = keyof typeof TIPS

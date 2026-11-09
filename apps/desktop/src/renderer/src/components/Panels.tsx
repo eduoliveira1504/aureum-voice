@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, Columns2, Hash, LayoutDashboard, Minimize2, Rows
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 import { addonIcon, addonModule } from '../addons/registry'
+import { ADDON_TIPS } from '../lib/tips'
 import type { Channel, Me, Panel, PanelTab, ServerDetail } from '../lib/api'
 import {
   clampRatio,
@@ -27,6 +28,7 @@ import { useVoice } from '../store/voice'
 import { ChatView } from './ChatView'
 import { contextMenu, Item } from './ContextMenu'
 import { ServerOverview } from './ServerOverview'
+import { Tip } from './Tour'
 import { VoiceView } from './VoiceView'
 
 /** Drag payload of a panel tab or a sidebar item: `{ tab, from? }` (from = source panel). */
@@ -498,14 +500,18 @@ function AddonView({ server, channel, me }: { server: ServerDetail; channel: Cha
   if (!addon) {
     return <Placeholder title={channel.name ?? 'Addon'} text="Este addon não existe nesta versão do Aureum. Atualize o app para usá-lo." />
   }
+  const tip = channel.addon_key ? ADDON_TIPS[channel.addon_key] : undefined
   return (
-    <addon.Panel
-      server={server}
-      channel={channel}
-      me={me}
-      perms={channelPermissions(server, channel, me.id)}
-      openItem={openItem}
-      onItemOpened={useNav.getState().clearAddonItem}
-    />
+    <div data-tour="addon" className="flex min-h-0 min-w-0 flex-1">
+      <addon.Panel
+        server={server}
+        channel={channel}
+        me={me}
+        perms={channelPermissions(server, channel, me.id)}
+        openItem={openItem}
+        onItemOpened={useNav.getState().clearAddonItem}
+      />
+      {tip && <Tip id={tip} />}
+    </div>
   )
 }

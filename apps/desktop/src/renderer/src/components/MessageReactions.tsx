@@ -4,6 +4,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import type { Message, Reaction } from '../lib/api'
 import { closeContextMenu, contextMenu, Item, Label } from './ContextMenu'
 import { Emoji, pickEmoji } from './Emoji'
+import { Tip } from './Tour'
 
 // Different emojis a message can have (the API says the same).
 export const MAX_REACTIONS = 20
@@ -92,7 +93,8 @@ export function ReactionChips({
     ))
   }
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1">
+    <div data-tour="reacoes" className="mt-1 flex flex-wrap items-center gap-1">
+      {canAdd && <Tip id="chat.reactions" />}
       {reactions.map((reaction) => {
         const mine = reaction.user_ids.includes(meId)
         return (

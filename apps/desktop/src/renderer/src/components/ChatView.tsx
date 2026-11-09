@@ -38,6 +38,7 @@ import { LinkPreviews } from './LinkPreviews'
 import { GifMessage } from './Gifs'
 import { MessageMenuContext } from './ImageMenu'
 import { StickerImage, StickerMessage } from './Stickers'
+import { Tip } from './Tour'
 import { useGifs } from '../store/gifs'
 import { useStickers } from '../store/stickers'
 import { isEmojiOnly } from '../lib/emoji'
@@ -1225,8 +1226,10 @@ function Composer({
       <div className="flex items-end gap-2">
         {(canAttach || extras.length > 0) && (
           <>
+            {extras.some((e) => e.key === 'polls') && <Tip id="chat.polls" />}
             <button
               type="button"
+              data-tour="chat-mais"
               title={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
               aria-label={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
               onClick={(e) => {
