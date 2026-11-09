@@ -6,6 +6,8 @@
 # Run it by hand from the Actions tab with "publish" off for a rehearsal: it builds and signs
 # (ad-hoc) without touching any release, and keeps the files as a workflow artifact for 3 days.
 name: Release (macOS)
+# The release script finds its run by this title.
+run-name: macOS ${{ inputs.version }} at ${{ inputs.sha }}${{ !inputs.publish && ' (rehearsal)' || '' }}
 
 on:
   workflow_dispatch:
