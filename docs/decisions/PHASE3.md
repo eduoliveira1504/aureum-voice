@@ -38,6 +38,9 @@ Próximo, nesta ordem: 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
 Em 09/11: Mac decidido (sem assinatura, testado por um amigo do Eduardo que só tem Mac).
 Próximo, nesta ordem: 3.21 (macOS), 3.16 (tour) e release 0.2.0-beta.10 (Windows + Mac).
+3.21 pronto em 09/11 (teste manual no Mac pendente, pelo amigo do Eduardo; escolhas em
+0045-macos.md; sem migração). Antes da beta.10: push, dar ao GH_TOKEN "Actions: read and write" e,
+se quiser, um ensaio do workflow do Mac (publish desligado). Próximo: 3.16 (tour), depois a beta.10.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -1060,14 +1063,14 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
 - Testes: URL de 500 caracteres, palavra sem espaço, card de link, imagem larga e bloco de código
   numa janela de 900 px e num painel de 320 px: sem rolagem lateral no chat.
 
-## 3.21 Versão para macOS
+## 3.21 Versão para macOS ✅ concluído (teste manual no Mac pendente)
 Decidido pelo Eduardo (09/11): SEM assinatura da Apple por enquanto (grátis, sem atualização
 automática no Mac); quem testa é um amigo do Eduardo que só tem Mac. Assinatura paga fica pro
 lançamento público (FUTURO.md).
 - Build sem assinatura paga, mas com assinatura ad-hoc (a do próprio electron-builder), pra o
   Mac com chip Apple aceitar abrir. Passo a passo na landing e no README: abrir pelo "Abrir mesmo
   assim" em Ajustes › Privacidade e Segurança; se aparecer "está danificado", rodar no Terminal
-  `xattr -cr /Applications/Aureum.app` e abrir de novo.
+  `xattr -cr "/Applications/Aureum Voice.app"` e abrir de novo.
 - A release do Mac sai junto com a do Windows (mesma versão, mesmo rascunho no GitHub): .dmg e
   .zip pros dois chips.
 - Build: electron-builder com alvo mac (dmg + zip, Apple Silicon e Intel), gerado num runner macOS

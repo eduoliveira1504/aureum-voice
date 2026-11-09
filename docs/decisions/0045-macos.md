@@ -38,7 +38,18 @@ stay at R$0, and macOS apps can only be built on macOS, while development happen
   clicking the Dock icon brings it back.
 - **Permissions.** Microphone and camera are asked through `systemPreferences.askForMediaAccess`
   with pt-BR usage texts in Info.plist; screen recording can't be asked for, so when it's missing
-  the app explains and opens the right pane of System Settings.
+  the app explains and opens the right pane of System Settings. Without the microphone the app joins
+  calls muted.
+- **System sound in screen shares.** Electron (39+) captures it on macOS 14.2+ through CoreAudio taps
+  (`audio: 'loopback'`, with `NSAudioCaptureUsageDescription`); older macOS shares without sound and
+  the picker says so. Without the "Screen & System Audio Recording" permission macOS hands over an
+  already-ended audio track and no error: the share goes without it and the call bar explains how to
+  turn it on. Whether the call's own voices stay out of the shared sound on the Mac (as Windows does
+  with `restrictOwnAudio`) is checked in the manual test.
+- **Downloads.** The landing page gives a Mac visitor the dmg for their chip (Chromium reports the
+  architecture; Safari doesn't, so Apple Silicon unless known) and its `#mac` section explains the first
+  launch; the invite page and `/api/app/latest-release` gain optional `mac_arm64_url` / `mac_x64_url`
+  (older pages and apps ignore them); the welcome e-mail links Mac users to that section.
 
 ## Consequences
 
