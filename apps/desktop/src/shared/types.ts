@@ -165,6 +165,8 @@ export interface AppInfo {
 
 /** API exposed to the renderer as `window.aureum` by the preload script. */
 export interface AureumBridge {
+  /** The OS the app runs on ('win32', 'darwin'...), known synchronously (block 3.21). */
+  platform: string
   session: {
     /** Refresh token, decrypted from OS-protected storage. */
     getRefreshToken(): Promise<string | null>

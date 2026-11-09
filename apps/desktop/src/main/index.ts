@@ -26,6 +26,7 @@ import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as images from './images'
+import { installMacMenu } from './macMenu'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
@@ -33,6 +34,10 @@ import { createTray, destroyTray, notify, setTrayState } from './tray'
 import { getUpdateState, installUpdate, startUpdater } from './updater'
 
 captureMainConsole()
+
+// macOS (block 3.21, docs/decisions/0045-macos.md): no overlay, game detection or push-to-talk;
+// the app menu, the traffic lights and the menu bar icon follow the Mac's conventions.
+const IS_MAC = process.platform === 'darwin'
 
 // Set at build time (apps/desktop/.env.production.local), so the installer friends get
 // already points at the public server; users can still change it on the login screen.
@@ -169,7 +174,7 @@ handle('tray:set-state', setTrayState)
 handle('app:recent-logs', recentLogs)
 handle('app:info', (): AppInfo => ({
   version: app.getVersion(),
-  os: `${process.platform === 'win32' ? 'Windows' : process.platform} ${release()} (${arch()})`
+  os: `${process.platform === 'win32' ? 'Windows' : IS_MAC ? 'macOS' : process.platform} ${IS_MAC ? process.getSystemVersion() : release()} (${arch()})`
 }))
 // The window restored the session (or knows it can't): the loading screen may give way.
 handle('app:ready', (online: unknown) => startup?.appReady(online === true))
@@ -214,6 +219,7 @@ handle('overlay:snap', (widget: unknown, corner: unknown) => {
 // Push-to-talk (see pushToTalk.ts): only while the window asks for it.
 handle('ptt:watch', (key: unknown) => {
   if (key !== null && typeof key !== 'string') throw new Error('Invalid key')
+  if (IS_MAC) return key === null // no push-to-talk on the Mac (0045)
   return watchPushToTalk(key, (held) => mainWindow?.webContents.send('ptt:held', held))
 })
 handle('overlay:pause-shortcuts', (paused: unknown) => overlay.pauseShortcuts(paused === true))
@@ -261,7 +267,7 @@ function installDisplayMediaHandler(isAppWindow: (contents: Electron.WebContents
     const source = sources.find((s) => s.id === pick.sourceId)
     if (!source) return callback(null)
     // Hidden before the first frame goes out, when the share would carry it (see overlay.setSharing).
-    overlay.setSharing(source.id)
+    if (!IS_MAC) overlay.setSharing(source.id)
     // 'loopback' = system audio (Windows only).
     callback({ video: source, ...(pick.audio && request.audioRequested ? { audio: 'loopback' as const } : {}) })
   })
@@ -278,8 +284,34 @@ handle('window:title-bar', (color: unknown, symbolColor: unknown) => {
   if (typeof color !== 'string' || !HEX.test(color) || typeof symbolColor !== 'string' || !HEX.test(symbolColor)) {
     throw new Error('Invalid colors')
   }
-  mainWindow?.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT })
+  // The Mac's traffic lights draw themselves (no overlay to color there).
+  if (!IS_MAC) mainWindow?.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT })
 })
+
+/** Report problem shortcut: Ctrl+Shift+R, Cmd+Shift+R on the Mac. */
+const isReportShortcut = (input: Electron.Input): boolean =>
+  input.type === 'keyDown' &&
+  (IS_MAC ? input.meta && !input.control : input.control) &&
+  input.shift &&
+  !input.alt &&
+  input.key.toLowerCase() === 'r'
+
+// The traffic lights' size on macOS, to center them in the top bar.
+const TRAFFIC_LIGHTS_HEIGHT = 14
+
+// Windows: no system title bar, the app's tab bar at the top with Windows' buttons drawn over its
+// right end in the theme's colors (the renderer updates them, see window:title-bar). macOS: the
+// same bar, with the traffic lights over its left end (the renderer leaves room for them).
+const TITLE_BAR_OPTIONS: Electron.BrowserWindowConstructorOptions = IS_MAC
+  ? {
+      titleBarStyle: 'hidden',
+      trafficLightPosition: { x: 16, y: Math.round((TITLE_BAR_HEIGHT - TRAFFIC_LIGHTS_HEIGHT) / 2) }
+    }
+  : {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: { color: '#0a0908', symbolColor: '#f4efe4', height: TITLE_BAR_HEIGHT },
+      icon: appIcon // window and taskbar (the installed exe carries the same icon); the Mac uses the bundle's
+    }
 
 handle('window:capture', async () => (await mainWindow!.webContents.capturePage()).toPNG())
 // "Voltar ao app" in the detached call window, and what it opens in the app (the screen picker).
@@ -299,12 +331,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0a0908', // dark --bg-rail: shown before the renderer paints
-    // No system title bar: the app's tab bar sits at the top, with Windows' buttons drawn over
-    // its right end in the theme's colors (the renderer updates them, see window:title-bar).
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#0a0908', symbolColor: '#f4efe4', height: TITLE_BAR_HEIGHT },
+    ...TITLE_BAR_OPTIONS,
     title: 'Aureum Voice',
-    icon: appIcon, // window and taskbar (the installed exe carries the same icon)
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -322,20 +350,26 @@ function createWindow(): void {
     event.preventDefault()
     mainWindow?.hide()
     if (!cachedSettings.trayHintShown) {
-      notify('O Aureum continua rodando na bandeja', 'Para fechar de vez, use Sair do Aureum no ícone da bandeja.')
+      if (IS_MAC) {
+        notify('O Aureum continua aberto', 'Para fechar de vez, use Cmd+Q ou Sair do Aureum no ícone da barra de menus.')
+      } else {
+        notify('O Aureum continua rodando na bandeja', 'Para fechar de vez, use Sair do Aureum no ícone da bandeja.')
+      }
       void writeSettings({ trayHintShown: true })
     }
   })
   captureWindowConsole(mainWindow.webContents, 'app')
-  // Ctrl+Shift+R opens "Reportar problema" (in Electron's default menu it would force a reload).
+  // Ctrl+Shift+R (Cmd+Shift+R) opens "Reportar problema" (in Electron's default menu it would force a reload).
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.control && input.shift && !input.alt && input.key.toLowerCase() === 'r') {
+    if (isReportShortcut(input)) {
       event.preventDefault()
-      mainWindow?.webContents.send('app:report-problem')
+      reportProblem()
     }
   })
-  mainWindow.on('focus', () => overlay.setMainFocused(true))
-  mainWindow.on('blur', () => overlay.setMainFocused(false))
+  if (!IS_MAC) {
+    mainWindow.on('focus', () => overlay.setMainFocused(true))
+    mainWindow.on('blur', () => overlay.setMainFocused(false))
+  }
   mainWindow.webContents.on('did-create-window', (created, { frameName }) => adoptPopup(created, frameName))
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -371,7 +405,7 @@ function createSplash(): void {
     fullscreenable: false,
     show: false,
     title: 'Aureum Voice',
-    icon: appIcon,
+    ...(IS_MAC ? {} : { icon: appIcon }),
     webPreferences: {
       preload: join(__dirname, '../preload/splash.js'),
       contextIsolation: true,
@@ -430,6 +464,16 @@ function startWithSplash(): void {
   )
 }
 
+function reportProblem(): void {
+  showWindow()
+  mainWindow?.webContents.send('app:report-problem')
+}
+
+function quitApp(): void {
+  quitting = true
+  app.quit()
+}
+
 function showWindow(): void {
   // Opening the app again during the loading screen just brings the screen forward.
   if (splashWindow && startup && !startup.done) {
@@ -450,8 +494,9 @@ app.on('web-contents-created', (_, contents) => {
     if (!(devUrl && url.startsWith(devUrl))) event.preventDefault()
   })
   contents.setWindowOpenHandler(({ url, frameName }) => {
-    // The app's window opens each overlay widget as a blank page and renders into it itself.
-    if (contents === mainWindow?.webContents && overlay.widgetOfFrame(frameName) && url === 'about:blank') {
+    // The app's window opens each overlay widget as a blank page and renders into it itself
+    // (never on the Mac, which has no overlay).
+    if (!IS_MAC && contents === mainWindow?.webContents && overlay.widgetOfFrame(frameName) && url === 'about:blank') {
       return { action: 'allow', overrideBrowserWindowOptions: overlay.OVERLAY_WINDOW_OPTIONS }
     }
     // The detached call window, rendered the same way (see callWindow.ts).
@@ -474,7 +519,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     // Same as electron-builder's appId, so the taskbar groups the window with the shortcut's icon.
-    app.setAppUserModelId('com.aureum.voice')
+    if (!IS_MAC) app.setAppUserModelId('com.aureum.voice')
+    if (IS_MAC) installMacMenu({ reportProblem, quit: quitApp })
     const isAppWindow = (contents: Electron.WebContents | null): boolean =>
       !!contents && contents === mainWindow?.webContents
     session.defaultSession.setPermissionRequestHandler((contents, permission, callback) =>
@@ -490,24 +536,22 @@ if (!app.requestSingleInstanceLock()) {
     createWindow()
     createTray({
       open: showWindow,
-      quit: () => {
-        quitting = true
-        app.quit()
-      },
+      quit: quitApp,
       command: (command: TrayCommand) => mainWindow?.webContents.send('tray:command', command)
     })
-    void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
-    void startGameDetection((game) => {
-      mainWindow?.webContents.send('games:changed', game)
-      void syncOverlayGames()
-    }).then(syncOverlayGames)
+    if (!IS_MAC) {
+      void overlay.startOverlay((state) => mainWindow?.webContents.send('overlay:state', state))
+      void startGameDetection((game) => {
+        mainWindow?.webContents.send('games:changed', game)
+        void syncOverlayGames()
+      }).then(syncOverlayGames)
+    }
     startUpdater(
       (state) => mainWindow?.webContents.send('updates:ready', state),
       (phase) => startup?.update(phase)
     )
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
-    })
+    // Clicking the Dock icon brings back the hidden window (closing it only hides it).
+    app.on('activate', showWindow)
   })
 
   app.on('window-all-closed', () => {

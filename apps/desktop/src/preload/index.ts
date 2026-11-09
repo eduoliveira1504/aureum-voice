@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { AureumBridge, OverlayState, TrayCommand, UpdateState } from '../shared/types'
 
 const bridge: AureumBridge = {
+  platform: process.platform,
   session: {
     getRefreshToken: () => ipcRenderer.invoke('session:get-refresh-token'),
     setRefreshToken: (token) => ipcRenderer.invoke('session:set-refresh-token', token),
