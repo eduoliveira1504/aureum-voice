@@ -2,6 +2,7 @@ import { AppWindow, Monitor } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { ShareSource } from '../../../shared/types'
+import { ensureAccess } from '../lib/mediaAccess'
 import { describeScreen, SCREEN_MODES, type ScreenMode } from '../lib/mediaTier'
 import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
@@ -20,10 +21,19 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    void window.aureum.screen.getSources().then((list) => {
+    let alive = true
+    void (async () => {
+      // macOS: screen recording off closes the picker and opens the notice instead.
+      if (!(await ensureAccess('screen'))) return onClose()
+      const list = await window.aureum.screen.getSources()
+      if (!alive) return
       setSources(list)
       setSelected(list.find((s) => s.kind === 'screen')?.id ?? null)
-    })
+    })()
+    return () => {
+      alive = false
+    }
+    // Only when the picker opens.
   }, [])
 
   const visible = sources?.filter((s) => s.kind === tab) ?? []

@@ -29,6 +29,7 @@ import {
 import { useAppearance } from './appearance'
 import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
+import { ensureAccess } from '../lib/mediaAccess'
 import { sendRealtime } from '../lib/realtime'
 import {
   COOLDOWN_MS,
@@ -628,6 +629,13 @@ export const useVoice = create<VoiceStore>()((set, get) => {
   async function applyMic(announceIt = true): Promise<void> {
     const r = room
     if (r && r.state === ConnectionState.Connected) {
+      // macOS: the microphone permission is off (the notice says where to turn it on).
+      if (micOpen() && !(await ensureAccess('microphone'))) {
+        set({ muted: true })
+        if (announceIt) announce()
+        bump()
+        return
+      }
       await r.localParticipant.setMicrophoneEnabled(micOpen()).catch(() => {
         set({ muted: true, error: 'Não foi possível acessar o microfone.' })
       })
@@ -717,6 +725,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       syncPushToTalk()
       try {
         const { muted, deafened, allowed } = get()
+        // macOS: without the microphone permission, join muted (the notice says where to turn it on).
+        if (!muted && !deafened && allowed.mic && !(await ensureAccess('microphone'))) {
+          set({ muted: true })
+          announce()
+          return
+        }
         // In push-to-talk the mic is published muted, so the first press opens it right away.
         await r.localParticipant.setMicrophoneEnabled(!muted && !deafened && allowed.mic)
         if (!micOpen()) await r.localParticipant.setMicrophoneEnabled(false)
@@ -761,6 +775,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       if (!r || get().phase === 'connecting') return
       const next = !get().camera
       if (next && !get().allowed.camera) return
+      if (next && !(await ensureAccess('camera'))) return
       try {
         // Within the plan's limits: its resolution and frame rate, with smaller simulcast layers
         // for whoever watches in a small tile.

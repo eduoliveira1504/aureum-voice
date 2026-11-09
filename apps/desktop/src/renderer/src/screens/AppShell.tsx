@@ -34,6 +34,7 @@ import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
+import { AccessNotice } from '../components/AccessNotice'
 
 // Below this width the sidebar shows icons only and a single panel fits.
 const NARROW_QUERY = '(max-width: 1099px)'
@@ -139,6 +140,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <ContextMenuHost />
       <EmojiPickerHost />
       <EditProfileHost me={user} />
+      <AccessNotice />
     </div>
   )
 }

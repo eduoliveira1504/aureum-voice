@@ -27,6 +27,7 @@ import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDete
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as images from './images'
 import { installMacMenu } from './macMenu'
+import { openAccessSettings, requestAccess } from './mediaAccess'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
@@ -172,6 +173,8 @@ handle('images:copy', images.copyImage)
 handle('images:save', (data: unknown, name: unknown, contentType: unknown) => images.saveImage(mainWindow, data, name, contentType))
 handle('tray:set-state', setTrayState)
 handle('app:recent-logs', recentLogs)
+handle('media:access', requestAccess)
+handle('media:open-settings', openAccessSettings)
 handle('app:info', (): AppInfo => ({
   version: app.getVersion(),
   os: `${process.platform === 'win32' ? 'Windows' : IS_MAC ? 'macOS' : process.platform} ${IS_MAC ? process.getSystemVersion() : release()} (${arch()})`

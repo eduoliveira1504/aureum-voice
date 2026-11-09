@@ -8,6 +8,7 @@ import type { AureumBridge } from '../../../shared/types'
 const unsubscribe = (): (() => void) => () => {}
 const bridge = {
   platform: 'win32',
+  media: { access: async () => 'granted', openSettings: async () => {} },
   session: { getRefreshToken: async () => null, setRefreshToken: async () => {}, isPersistent: async () => true },
   settings: {
     get: async () => ({ apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true }),

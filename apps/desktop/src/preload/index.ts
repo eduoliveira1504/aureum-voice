@@ -32,6 +32,10 @@ const bridge: AureumBridge = {
     setPinned: (pinned) => ipcRenderer.invoke('call-window:set-pinned', pinned),
     move: (x, y) => ipcRenderer.invoke('call-window:move', { x, y })
   },
+  media: {
+    access: (kind) => ipcRenderer.invoke('media:access', kind),
+    openSettings: (kind) => ipcRenderer.invoke('media:open-settings', kind)
+  },
   app: {
     info: () => ipcRenderer.invoke('app:info'),
     ready: (online) => ipcRenderer.invoke('app:ready', online),

@@ -1,5 +1,7 @@
 /** Types shared by the main process, the preload script and the renderer. */
 
+import type { MediaAccess, MediaKind } from './mediaAccess'
+
 export interface AppSettings {
   /** Base URL of the Aureum API, e.g. http://localhost:8000 */
   apiUrl: string
@@ -213,6 +215,13 @@ export interface AureumBridge {
     setPinned(pinned: boolean): Promise<void>
     /** Moves it to this screen position (dragging it by any part that isn't a button). */
     move(x: number, y: number): Promise<void>
+  }
+  /** macOS privacy permissions (block 3.21); elsewhere always 'granted'. */
+  media: {
+    /** The status, asking first (microphone, camera) if the person was never asked. */
+    access(kind: MediaKind): Promise<MediaAccess>
+    /** Opens System Settings on this permission's list. */
+    openSettings(kind: MediaKind): Promise<void>
   }
   app: {
     info(): Promise<AppInfo>
