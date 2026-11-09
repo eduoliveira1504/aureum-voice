@@ -33,7 +33,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   soundboard_muted: false,
   collapsed_categories: [],
   screen_audio: {},
-  screen_volume_default: 50
+  screen_volume_default: 50,
+  onboarding: { tour_version_done: 0, tour_invite: false, tips_seen: [] }
 }
 
 const CACHE_KEY = 'aureum.appearance'
@@ -221,9 +222,11 @@ darkQuery.addEventListener('change', () => {
   useAppearance.setState({ resolved: resolve(settings.theme) })
 })
 
-/** Loads the signed-in user's settings from the server. */
-export async function loadAppearance(): Promise<void> {
-  useAppearance.getState().hydrate(await api<UserSettings>('/users/me/settings'))
+/** Loads the signed-in user's settings from the server. Resolves with them. */
+export async function loadAppearance(): Promise<UserSettings> {
+  const settings = await api<UserSettings>('/users/me/settings')
+  useAppearance.getState().hydrate(settings)
+  return settings
 }
 
 /**

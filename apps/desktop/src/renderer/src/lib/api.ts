@@ -234,6 +234,16 @@ export interface UserSettings {
   screen_audio: Record<string, ScreenAudio>
   /** The screen share volume for people never adjusted (0-100). */
   screen_volume_default: number
+  /** Tour and first-time tips (block 3.16); missing on servers older than it. */
+  onboarding: Onboarding
+}
+
+/** The last tour version done (0 = never), whether to ask before the tour (accounts older than
+ * it) and the first-time tips already dismissed. */
+export interface Onboarding {
+  tour_version_done: number
+  tour_invite: boolean
+  tips_seen: string[]
 }
 
 /** What @aureum's DM is about. Security can't be turned off. */
