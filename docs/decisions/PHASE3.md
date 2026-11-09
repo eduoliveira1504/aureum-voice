@@ -36,6 +36,8 @@ em 0041-loading-screen.md); 3.22 parte A pronta (teste manual pendente; escolhas
 3.22 está concluído.
 Próximo, nesta ordem: 3.21
 (só depois das decisões do Eduardo) e 3.16 por último.
+Em 09/11: Mac decidido (sem assinatura, testado por um amigo do Eduardo que só tem Mac).
+Próximo, nesta ordem: 3.21 (macOS), 3.16 (tour) e release 0.2.0-beta.10 (Windows + Mac).
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -49,11 +51,20 @@ Próximo, nesta ordem: 3.21
 - `npm run release` gera um RASCUNHO no GitHub, no mesmo canal do beta.2 (latest.yml
   padrão; NÃO criar canal "beta" separado). O Eduardo publica com o label "None", não
   "Pre-release".
+- Windows e Mac saem juntos (desde o 3.21): o script gera o Windows no PC, dispara o workflow
+  release-mac.yml (runner macOS do GitHub Actions) e espera ele subir o Mac no mesmo rascunho.
+  Por isso, ANTES do `npm run release`: tudo commitado e o push do main feito (o Mac é gerado do
+  commit que está no GitHub; o script recusa se o HEAD local não estiver no origin/main). O GH_TOKEN
+  precisa de "Contents" e "Actions" com leitura e escrita. Se só o Mac falhar:
+  `npm run release -- --mac-only`.
+- O rascunho tem que ter: .exe, .exe.blockmap e latest.yml (Windows); .dmg e .zip de arm64 e x64,
+  com seus .blockmap, e latest-mac.yml (Mac). O script confere tudo no fim.
 - Versão segue 0.2.0-beta.N com N inteiro (próxima: 0.2.0-beta.10).
   Antes do release: confirmar que um app da versão anterior instalado vai encontrar a nova.
 - CHANGELOG em linguagem simples (vai pra galera do beta).
 - Depois de publicar: passos para o Eduardo testar no PC dele, com a versão anterior
-  instalada, que o app baixa e instala a nova sozinho.
+  instalada, que o app baixa e instala a nova sozinho; e, no Mac (amigo do Eduardo), que a versão
+  anterior mostra o aviso "Baixar a versão X" (o Mac não se atualiza sozinho).
 
 ## 3.0 Processo de release ✅ concluído
 scripts/release-desktop.mjs cria (ou reaproveita) o rascunho da tag antes do upload e
@@ -1050,7 +1061,15 @@ Nome na interface: "Painel de sons" (não usar "Soundboard" nem "Soundpad").
   numa janela de 900 px e num painel de 320 px: sem rolagem lateral no chat.
 
 ## 3.21 Versão para macOS
-NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e quem testa num Mac.
+Decidido pelo Eduardo (09/11): SEM assinatura da Apple por enquanto (grátis, sem atualização
+automática no Mac); quem testa é um amigo do Eduardo que só tem Mac. Assinatura paga fica pro
+lançamento público (FUTURO.md).
+- Build sem assinatura paga, mas com assinatura ad-hoc (a do próprio electron-builder), pra o
+  Mac com chip Apple aceitar abrir. Passo a passo na landing e no README: abrir pelo "Abrir mesmo
+  assim" em Ajustes › Privacidade e Segurança; se aparecer "está danificado", rodar no Terminal
+  `xattr -cr /Applications/Aureum.app` e abrir de novo.
+- A release do Mac sai junto com a do Windows (mesma versão, mesmo rascunho no GitHub): .dmg e
+  .zip pros dois chips.
 - Build: electron-builder com alvo mac (dmg + zip, Apple Silicon e Intel), gerado num runner macOS
   do GitHub Actions (grátis em repositório público), disparado pelo ritual de release junto com o
   Windows. Ícone .icns gerado pelo npm run build:icons a partir do logo oficial.
@@ -1061,8 +1080,8 @@ NÃO começar sem as decisões do Eduardo: assinatura Apple (paga) ou não, e qu
 - Permissões do macOS com textos em pt-BR: microfone, câmera e gravação de tela (transmissão);
   fluxo que explica e abre os Ajustes quando a permissão foi negada.
 - Recursos só de Windows ficam desligados e escondidos no Mac, sem erro: overlay, detecção de jogo
-  e atalho global de push-to-talk com o app em segundo plano (avaliar o equivalente do Mac, que
-  pede permissão de Acessibilidade, e perguntar antes).
+  e push-to-talk (decidido em 09/11: no Mac o "Pressionar para falar" sai das opções, nem com a
+  janela em foco; nada de pedir permissão de Acessibilidade).
 - Transmissão de tela com som do sistema: testar no Mac (exige permissão de gravação de tela);
   se não der som do sistema, transmitir sem som com aviso claro.
 - Atalhos com Cmd no lugar de Ctrl no Mac (inclusive os textos de ajuda e do tour); menu do app

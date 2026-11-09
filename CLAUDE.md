@@ -31,6 +31,10 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
   feitas pelo Eduardo, manualmente.
 - Não criar contas, assinaturas, planos ou chaves de API pagas em nenhum serviço.
 - Preferir sempre soluções self-hosted e open source.
+- Apple: NÃO criar conta Apple Developer (paga, ~US$99/ano), nem assinar com certificado ou
+  notarizar, sem decisão explícita do Eduardo. O app do Mac sai com assinatura ad-hoc (grátis).
+- GitHub Actions: o build do Mac usa o runner macOS, grátis só porque o repositório é público.
+  Se o repositório virar privado, PARE e pergunte antes de rodar (minutos de macOS são cobrados).
 - Se alguma tarefa exigir serviço pago ou que possa virar pago, PARE e pergunte antes,
   explicando o custo e a alternativa grátis.
 - Nunca colocar segredos no código ou no git; apenas no .env (que está no .gitignore).
@@ -122,10 +126,13 @@ call.* (chamadas privadas), read-state. Redis pub/sub para distribuir eventos.
 - Design system: tokens do bloco 2.1 (tema claro/escuro, accent personalizável,
   Sora + Figtree). Nenhuma cor hardcoded.
 - Screenshare: desktopCapturer + session.setDisplayMediaRequestHandler com seletor próprio
-  de tela/janela; áudio do sistema via audio: 'loopback' (Windows)
+  de tela/janela; áudio do sistema via audio: 'loopback' (Windows; no Mac depende da versão do macOS, ver 0045)
 - Seleção de microfone/câmera/saída em Configurações; supressão de ruído (RNNoise) ligada
 - URL da API configurável (local agora, domínio da VM depois)
-- Instalador Windows com electron-builder
+- Instaladores Windows e Mac com electron-builder, na mesma release: Windows gerado no PC do
+  Eduardo (`npm run release`), Mac (dmg + zip, Apple Silicon e Intel) no runner macOS do GitHub
+  Actions, disparado pelo mesmo script. Mac sem assinatura paga (ad-hoc), sem atualização
+  automática (só aviso de versão nova) e sem overlay, detecção de jogo e push-to-talk.
 
 ## Fase 1 (concluída)
 1. infra: docker-compose com postgres, redis, livekit, minio ✅
