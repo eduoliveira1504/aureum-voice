@@ -59,7 +59,7 @@ export const TIPS = {
   'addon.events': {
     anchor: 'addon',
     title: 'Eventos',
-    text: 'Marque encontros do servidor com data e hora. Cada pessoa responde Vou ou Talvez, e o evento aparece no Calendário e no Início de quem participa.'
+    text: 'Marque encontros do servidor com data e hora. Cada pessoa responde Vou, Talvez ou Não vou, o @aureum lembra quem vai antes de começar e o evento aparece no Calendário e no Início.'
   },
   'addon.calendar': {
     anchor: 'addon',
