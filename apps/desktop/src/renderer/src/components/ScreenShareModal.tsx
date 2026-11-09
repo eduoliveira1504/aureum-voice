@@ -7,6 +7,7 @@ import { isMac } from '../lib/platform'
 import { describeScreen, SCREEN_MODES, type ScreenMode } from '../lib/mediaTier'
 import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
+import { Tip } from './Tour'
 import { PrimaryButton, Segmented, ToggleRow } from './ui'
 
 /** The app's own picker for what to share (Electron has no built-in one on Windows). */
@@ -87,7 +88,8 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
         ))}
       </div>
 
-      <div role="radiogroup" aria-label="Qualidade" className="mt-4 grid grid-cols-2 gap-3">
+      <div role="radiogroup" aria-label="Qualidade" data-tour="modo-tela" className="mt-4 grid grid-cols-2 gap-3">
+        <Tip id="screen.share" />
         {(['detail', 'motion'] as const).map((mode) => (
           <label
             key={mode}

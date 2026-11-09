@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom'
 
 import { balloonPosition, type Box, type TourStepBase } from '../lib/onboarding'
+import { TIPS, type TipKey } from '../lib/tips'
 import { useAppearance } from '../store/appearance'
 import { useOnboarding } from '../store/onboarding'
 import { Logo } from './Logo'
@@ -263,4 +264,10 @@ export function FirstTimeTip({ tip, anchor, title, text }: { tip: string; anchor
     </Placed>,
     document.body
   )
+}
+
+/** A tip from the list in lib/tips.ts. */
+export function Tip({ id }: { id: TipKey }): ReactNode {
+  const tip = TIPS[id]
+  return <FirstTimeTip tip={id} anchor={tip.anchor} title={tip.title} text={tip.text} />
 }

@@ -28,15 +28,18 @@ import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
+import { isMac } from '../lib/platform'
 import { pttKeyLabel } from '../lib/pushToTalk'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
+import { useOverlay } from '../store/overlay'
 import { cameraTrackOf, getRoom, isSharing, micEnabled, roomIdentities, screenAudioOf, screenTrackOf, screenVolumeOf, setScreenVolume, useVoice } from '../store/voice'
 import { NameMarks } from './Badge'
 import { CallPopover, DeviceArrow } from './CallDeviceMenus'
 import { StatusBubble } from './profileBits'
 import { ScreenShareModal } from './ScreenShareModal'
+import { Tip } from './Tour'
 import { SoundboardGrid, SoundboardPrefs } from './Soundboard'
 import { Avatar, TileRing } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
@@ -377,6 +380,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
         <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{name} está transmitindo</p>
         <button
           type="button"
+          data-tour="assistir"
           onClick={(e) => {
             // Watching also brings the stream into focus.
             e.stopPropagation()
@@ -391,6 +395,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
           Assistir
         </button>
       </div>
+      <Tip id="screen.watch" />
     </TileFrame>
   )
 }
@@ -436,7 +441,12 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
   return (
     <TileFrame size={size} label={name} onClick={onClick} dark>
       {/* The whole box goes fullscreen, so its labels and controls come along. */}
-      <div ref={ref} className={`relative flex h-full w-full items-center justify-center bg-scrim ${fullscreen && idle ? 'cursor-none' : ''}`}>
+      <div
+        ref={ref}
+        data-tour={isLocal ? undefined : 'tela-assistida'}
+        className={`relative flex h-full w-full items-center justify-center bg-scrim ${fullscreen && idle ? 'cursor-none' : ''}`}
+      >
+        {!isLocal && !fullscreen && <Tip id="screen.watching" />}
         <div className="flex h-full w-full items-center justify-center" onDoubleClick={size === 'strip' ? undefined : toggleFullscreen}>
           <VideoTrackView track={track} mirror={false} />
         </div>
@@ -673,7 +683,8 @@ export function SoundboardControl({
         ? 'Você foi silenciado neste servidor'
         : 'Painel de sons'
   return (
-    <span ref={anchor} className="flex">
+    <span ref={anchor} data-tour={small ? undefined : 'painel-sons'} className="flex">
+      {!small && connected && allowed && !blocked && <Tip id="call.soundboard" />}
       {small ? (
         <button
           type="button"
@@ -718,10 +729,14 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
   const hidden = fullscreen && idle && menus === 0 && !picking
   const menuOpen = (open: boolean): void => setMenus((n) => Math.max(0, n + (open ? 1 : -1)))
   const connecting = phase === 'connecting'
+  // The overlay (Windows only) is on: its tip comes after the call's own.
+  const overlayOn = useOverlay((s) => !isMac() && !!s.state?.prefs.enabled)
   return (
     <div className={`shrink-0 transition-opacity ${hidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
       <PushToTalkHint />
-      <div role="toolbar" aria-label="Controles da chamada" className="flex items-center justify-center gap-3 pb-6">
+      <div role="toolbar" aria-label="Controles da chamada" data-tour="call-controles" className="flex items-center justify-center gap-3 pb-6">
+        {phase === 'connected' && <Tip id="call.controls" />}
+        {phase === 'connected' && overlayOn && <Tip id="call.overlay" />}
         <div className="flex">
           <ControlButton
             label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}

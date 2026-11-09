@@ -5,16 +5,26 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { TIPS } from '../lib/tips'
 import { TOUR_STEPS } from './tourSteps'
 
 const files = import.meta.glob<string>(['../**/*.tsx', '!../**/*.test.tsx'], { query: '?raw', import: 'default', eager: true })
 
-/** Every data-tour="..." written in the app's components. */
-const anchorsInApp = new Set(Object.values(files).flatMap((source) => [...source.matchAll(/data-tour="([a-z0-9.-]+)"/g)].map((m) => m[1])))
+/** Every anchor written in the app's components: data-tour="x", or data-tour={... 'x'} when it depends on something. */
+const anchorsInApp = new Set(
+  Object.values(files).flatMap((source) => [
+    ...[...source.matchAll(/data-tour="([a-z0-9.-]+)"/g)].map((m) => m[1]),
+    ...[...source.matchAll(/data-tour=\{[^}]*'([a-z0-9.-]+)'\}/g)].map((m) => m[1])
+  ])
+)
 
 describe('tour anchors', () => {
   it('finds the app sources', () => {
     expect(Object.keys(files).length).toBeGreaterThan(50)
+  })
+
+  it.each(Object.entries(TIPS).map(([key, tip]) => [key, tip.anchor]))('tip %s finds data-tour="%s"', (_, anchor) => {
+    expect(anchorsInApp).toContain(anchor)
   })
 
   it.each(TOUR_STEPS.filter((s) => s.anchor).map((s) => [s.id, s.anchor!]))('step %s finds data-tour="%s"', (_, anchor) => {
