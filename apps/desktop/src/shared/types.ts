@@ -154,7 +154,13 @@ export interface OverlayState {
 export interface UpdateState {
   ready: boolean
   version: string | null
+  /** macOS (block 3.21): the app can't update itself, so `ready` means "a newer version exists"
+   * and install() opens the download page instead. */
+  manual?: boolean
 }
+
+/** Where Mac users download a newer version (the landing page's download section). */
+export const DOWNLOAD_PAGE = 'https://eduoliveira1504.github.io/aureum-voice/#baixar'
 
 /** What a bug report says about the app and the PC. */
 export interface AppInfo {
@@ -226,7 +232,7 @@ export interface AureumBridge {
   }
   updates: {
     getState(): Promise<UpdateState>
-    /** Restarts into the downloaded update. */
+    /** Restarts into the downloaded update (on the Mac: opens the download page). */
     install(): Promise<void>
     onReady(listener: (state: UpdateState) => void): () => void
   }

@@ -180,7 +180,8 @@ handle('app:info', (): AppInfo => ({
 handle('app:ready', (online: unknown) => startup?.appReady(online === true))
 handle('updates:get-state', getUpdateState)
 handle('updates:install', () => {
-  quitting = true
+  // On the Mac it only opens the download page: the app keeps running.
+  if (!getUpdateState().manual) quitting = true
   installUpdate()
 })
 // Seconds without keyboard/mouse input on the whole PC (not just this app), for auto-idle.

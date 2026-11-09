@@ -1,4 +1,4 @@
-import { Bell, Bug, Check, Circle, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Users, Volume2, X } from 'lucide-react'
+import { Bell, Bug, Check, Circle, Download, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Users, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -21,6 +21,7 @@ import { NewsModal, useUnseenNews } from './NewsModal'
 import { SettingsModal } from './SettingsModal'
 import { Avatar, CountBadge, menuClass, MenuItem, ServerIcon, StatusDot, useDismiss } from './ui'
 import { userContextMenu } from './UserMenu'
+import type { UpdateState } from '../../../shared/types'
 
 const TAB_DRAG_TYPE = 'application/x-aureum-server-tab'
 
@@ -566,22 +567,31 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
   )
 }
 
-/** Shows up once an update finished downloading in the background. */
-function UpdateButton(): ReactNode {
-  const [version, setVersion] = useState<string | null>(null)
+/** Shows up once an update finished downloading in the background; on the Mac, once a newer
+ * version exists (it can't update itself: the button opens the download page). */
+export function UpdateButton(): ReactNode {
+  const [update, setUpdate] = useState<UpdateState | null>(null)
   useEffect(() => {
-    void window.aureum.updates.getState().then((s) => s.ready && setVersion(s.version))
-    return window.aureum.updates.onReady((s) => setVersion(s.version))
+    void window.aureum.updates.getState().then((s) => s.ready && setUpdate(s))
+    return window.aureum.updates.onReady(setUpdate)
   }, [])
-  if (!version) return null
+  if (!update?.version) return null
   return (
     <button
       type="button"
-      title={`Versão ${version} pronta`}
+      title={update.manual ? `A versão ${update.version} saiu. Baixe e instale por cima desta.` : `Versão ${update.version} pronta`}
       onClick={() => void window.aureum.updates.install()}
       className="flex items-center gap-1.5 rounded-control bg-accent px-2.5 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
     >
-      <RefreshCw size={14} /> Reiniciar para atualizar
+      {update.manual ? (
+        <>
+          <Download size={14} /> Baixar a versão {update.version}
+        </>
+      ) : (
+        <>
+          <RefreshCw size={14} /> Reiniciar para atualizar
+        </>
+      )}
     </button>
   )
 }

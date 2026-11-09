@@ -6,11 +6,15 @@
  * only latest.yml: a "-beta.N"
  * version allows prereleases, looks for beta.yml first and falls back to latest.yml. Installed
  * app only.
+ *
+ * macOS (block 3.21, 0045): an ad-hoc signed app can't update itself. There it only checks
+ * (latest-mac.yml), never downloads, and a newer version is reported as `manual`: the window offers
+ * "Baixar a versão X", which opens the download page. The loading screen doesn't wait for it.
  */
-import { app } from 'electron'
+import { app, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 
-import type { UpdateState } from '../shared/types'
+import { DOWNLOAD_PAGE, type UpdateState } from '../shared/types'
 import { isOfflineError, type UpdatePhase } from './startup'
 
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000
@@ -24,16 +28,22 @@ export function getUpdateState(): UpdateState {
 /** Starts checking (installed app only). onPhase hears every step: what the loading screen shows. */
 export function startUpdater(onReady: (state: UpdateState) => void, onPhase: (phase: UpdatePhase) => void = () => {}): void {
   if (!app.isPackaged) return
-  autoUpdater.autoDownload = true
+  const manual = process.platform === 'darwin'
+  autoUpdater.autoDownload = !manual
   // Without "Reiniciar", the update still goes in when the app quits for real.
-  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.autoInstallOnAppQuit = !manual
   autoUpdater.logger = {
     info: (message) => console.info('[updater]', message),
     warn: (message) => console.warn('[updater]', message),
     error: (message) => console.error('[updater]', message),
     debug: () => {}
   }
-  autoUpdater.on('update-available', () => onPhase({ kind: 'downloading', percent: 0 }))
+  autoUpdater.on('update-available', (info) => {
+    if (!manual) return onPhase({ kind: 'downloading', percent: 0 })
+    state = { ready: true, version: info.version, manual: true }
+    onReady(state)
+    onPhase({ kind: 'none' })
+  })
   autoUpdater.on('download-progress', (progress) => onPhase({ kind: 'downloading', percent: progress.percent }))
   autoUpdater.on('update-not-available', () => onPhase({ kind: 'none' }))
   autoUpdater.on('error', (err) => onPhase({ kind: 'failed', offline: isOfflineError(err) }))
@@ -52,5 +62,6 @@ export function startUpdater(onReady: (state: UpdateState) => void, onPhase: (ph
 
 /** Quits and installs the downloaded update silently, in the same folder; the app reopens on it. */
 export function installUpdate(): void {
-  if (state.ready) autoUpdater.quitAndInstall(true, true)
+  if (state.manual) void shell.openExternal(DOWNLOAD_PAGE)
+  else if (state.ready) autoUpdater.quitAndInstall(true, true)
 }
