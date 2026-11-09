@@ -17,6 +17,28 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+# macOS (block 3.21, docs/decisions/0045-macos.md): built on GitHub's macOS runner by
+# .github/workflows/release-mac.yml, never on Windows. Ad-hoc signature only ("-"): enough for
+# Apple Silicon to run it, no Apple account. Ad-hoc can't pass the hardened runtime's library
+# validation, so it stays off. Not notarized: the first launch goes through "Abrir mesmo assim".
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip # what electron-updater reads (latest-mac.yml) to tell that a version is newer
+      arch: [arm64, x64]
+  icon: build/icon.icns
+  artifactName: Aureum-Voice-${version}-${arch}-mac.${ext} # the zips; the dmgs are named below
+  category: public.app-category.social-networking
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
+  extendInfo:
+    NSMicrophoneUsageDescription: O Aureum usa o microfone para você falar nas salas de voz e nas chamadas.
+    NSCameraUsageDescription: O Aureum usa a câmera quando você liga o vídeo numa sala ou chamada.
+    NSAudioCaptureUsageDescription: O Aureum captura o som do sistema para transmitir junto com a sua tela.
+dmg:
+  artifactName: Aureum-Voice-${version}-${arch}.${ext}
 # Updates (electron-updater) come from this public repository's GitHub releases, through the
 # default latest.yml (no separate beta channel). `npm run release` creates the draft for the tag
 # first and then uploads into it (GH_TOKEN from the root .env); it only reaches people once
