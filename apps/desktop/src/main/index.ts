@@ -28,6 +28,7 @@ import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as images from './images'
 import { installMacMenu } from './macMenu'
 import { openAccessSettings, requestAccess } from './mediaAccess'
+import { macSupportsSystemAudio } from '../shared/mediaAccess'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
@@ -210,7 +211,7 @@ handle('overlay:set-editing', (editing: unknown) => overlay.setEditing(editing =
 handle('overlay:set-active', (active: unknown) => overlay.setActive(active === true))
 handle('overlay:set-notifying', (notifying: unknown) => overlay.setNotifying(notifying === true))
 handle('overlay:set-camera-count', (count: unknown) => overlay.setCameraCount(count))
-handle('overlay:stop-sharing', () => overlay.setSharing(null))
+handle('overlay:stop-sharing', () => !IS_MAC && overlay.setSharing(null))
 const widgetOf = (widget: unknown): OverlayWidget => {
   if (!isOverlayWidget(widget)) throw new Error('Invalid widget')
   return widget
@@ -254,6 +255,10 @@ handle('screen:get-sources', async (): Promise<ShareSource[]> => {
   }))
 })
 
+// macOS: only from 14.2 (CoreAudio taps); older ones share without sound.
+const SYSTEM_AUDIO = !IS_MAC || macSupportsSystemAudio(process.getSystemVersion())
+handle('screen:system-audio', () => SYSTEM_AUDIO)
+
 handle('screen:select', (sourceId: unknown, audio: unknown) => {
   if (typeof sourceId !== 'string') throw new Error('Invalid source')
   pendingShare = { sourceId, audio: audio === true, at: Date.now() }
@@ -272,8 +277,9 @@ function installDisplayMediaHandler(isAppWindow: (contents: Electron.WebContents
     if (!source) return callback(null)
     // Hidden before the first frame goes out, when the share would carry it (see overlay.setSharing).
     if (!IS_MAC) overlay.setSharing(source.id)
-    // 'loopback' = system audio (Windows only).
-    callback({ video: source, ...(pick.audio && request.audioRequested ? { audio: 'loopback' as const } : {}) })
+    // 'loopback' = system audio (Windows; macOS 14.2+ through CoreAudio taps).
+    const audio = pick.audio && request.audioRequested && SYSTEM_AUDIO
+    callback({ video: source, ...(audio ? { audio: 'loopback' as const } : {}) })
   })
 }
 

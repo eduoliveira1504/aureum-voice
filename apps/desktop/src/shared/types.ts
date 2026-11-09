@@ -269,6 +269,8 @@ export interface AureumBridge {
     getSources(): Promise<ShareSource[]>
     /** Picks what the next getDisplayMedia() call captures, and whether it includes system audio. */
     select(sourceId: string, audio: boolean): Promise<void>
+    /** Whether the system's sound can go with a share (always on Windows; macOS 14.2+). */
+    systemAudio(): Promise<boolean>
   }
   overlay: {
     getState(): Promise<OverlayState>

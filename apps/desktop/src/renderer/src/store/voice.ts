@@ -29,7 +29,8 @@ import {
 import { useAppearance } from './appearance'
 import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
-import { ensureAccess } from '../lib/mediaAccess'
+import { ensureAccess, isMac } from '../lib/mediaAccess'
+import { NO_SYSTEM_AUDIO } from '../../../shared/mediaAccess'
 import { sendRealtime } from '../lib/realtime'
 import {
   COOLDOWN_MS,
@@ -834,7 +835,11 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       }
 
       const [video] = stream.getVideoTracks()
-      const [systemAudio] = stream.getAudioTracks()
+      // macOS without the "system audio" permission hands over a track that is already ended
+      // and never plays: share without it and say so.
+      const [captured] = stream.getAudioTracks()
+      const systemAudio = captured?.readyState === 'live' ? captured : undefined
+      const audioMissing = audio && isMac() && !systemAudio
       video.contentHint = hint
       // Fires when the shared window closes or capture stops outside the app.
       video.addEventListener('ended', () => void get().stopScreenShare())
@@ -864,7 +869,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         set({ error: 'Não foi possível transmitir a tela.' })
         return
       }
-      set({ screen: true })
+      set({ screen: true, ...(audioMissing ? { error: NO_SYSTEM_AUDIO } : {}) })
       playSound('screen-share')
       announce()
       // After announce(): the server only takes thumbnails from someone marked as sharing.

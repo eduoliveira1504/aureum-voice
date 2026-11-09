@@ -15,6 +15,20 @@ export const isMediaKind = (value: unknown): value is MediaKind =>
 export const mayProceed = (kind: MediaKind, access: MediaAccess): boolean =>
   access === 'granted' || access === 'unknown' || (kind === 'screen' && access === 'not-determined')
 
+/**
+ * Whether this macOS can send the system's sound with a screen share: Electron captures it with
+ * CoreAudio taps, from macOS 14.2 on (older ones share the screen without sound).
+ */
+export function macSupportsSystemAudio(version: string): boolean {
+  const [major = 0, minor = 0] = version.split('.').map((n) => Number.parseInt(n, 10) || 0)
+  return major > 14 || (major === 14 && minor >= 2)
+}
+
+/** Said when a Mac share went out without the system's sound (permission off, see above). */
+export const NO_SYSTEM_AUDIO =
+  'A tela está indo sem o som do Mac. Para mandar o som, libere o Aureum Voice em Ajustes do Sistema › ' +
+  'Privacidade e Segurança › Gravação de Tela e Áudio do Sistema e abra o app de novo.'
+
 /** The notice shown when a permission is off, in plain words. */
 export const ACCESS_TEXT: Record<MediaKind, { title: string; body: string }> = {
   microphone: {

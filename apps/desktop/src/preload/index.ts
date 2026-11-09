@@ -88,6 +88,7 @@ const bridge: AureumBridge = {
   },
   screen: {
     getSources: () => ipcRenderer.invoke('screen:get-sources'),
+    systemAudio: () => ipcRenderer.invoke('screen:system-audio'),
     select: (sourceId, audio) => ipcRenderer.invoke('screen:select', sourceId, audio)
   },
   overlay: {

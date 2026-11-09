@@ -2,7 +2,7 @@ import { AppWindow, Monitor } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { ShareSource } from '../../../shared/types'
-import { ensureAccess } from '../lib/mediaAccess'
+import { ensureAccess, isMac } from '../lib/mediaAccess'
 import { describeScreen, SCREEN_MODES, type ScreenMode } from '../lib/mediaTier'
 import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
@@ -15,6 +15,8 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
   const [tab, setTab] = useState<ShareSource['kind']>('screen')
   const [selected, setSelected] = useState<string | null>(null)
   const [audio, setAudio] = useState(true)
+  // False on a Mac older than 14.2: the share then goes without sound.
+  const [systemAudio, setSystemAudio] = useState(true)
   const [hint, setHint] = useState<ScreenMode>('motion')
   // The plan's limits, from the call's token.
   const tier = useVoice((s) => s.media)
@@ -25,6 +27,7 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
     void (async () => {
       // macOS: screen recording off closes the picker and opens the notice instead.
       if (!(await ensureAccess('screen'))) return onClose()
+      void window.aureum.screen.systemAudio().then((ok) => alive && setSystemAudio(ok))
       const list = await window.aureum.screen.getSources()
       if (!alive) return
       setSources(list)
@@ -41,7 +44,7 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
   async function share(): Promise<void> {
     if (!selected) return
     setBusy(true)
-    await startScreenShare({ sourceId: selected, audio, hint })
+    await startScreenShare({ sourceId: selected, audio: audio && systemAudio, hint })
     onClose()
   }
 
@@ -101,12 +104,18 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
         ))}
       </div>
       <div className="mt-3">
-        <ToggleRow
-          title="Compartilhar áudio"
-          description="Som do PC (jogos, vídeos), sem as vozes da chamada."
-          checked={audio}
-          onChange={setAudio}
-        />
+        {systemAudio ? (
+          <ToggleRow
+            title="Compartilhar áudio"
+            description={`Som do ${isMac() ? 'Mac' : 'PC'} (jogos, vídeos), sem as vozes da chamada.`}
+            checked={audio}
+            onChange={setAudio}
+          />
+        ) : (
+          <p className="text-sm text-fg-subtle">
+            Neste macOS a tela vai sem som. Para transmitir o som do Mac, atualize para o macOS 14.2 ou mais novo.
+          </p>
+        )}
       </div>
 
       <div className="mt-4">

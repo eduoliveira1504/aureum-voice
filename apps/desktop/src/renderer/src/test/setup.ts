@@ -30,7 +30,7 @@ const bridge = {
     current: async () => null,
     onChange: unsubscribe
   },
-  screen: { getSources: async () => [], select: async () => {} },
+  screen: { getSources: async () => [], select: async () => {}, systemAudio: async () => true },
   images: { copy: vi.fn(async () => {}), save: vi.fn(async () => true) },
   overlay: {
     // Never answers by default: tests that need the overlay state set the store themselves.
