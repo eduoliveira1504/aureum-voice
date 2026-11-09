@@ -322,8 +322,10 @@ are © Aureum, all rights reserved (see `docs/sounds/LICENSES.md`).
 Every app icon comes from the two official logos in `docs/design/brand`: `logo-small.svg` (filled, for
 16–24px) and `logo.svg` (32px and up). `npm run build:icons` in `apps/desktop`
 (`scripts/build-icons.mjs`, rendered by the app's own Electron, no extra dependency) writes
-`build/icon.ico` (16–256px: exe, installer, uninstaller, shortcut, window) and `resources/tray-N.png`
-(16/20/24/32px for 100–200% display scaling). Both are committed; rerun the script after changing a logo.
+`build/icon.ico` (16–256px: exe, installer, uninstaller, shortcut, window), `resources/tray-N.png`
+(16/20/24/32px for 100–200% display scaling), `build/icon.icns` (the Mac app icon, 16–1024px, the logo
+inside Apple's icon grid) and `resources/trayTemplate(@2x).png` (the Mac's menu bar icon, black with
+alpha, which macOS tints). All are committed; rerun the script after changing a logo.
 
 ### Admin commands
 
@@ -377,6 +379,22 @@ npm run release
 
 That uploads a **draft** release; it reaches people only after you publish it on GitHub.
 
+### The Mac app
+
+macOS builds can only be made on a Mac, so the release script has GitHub's macOS runner build it
+(`.github/workflows/release-mac.yml`, free for public repositories) from the same commit, into the same
+draft: dmg + zip for Apple Silicon (`arm64`) and Intel (`x64`), plus `latest-mac.yml`. Hence, before
+`npm run release`: commit everything and push `main` (the script stops otherwise), and give the
+`GH_TOKEN` "Actions: read and write" as well. `npm run release -- --mac-only` rebuilds just the Mac into
+the existing draft. Running the workflow by hand from the Actions tab with **publish** off is a
+rehearsal: it builds and checks the signatures, and keeps the files as a workflow artifact.
+
+The Mac app has an ad-hoc signature only (no Apple Developer account): it runs, but Gatekeeper asks on
+first launch (**Open Anyway** in Privacy & Security, or `xattr -cr "/Applications/Aureum Voice.app"`
+when macOS says it is damaged), and it can't update itself. It checks `latest-mac.yml` and offers
+"Baixar a versão X", which opens the landing page. The in-game overlay, game detection and push-to-talk
+are Windows only. Choices in [ADR 0045](decisions/0045-macos.md).
+
 ## Landing page
 
 `site/` is the public landing page, plain HTML, CSS and JS with no build step and no dependencies,
@@ -385,7 +403,8 @@ deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main
 either:
 
 - the newest installer from GitHub's public API (`/releases/latest`, then the release list, since beta
-  builds are pre-releases), falling back to the releases page;
+  builds are pre-releases), falling back to the releases page. A Mac visitor gets the dmg for their chip
+  (Chromium tells it; otherwise Apple Silicon), and the `#mac` section explains the first launch;
 - the live Pioneiro count from `GET /api/public/stats`, which returns only `{ "pioneers": N }`, cached
   for 5 minutes and rate limited per IP. Only that route answers the page's origin
   (`PUBLIC_SITE_ORIGIN`); the app-wide CORS list stays closed. If the API is down, the count is hidden.

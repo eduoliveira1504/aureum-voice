@@ -239,6 +239,19 @@ body::before {
 .steps h3 { font-size: 19px; }
 .steps p { margin: 0; font-size: 15px; color: var(--text-2); }
 .steps b { color: var(--text); }
+.steps .cmd, .mac-links, .mac-note, .meta.other { overflow-wrap: anywhere; }
+.steps .cmd {
+  display: block; padding: 10px 14px; border-radius: 10px; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong); font-size: 13px; color: var(--gold); user-select: all;
+}
+.mac-links { margin: -16px 0 28px; font-size: 15px; color: var(--text-2); }
+.mac-links b, .mac-note b { color: var(--text); }
+.mac-links a, .meta.other a { color: var(--gold); }
+.mac-note {
+  margin: 32px 0 0; max-width: 640px; padding: 16px 18px; border-radius: 14px;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--line-gold); font-size: 15px; color: var(--text-2);
+}
+.meta.other { margin-top: 6px; }
 .step-n {
   width: 40px; height: 40px; border-radius: 50%; background: var(--gold-deep); box-shadow: 0 0 0 1px var(--line-gold);
   display: grid; place-items: center; font: 700 16px var(--display); color: var(--gold);
@@ -299,6 +312,7 @@ body::before {
   .btn-ghost { margin-left: 34px; }
   .top { height: 84px; }
   .steps { grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  #mac .steps { grid-template-columns: repeat(2, 1fr); }
   .pioneer { flex-direction: row; align-items: center; gap: 56px; padding: 56px; }
   .badge-wrap { width: 240px; }
   .badge { width: 200px; height: 200px; }

@@ -11,7 +11,7 @@
 
 ![Visão geral de um servidor no Aureum, com as salas de voz e quem está falando](site/img/salas.png)
 
-O Aureum é um app de conversa pra Windows, feito pra ficar aberto o dia todo com o seu grupo de
+O Aureum é um app de conversa pra Windows e Mac, feito pra ficar aberto o dia todo com o seu grupo de
 amigos ou o seu time:
 
 - **Salas ao vivo:** a visão geral do servidor mostra quem está em cada sala e quem está falando, antes
@@ -26,7 +26,7 @@ amigos ou o seu time:
 - **Lado a lado:** chat e quadro Kanban na mesma tela.
 - **Addons:** Kanban, quadro branco pra desenhar junto, enquetes no chat, eventos com lembretes e um
   calendário com os eventos e prazos do servidor.
-- **Overlay nos jogos:** veja quem está falando sem sair da partida.
+- **Overlay nos jogos (Windows):** veja quem está falando sem sair da partida.
 - **Chamada destacada:** tire a call do app numa janela própria, por cima dos outros programas, mesmo
   com o Aureum minimizado.
 - **Do seu jeito:** avatar e banner animados (com recorte e zoom), pronomes, insígnias em destaque e temas, tudo de graça.
@@ -43,14 +43,34 @@ O beta é fechado: só entra quem tem convite.
    seu e-mail. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura digital):
    clique em **Mais informações** e depois em **Executar assim mesmo**.
 
+### No Mac
+
+1. Baixe o `.dmg` certo: **arm64** pra Mac com chip Apple (M1 ou mais novo), **x64** pra Mac com Intel
+   (veja em **Apple › Sobre este Mac**). Precisa do macOS 12 ou mais novo.
+2. Abra o `.dmg` e arraste o **Aureum Voice** pra **Aplicativos**.
+3. Na primeira vez o macOS avisa que não pode verificar o app (ele ainda não tem assinatura da Apple):
+   clique em **OK**, vá em **Ajustes do Sistema › Privacidade e Segurança**, role até o fim e clique em
+   **Abrir Mesmo Assim**. Se aparecer "está danificado e não pode ser aberto", rode no Terminal e abra
+   de novo:
+
+   ```sh
+   xattr -cr "/Applications/Aureum Voice.app"
+   ```
+
+4. Libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela, libere o Aureum em
+   **Gravação de Tela e Áudio do Sistema** e abra o app de novo.
+
+No Mac o app ainda não se atualiza sozinho: quando sair versão nova, aparece **Baixar a versão** no
+topo do app. O overlay nos jogos e o "pressionar para falar" são só do Windows por enquanto.
+
 Os 20 primeiros a entrar ganham a insígnia **Pioneiro**, numerada na ordem de chegada, e quem testa
 durante o beta ganha a **Beta Tester**.
 
-O app se atualiza sozinho. Se o ícone antigo continuar aparecendo depois de uma atualização,
+No Windows o app se atualiza sozinho. Se o ícone antigo continuar aparecendo depois de uma atualização,
 reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão ficam no
 [CHANGELOG](CHANGELOG.md).
 
-Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R) ou
+Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R, ou Cmd+Shift+R no Mac) ou
 [abra uma issue](https://github.com/eduoliveira1504/aureum-voice/issues/new).
 
 ## Pra quem desenvolve
@@ -65,9 +85,9 @@ As decisões de projeto ficam em [docs/decisions](docs/decisions).
 **Aureum** is a desktop communication app for groups of friends and small teams: voice rooms with a
 live overview of who's talking, camera and **screen sharing with system audio**, a per-server
 soundboard, chat, side-by-side panels with add-ons (Kanban board, whiteboard, polls, events with
-reminders and a calendar), and an in-game overlay. No ads and no AI features.
+reminders and a calendar), and an in-game overlay (Windows). No ads and no AI features.
 
-It's a Windows app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
+It's a Windows and macOS app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
 backend, with LiveKit for real-time media. The whole stack is open source and designed to run at
 zero cost. It's currently in a closed, invite-only beta.
 

@@ -63,6 +63,7 @@
         <button class="link-gold" type="button" aria-expanded="false" aria-controls="convite" data-invite-toggle>Tenho um convite →</button>
       </div>
       <p class="meta" data-download-meta>Windows 10 e 11 · atualiza sozinho</p>
+      <p class="meta other" data-download-other>Também pra Mac: <a href="#mac">veja como instalar</a></p>
       <div class="invite-note" id="convite" hidden>
         <p><b>Use o link que te mandaram.</b> O convite chega como um link do Aureum (algo como <code>…/convite/ABC123</code>). Abra esse link pra criar sua conta e confirmar o e-mail.</p>
         <p>Depois é só instalar o app e entrar com o seu e-mail. Não recebeu? Peça a quem já está dentro: cada pioneiro tem convites pra distribuir.</p>
@@ -197,6 +198,37 @@
         <p>Use o link de convite que você recebeu pra criar a conta. Depois é só abrir o app e entrar com seu e-mail.</p>
       </li>
     </ol>
+  </section>
+
+  <section class="wrap section reveal" id="mac">
+    <p class="eyebrow">NO MAC</p>
+    <h2>Instalar no Mac</h2>
+    <p class="mac-links" data-mac-links>Baixe na <a href="https://github.com/eduoliveira1504/aureum-voice/releases">página de versões</a>: o arquivo <b>arm64.dmg</b> é pra Mac com chip Apple, o <b>x64.dmg</b> pra Mac com Intel.</p>
+    <ol class="steps">
+      <li>
+        <span class="step-n">1</span>
+        <h3>Baixe o certo pro seu Mac</h3>
+        <p>Chip Apple (M1, M2, M3 ou mais novo) ou Intel? Veja no menu <b>Apple › Sobre este Mac</b>, na linha <b>Chip</b> ou <b>Processador</b>. Precisa do macOS 12 ou mais novo.</p>
+      </li>
+      <li>
+        <span class="step-n">2</span>
+        <h3>Arraste pra Aplicativos</h3>
+        <p>Abra o arquivo .dmg e arraste o <b>Aureum Voice</b> pra pasta <b>Aplicativos</b>.</p>
+      </li>
+      <li>
+        <span class="step-n">3</span>
+        <h3>Libere na primeira vez</h3>
+        <p>O app ainda não tem assinatura da Apple, então o macOS avisa ao abrir. É seguro: clique em <b>OK</b>, vá em <b>Ajustes do Sistema › Privacidade e Segurança</b>, role até o fim e clique em <b>Abrir Mesmo Assim</b>.</p>
+        <p>Se aparecer <b>“está danificado e não pode ser aberto”</b>, abra o Terminal, cole o comando abaixo, aperte Enter e abra o app de novo:</p>
+        <code class="cmd">xattr -cr "/Applications/Aureum Voice.app"</code>
+      </li>
+      <li>
+        <span class="step-n">4</span>
+        <h3>Permita o que for usar</h3>
+        <p>O Mac pergunta pelo <b>microfone</b> e pela <b>câmera</b> na primeira vez. Pra transmitir a tela, libere o Aureum em <b>Gravação de Tela e Áudio do Sistema</b> e abra o app de novo.</p>
+      </li>
+    </ol>
+    <p class="mac-note">No Mac o Aureum ainda não se atualiza sozinho: quando sair uma versão nova, aparece o botão <b>Baixar a versão</b> no topo do app. É só baixar e arrastar pra Aplicativos de novo, por cima da antiga. O overlay nos jogos e o “pressionar para falar” são só do Windows por enquanto.</p>
   </section>
 
   <ul class="values wrap reveal">
