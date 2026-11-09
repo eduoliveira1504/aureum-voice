@@ -157,7 +157,7 @@ function OpenMenu({ x, y, content, close }: { x: number; y: number; content: () 
 function MenuBox({ x, y, children }: { x: number; y: number; children: ReactNode }): ReactNode {
   const [ref, pos] = useOnScreen(x, y)
   return (
-    <div ref={ref} role="menu" style={pos} className={`${menuClass} fixed w-60 max-h-[calc(100vh-16px)] overflow-y-auto`}>
+    <div ref={ref} role="menu" data-tour="menu-contexto" style={pos} className={`${menuClass} fixed w-60 max-h-[calc(100vh-16px)] overflow-y-auto`}>
       {children}
     </div>
   )

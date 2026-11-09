@@ -7,6 +7,7 @@ import { soundKey } from '../lib/sounds'
 import { useAppearance } from '../store/appearance'
 import { useVoice } from '../store/voice'
 import { labelClass, Segmented, ToggleRow } from './ui'
+import { Tip } from './Tour'
 
 /**
  * Settings > Voz e vídeo: voice activity or push-to-talk, the key and its sounds. Saved on this PC.
@@ -79,8 +80,10 @@ export function InputModeSettings(): ReactNode {
           <div className="rounded-control border border-line bg-main px-3 py-2.5">
             <div className="flex items-center justify-between gap-4">
               <span className="font-medium">Tecla para falar</span>
+              {prefs.pttKey && !recording && <Tip id="ptt.key" />}
               <button
                 type="button"
+                data-tour="ptt-tecla"
                 onClick={() => setRecording((r) => !r)}
                 className={`min-w-40 rounded-control border px-3 py-1.5 text-sm font-medium ${
                   recording ? 'border-accent text-accent-text' : 'border-line bg-elevated hover:border-fg-subtle'

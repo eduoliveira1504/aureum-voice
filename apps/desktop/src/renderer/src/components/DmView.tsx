@@ -16,6 +16,7 @@ import { PickFriendsModal, RenameGroupModal } from './socialModals'
 import { Avatar, GroupAvatar, PRESENCE_LABEL, PresenceAvatar } from './ui'
 import { userContextMenu } from './UserMenu'
 import { CallView } from './VoiceView'
+import { Tip } from './Tour'
 
 type Dialog = 'add' | 'rename' | 'leave'
 
@@ -88,7 +89,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
     // The official DM gets a thin gold frame; no other conversation can (it comes from the API's
     // official flag, never from what a message says).
     <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${official ? 'ring-1 ring-inset ring-badge-gold/40' : ''}`}>
-      <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-2">
+      <header data-tour="conversa" className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-2">
+        {official ? <Tip id="dm.official" /> : peer && <Tip id="dm.receipts" />}
         {peer ? (
           // The person: click for their profile, right click for their menu.
           <button

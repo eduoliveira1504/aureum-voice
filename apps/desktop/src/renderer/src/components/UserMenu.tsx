@@ -30,6 +30,7 @@ import { FormError, Modal } from './Modal'
 import { ConfirmModal, errorText } from './modals'
 import { ProfilePopover } from './ProfileCard'
 import { Field, PrimaryButton } from './ui'
+import { Tip } from './Tour'
 
 /** Runs an action from a menu; failures show as a short message. */
 function run(action: Promise<unknown>, done?: string): void {
@@ -79,6 +80,7 @@ export function UserContextMenu({
 
   return (
     <>
+      <Tip id="people.menu" />
       <Label>{member ? memberName(member) : user.display_name}</Label>
       {before && (
         <>

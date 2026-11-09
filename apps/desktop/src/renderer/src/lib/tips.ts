@@ -75,6 +75,26 @@ export const TIPS = {
     anchor: 'reacoes',
     title: 'Reações',
     text: 'Pra reagir, passe o mouse na mensagem e escolha um emoji (lá também ficam responder e encaminhar). Clicar numa reação que já existe soma a sua.'
+  },
+  'dm.receipts': {
+    anchor: 'conversa',
+    title: 'Mensagem privada',
+    text: 'O ✓✓ embaixo da sua mensagem mostra que a pessoa já viu. Prefere não mostrar? Desligue a Confirmação de leitura em Configurações › Privacidade (aí você também não vê quando os outros leem).'
+  },
+  'dm.official': {
+    anchor: 'conversa',
+    title: 'Conversa oficial',
+    text: 'Esta é a conversa oficial do Aureum: avisos, segurança e novidades. A gente nunca pede sua senha.'
+  },
+  'people.menu': {
+    anchor: 'menu-contexto',
+    title: 'Menu de contexto',
+    text: 'O botão direito em qualquer pessoa, no chat, na call ou na lista de membros, abre este menu com tudo o que dá pra fazer com ela.'
+  },
+  'ptt.key': {
+    anchor: 'ptt-tecla',
+    title: 'Pressionar para falar',
+    text: 'É aqui que fica a sua tecla de falar: segure ela numa call pra abrir o microfone. Pra trocar, clique aqui e aperte outra tecla ou um botão lateral do mouse.'
   }
 } satisfies Record<string, TipDef>
 
