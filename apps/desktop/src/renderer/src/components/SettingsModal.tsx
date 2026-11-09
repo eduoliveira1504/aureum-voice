@@ -11,6 +11,7 @@ import { NotificationSettings } from './NotificationSettings'
 import { OverlaySettings } from './OverlaySettings'
 import { PrivacySettings } from './PrivacySettings'
 import { SoundSettings } from './SoundSettings'
+import { TipsSettings } from './TipsSettings'
 import { VoiceSettings } from './VoiceSettings'
 import { WindowsSettings } from './WindowsSettings'
 import { isMac } from '../lib/platform'
@@ -23,6 +24,7 @@ type Tab =
   | 'sounds'
   | 'notifications'
   | 'privacy'
+  | 'tips'
   | 'overlay'
   | 'windows'
   | 'reports'
@@ -45,6 +47,7 @@ export function SettingsModal({ onClose, initialTab = 'invites' }: { onClose(): 
             ['sounds', 'Sons'],
             ['notifications', 'Notificações'],
             ['privacy', 'Privacidade'],
+            ['tips', 'Dicas'],
             // The overlay is Windows only; the app's own settings are the "Mac" tab there.
             ...(isMac() ? ([] as const) : ([['overlay', 'Overlay']] as const)),
             ['windows', isMac() ? 'Mac' : 'Windows'],
@@ -64,6 +67,7 @@ export function SettingsModal({ onClose, initialTab = 'invites' }: { onClose(): 
         {tab === 'sounds' && <SoundSettings />}
         {tab === 'notifications' && <NotificationSettings />}
         {tab === 'privacy' && <PrivacySettings />}
+        {tab === 'tips' && <TipsSettings onClose={onClose} />}
         {tab === 'overlay' && <OverlaySettings />}
         {tab === 'windows' && <WindowsSettings />}
         {tab === 'reports' && isOwner && <BugReports />}
