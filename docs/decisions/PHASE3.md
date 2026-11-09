@@ -18,7 +18,7 @@ backup diário e teste de carga) e o item 10 (desligar Funnel e LiveKit Cloud, c
 Escolhas de deploy em 0036-vps-deploy.md.
 Em 01/11 entrou o 3.19 (ajustes do beta), na frente do 3.12; a ordem das abas entrou no 3.13.
 3.19: partes A, B, D e E prontas, teste manual pendente (vão na beta.9). Parte C2 (correções por
-aparelho) fica para quando chegarem os relatórios dos testers.
+aparelho) foi para a Fase 4 em 09/11 (FUTURO.md), então o 3.19 está concluído.
 3.12, 3.13 e 3.14 prontos (escolhas em 0037 a 0040); 0.2.0-beta.9 gerada.
 Em 05/11 entraram o 3.20 (arraste de imagens e janela destacada da call) e o 3.21 (macOS).
 Em 06/11: Painel de sons confirmado funcionando em produção (3.15 e 3.19 B); entrou o 3.22
@@ -644,7 +644,7 @@ direto no Klipy com chave, customer_id, filtro e idioma (ver ADR 0034; sem cache
 nossos); só URLs do Klipy aceitas na mensagem; provedor fora do ar mostra erro amigável sem
 quebrar o chat; favoritos.
 
-## 3.19 Ajustes do beta (01/11) — antes do 3.12
+## 3.19 Ajustes do beta (01/11) — antes do 3.12 ✅ concluído (teste manual pendente; C2 foi para a Fase 4)
 Em partes, na ordem (A a E). Uma conversa do Claude Code por parte; um item por vez, commit por
 item, sem push. Diagnóstico antes de corrigir onde está indicado. Release 0.2.0-beta.9 no fim do
 bloco (ou antes, com as partes prontas, se o Eduardo pedir).
@@ -690,11 +690,7 @@ Recortar áudio maior:
 - Testes: o recorte gera WAV com a duração escolhida; a seleção nunca passa de 5 s; arquivo grande
   demais ou que não decodifica dá aviso legível.
 
-### Parte C2: correções por aparelho (quando chegarem os relatórios dos testers)
-- Com os relatórios novos, achar a causa de cada caso: supressão de
-  ruído sem efeito, headset Havit, AB13X USB Audio e o que mais aparecer.
-- Me explicar a causa de cada um antes de corrigir; ajustes por aparelho só se não houver correção
-  geral.
+### Parte C2: correções por aparelho → movida para a Fase 4 (docs/decisions/FUTURO.md, 09/11)
 
 ### Parte D: Perfil e Configurações ✅ concluída (teste manual pendente)
 - Configurações perde as abas "Meu perfil" e "Conta" (repetidas). Perfil fica só no Editar perfil

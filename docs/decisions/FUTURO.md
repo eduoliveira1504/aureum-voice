@@ -10,6 +10,14 @@ NÃO começar sem spec detalhada do Eduardo. Escopo previsto:
   original de verdade, legível de 24px a ilustração grande. Usos: guia do tour,
   estados vazios, carregamento, erro de conexão, e-mails, figurinhas (pacote do mascote).
 
+## Fase 4
+### Correções por aparelho (era a parte C2 do 3.19; saiu da Fase 3 em 09/11)
+Esperando os relatórios dos testers.
+- Com os relatórios novos, achar a causa de cada caso: supressão de ruído sem efeito, headset
+  Havit, AB13X USB Audio e o que mais aparecer.
+- Explicar a causa de cada um ao Eduardo antes de corrigir; ajustes por aparelho só se não houver
+  correção geral.
+
 ## Backlog
 - Convite de grupo do WhatsApp (invites create --usos 15 --dias 7); a landing já está no
   ar, só falta gerar com OK do Eduardo.
