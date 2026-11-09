@@ -5,6 +5,11 @@
  *   apps/desktop/build/icon.ico        exe, installer, uninstaller, shortcut and window
  *                                      (16, 24, 32, 48, 64, 128, 256)
  *   apps/desktop/resources/tray-N.png  tray icon at 100/125/150/200% (16, 20, 24, 32; logo-small)
+ *   apps/desktop/build/icon.icns       macOS app icon (16 to 1024, PNG entries); the logo sits
+ *                                      inside Apple's icon grid (~80%) like other Dock icons
+ *   apps/desktop/resources/trayTemplate.png, trayTemplate@2x.png
+ *                                      macOS menu bar icon (16, 32; logo-small): black with
+ *                                      alpha, macOS tints it for light and dark menu bars
  *
  * Uses the Electron the desktop app already has: each size is drawn from the SVG straight onto
  * a canvas of that size (sharp edges at 16px, no downscaling). The .ico is written by hand:
@@ -23,12 +28,22 @@ const DESKTOP = join(ROOT, 'apps', 'desktop')
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 const TRAY_SIZES = [16, 20, 24, 32]
 const SMALL_UP_TO = 24
+// [type, size]: the PNG-based icns entries macOS reads (the @2x ones are the next size up).
+const ICNS_ENTRIES = [
+  ['icp4', 16], ['icp5', 32], ['ic11', 32], ['ic12', 64], ['ic07', 128],
+  ['ic13', 256], ['ic08', 256], ['ic14', 512], ['ic09', 512], ['ic10', 1024]
+]
+const ICNS_SCALE = 0.8
 
 const svgFor = (size, forceSmall = false) =>
   readFileSync(join(BRAND, forceSmall || size <= SMALL_UP_TO ? 'logo-small.svg' : 'logo.svg'), 'utf8')
 
-/** Draws the SVG at size x size in the page; returns the PNG and the raw RGBA pixels. */
-async function render(win, svg, size) {
+/**
+ * Draws the SVG at size x size in the page; returns the PNG and the raw RGBA pixels. `scale`
+ * shrinks the drawing around the center (the macOS icon grid); `template` keeps only the alpha,
+ * in black (macOS template images).
+ */
+async function render(win, svg, size, { scale = 1, template = false } = {}) {
   const { png, rgba } = await win.webContents.executeJavaScript(`(async () => {
     const img = new Image()
     img.src = 'data:image/svg+xml;base64,' + ${JSON.stringify(Buffer.from(svg).toString('base64'))}
@@ -36,7 +51,13 @@ async function render(win, svg, size) {
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = ${size}
     const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0, ${size}, ${size})
+    const drawn = ${size} * ${scale}
+    ctx.drawImage(img, (${size} - drawn) / 2, (${size} - drawn) / 2, drawn, drawn)
+    if (${template}) {
+      ctx.globalCompositeOperation = 'source-in'
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, ${size}, ${size})
+    }
     return {
       png: canvas.toDataURL('image/png').split(',')[1],
       rgba: Array.from(ctx.getImageData(0, 0, ${size}, ${size}).data)
@@ -87,6 +108,20 @@ function ico(images) {
   return Buffer.concat([header, ...entries])
 }
 
+/** An .icns file: "icns" + total length, then each entry as type + length (header included) + PNG. */
+function icns(entries) {
+  const parts = entries.map(([type, png]) => {
+    const header = Buffer.alloc(8)
+    header.write(type, 0, 'ascii')
+    header.writeUInt32BE(png.length + 8, 4)
+    return Buffer.concat([header, png])
+  })
+  const header = Buffer.alloc(8)
+  header.write('icns', 0, 'ascii')
+  header.writeUInt32BE(8 + parts.reduce((sum, part) => sum + part.length, 0), 4)
+  return Buffer.concat([header, ...parts])
+}
+
 app.disableHardwareAcceleration()
 app.whenReady().then(async () => {
   try {
@@ -106,6 +141,20 @@ app.whenReady().then(async () => {
       writeFileSync(join(DESKTOP, 'resources', `tray-${size}.png`), png)
     }
     console.log(`resources/tray-N.png: ${TRAY_SIZES.join(', ')}`)
+
+    const pngs = new Map()
+    for (const [, size] of ICNS_ENTRIES) {
+      if (!pngs.has(size)) pngs.set(size, (await render(win, svgFor(size), size, { scale: ICNS_SCALE })).png)
+    }
+    const mac = icns(ICNS_ENTRIES.map(([type, size]) => [type, pngs.get(size)]))
+    writeFileSync(join(DESKTOP, 'build', 'icon.icns'), mac)
+    console.log(`build/icon.icns: ${[...pngs.keys()].join(', ')} (${mac.length} bytes)`)
+
+    for (const [size, name] of [[16, 'trayTemplate.png'], [32, 'trayTemplate@2x.png']]) {
+      const { png } = await render(win, svgFor(size, true), size, { template: true })
+      writeFileSync(join(DESKTOP, 'resources', name), png)
+    }
+    console.log('resources/trayTemplate.png, trayTemplate@2x.png: 16, 32')
     app.quit()
   } catch (error) {
     console.error(error)

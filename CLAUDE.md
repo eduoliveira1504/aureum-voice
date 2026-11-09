@@ -20,7 +20,7 @@ técnico fica em docs/DEVELOPMENT.md. A landing (site/) é toda em português.
   (qualidade de transmissão, armazenamento).
 - Identidade própria: nada copiado do Discord (sons, ícones, textos, layout idêntico).
 - Logo oficial: docs/design/brand/logo.svg (32px pra cima) e logo-small.svg (16–24px). São a
-  fonte de todos os ícones: `npm run build:icons` (apps/desktop) gera o .ico e os PNGs da bandeja;
+  fonte de todos os ícones: `npm run build:icons` (apps/desktop) gera o .ico, o .icns (Mac) e os PNGs da bandeja e da barra de menus do Mac;
   o componente Logo.tsx e a insígnia Fundador repetem o desenho. Trocou o logo, rode de novo.
 
 ## Regras de custo (OBRIGATÓRIO)
