@@ -69,10 +69,20 @@ describe('the tour', () => {
     })
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Próximo' })))
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2100)
+      await vi.advanceTimersByTimeAsync(1300)
     })
     expect(screen.getByRole('dialog', { name: 'Pronto' })).toBeTruthy()
     expect(screen.queryByText('Sumiu')).toBeNull()
+  })
+
+  it('shows in the middle a step that may have no element', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    render(<TourOverlay steps={[{ ...steps[2], centerIfMissing: true }]} onEnd={() => {}} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1300)
+    })
+    expect(screen.getByRole('dialog', { name: 'Sumiu' })).toBeTruthy()
   })
 
   it('shows the Novidade mark on new steps', () => {

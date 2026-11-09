@@ -33,6 +33,7 @@ export function HomeView({ me }: { me: Me }): ReactNode {
     <div className="flex min-w-0 flex-1 py-2 pr-2">
       <section
         aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? 'Amigos' : 'Início'}
+        data-tour="inicio"
         className="flex min-w-0 flex-1 overflow-hidden rounded-panel border border-line bg-main"
       >
         {dm ? <DmView key={dm.id} dm={dm} me={me} /> : page === 'friends' ? <FriendsPage me={me} /> : <HomeHub me={me} />}

@@ -16,6 +16,7 @@ import { Panels } from '../components/Panels'
 import { openReportProblem } from '../components/ReportProblem'
 import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
+import { TourHost } from '../components/TourHost'
 import { CallView, VoiceView } from '../components/VoiceView'
 import type { Me } from '../lib/api'
 import { reportActivityAgain, startActivityReporting } from '../lib/gameActivity'
@@ -31,6 +32,7 @@ import { useGifs } from '../store/gifs'
 import { useSoundboard } from '../store/soundboard'
 import { useStickers } from '../store/stickers'
 import { useNav } from '../store/nav'
+import { useOnboarding } from '../store/onboarding'
 import { dmTitle, useSocial } from '../store/social'
 import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
@@ -93,7 +95,11 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     const stopTray = startTrayBridge()
     chat.loadServers().catch(() => {}) // also loaded on 'ready'; this covers a slow/failed socket
     useSocial.getState().load().catch(() => {})
-    loadAppearance().catch(() => {}) // keep the cached settings if this fails
+    useOnboarding.setState({ ready: false, tour: null, invite: false, tip: null })
+    loadAppearance()
+      // Only a server that knows the tour (3.16) says whether it's due; the cache may be old.
+      .then((settings) => settings.onboarding && useOnboarding.getState().setReady())
+      .catch(() => {}) // keep the cached settings if this fails
     return () => {
       void useVoice.getState().leave(true)
       stopIdleWatch()
@@ -142,6 +148,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
       <EmojiPickerHost />
       <EditProfileHost me={user} />
       <AccessNotice />
+      <TourHost />
     </div>
   )
 }

@@ -137,7 +137,7 @@ export function Panels({ server, me }: { server: ServerDetail; me: Me }): ReactN
 
   return (
     <div className="relative min-w-0 flex-1">
-      <div ref={area} className="absolute bottom-2 left-0 right-2 top-2">
+      <div ref={area} data-tour="paineis" className="absolute bottom-2 left-0 right-2 top-2">
         {inOrder.map(({ index: host, box }) => (
           <PanelView
             key={byId(host)}

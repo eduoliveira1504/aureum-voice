@@ -1,4 +1,4 @@
-import { Bell, Bug, Check, Circle, Download, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Users, Volume2, X } from 'lucide-react'
+import { Bell, Bug, Check, Circle, Compass, Download, House, LogOut, MessageSquareText, PhoneMissed, Plus, Sparkles, RefreshCw, Search, Settings, UserRound, Users, Volume2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
@@ -6,6 +6,7 @@ import { type Me, type Presence, type ServerDetail, type UserStatus } from '../l
 import { shortcut } from '../lib/platform'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
+import { useOnboarding } from '../store/onboarding'
 import { serverTabs, useMembersBar, useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { contextMenu } from './ContextMenu'
@@ -52,7 +53,7 @@ export function TopBar({ me }: { me: Me }): ReactNode {
     // Empty parts of the bar move the window; Windows' buttons sit over its right end.
     <header className="app-drag pr-window-controls flex h-12 shrink-0 items-end gap-1 bg-rail pl-2 pt-1.5">
       <Brand />
-      <nav aria-label="Abas" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
+      <nav aria-label="Abas" data-tour="abas" className="no-scrollbar flex min-w-0 flex-1 items-end gap-1 overflow-x-auto">
         <HomeTab active={place === 'home'} />
         {tabs.map((id) => (
           <ServerTab key={id} server={servers[id]} active={place === id} tabs={tabs} meId={me.id} />
@@ -98,6 +99,7 @@ function MembersButton({ serverId }: { serverId: string }): ReactNode {
     <button
       type="button"
       data-members-toggle
+      data-tour="membros"
       title={`Membros (${shortcut('Ctrl Shift U')})`}
       aria-label="Membros"
       aria-pressed={open}
@@ -359,7 +361,7 @@ function NotificationsButton({ me }: { me: Me }): ReactNode {
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} data-tour="sino" className="relative">
       <button
         type="button"
         title="Notificações"
@@ -490,7 +492,7 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
   const dot: Presence = connected ? (STATUS_OPTIONS.find((o) => o.value === chosen)?.dot ?? 'online') : 'offline'
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} data-tour="perfil" className="relative">
       <button
         type="button"
         aria-label="Menu do perfil"
@@ -541,6 +543,14 @@ function ProfileButton({ me }: { me: Me }): ReactNode {
             onClick={() => {
               setOpen(false)
               setSettings(true)
+            }}
+          />
+          <MenuItem
+            icon={Compass}
+            label="Rever tour"
+            onClick={() => {
+              setOpen(false)
+              useOnboarding.getState().startTour()
             }}
           />
           <MenuItem

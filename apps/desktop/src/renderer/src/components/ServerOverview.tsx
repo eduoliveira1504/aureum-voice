@@ -38,7 +38,7 @@ export function ServerOverview({ server, me }: { server: ServerDetail; me: Me })
   const side = useColumnWidth(COLUMNS.overviewSide, 'left')
 
   return (
-    <div className="@container flex min-h-0 flex-1 overflow-y-auto">
+    <div data-tour="visao-geral" className="@container flex min-h-0 flex-1 overflow-y-auto">
       <div className="flex w-full flex-col @3xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-7 p-5">
           <Banner server={server} me={me} />
@@ -250,7 +250,7 @@ function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   if (!channels.length && !canAdd) return null
 
   return (
-    <section>
+    <section data-tour="addons">
       <SectionTitle>Addons do servidor</SectionTitle>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
         {channels.map((channel) => {

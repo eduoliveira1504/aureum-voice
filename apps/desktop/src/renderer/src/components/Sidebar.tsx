@@ -67,7 +67,7 @@ export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me })
   const { width, handle } = useColumnWidth(COLUMNS.sidebar, 'right')
 
   return (
-    <aside style={collapsed ? undefined : { width }} className={`relative flex shrink-0 flex-col bg-panel ${collapsed ? 'w-[64px]' : ''}`}>
+    <aside data-tour="sidebar" style={collapsed ? undefined : { width }} className={`relative flex shrink-0 flex-col bg-panel ${collapsed ? 'w-[64px]' : ''}`}>
       {!collapsed && handle}
       {server ? (
         <ServerPlaces server={server} me={me} collapsed={collapsed} onCollapse={narrow ? undefined : setCollapsed} />

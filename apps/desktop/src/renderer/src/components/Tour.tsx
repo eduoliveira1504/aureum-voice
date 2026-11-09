@@ -21,11 +21,13 @@ export interface TourStep extends TourStepBase {
   next?: string
   /** Puts the screen where the step needs it (opens the server, the overview...). */
   prepare?(): void
+  /** Without its element (e.g. a server with no addons): shown in the middle instead of skipped. */
+  centerIfMissing?: boolean
 }
 
 const SPOT_PADDING = 6
 /** How long a step waits for its element before it's skipped (the layout may not have it). */
-const ANCHOR_WAIT_MS = 2000
+const ANCHOR_WAIT_MS = 1200
 
 export const anchorSelector = (anchor: string): string => `[data-tour="${anchor}"]`
 
@@ -129,14 +131,18 @@ export function TourOverlay({ steps, news = false, onEnd }: { steps: TourStep[];
   }, [step])
 
   const target = useAnchor(step?.anchor, !!step)
-  const waiting = !!step?.anchor && !target
+  const [gaveUp, setGaveUp] = useState<number | null>(null)
+  const waiting = !!step?.anchor && !target && gaveUp !== index
 
   useEffect(() => {
     if (!waiting) return
-    // Going back from the first step can't skip backwards: go forward instead.
-    const timer = setTimeout(() => moveRef.current(index === 0 ? 1 : direction.current), ANCHOR_WAIT_MS)
+    const timer = setTimeout(() => {
+      if (steps[index]?.centerIfMissing) setGaveUp(index)
+      // Going back from the first step can't skip backwards: go forward instead.
+      else moveRef.current(index === 0 ? 1 : direction.current)
+    }, ANCHOR_WAIT_MS)
     return () => clearTimeout(timer)
-  }, [waiting, index])
+  }, [waiting, index, steps])
 
   useEffect(() => {
     if (!waiting) nextRef.current?.focus()
