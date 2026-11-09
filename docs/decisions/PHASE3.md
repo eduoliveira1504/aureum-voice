@@ -41,6 +41,10 @@ Próximo, nesta ordem: 3.21 (macOS), 3.16 (tour) e release 0.2.0-beta.10 (Window
 3.21 pronto em 09/11 (teste manual no Mac pendente, pelo amigo do Eduardo; escolhas em
 0045-macos.md; sem migração). Antes da beta.10: push, dar ao GH_TOKEN "Actions: read and write" e,
 se quiser, um ensaio do workflow do Mac (publish desligado). Próximo: 3.16 (tour), depois a beta.10.
+Ainda em 09/11: 3.19 C2 foi para a Fase 4 (FUTURO.md), então o 3.19 está concluído. 3.16 pronto
+(teste manual pendente; escolhas em 0046-tour-and-tips.md; motor próprio, sem dependência nova; TEM
+migração: user_settings.onboarding, que marca as contas existentes para o convite único). Próximo:
+release 0.2.0-beta.10 (Windows + Mac), com backup antes da migração na VPS.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados agora são de gente de verdade. Antes de qualquer migração em produção:
@@ -1191,7 +1195,7 @@ Overlay e cursores do Quadro mostram o GIF sem recorte (só recebem a URL).
   passa do limite segue abrindo; "Iniciar na bandeja" não mostra a tela; segunda instância só foca;
   reduced-motion troca o giro.
 
-## 3.16 Tour e dicas
+## 3.16 Tour e dicas ✅ concluído (teste manual pendente)
 Objetivo: quem chega do Discord entender o layout próprio do Aureum sem se perder.
 Guia do tour: o logo oficial (o mascote é ideia futura, em FUTURO.md).
 Fazer depois de todos os blocos de interface acima, pra não refazer a cada mudança de layout.
