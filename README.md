@@ -76,7 +76,11 @@ reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão
 Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R, ou Cmd+Shift+R no Mac) ou
 [abra uma issue](https://github.com/eduoliveira1504/aureum-voice/issues/new).
 
-## Todos os direitos reservados, código visível só pra consulta
+## Licença
+
+Todos os direitos reservados. O código fica visível só pra consulta e **não é open source**: não é
+permitido copiar, modificar nem distribuir sem autorização por escrito. Detalhes no [LICENSE](LICENSE).
+
 ---
 
 ## In English
@@ -87,9 +91,15 @@ soundboard, chat, side-by-side panels with add-ons (Kanban board, whiteboard, po
 reminders and a calendar), and an in-game overlay (Windows). No ads and no AI features.
 
 It's a Windows and macOS app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
-backend, with LiveKit for real-time media. The whole stack is open source and designed to run at
-zero cost. It's currently in an open beta: anyone can download it and sign up, no invite needed.
+backend, with LiveKit for real-time media, and is built on open-source components. It's currently in a
+closed, invite-only beta: the download is public, but you need an invite link to create an account.
+The macOS version is experimental.
 
 - Landing page: [eduoliveira1504.github.io/aureum-voice](https://eduoliveira1504.github.io/aureum-voice/)
 - Architecture, local setup, tests and hosting: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Architecture decision records: [docs/decisions](docs/decisions)
+
+## License
+
+All rights reserved. The source code is visible for reference only and is **not open source**:
+copying, modifying or redistributing it requires written permission. See [LICENSE](LICENSE).
