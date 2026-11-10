@@ -76,11 +76,7 @@ reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão
 Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R, ou Cmd+Shift+R no Mac) ou
 [abra uma issue](https://github.com/eduoliveira1504/aureum-voice/issues/new).
 
-## Pra quem desenvolve
-
-Arquitetura, como rodar localmente, testes e hospedagem: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-As decisões de projeto ficam em [docs/decisions](docs/decisions).
-
+## Todos os direitos reservados, código visível só pra consulta
 ---
 
 ## In English
