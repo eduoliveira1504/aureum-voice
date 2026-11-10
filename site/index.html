@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0E0D0B">
-<!-- Only our own files, the fonts, and the two APIs the page reads (download, pioneer count). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.github.com https://api.aureum-voice.duckdns.org; base-uri 'none'; form-action 'none'">
+<!-- Only our own files, the fonts, and GitHub's API (the newest installer). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
 <title>Aureum: voz, chat e quadros</title>
-<meta name="description" content="Salas de voz que mostram quem está falando, painéis lado a lado e um overlay que funciona no meio da partida. Sem anúncio, sem IA e com personalização grátis.">
+<meta name="description" content="Voz, chat e quadros pra quem joga e trabalha junto. Um lugar só pra conversar, se ver e se organizar, do jeito do seu grupo. Beta aberto, pra Windows e Mac.">
 <link rel="canonical" href="https://eduoliveira1504.github.io/aureum-voice/">
 
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
 <meta property="og:site_name" content="Aureum">
 <meta property="og:title" content="Aureum: voz, chat e quadros pra quem joga e trabalha junto">
-<meta property="og:description" content="Salas de voz ao vivo, painéis lado a lado e overlay nos jogos. Sem anúncio, sem IA. Beta fechado, só com convite.">
+<meta property="og:description" content="Um lugar só pra conversar, se ver e se organizar, do jeito do seu grupo. Beta aberto, pra Windows e Mac.">
 <meta property="og:url" content="https://eduoliveira1504.github.io/aureum-voice/">
 <meta property="og:image" content="https://eduoliveira1504.github.io/aureum-voice/img/og.png">
 <meta property="og:image:width" content="1200">
@@ -23,242 +23,265 @@
 <meta property="og:image:alt" content="Aureum: voz, chat e quadros pra quem joga e trabalha junto.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Aureum: voz, chat e quadros pra quem joga e trabalha junto">
-<meta name="twitter:description" content="Salas de voz ao vivo, painéis lado a lado e overlay nos jogos. Sem anúncio, sem IA.">
+<meta name="twitter:description" content="Um lugar só pra conversar, se ver e se organizar. Beta aberto, pra Windows e Mac.">
 <meta name="twitter:image" content="https://eduoliveira1504.github.io/aureum-voice/img/og.png">
 
 <link rel="icon" href="img/logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&amp;family=Figtree:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="main.js" defer></script>
 </head>
 <body>
 <div class="hexes" aria-hidden="true"></div>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
 
-<header class="top wrap">
-  <a class="brand" href="#inicio" aria-label="Aureum, início">
-    <svg class="mark" viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="currentColor"/></svg>
-    <span>AUREUM</span>
-  </a>
-  <nav class="nav" aria-label="Seções">
-    <a href="#recursos">Recursos</a>
-    <a href="#beta">Beta</a>
-    <a href="#instalar">Instalar</a>
+<header class="top">
+  <nav class="wrap top-row" aria-label="Principal">
+    <a class="brand" href="#topo">
+      <svg class="brand-mark" viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="#0E0D0B" stroke="#E8B531" stroke-width="8" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531"/></svg>
+      <span>Aureum <span class="brand-sub">Voice</span></span>
+    </a>
+    <div class="top-links">
+      <a class="nav-link" href="#modos">Jogar ou trabalhar</a>
+      <a class="nav-link" href="#recursos">Recursos</a>
+      <a class="nav-link" href="#instalar">Instalar</a>
+      <a class="btn-small" href="#baixar">Baixar</a>
+    </div>
   </nav>
-  <a class="btn-ghost" href="#baixar" data-download-jump>Baixar</a>
 </header>
 
-<main id="inicio">
-  <section class="hero wrap">
+<main id="conteudo">
+  <!-- Topo -->
+  <section class="wrap hero" id="topo">
     <div class="hero-copy">
-      <p class="pill"><span class="live-dot"></span>BETA FECHADO · SÓ COM CONVITE</p>
-      <h1>Voz, chat e quadros<br>pra quem joga e<br><span class="gold">trabalha junto.</span></h1>
-      <p class="lead">Salas de voz que mostram quem está falando, painéis lado a lado e um overlay que funciona no meio da partida. Sem anúncio, sem IA e com personalização grátis.</p>
+      <div class="hero-badge">
+        <svg class="hero-mark" viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="#0E0D0B" stroke="#E8B531" stroke-width="7" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531"/></svg>
+        <p class="pill"><span class="live-dot pulse"></span>BETA ABERTO</p>
+      </div>
+      <h1>Voz, chat e quadros pra quem <span class="gold">joga</span> e <span class="gold">trabalha</span> junto.</h1>
+      <p class="lead">Um lugar só pra conversar, se ver e se organizar, do jeito do seu grupo. Leve o bastante pra ficar aberto o dia todo.</p>
       <div class="cta" id="baixar">
         <a class="btn-gold" data-download href="https://github.com/eduoliveira1504/aureum-voice/releases">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5l7.5-1v8H3zM11.5 3.4L21 2v9.5h-9.5zM3 12.5h7.5v8L3 19.5zM11.5 12.5H21V22l-9.5-1.4z" fill="currentColor"/></svg>
           <span data-download-label>Baixar pra Windows</span>
         </a>
-        <button class="link-gold" type="button" aria-expanded="false" aria-controls="convite" data-invite-toggle>Tenho um convite →</button>
+        <a class="btn-ghost" href="#instalar" data-download-other data-os-pick="mac">Também pra Mac</a>
       </div>
-      <p class="meta" data-download-meta>Windows 10 e 11 · atualiza sozinho</p>
-      <p class="meta other" data-download-other>Também pra Mac: <a href="#mac">veja como instalar</a></p>
-      <div class="invite-note" id="convite" hidden>
-        <p><b>Use o link que te mandaram.</b> O convite chega como um link do Aureum (algo como <code>…/convite/ABC123</code>). Abra esse link pra criar sua conta e confirmar o e-mail.</p>
-        <p>Depois é só instalar o app e entrar com o seu e-mail. Não recebeu? Peça a quem já está dentro: cada pioneiro tem convites pra distribuir.</p>
+      <p class="meta" data-download-meta>Windows 10 e 11 · macOS 12 ou mais novo · sem convite</p>
+    </div>
+    <button class="shot hero-shot" type="button" data-zoom="img/paineis.webp">
+      <img src="img/paineis.webp" alt="O Aureum com quatro painéis lado a lado: uma call com tela compartilhada, o chat, um quadro Kanban e um quadro de desenho" width="2240" height="1520" fetchpriority="high" decoding="async">
+    </button>
+  </section>
+
+  <!-- Novidades -->
+  <section class="wrap news" aria-labelledby="novidades">
+    <div class="news-bar">
+      <h2 id="novidades">Novo na beta.10</h2>
+      <ul class="chips">
+        <li>Versão pra Mac</li>
+        <li>Call destacada por cima de tudo</li>
+        <li>GIF no avatar e no banner</li>
+        <li>Volume de cada live salvo</li>
+      </ul>
+      <a class="news-more" href="#recursos">Ver tudo →</a>
+    </div>
+  </section>
+
+  <!-- Jogar / trabalhar -->
+  <section class="wrap section modes reveal" id="modos" aria-labelledby="modos-titulo">
+    <div class="center-head">
+      <p class="eyebrow">UM APP, DOIS JEITOS</p>
+      <h2 id="modos-titulo">O mesmo Aureum pra partida e pra entrega.</h2>
+      <div class="toggle" role="group" aria-label="Escolha o modo">
+        <button type="button" aria-pressed="true" aria-controls="modo-jogar" data-mode-pick="jogar">Pra jogar</button>
+        <button type="button" aria-pressed="false" aria-controls="modo-trabalhar" data-mode-pick="trabalhar">Pra trabalhar</button>
       </div>
     </div>
 
-    <div class="app-preview" aria-hidden="true">
-      <div class="ap-tabs">
-        <span class="ap-logo">A</span><span>Início</span><span class="ap-tab-on">Aureum · Beta</span><span>Squad</span>
+    <div class="mode" id="modo-jogar" data-mode="jogar">
+      <button class="shot" type="button" data-zoom="img/jogar.webp">
+        <img src="img/jogar.webp" alt="Um jogo em tela cheia com o overlay do Aureum: quem está na call, as câmeras em fila e uma mensagem direta chegando" width="2400" height="1520" loading="lazy" decoding="async">
+      </button>
+      <div class="mode-cards">
+        <div class="mini"><h3>Conversa sem sair da partida</h3><p>Quem está falando aparece por cima do jogo, do jeito que você deixar.</p></div>
+        <div class="mini"><h3>Mostra a jogada</h3><p>Compartilhe a tela; quem quiser assistir, é só clicar.</p></div>
+        <div class="mini"><h3>Sons na hora certa</h3><p>Os sons do grupo direto na call.</p></div>
+        <div class="mini"><h3>A call sempre à vista</h3><p>Ela continua na tela mesmo com o app minimizado.</p></div>
       </div>
-      <div class="ap-body">
-        <div class="ap-rail"><i class="on"></i><i></i><i></i><i></i></div>
-        <div class="ap-main">
-          <div class="ap-banner"><div class="ap-icon">AB</div><div><b>Aureum · Beta</b><small>5 online · 1 transmitindo</small></div></div>
-          <div class="ap-label">SALAS AGORA</div>
-          <div class="ap-rooms">
-            <div class="ap-room">
-              <div class="ap-room-head"><span class="live-dot"></span>Sala principal<small>3 na sala</small></div>
-              <div class="ap-faces"><span class="face talking" data-c="gold">E</span><span class="face" data-c="violet">A</span><span class="face talking late" data-c="teal">D</span></div>
-            </div>
-            <div class="ap-room">
-              <div class="ap-room-head"><span class="live-dot"></span>Ranked hoje<small>2 na sala</small></div>
-              <div class="ap-faces"><span class="face talking later" data-c="coral">M</span><span class="face" data-c="green">L</span></div>
-            </div>
-          </div>
-          <div class="ap-chat">
-            <div><span class="face sm" data-c="violet">A</span><b>anaju</b><span>bora 21h?</span></div>
-            <div><span class="face sm" data-c="gold">E</span><b>edu</b><span>fechou, abri a sala</span></div>
-          </div>
-        </div>
-        <div class="ap-members">
-          <div class="ap-label">MEMBROS</div>
-          <div><span class="face sm" data-c="gold">E</span>edu</div>
-          <div><span class="face sm" data-c="violet">A</span>anaju</div>
-          <div><span class="face sm" data-c="teal">D</span>daniboy</div>
-          <div><span class="face sm" data-c="coral">M</span>mari</div>
-          <div><span class="face sm" data-c="green">L</span>lucas</div>
-        </div>
+    </div>
+
+    <div class="mode" id="modo-trabalhar" data-mode="trabalhar">
+      <button class="shot" type="button" data-zoom="img/trabalhar.webp">
+        <img src="img/trabalhar.webp" alt="Um servidor com a call, o chat com uma enquete, o Kanban e um fluxograma, com o calendário ao lado" width="2400" height="1520" loading="lazy" decoding="async">
+      </button>
+      <div class="mode-cards">
+        <div class="mini"><h3>Tudo numa tela só</h3><p>Conversa, call e tarefas lado a lado.</p></div>
+        <div class="mini"><h3>Organize junto</h3><p>Quem faz o quê e até quando, à vista de todos.</p></div>
+        <div class="mini"><h3>Nenhuma data perdida</h3><p>Prazos e eventos reunidos num só lugar.</p></div>
+        <div class="mini"><h3>Decida rápido</h3><p>Pergunte ao grupo e marque o encontro ali mesmo.</p></div>
       </div>
     </div>
   </section>
 
-  <section class="wrap section reveal" id="recursos">
-    <p class="eyebrow">RECURSOS</p>
-    <h2>Feito pra ficar aberto o dia todo</h2>
-    <div class="cards">
-      <article class="card">
-        <div class="card-icon" aria-hidden="true">◉</div>
-        <h3>Salas ao vivo</h3>
-        <p>Na visão geral do servidor você vê quem está em cada sala antes de entrar. É só clicar e falar.</p>
-        <button class="shot" type="button" data-zoom="img/salas.png" data-alt="Visão geral do servidor com as salas ao vivo e quem está falando">
-          <img src="img/salas.png" alt="Visão geral de um servidor no Aureum, com as salas de voz e quem está falando em cada uma" width="2880" height="1800" loading="lazy" decoding="async">
-        </button>
-      </article>
-      <article class="card">
-        <div class="card-icon" aria-hidden="true">◫</div>
-        <h3>Lado a lado</h3>
-        <p>Chat e quadro Kanban na mesma tela. Organiza o projeto sem sair da conversa.</p>
-        <button class="shot" type="button" data-zoom="img/lado-a-lado.png" data-alt="Chat e quadro Kanban abertos lado a lado">
-          <img src="img/lado-a-lado.png" alt="Um chat e um quadro Kanban abertos lado a lado no Aureum" width="2880" height="1800" loading="lazy" decoding="async">
-        </button>
-      </article>
-      <article class="card">
-        <div class="card-icon" aria-hidden="true">◈</div>
-        <h3>Overlay nos jogos</h3>
-        <p>Veja quem está falando e use atalhos sem sair da partida. Push-to-talk só nas teclas que você escolher.</p>
-        <button class="shot" type="button" data-zoom="img/overlay.png" data-alt="Overlay do Aureum por cima de um jogo">
-          <img src="img/overlay.png" alt="O overlay do Aureum mostrando quem está na chamada, por cima de uma cena de jogo" width="2880" height="1800" loading="lazy" decoding="async">
-        </button>
-      </article>
-      <article class="card">
-        <div class="card-icon" aria-hidden="true">⬢</div>
+  <!-- Recursos -->
+  <section class="band" id="recursos" aria-labelledby="recursos-titulo">
+    <div class="wrap section reveal">
+      <p class="eyebrow">TUDO JÁ VEM JUNTO</p>
+      <h2 id="recursos-titulo" class="left-title">Feito pra ficar aberto o dia todo.</h2>
+      <div class="bento">
+        <article class="big">
+          <h3>Conversa</h3>
+          <p>Voz, vídeo, tela e chat, com quem está falando sempre à vista.</p>
+          <button class="shot" type="button" data-zoom="img/conversa.webp">
+            <img src="img/conversa.webp" alt="Uma call em grade com quatro pessoas, duas com a câmera ligada" width="1760" height="1120" loading="lazy" decoding="async">
+          </button>
+        </article>
+        <article class="big">
+          <h3>Organiza</h3>
+          <p>Canais, quadros e calendário pra cada grupo, do seu jeito.</p>
+          <button class="shot" type="button" data-zoom="img/organiza.webp">
+            <img src="img/organiza.webp" alt="Um quadro Kanban com tarefas e prazos, com o calendário do mês ao lado" width="1760" height="1120" loading="lazy" decoding="async">
+          </button>
+        </article>
+        <article class="big">
+          <h3>É a cara do grupo</h3>
+          <p>Perfis, temas e insígnias que mostram quem é quem.</p>
+          <button class="shot" type="button" data-zoom="img/perfil.webp">
+            <img src="img/perfil.webp" alt="Um cartão de perfil com banner animado e insígnias, ao lado da escolha de cor e tema" width="1760" height="1120" loading="lazy" decoding="async">
+          </button>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Manifesto -->
+  <section class="wrap section reveal" aria-labelledby="manifesto">
+    <h2 id="manifesto" class="center-title">Pensado pra quem usa todo dia.</h2>
+    <div class="values">
+      <div class="value">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>
+        <h3>Simples de propósito</h3>
+        <p>Só o que o seu grupo precisa, sem distrações.</p>
+      </div>
+      <div class="value">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>
         <h3>Do seu jeito</h3>
-        <p>Banner, pronomes e insígnias de graça. Nada de pagar pra deixar o perfil bonito.</p>
-        <button class="shot" type="button" data-zoom="img/perfil.png" data-alt="Cartão de perfil com insígnias">
-          <img src="img/perfil.png" alt="Cartão de perfil com banner, pronomes e a insígnia Pioneiro" width="2880" height="1800" loading="lazy" decoding="async">
-        </button>
-      </article>
-    </div>
-  </section>
-
-  <section class="wrap reveal" id="beta">
-    <div class="pioneer">
-      <div class="badge-wrap" aria-hidden="true">
-        <!-- The Pioneiro art from apps/api/app/badges.py; the shine is the app's mythic-badge effect. -->
-        <div class="badge">
-          <svg viewBox="0 0 96 96"><polygon points="48,4 86,26 86,70 48,92 10,70 10,26" fill="none" stroke="#E8B531" stroke-width="2"/><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M48 34 L51.5 44.5 L62 48 L51.5 51.5 L48 62 L44.5 51.5 L34 48 L44.5 44.5 Z" fill="#F4CF6A" opacity="0.55" transform="rotate(45 48 48)"/><path d="M48 22 L53.5 42.5 L74 48 L53.5 53.5 L48 74 L42.5 53.5 L22 48 L42.5 42.5 Z" fill="#E8B531"/><circle cx="48" cy="48" r="4" fill="#2A1F08"/></svg>
-          <span class="badge-shine"></span>
-        </div>
+        <p>Perfil, tema e servidor personalizáveis, sem pagar.</p>
       </div>
-      <div class="pioneer-copy">
-        <p class="eyebrow gold">INSÍGNIA MÍTICA · SÓ NO BETA</p>
-        <h2>Os primeiros têm número.</h2>
-        <p class="lead">Os 20 primeiros a entrar ganham a insígnia <b>Pioneiro</b>, numerada na ordem de chegada. E quem testa durante o beta ganha a <b>Beta Tester</b>. Elas ficam no perfil pra sempre e nunca mais são distribuídas.</p>
-        <div class="stats">
-          <div class="stat" data-pioneers hidden>
-            <strong data-pioneers-count>0</strong>
-            <span>pioneiros até agora</span>
-          </div>
-          <div class="stat">
-            <strong class="plain">Só com convite</strong>
-            <span>peça a quem já está dentro</span>
-          </div>
-        </div>
+      <div class="value">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <h3>Leve e discreto</h3>
+        <p>Fica aberto o dia todo sem pesar e sem atrapalhar.</p>
       </div>
     </div>
   </section>
 
-  <section class="wrap section reveal" id="instalar">
-    <p class="eyebrow">INSTALAR</p>
-    <h2>Três passos e você está dentro</h2>
-    <ol class="steps">
-      <li>
-        <span class="step-n">1</span>
-        <h3>Baixe o instalador</h3>
-        <p>Clique em Baixar pra Windows. O arquivo tem <span data-download-size>pouco mais de 100 MB</span> e vem direto do GitHub.</p>
-      </li>
-      <li>
-        <span class="step-n">2</span>
-        <h3>Libere no Windows</h3>
-        <p>O app ainda não tem assinatura digital, então o Windows avisa. É seguro: clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</p>
-        <div class="smartscreen" aria-hidden="true">
-          <div class="ss-title">O Windows protegeu o computador</div>
-          <div class="ss-text">O SmartScreen impediu que um aplicativo desconhecido fosse iniciado…</div>
-          <div class="ss-more">Mais informações</div>
-          <div class="ss-actions"><span>Executar assim mesmo</span></div>
+  <!-- Insígnia -->
+  <section class="band badge-band" aria-labelledby="insignia">
+    <div class="wrap badge-row reveal">
+      <div class="badge-copy">
+        <p class="eyebrow gold">INSÍGNIA LENDÁRIA · SÓ NO BETA</p>
+        <h2 id="insignia">Entrou no beta, ganhou Beta Tester.</h2>
+        <p class="lead">Quem testa agora leva a insígnia pra sempre.</p>
+      </div>
+      <div class="profile" role="img" aria-label="Cartão de perfil de exemplo, com o nome você e a insígnia Beta Tester">
+        <div class="profile-banner"></div>
+        <div class="profile-body">
+          <div class="profile-avatar"></div>
+          <div class="profile-name">
+            <b>você</b>
+            <!-- The Beta Tester art from apps/api/app/badges.py (small version). -->
+            <svg viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M40 21 H56 V25 H53 V41 L68.5 66 Q71 72 64.5 72 H31.5 Q25 72 27.5 66 L43 41 V25 H40 Z" fill="#E8B531"/></svg>
+          </div>
+          <div class="profile-badge">
+            <svg viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M36.6 55 H59.4 L65.6 65.6 Q67 68.5 63.6 68.5 H32.4 Q29 68.5 30.4 65.6 Z" fill="#E8B531"/><path d="M44 25 V42 L29.4 65.8 Q27.4 70.5 32.6 70.5 H63.4 Q68.6 70.5 66.6 65.8 L52 42 V25" fill="none" stroke="#E8B531" stroke-width="3" stroke-linejoin="round"/><path d="M40.5 24 H55.5" stroke="#E8B531" stroke-width="3.5" stroke-linecap="round"/><circle cx="45" cy="49" r="2.2" fill="#F4CF6A"/><circle cx="51.5" cy="44" r="1.6" fill="#F4CF6A"/></svg>
+            <div><b>Beta Tester</b><span>LENDÁRIA</span></div>
+          </div>
         </div>
-      </li>
-      <li>
-        <span class="step-n">3</span>
-        <h3>Entre com seu convite</h3>
-        <p>Use o link de convite que você recebeu pra criar a conta. Depois é só abrir o app e entrar com seu e-mail.</p>
-      </li>
-    </ol>
+      </div>
+    </div>
   </section>
 
-  <section class="wrap section reveal" id="mac">
-    <p class="eyebrow">NO MAC</p>
-    <h2>Instalar no Mac</h2>
-    <p class="mac-links" data-mac-links>Baixe na <a href="https://github.com/eduoliveira1504/aureum-voice/releases">página de versões</a>: o arquivo <b>arm64.dmg</b> é pra Mac com chip Apple, o <b>x64.dmg</b> pra Mac com Intel.</p>
-    <ol class="steps">
-      <li>
-        <span class="step-n">1</span>
-        <h3>Baixe o certo pro seu Mac</h3>
-        <p>Chip Apple (M1, M2, M3 ou mais novo) ou Intel? Veja no menu <b>Apple › Sobre este Mac</b>, na linha <b>Chip</b> ou <b>Processador</b>. Precisa do macOS 12 ou mais novo.</p>
-      </li>
-      <li>
-        <span class="step-n">2</span>
-        <h3>Arraste pra Aplicativos</h3>
-        <p>Abra o arquivo .dmg e arraste o <b>Aureum Voice</b> pra pasta <b>Aplicativos</b>.</p>
-      </li>
-      <li>
-        <span class="step-n">3</span>
-        <h3>Libere na primeira vez</h3>
-        <p>O app ainda não tem assinatura da Apple, então o macOS avisa ao abrir. É seguro: clique em <b>OK</b>, vá em <b>Ajustes do Sistema › Privacidade e Segurança</b>, role até o fim e clique em <b>Abrir Mesmo Assim</b>.</p>
-        <p>Se aparecer <b>“está danificado e não pode ser aberto”</b>, abra o Terminal, cole o comando abaixo, aperte Enter e abra o app de novo:</p>
-        <code class="cmd">xattr -cr "/Applications/Aureum Voice.app"</code>
-      </li>
-      <li>
-        <span class="step-n">4</span>
-        <h3>Permita o que for usar</h3>
-        <p>O Mac pergunta pelo <b>microfone</b> e pela <b>câmera</b> na primeira vez. Pra transmitir a tela, libere o Aureum em <b>Gravação de Tela e Áudio do Sistema</b> e abra o app de novo.</p>
-      </li>
-    </ol>
-    <p class="mac-note">No Mac o Aureum ainda não se atualiza sozinho: quando sair uma versão nova, aparece o botão <b>Baixar a versão</b> no topo do app. É só baixar e arrastar pra Aplicativos de novo, por cima da antiga. O overlay nos jogos e o “pressionar para falar” são só do Windows por enquanto.</p>
+  <!-- Instalar -->
+  <section class="wrap section install reveal" id="instalar" aria-labelledby="instalar-titulo">
+    <div class="install-head">
+      <div>
+        <p class="eyebrow">INSTALAR</p>
+        <h2 id="instalar-titulo">Três passos e você está dentro.</h2>
+      </div>
+      <div class="toggle" role="group" aria-label="Sistema">
+        <button type="button" aria-pressed="true" aria-controls="instalar-windows" data-os-pick="win">Windows</button>
+        <button type="button" aria-pressed="false" aria-controls="instalar-mac" data-os-pick="mac">Mac</button>
+      </div>
+    </div>
+
+    <div class="os" id="instalar-windows" data-os="win">
+      <h3 class="os-title">No Windows</h3>
+      <ol class="steps">
+        <li><span class="step-n">1</span><h4>Baixe o instalador</h4><p><span data-download-size>Pouco mais de 100 MB</span>, direto do GitHub.</p></li>
+        <li><span class="step-n">2</span><h4>Abra e instale</h4><p>Se o Windows avisar, clique em <b>Mais informações</b> › <b>Executar assim mesmo</b>.</p></li>
+        <li><span class="step-n">3</span><h4>Crie sua conta</h4><p>E-mail e senha, sem convite. O app se atualiza sozinho.</p></li>
+      </ol>
+      <a class="btn-gold" data-download-win href="https://github.com/eduoliveira1504/aureum-voice/releases">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5l7.5-1v8H3zM11.5 3.4L21 2v9.5h-9.5zM3 12.5h7.5v8L3 19.5zM11.5 12.5H21V22l-9.5-1.4z" fill="currentColor"/></svg>
+        <span>Baixar pra Windows</span>
+      </a>
+    </div>
+
+    <div class="os" id="instalar-mac" data-os="mac">
+      <h3 class="os-title">No Mac</h3>
+      <ol class="steps">
+        <li><span class="step-n">1</span><h4>Baixe o .dmg</h4><p>A página já escolhe o certo pro seu chip (Apple ou Intel).</p></li>
+        <li><span class="step-n">2</span><h4>Arraste pra Aplicativos</h4><p>E abra. Na primeira vez, <b>Ajustes</b> › <b>Privacidade e Segurança</b> › <b>Abrir Mesmo Assim</b>.</p></li>
+        <li><span class="step-n">3</span><h4>Crie sua conta</h4><p>Libere microfone e câmera quando o Mac perguntar.</p></li>
+      </ol>
+      <details class="trouble">
+        <summary>Deu problema no Mac?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="trouble-body">
+          <p><b>“Está danificado e não pode ser aberto”:</b> abra o Terminal, cole o comando e abra de novo.</p>
+          <code class="cmd">xattr -cr "/Applications/Aureum Voice.app"</code>
+          <p><b>Transmitir a tela:</b> libere o Aureum em <b>Gravação de Tela e Áudio do Sistema</b> e reabra o app.</p>
+          <p class="small">No Mac o app ainda não se atualiza sozinho (aparece “Baixar a versão” no topo), e o overlay e o pressionar para falar são só do Windows por enquanto.</p>
+        </div>
+      </details>
+      <a class="btn-gold" data-download-mac href="https://github.com/eduoliveira1504/aureum-voice/releases">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0l-4.5-4.5M12 14l4.5-4.5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Baixar pra Mac</span>
+      </a>
+      <p class="meta mac-links" data-mac-links>Na <a href="https://github.com/eduoliveira1504/aureum-voice/releases">página de versões</a>: <b>arm64.dmg</b> pra Mac com chip Apple, <b>x64.dmg</b> pra Mac com Intel.</p>
+    </div>
   </section>
 
-  <ul class="values wrap reveal">
-    <li>Sem IA no app</li>
-    <li>Sem anúncios</li>
-    <li>Personalização grátis</li>
-    <li>Feito no Brasil</li>
-  </ul>
-
-  <section class="final wrap reveal">
-    <h2>Bora conversar?</h2>
-    <p class="lead">Baixe agora e use o convite que te mandaram.</p>
-    <a class="btn-gold" data-download href="https://github.com/eduoliveira1504/aureum-voice/releases">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5l7.5-1v8H3zM11.5 3.4L21 2v9.5h-9.5zM3 12.5h7.5v8L3 19.5zM11.5 12.5H21V22l-9.5-1.4z" fill="currentColor"/></svg>
-      <span data-download-label>Baixar pra Windows</span>
-    </a>
+  <!-- Final -->
+  <section class="wrap final reveal" aria-labelledby="final-titulo">
+    <div class="coin" aria-hidden="true" data-coin>
+      <div class="coin-inner">
+        <svg class="coin-face" viewBox="0 0 96 96"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="#0E0D0B" stroke="#E8B531" stroke-width="7" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531"/></svg>
+        <svg class="coin-face coin-back" viewBox="0 0 96 96"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="#0E0D0B" stroke="#E8B531" stroke-width="7" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531"/></svg>
+      </div>
+    </div>
+    <h2 id="final-titulo">Chame seu grupo.</h2>
+    <p class="lead">Baixe, crie seu servidor e abra a primeira sala.</p>
+    <a class="btn-gold" data-download-final href="#instalar">Baixar</a>
   </section>
 </main>
 
-<footer class="foot wrap">
-  <a class="brand small" href="#inicio">
-    <svg class="mark" viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="currentColor"/></svg>
-    <span>AUREUM</span>
-  </a>
-  <span class="tagline">Feito por gente, pra gente conversar.</span>
-  <span class="foot-links">
-    <a href="https://github.com/eduoliveira1504/aureum-voice">GitHub</a> ·
-    <a href="https://github.com/eduoliveira1504/aureum-voice/issues/new">Reportar bug</a> ·
-    © 2026 Aureum
-  </span>
+<footer class="foot">
+  <div class="wrap foot-row">
+    <a class="foot-brand" href="#topo">
+      <svg viewBox="0 0 96 96" aria-hidden="true"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="currentColor"/></svg>
+      <span>AUREUM</span>
+    </a>
+    <span class="tagline" lang="la" title="A idade de ouro">Aetas aurea.</span>
+    <span class="foot-links">
+      <a href="https://github.com/eduoliveira1504/aureum-voice">GitHub</a> ·
+      <a href="https://github.com/eduoliveira1504/aureum-voice/issues/new">Reportar bug</a> ·
+      © 2026 Aureum
+    </span>
+  </div>
 </footer>
 
 <dialog class="zoom" data-zoom-dialog aria-label="Imagem ampliada">
