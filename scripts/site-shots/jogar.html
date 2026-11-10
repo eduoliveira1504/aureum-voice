@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=block">
+<link rel="stylesheet" href="shots.css">
+<style>
+  /* A made-up game scene: dusk sky, hills, a tower, a HUD. Nothing from a real game. */
+  .game { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; background: linear-gradient(180deg, #2B2348 0%, #6B3F5E 38%, #D9805A 62%, #F2B46A 70%); }
+  .game svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cross { position: absolute; left: 50%; top: 54%; width: 26px; height: 26px; transform: translate(-50%, -50%); }
+  .hud { position: absolute; left: 28px; bottom: 26px; display: flex; flex-direction: column; gap: 8px; }
+  .hp { width: 230px; height: 10px; border-radius: 5px; background: rgba(0,0,0,.45); overflow: hidden; }
+  .hp i { display: block; height: 100%; width: 72%; background: linear-gradient(90deg, #7FBF7A, #B6E0A0); }
+  .hp.sh i { width: 46%; background: linear-gradient(90deg, #6FA8E8, #A9CFF5); }
+  .ammo { position: absolute; right: 30px; bottom: 22px; font: 800 44px Sora, sans-serif; color: rgba(255,255,255,.92); text-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .ammo small { font-size: 20px; color: rgba(255,255,255,.6); }
+  .map { position: absolute; right: 24px; top: 24px; width: 128px; height: 128px; border-radius: 50%; background: rgba(14,13,11,.55); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); }
+  .map::before { content: ""; position: absolute; left: 50%; top: 50%; width: 0; height: 0; border: 7px solid transparent; border-bottom: 12px solid #F4CF6A; transform: translate(-50%, -70%); }
+  .map::after { content: ""; position: absolute; left: 30%; top: 30%; width: 8px; height: 8px; border-radius: 50%; background: #E06A4E; box-shadow: 46px 30px 0 #E06A4E; }
+
+  /* The Aureum overlay. */
+  .ov { background: rgba(14, 13, 11, .82); box-shadow: inset 0 0 0 1px rgba(232,181,49,.28), 0 10px 30px rgba(0,0,0,.35); border-radius: 12px; }
+  .voice { position: absolute; left: 24px; top: 24px; width: 220px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .voice-head { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .voice-head svg { width: 14px; height: 14px; }
+  .person { display: flex; align-items: center; gap: 9px; padding: 4px; border-radius: 8px; }
+  .person.talking { background: rgba(232,181,49,.12); }
+  .person .av { width: 26px; height: 26px; }
+  .person.talking .av { box-shadow: 0 0 0 2px #17150F, 0 0 0 4px var(--gold); }
+  .person svg { margin-left: auto; width: 14px; height: 14px; }
+  .cams { position: absolute; left: 260px; top: 24px; display: flex; gap: 8px; }
+  .cam { position: relative; width: 168px; height: 100px; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(232,181,49,.28); }
+  .cam.talking { box-shadow: inset 0 0 0 2px var(--gold); }
+  .cam .tag { position: absolute; left: 6px; bottom: 6px; padding: 3px 6px; border-radius: 5px; background: rgba(14,13,11,.72); display: flex; gap: 5px; align-items: center; }
+  .notif { position: absolute; right: 24px; bottom: 96px; width: 300px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
+  .notif .av { width: 36px; height: 36px; }
+  .notif .top { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .notif p { margin: 0; font-size: 14px; color: var(--text); }
+  .notif .hint { margin-top: 6px; font-size: 10px; color: var(--faint); }
+</style></head>
+<body>
+<div class="game">
+  <svg class="scene" viewBox="0 0 1200 760" preserveAspectRatio="none">
+    <circle cx="840" cy="430" r="70" fill="#FCE3A6" opacity=".85"/>
+    <path d="M0 470 L120 400 L220 440 L360 360 L470 430 L600 380 L720 450 L860 370 L1000 430 L1100 390 L1200 420 V760 H0 Z" fill="#5A3552"/>
+    <path d="M0 540 L140 480 L300 520 L420 470 L560 530 L700 490 L860 540 L1020 480 L1200 520 V760 H0 Z" fill="#3A2440"/>
+    <rect x="300" y="350" width="46" height="200" fill="#251829"/><path d="M290 352 L323 300 L356 352 Z" fill="#251829"/>
+    <rect x="314" y="380" width="18" height="24" fill="#F4B860" opacity=".7"/>
+    <path d="M0 620 Q 300 560 600 610 T 1200 600 V760 H0 Z" fill="#1E1424"/>
+    <path d="M0 690 Q 400 650 800 690 T 1200 680 V760 H0 Z" fill="#140D18"/>
+  </svg>
+  <svg class="cross" viewBox="0 0 26 26"><path d="M13 2v7M13 17v7M2 13h7M17 13h7" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".9"/></svg>
+  <div class="map"></div>
+  <div class="hud"><div class="hp"><i></i></div><div class="hp sh"><i></i></div></div>
+  <div class="ammo">24 <small>/ 90</small></div>
+
+  <div class="voice ov">
+    <div class="voice-head"><i data-i="logo"></i>Sala principal<span style="margin-left:auto">4</span></div>
+    <div class="person talking"><span class="av"></span><span class="b gold" style="width:58px"></span><i data-i="mic" style="color:var(--gold)"></i></div>
+    <div class="person"><span class="av violet"></span><span class="b violet" style="width:44px"></span><i data-i="mic" style="color:var(--muted)"></i></div>
+    <div class="person"><span class="av teal"></span><span class="b teal" style="width:62px"></span><i data-i="micoff" style="color:var(--live)"></i></div>
+    <div class="person"><span class="av coral"></span><span class="b coral" style="width:38px"></span><i data-i="mic" style="color:var(--muted)"></i></div>
+  </div>
+
+  <div class="cams">
+    <div class="cam talking" style="background:linear-gradient(150deg,#3A2C10,#17150F)">
+      <svg viewBox="0 0 168 100" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="84" cy="42" r="18" fill="#5A4413"/><path d="M48 100 Q 84 54 120 100 Z" fill="#5A4413"/></svg>
+      <span class="tag"><span class="b gold thin" style="width:36px"></span></span></div>
+    <div class="cam" style="background:linear-gradient(150deg,#2E2648,#141320)">
+      <svg viewBox="0 0 168 100" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="90" cy="44" r="17" fill="#3B2F5C"/><path d="M56 100 Q 90 58 124 100 Z" fill="#3B2F5C"/></svg>
+      <span class="tag"><span class="b violet thin" style="width:28px"></span></span></div>
+    <div class="cam" style="background:linear-gradient(150deg,#1B3A3C,#101818)">
+      <svg viewBox="0 0 168 100" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="78" cy="43" r="17" fill="#2A5456"/><path d="M44 100 Q 78 57 112 100 Z" fill="#2A5456"/></svg>
+      <span class="tag"><span class="b teal thin" style="width:40px"></span></span></div>
+  </div>
+
+  <div class="notif ov">
+    <span class="av violet"></span>
+    <div>
+      <div class="top"><i data-i="chat" style="width:12px;color:var(--gold)"></i>Mensagem direta<span class="b violet thin" style="width:40px"></span></div>
+      <p>mais uma depois dessa?</p>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+</body></html>

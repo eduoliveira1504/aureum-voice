@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=block">
+<link rel="stylesheet" href="shots.css">
+<style>
+  .body { flex: 1; display: flex; gap: 8px; padding: 8px; min-height: 0; }
+  .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; min-width: 0; }
+  .side { width: 280px; flex: none; }
+  .call { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6px; padding: 8px; min-height: 0; }
+  .call .av { width: 40px; height: 40px; }
+  .kanban { grid-template-columns: repeat(3, 1fr); }
+  .node { position: absolute; transform: translate(-50%, -50%); padding: 7px 12px; border-radius: 8px; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--c, var(--line-strong)); display: flex; align-items: center; }
+  .poll { margin: 0 12px; padding: 10px; border-radius: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 7px; font-size: 11px; }
+  .opt { position: relative; height: 24px; border-radius: 6px; background: var(--panel); overflow: hidden; display: flex; align-items: center; padding: 0 8px; gap: 6px; }
+  .opt i { position: absolute; inset: 0 auto 0 0; background: rgba(232,181,49,.22); }
+  .opt span { position: relative; }
+  .opt .pct { margin-left: auto; color: var(--muted); }
+</style></head>
+<body>
+<div class="window">
+  <div class="tabs">
+    <i data-i="logo" class="logo"></i>
+    <span class="tab">Início</span>
+    <span class="tab on"><span class="ic" style="background:var(--blue-deep)"></span><span class="b blue" style="width:58px;opacity:.7"></span></span>
+    <span class="tab"><span class="ic"></span><span class="b" style="width:48px"></span></span>
+    <span class="right"><span class="chip-btn"><i data-i="users" style="width:14px"></i>Membros</span></span>
+  </div>
+  <div class="body">
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-head"><span class="dot"></span>Daily · ao vivo<span class="right"><i data-i="users"></i>4</span></div>
+        <div class="call">
+          <div class="tile talking"><span class="av blue ring"></span><span class="tag"><span class="b blue" style="width:34px"></span></span></div>
+          <div class="tile"><span class="av"></span><span class="tag"><span class="b gold" style="width:28px"></span></span></div>
+          <div class="tile"><span class="av teal"></span><span class="tag"><span class="b teal" style="width:40px"></span></span></div>
+          <div class="tile"><span class="av coral"></span><span class="tag"><i data-i="micoff" style="width:12px;color:var(--live)"></i><span class="b coral" style="width:26px"></span></span></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><i data-i="hash"></i>projeto<span class="right"><i data-i="bell"></i></span></div>
+        <div class="msgs" style="gap:10px">
+          <div class="msg"><span class="av blue"></span><div><div class="who"><span class="b blue" style="width:46px"></span><span class="time">09:12</span></div>subi a versão de teste</div></div>
+        </div>
+        <div class="poll">
+          <b style="font-size:12px;color:var(--text)">Revisão na quinta ou na sexta?</b>
+          <div class="opt"><i style="width:75%"></i><span>Quinta</span><span class="pct">3</span></div>
+          <div class="opt"><i style="width:25%"></i><span>Sexta</span><span class="pct">1</span></div>
+        </div>
+        <div class="composer" style="margin-top:10px"><i data-i="plus" style="width:14px"></i>Mensagem em #projeto</div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><i data-i="board"></i>Kanban · Entregas<span class="right"><i data-i="plus"></i></span></div>
+        <div class="kanban">
+          <div class="col"><div class="col-head">A fazer<span class="n">4</span></div>
+            <div class="card"><span class="label" style="background:var(--blue)"></span><span class="b light" style="width:78%"></span><div class="row"><span class="av teal"></span><span class="due">14 nov</span></div></div>
+            <div class="card"><span class="b light" style="width:60%"></span><div class="row"><span class="av coral"></span><span class="due">18 nov</span></div></div>
+          </div>
+          <div class="col"><div class="col-head">Fazendo<span class="n">2</span></div>
+            <div class="card"><span class="label" style="background:var(--gold)"></span><span class="b light" style="width:70%"></span><div class="row"><span class="av blue"></span><span class="due">12 nov</span></div></div>
+            <div class="card"><span class="b light" style="width:52%"></span><div class="row"><span class="av"></span></div></div>
+          </div>
+          <div class="col"><div class="col-head">Feito<span class="n">7</span></div>
+            <div class="card"><span class="label" style="background:var(--ok)"></span><span class="b light" style="width:64%"></span></div>
+            <div class="card"><span class="b light" style="width:74%"></span></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><i data-i="pen"></i>Quadro · fluxo do cadastro<span class="right"><i data-i="users"></i>2</span></div>
+        <div class="board">
+          <svg viewBox="0 0 340 230" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+            <path d="M98 52 H148 M228 52 H264 M188 66 V124 M188 152 V188" fill="none" stroke="#8C8577" stroke-width="1.6"/>
+            <path d="M142 47 l7 5 -7 5 M258 47 l7 5 -7 5 M183 118 l5 7 5 -7 M183 182 l5 7 5 -7" fill="none" stroke="#8C8577" stroke-width="1.6"/>
+          </svg>
+          <span class="node" style="left:17.6%;top:22.6%;--c:var(--blue)"><span class="b blue thin" style="width:44px"></span></span>
+          <span class="node" style="left:55.3%;top:22.6%;--c:var(--gold)"><span class="b gold-dim thin" style="width:44px"></span></span>
+          <span class="node" style="left:88%;top:22.6%;--c:var(--ok)"><span class="b thin" style="width:30px;background:var(--ok)"></span></span>
+          <span class="node" style="left:55.3%;top:60%;--c:var(--violet)"><span class="b violet thin" style="width:44px"></span></span>
+          <span class="node" style="left:55.3%;top:88%"><span class="b light thin" style="width:44px"></span></span>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel side">
+      <div class="panel-head"><i data-i="cal"></i>Calendário</div>
+      <div class="cal">
+        <div class="cal-month"><i data-i="chevl" style="width:14px;color:var(--faint)"></i>novembro 2026<i data-i="chev" style="width:14px;color:var(--faint)"></i></div>
+        <div class="cal-grid">
+          <span class="wd">D</span><span class="wd">S</span><span class="wd">T</span><span class="wd">Q</span><span class="wd">Q</span><span class="wd">S</span><span class="wd">S</span>
+          <span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="d">4</span><span class="d ev t">5</span><span class="d">6</span><span class="d">7</span>
+          <span class="d">8</span><span class="d today">9</span><span class="d">10</span><span class="d">11</span><span class="d ev">12</span><span class="d ev v">13</span><span class="d">14</span>
+          <span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="d ev">18</span><span class="d">19</span><span class="d ev t">20</span><span class="d">21</span>
+          <span class="d">22</span><span class="d">23</span><span class="d">24</span><span class="d">25</span><span class="d ev v">26</span><span class="d">27</span><span class="d">28</span>
+          <span class="d">29</span><span class="d">30</span><span class="d out">1</span><span class="d out">2</span><span class="d out">3</span><span class="d out">4</span><span class="d out">5</span>
+        </div>
+        <div class="events">
+          <div class="event"><div class="when"><b>12</b><span>NOV</span></div><span class="stripe"></span><div class="what"><span class="b light" style="width:110px"></span><span class="hour">Prazo · Kanban</span></div></div>
+          <div class="event"><div class="when"><b>13</b><span>NOV</span></div><span class="stripe" style="background:var(--violet)"></span><div class="what"><span class="b light" style="width:84px"></span><span class="hour">14:00 · Evento</span></div></div>
+          <div class="event"><div class="when"><b>20</b><span>NOV</span></div><span class="stripe" style="background:var(--teal)"></span><div class="what"><span class="b light" style="width:96px"></span><span class="hour">19:30 · Evento</span></div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="icons.js"></script>
+</body></html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=block">
+<link rel="stylesheet" href="shots.css">
+<style>
+  .panel { position: absolute; inset: 0; border-radius: 14px; background: var(--panel); }
+  .stage { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; padding: 10px; min-height: 0; }
+  .tile .av { width: 72px; height: 72px; }
+  .tile .tag { padding: 5px 9px; }
+  .tile .tag svg { width: 14px; height: 14px; }
+  .tile svg.person { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .bar { flex: none; display: flex; justify-content: center; gap: 10px; padding: 4px 0 14px; }
+  .speaking { position: absolute; top: 10px; right: 10px; display: flex; gap: 3px; align-items: flex-end; height: 16px; }
+  .speaking i { width: 4px; border-radius: 2px; background: var(--gold); }
+</style></head>
+<body>
+<section class="panel">
+  <div class="panel-head" style="height:44px;font-size:13px"><span class="dot"></span>Sala principal · ao vivo<span class="right"><i data-i="grid"></i><i data-i="users"></i>4</span></div>
+  <div class="stage">
+    <div class="tile talking" style="background:linear-gradient(150deg,#3A2C10,#17150F)">
+      <svg class="person" viewBox="0 0 400 220" preserveAspectRatio="xMidYMax slice"><circle cx="200" cy="96" r="44" fill="#5A4413"/><path d="M110 230 Q 200 120 290 230 Z" fill="#5A4413"/></svg>
+      <span class="speaking"><i style="height:7px"></i><i style="height:14px"></i><i style="height:10px"></i></span>
+      <span class="tag"><i data-i="mic" style="color:var(--gold)"></i><span class="b gold" style="width:52px"></span></span>
+    </div>
+    <div class="tile" style="background:linear-gradient(150deg,#1B3A3C,#101818)">
+      <svg class="person" viewBox="0 0 400 220" preserveAspectRatio="xMidYMax slice"><circle cx="210" cy="100" r="42" fill="#2A5456"/><path d="M124 230 Q 210 126 296 230 Z" fill="#2A5456"/></svg>
+      <span class="tag"><i data-i="mic" style="color:var(--muted)"></i><span class="b teal" style="width:44px"></span></span>
+    </div>
+    <div class="tile"><span class="av violet"></span>
+      <span class="tag"><i data-i="micoff" style="color:var(--live)"></i><span class="b violet" style="width:36px"></span></span>
+    </div>
+    <div class="tile"><span class="av coral"></span>
+      <span class="tag"><i data-i="mic" style="color:var(--muted)"></i><span class="b coral" style="width:58px"></span></span>
+    </div>
+  </div>
+  <div class="bar">
+    <span class="ctl"><i data-i="mic"></i></span><span class="ctl on"><i data-i="cam"></i></span><span class="ctl"><i data-i="screen"></i></span><span class="ctl"><i data-i="vol"></i></span><span class="ctl leave"><i data-i="phone"></i></span>
+  </div>
+</section>
+<script src="icons.js"></script>
+</body></html>

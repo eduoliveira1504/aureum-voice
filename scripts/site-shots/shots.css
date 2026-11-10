@@ -1,0 +1,150 @@
+/* Shared look of the landing's synthetic screenshots (scripts/generate-site-shots.mjs).
+   Same tokens as the landing. No real names, avatars or servers: bars stand in for names. */
+:root {
+  --bg: #0E0D0B;
+  --panel: #121110;
+  --surface: #17150F;
+  --surface-2: #1E1B14;
+  --surface-3: #25211A;
+  --line: #2A261D;
+  --line-strong: #3A352A;
+  --line-gold: #5A4413;
+  --gold: #E8B531;
+  --gold-light: #F4CF6A;
+  --gold-dark: #8A6410;
+  --gold-deep: #2A1F08;
+  --on-gold: #1A1405;
+  --text: #F4EFE4;
+  --text-2: #D9D2C3;
+  --muted: #BDB5A4;
+  --faint: #8C8577;
+  --ok: #7FBF7A;
+  --live: #E06A4E;
+  --violet: #B9A3F0;
+  --violet-deep: #3B2F5C;
+  --blue: #6FA8E8;
+  --blue-deep: #1D3350;
+  --teal: #7FC4C9;
+  --teal-deep: #1B3A3C;
+  --coral: #E89A7A;
+  --coral-deep: #4A2618;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/1.5 Figtree, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+}
+svg { display: block; }
+:where(svg.icon) { width: 16px; height: 16px; flex: none; }
+
+/* A bar standing in for a name or a line of text. */
+.b { display: inline-block; height: 8px; border-radius: 4px; background: var(--line-strong); vertical-align: middle; flex: none; }
+.b.gold { background: var(--gold); }
+.b.gold-dim { background: var(--line-gold); }
+.b.violet { background: var(--violet); }
+.b.teal { background: var(--teal); }
+.b.coral { background: var(--coral); }
+.b.blue { background: var(--blue); }
+.b.light { background: #4A4436; }
+.b.thin { height: 6px; }
+
+/* An avatar: a plain colored circle, no picture. */
+.av { width: 24px; height: 24px; border-radius: 50%; flex: none; background: var(--line-gold); }
+.av.violet { background: var(--violet-deep); }
+.av.teal { background: var(--teal-deep); }
+.av.coral { background: var(--coral-deep); }
+.av.blue { background: var(--blue-deep); }
+.av.ring { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ok); }
+
+/* The app window: tabs on top, panels below. */
+.window {
+  position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--panel);
+  border-radius: 14px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.tabs {
+  height: 44px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 14px;
+  border-bottom: 1px solid var(--line); background: #0B0A09; font-size: 12px; color: var(--muted);
+}
+.tabs .logo { width: 22px; height: 22px; margin-right: 6px; }
+.tab { height: 30px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; }
+.tab.on { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.tab .ic { width: 16px; height: 16px; border-radius: 5px; background: var(--line-gold); }
+.tabs .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.chip-btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 7px; box-shadow: inset 0 0 0 1px var(--line); }
+
+.panel {
+  border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+}
+.panel-head {
+  height: 38px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--text-2);
+}
+.panel-head .right { margin-left: auto; display: flex; gap: 8px; color: var(--faint); }
+.panel-head svg { width: 14px; height: 14px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); flex: none; }
+.dot.ok { background: var(--ok); }
+
+/* Voice tiles. */
+.tile {
+  position: relative; border-radius: 10px; background: var(--surface-2); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0;
+}
+.tile .av { width: 54px; height: 54px; }
+.tile.talking { box-shadow: inset 0 0 0 2px var(--gold); }
+.tile .tag {
+  position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  border-radius: 6px; background: rgba(14, 13, 11, .72);
+}
+.tile .tag svg { width: 12px; height: 12px; }
+
+/* Chat. */
+.msgs { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: var(--text-2); min-height: 0; }
+.msg { display: flex; gap: 10px; }
+.msg .av { width: 28px; height: 28px; }
+.msg .who { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.msg .time { font-size: 10px; color: var(--faint); }
+.reacts { margin-top: 5px; display: flex; gap: 5px; font-size: 11px; }
+.react { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); }
+.react.on { background: var(--gold-deep); box-shadow: inset 0 0 0 1px var(--line-gold); color: var(--gold-light); }
+.composer { margin: 0 12px 12px; height: 36px; flex: none; border-radius: 9px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); display: flex; align-items: center; padding: 0 12px; gap: 8px; color: var(--faint); font-size: 12px; }
+
+/* Kanban. */
+.kanban { flex: 1; display: grid; gap: 8px; padding: 10px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 6px; min-width: 0; border-radius: 9px; background: var(--panel); padding: 8px; }
+.col-head { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.col-head .n { margin-left: auto; color: var(--faint); font-weight: 500; }
+.card { border-radius: 7px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.card .row { display: flex; align-items: center; gap: 6px; }
+.label { height: 6px; width: 26px; border-radius: 3px; }
+.due { font-size: 10px; color: var(--faint); margin-left: auto; }
+.card .av { width: 16px; height: 16px; }
+
+/* Whiteboard. */
+.board { flex: 1; position: relative; background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 16px 16px; }
+
+/* Calendar. */
+.cal { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.cal-month { display: flex; align-items: center; justify-content: space-between; font: 600 13px Sora, sans-serif; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; font-size: 10px; text-align: center; color: var(--muted); }
+.cal-grid .wd { color: var(--faint); font-weight: 600; }
+.cal-grid .d { position: relative; height: 26px; display: grid; place-items: center; border-radius: 6px; }
+.cal-grid .d.out { color: #4A4436; }
+.cal-grid .d.today { background: var(--gold); color: var(--on-gold); font-weight: 700; }
+.cal-grid .d.ev::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
+.cal-grid .d.ev.v::after { background: var(--violet); }
+.cal-grid .d.ev.t::after { background: var(--teal); }
+.events { display: flex; flex-direction: column; gap: 6px; }
+.event { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 9px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-size: 11px; }
+.event .when { width: 34px; flex: none; text-align: center; line-height: 1.15; }
+.event .when b { display: block; font: 700 15px Sora, sans-serif; color: var(--text); }
+.event .when span { color: var(--faint); font-size: 9px; letter-spacing: .08em; }
+.event .stripe { width: 3px; align-self: stretch; border-radius: 2px; background: var(--gold); }
+.event .what { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.event .hour { color: var(--faint); font-size: 10px; }
+
+.ctl { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text-2); }
+.ctl svg { width: 18px; height: 18px; }
+.ctl.on { background: var(--gold); color: var(--on-gold); box-shadow: none; }
+.ctl.leave { background: #B8432E; color: #fff; box-shadow: none; width: 54px; border-radius: 20px; }

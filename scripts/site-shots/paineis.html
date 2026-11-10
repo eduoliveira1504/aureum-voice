@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=block">
+<link rel="stylesheet" href="shots.css">
+<style>
+  .grid { flex: 1; display: grid; grid-template-columns: 1.08fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; padding: 8px; min-height: 0; }
+  .call { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1.25fr; gap: 6px; padding: 8px; min-height: 0; }
+  .share {
+    grid-column: span 2; background: linear-gradient(160deg, #1D3350 0%, #22283A 45%, #3A2C1A 100%);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
+  .share .fake { position: absolute; inset: 12px 14px 40px; border-radius: 6px; background: rgba(14,13,11,.45); display: flex; flex-direction: column; gap: 7px; padding: 12px; }
+  .share .live { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 5px; background: var(--live); color: #fff; font: 700 9px Sora, sans-serif; letter-spacing: .1em; }
+  .controls { flex: none; display: flex; gap: 8px; justify-content: center; padding: 0 0 10px; }
+  .controls .ctl { width: 32px; height: 32px; }
+  .controls .ctl svg { width: 15px; height: 15px; }
+  .controls .ctl.leave { width: 44px; }
+  .kanban { grid-template-columns: repeat(3, 1fr); }
+</style></head>
+<body>
+<div class="window">
+  <div class="tabs">
+    <i data-i="logo" class="logo"></i>
+    <span class="tab">Início</span>
+    <span class="tab on"><span class="ic"></span><span class="b gold-dim" style="width:64px"></span></span>
+    <span class="tab"><span class="ic" style="background:var(--violet-deep)"></span><span class="b" style="width:44px"></span></span>
+    <span class="tab"><span class="ic" style="background:var(--teal-deep)"></span><span class="b" style="width:52px"></span></span>
+    <span class="right"><span class="chip-btn"><i data-i="users" style="width:14px"></i>Membros</span></span>
+  </div>
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head"><span class="dot"></span>Sala principal · ao vivo<span class="right"><i data-i="users"></i>4</span></div>
+      <div class="call">
+        <div class="tile talking"><span class="av ring"></span><span class="tag"><i data-i="mic" style="width:12px;color:var(--ok)"></i><span class="b gold" style="width:40px"></span></span></div>
+        <div class="tile"><span class="av violet"></span><span class="tag"><i data-i="micoff" style="width:12px;color:var(--live)"></i><span class="b violet" style="width:30px"></span></span></div>
+        <div class="tile share">
+          <div class="fake"><span class="b light" style="width:42%"></span><span class="b" style="width:68%"></span><span class="b" style="width:56%"></span><span class="b" style="width:30%"></span></div>
+          <span class="live">AO VIVO</span>
+          <span class="tag"><i data-i="screen" style="width:12px;color:var(--gold)"></i><span class="b teal" style="width:36px"></span></span>
+        </div>
+      </div>
+      <div class="controls">
+        <span class="ctl"><i data-i="mic"></i></span><span class="ctl"><i data-i="cam"></i></span><span class="ctl on"><i data-i="screen"></i></span><span class="ctl leave"><i data-i="phone"></i></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><i data-i="hash"></i>geral<span class="right"><i data-i="bell"></i><i data-i="dots"></i></span></div>
+      <div class="msgs">
+        <div class="msg"><span class="av violet"></span><div><div class="who"><span class="b violet" style="width:52px"></span><span class="time">20:41</span></div>bora 21h?</div></div>
+        <div class="msg"><span class="av"></span><div><div class="who"><span class="b gold" style="width:38px"></span><span class="time">20:42</span></div>fechou, abri a sala
+          <div class="reacts"><span class="react on">gg 3</span><span class="react">+1 2</span></div></div></div>
+        <div class="msg"><span class="av teal"></span><div><div class="who"><span class="b teal" style="width:46px"></span><span class="time">20:44</span></div>entrando em 5</div></div>
+      </div>
+      <div class="composer"><i data-i="plus" style="width:14px"></i>Mensagem em #geral<span style="margin-left:auto"><i data-i="smile" style="width:14px"></i></span></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><i data-i="board"></i>Kanban · Sprint<span class="right"><i data-i="plus"></i></span></div>
+      <div class="kanban">
+        <div class="col"><div class="col-head">A fazer<span class="n">3</span></div>
+          <div class="card"><span class="label" style="background:var(--blue)"></span><span class="b light" style="width:80%"></span><div class="row"><span class="av violet"></span><span class="due">12 nov</span></div></div>
+          <div class="card"><span class="b light" style="width:64%"></span><span class="b thin" style="width:40%"></span></div>
+          <div class="card"><span class="label" style="background:var(--violet)"></span><span class="b light" style="width:70%"></span><div class="row"><span class="av blue"></span><span class="due">15 nov</span></div></div>
+        </div>
+        <div class="col"><div class="col-head">Fazendo<span class="n">2</span></div>
+          <div class="card"><span class="label" style="background:var(--gold)"></span><span class="b light" style="width:72%"></span><div class="row"><span class="av"></span><span class="av teal" style="margin-left:-8px"></span><span class="due">hoje</span></div></div>
+          <div class="card"><span class="b light" style="width:54%"></span><span class="b thin" style="width:70%"></span><div class="row"><span class="av coral"></span><span class="due">amanhã</span></div></div>
+        </div>
+        <div class="col"><div class="col-head">Feito<span class="n">4</span></div>
+          <div class="card"><span class="label" style="background:var(--ok)"></span><span class="b light" style="width:58%"></span></div>
+          <div class="card"><span class="b light" style="width:76%"></span><div class="row"><span class="av coral"></span></div></div>
+          <div class="card"><span class="label" style="background:var(--ok)"></span><span class="b light" style="width:48%"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><i data-i="pen"></i>Quadro · plano da raid<span class="right"><i data-i="users"></i>3</span></div>
+      <div class="board">
+        <svg viewBox="0 0 400 240" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+          <rect x="34" y="34" width="132" height="84" rx="12" fill="none" stroke="#E8B531" stroke-width="2.5"/>
+          <ellipse cx="270" cy="128" rx="62" ry="40" fill="none" stroke="#B9A3F0" stroke-width="2.5"/>
+          <path d="M166 82 C 210 84, 220 110, 206 122" fill="none" stroke="#D9D2C3" stroke-width="2" stroke-dasharray="6 5"/>
+          <path d="M202 116 l6 8 l3 -10" fill="none" stroke="#D9D2C3" stroke-width="2"/>
+          <path d="M290 40 q 20 -12 40 2 t 40 0" fill="none" stroke="#7FC4C9" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span style="position:absolute;left:12%;top:68%;padding:6px 10px;background:var(--gold-light);color:var(--on-gold);border-radius:4px;font-weight:700;font-size:12px;transform:rotate(-2deg)">boss aqui</span>
+        <span style="position:absolute;left:62%;top:14%;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--teal)"><i data-i="pen" style="width:12px"></i><span class="b teal thin" style="width:30px"></span></span>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="icons.js"></script>
+</body></html>

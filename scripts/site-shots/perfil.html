@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=block">
+<link rel="stylesheet" href="shots.css">
+<style>
+  .bg { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  /* The app behind, dimmed. */
+  .ghost { position: absolute; inset: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; opacity: .35; filter: blur(1.5px); }
+  .ghost .panel { padding: 14px; gap: 12px; }
+  .scrim { position: absolute; inset: 0; background: radial-gradient(ellipse at 40% 50%, rgba(14,13,11,.35), rgba(14,13,11,.85)); }
+
+  .card {
+    position: absolute; left: 96px; top: 40px; width: 340px; border-radius: 16px; overflow: hidden; padding: 0; gap: 0;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong), 0 30px 70px rgba(0,0,0,.6);
+  }
+  /* The banner is a GIF in the app; a still frame of it here. */
+  .banner { position: relative; height: 120px; background:
+    radial-gradient(circle at 20% 30%, rgba(255,240,200,.55) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 60%, rgba(255,240,200,.45) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 85% 25%, rgba(255,240,200,.5) 0 2px, transparent 3px),
+    radial-gradient(circle at 45% 80%, rgba(255,240,200,.35) 0 1.5px, transparent 2.5px),
+    linear-gradient(120deg, #8A6410 0%, #E8B531 38%, #B07A3A 60%, #3B2F5C 100%); }
+  .banner .wave { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.28) 45%, transparent 60%); }
+  .gif { position: absolute; right: 10px; top: 10px; padding: 2px 7px; border-radius: 5px; background: rgba(14,13,11,.72); color: var(--gold-light); font: 700 9px Sora, sans-serif; letter-spacing: .1em; }
+  .inner { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .avatar { position: relative; z-index: 1; margin-top: -40px; width: 84px; height: 84px; border-radius: 50%; border: 5px solid var(--surface); background: linear-gradient(135deg, #5A4413, #2A1F08); box-shadow: 0 0 0 2px var(--gold); }
+  .badges { display: flex; gap: 6px; margin-left: auto; margin-top: -28px; }
+  .badges svg { width: 26px; height: 26px; }
+  .sep { height: 1px; background: var(--line); }
+  .sec { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--muted); }
+  .pill { align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+
+  .theme { position: absolute; right: 70px; top: 96px; width: 300px; padding: 16px; border-radius: 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong), 0 20px 50px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 14px; }
+  .theme h4 { margin: 0; font: 600 14px Sora, sans-serif; }
+  .swatches { display: flex; gap: 10px; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; }
+  .sw.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mode { height: 62px; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 5px; box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .mode.on { box-shadow: inset 0 0 0 2px var(--gold); }
+  .mode .b { height: 6px; }
+</style></head>
+<body>
+<div class="bg">
+  <div class="ghost">
+    <div class="panel"><span class="b" style="width:40%"></span><span class="b" style="width:70%"></span><span class="b" style="width:55%"></span><span class="b" style="width:62%"></span></div>
+    <div class="panel"><span class="b" style="width:50%"></span><span class="b" style="width:30%"></span><span class="b" style="width:66%"></span></div>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="card">
+    <div class="banner"><div class="wave"></div><span class="gif">GIF</span></div>
+    <div class="inner">
+      <div style="display:flex;align-items:flex-end"><div class="avatar"></div>
+        <div class="badges">
+          <svg viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#2A1F08" stroke="#E8B531" stroke-width="6" stroke-linejoin="round"/><path d="M40 21 H56 V25 H53 V41 L68.5 66 Q71 72 64.5 72 H31.5 Q25 72 27.5 66 L43 41 V25 H40 Z" fill="#E8B531"/></svg>
+          <svg viewBox="0 0 96 96"><polygon points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29" fill="#1C2228" stroke="#C9D1DA" stroke-width="6" stroke-linejoin="round"/><circle cx="48" cy="48" r="14" fill="#C9D1DA"/></svg>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <span class="b gold" style="width:120px;height:12px;border-radius:6px"></span>
+        <span class="b" style="width:80px;height:7px"></span>
+      </div>
+      <span class="pill"><span class="dot ok"></span>Jogando · <span class="b light thin" style="width:50px"></span></span>
+      <div class="sep"></div>
+      <span class="sec">SOBRE</span>
+      <span class="b light" style="width:92%"></span>
+      <span class="b light" style="width:64%"></span>
+      <span class="sec" style="margin-top:4px">MEMBRO DESDE</span>
+      <span class="b" style="width:70px"></span>
+    </div>
+  </div>
+
+  <div class="theme">
+    <h4>Aparência</h4>
+    <span class="sec">COR DE DESTAQUE</span>
+    <div class="swatches">
+      <span class="sw on" style="background:#E8B531"></span><span class="sw" style="background:#E89A7A"></span><span class="sw" style="background:#B9A3F0"></span><span class="sw" style="background:#6FA8E8"></span><span class="sw" style="background:#7FC4C9"></span><span class="sw" style="background:#7FBF7A"></span>
+    </div>
+    <span class="sec">TEMA</span>
+    <div class="modes">
+      <div class="mode on" style="background:#0E0D0B"><span class="b gold" style="width:50%"></span><span class="b" style="width:80%"></span><span class="b" style="width:60%"></span></div>
+      <div class="mode" style="background:#F4EFE4"><span class="b" style="width:50%;background:#B07A10"></span><span class="b" style="width:80%;background:#D9D2C3"></span><span class="b" style="width:60%;background:#D9D2C3"></span></div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+</body></html>
