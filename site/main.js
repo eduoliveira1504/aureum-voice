@@ -1,17 +1,17 @@
-// Aureum landing page: the download button, the live pioneer count and a few gentle effects.
-// No libraries. Everything degrades: without JS or the APIs the page still works.
+// Aureum landing page: the download buttons, the play/work and Windows/Mac toggles, and a few gentle
+// effects. No libraries. Everything degrades: without JS or GitHub's API the page still works.
 'use strict'
 
 const REPO = 'eduoliveira1504/aureum-voice'
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`
-const STATS_URL = 'https://api.aureum-voice.duckdns.org/api/public/stats'
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 document.documentElement.classList.add('js')
 
+const $ = (selector) => document.querySelector(selector)
 const $$ = (selector) => Array.from(document.querySelectorAll(selector))
 
-/** fetch() that gives up after a few seconds, so a sleeping server never leaves things hanging. */
+/** fetch() that gives up after a few seconds, so a slow API never leaves things hanging. */
 async function getJson(url, ms = 6000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ms)
@@ -24,14 +24,36 @@ async function getJson(url, ms = 6000) {
   }
 }
 
-// --- Download button ---------------------------------------------------------------
-// Windows by default; a Mac visitor gets the Mac's dmg (block 3.21), with the other files linked
-// below the button. Without JS, the buttons go to the releases page.
+// --- Who's visiting ------------------------------------------------------------------
 
 const isMobile =
   navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
 // An iPad says "Macintosh" too, but it has a touch screen.
 const isMacVisitor = !isMobile && /Macintosh|Mac OS X/i.test(navigator.userAgent) && navigator.maxTouchPoints < 2
+// The install tab that opens first: Mac for Mac visitors (and iPhone/iPad, likely Mac people), else Windows.
+const firstOs = isMacVisitor || /iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent) ? 'mac' : 'win'
+
+// --- Toggles (Pra jogar / Pra trabalhar, Windows / Mac) --------------------------------
+
+/** Shows the panel whose `data-<key>` is `value`, hides the others, and updates the toggle buttons. */
+function choose(key, value) {
+  for (const panel of $$(`[data-${key}]`)) panel.hidden = panel.dataset[key] !== value
+  for (const button of $$(`.toggle [data-${key}-pick]`)) {
+    button.setAttribute('aria-pressed', String(button.dataset[`${key}Pick`] === value))
+  }
+}
+
+function setUpToggles() {
+  choose('mode', 'jogar')
+  choose('os', firstOs)
+  for (const button of $$('[data-mode-pick]')) button.addEventListener('click', () => choose('mode', button.dataset.modePick))
+  // The toggle's buttons and the hero's "Também pra …" link, which also scrolls down to the steps.
+  for (const button of $$('[data-os-pick]')) button.addEventListener('click', () => choose('os', button.dataset.osPick))
+}
+
+// --- Download buttons ----------------------------------------------------------------
+// The hero's button follows the visitor's system; the install tabs have one button each. Without JS
+// (or GitHub's API) they go to the releases page.
 
 /** The files of a release: the Windows installer (required) and the Mac's dmgs, if any. */
 function installerOf(release) {
@@ -50,14 +72,9 @@ function installerOf(release) {
   }
 }
 
-/** /releases/latest skips pre-releases (the beta builds are), so the list is the fallback. */
+/** The newest release with an installer. Straight from the list, newest first: /releases/latest skips
+ *  pre-releases, and a beta can be a pre-release newer than the last full release. */
 async function latestInstaller() {
-  try {
-    const found = installerOf(await getJson(`https://api.github.com/repos/${REPO}/releases/latest`))
-    if (found) return found
-  } catch {
-    // No full release yet: look through the list below.
-  }
   const releases = await getJson(`https://api.github.com/repos/${REPO}/releases?per_page=10`)
   for (const release of releases) {
     const found = installerOf(release)
@@ -79,7 +96,7 @@ async function macChip() {
 const megabytes = (bytes) => `${Math.round(bytes / (1024 * 1024))} MB`
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-/** The button's Windows logo becomes a plain download arrow for Mac visitors. */
+/** The hero button's Windows logo becomes a plain download arrow for Mac visitors. */
 function useDownloadIcon(svg) {
   const path = document.createElementNS(SVG_NS, 'path')
   path.setAttribute('d', 'M12 3v11m0 0l-4.5-4.5M12 14l4.5-4.5M4 17v3h16v-3')
@@ -98,139 +115,81 @@ function link(href, text) {
   return a
 }
 
-/** "Também pra …" under the button: the files this visitor's button doesn't give. */
-function fillOther(other, items) {
-  other.replaceChildren(document.createTextNode('Também pra '))
-  items.forEach(([href, text], i) => {
-    if (i) other.append(document.createTextNode(' · '))
-    other.append(link(href, text))
-  })
-}
-
 function setUpDownload() {
-  const buttons = $$('[data-download]')
-  const meta = document.querySelector('[data-download-meta]')
-  const other = document.querySelector('[data-download-other]')
-  const macLinks = document.querySelector('[data-mac-links]')
+  const hero = $('[data-download]')
+  const label = $('[data-download-label]')
+  const meta = $('[data-download-meta]')
+  const other = $('[data-download-other]')
+  const winButton = $('[data-download-win]')
+  const macButton = $('[data-download-mac]')
+  const finalButton = $('[data-download-final]')
+  const macLinks = $('[data-mac-links]')
 
   if (isMobile) {
-    for (const button of buttons) {
-      button.classList.add('is-mobile')
-      button.removeAttribute('href')
-      button.setAttribute('aria-disabled', 'true')
-      button.querySelector('[data-download-label]').textContent = 'Pra Windows e Mac; abra no computador'
-    }
-    if (meta) meta.textContent = 'Abra esta página no computador pra baixar o instalador.'
+    hero.classList.add('is-mobile')
+    hero.removeAttribute('href')
+    hero.setAttribute('aria-disabled', 'true')
+    label.textContent = 'Pra Windows e Mac; abra no computador'
+    other.hidden = true
+    meta.textContent = 'Abra esta página no computador pra baixar o instalador.'
     return
   }
 
   if (isMacVisitor) {
-    for (const button of buttons) {
-      button.querySelector('[data-download-label]').textContent = 'Baixar pra Mac'
-      useDownloadIcon(button.querySelector('svg'))
-      button.href = '#mac'
-    }
-    if (meta) meta.textContent = 'macOS 12 ou mais novo · na primeira vez, veja como abrir abaixo'
+    label.textContent = 'Baixar pra Mac'
+    useDownloadIcon(hero.querySelector('svg'))
+    hero.href = '#instalar' // until the dmg is known
+    other.textContent = 'Também pra Windows'
+    other.dataset.osPick = 'win'
+    meta.textContent = 'macOS 12 ou mais novo · na primeira vez, veja como abrir em Instalar'
   }
 
   Promise.all([latestInstaller(), isMacVisitor ? macChip() : null])
     .then(([installer, chip]) => {
-      if (!installer) return // the buttons already point at the releases page (or #mac)
+      if (!installer) return // every button already points at the releases page
       const { mac } = installer
-      if (mac && macLinks) {
+      const intel = chip === 'intel'
+      winButton.href = installer.url
+      for (const el of $$('[data-download-size]')) el.textContent = `Uns ${megabytes(installer.size)}`
+      if (mac) {
+        macButton.href = intel ? mac.intel : mac.arm
         macLinks.replaceChildren(
-          document.createTextNode('Baixar: '),
+          document.createTextNode('Outro chip? '),
           link(mac.arm, 'Mac com chip Apple'),
           document.createTextNode(' · '),
           link(mac.intel, 'Mac com Intel'),
           document.createTextNode(` · ${installer.version}`)
         )
       }
+
       if (isMacVisitor) {
         if (!mac) {
           // A release without Mac files yet: say so, Windows is still there.
-          if (meta) meta.textContent = `A ${installer.version} ainda não tem versão pra Mac.`
-          if (other) fillOther(other, [[installer.url, 'Windows']])
+          meta.textContent = `A ${installer.version} ainda não tem versão pra Mac.`
           return
         }
-        const intel = chip === 'intel'
-        for (const button of buttons) button.href = intel ? mac.intel : mac.arm
-        if (meta) {
-          meta.textContent =
-            `${installer.version} · ${megabytes(mac.size)} · ${intel ? 'Mac com Intel' : 'Mac com chip Apple'}` +
-            ' · na primeira vez, veja como abrir abaixo'
-        }
-        if (other) {
-          fillOther(other, [
-            [intel ? mac.arm : mac.intel, intel ? 'Mac com chip Apple' : 'Mac com Intel'],
-            [installer.url, 'Windows']
-          ])
-        }
+        hero.href = finalButton.href = intel ? mac.intel : mac.arm
+        meta.textContent =
+          `${installer.version} · ${megabytes(mac.size)} · ${intel ? 'Mac com Intel' : 'Mac com chip Apple'}` +
+          ' · na primeira vez, veja como abrir em Instalar'
         return
       }
-      const size = megabytes(installer.size)
-      for (const button of buttons) button.href = installer.url
-      if (meta) meta.textContent = `${installer.version} · ${size} · Windows 10 e 11 · atualiza sozinho`
-      for (const el of $$('[data-download-size]')) el.textContent = `uns ${size}`
-      if (other && mac) {
-        fillOther(other, [[mac.arm, 'Mac com chip Apple'], [mac.intel, 'Mac com Intel'], ['#mac', 'como instalar no Mac']])
-      }
+      hero.href = finalButton.href = installer.url
+      meta.textContent = `${installer.version} · ${megabytes(installer.size)} · Windows 10 e 11 · atualiza sozinho`
     })
     .catch(() => {
-      if (!isMacVisitor) for (const button of buttons) button.href = RELEASES_PAGE
+      if (isMacVisitor) hero.href = RELEASES_PAGE
     })
 }
 
-// --- "Tenho um convite" -----------------------------------------------------------
+// --- The final logo: one turn on the vertical axis on hover, then it stops ---------------
+// The only logo on the page that moves.
 
-function setUpInvite() {
-  const toggle = document.querySelector('[data-invite-toggle]')
-  const note = document.getElementById('convite')
-  if (!toggle || !note) return
-  toggle.addEventListener('click', () => {
-    const open = note.hidden
-    note.hidden = !open
-    toggle.setAttribute('aria-expanded', String(open))
-  })
-}
-
-// --- Pioneer count -----------------------------------------------------------------
-
-function countUp(el, target) {
-  if (reducedMotion || target === 0) {
-    el.textContent = target.toLocaleString('pt-BR')
-    return
-  }
-  const duration = Math.min(1600, 500 + target * 20)
-  const start = performance.now()
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / duration)
-    const eased = 1 - Math.pow(1 - t, 3)
-    el.textContent = Math.round(target * eased).toLocaleString('pt-BR')
-    if (t < 1) requestAnimationFrame(step)
-  }
-  requestAnimationFrame(step)
-}
-
-function setUpPioneers() {
-  const box = document.querySelector('[data-pioneers]')
-  const number = document.querySelector('[data-pioneers-count]')
-  if (!box || !number) return
-  // The server may be off: then the box simply stays hidden.
-  getJson(STATS_URL)
-    .then((data) => {
-      const count = data && data.pioneers
-      if (!Number.isInteger(count) || count < 0) return
-      box.hidden = false
-      if (!('IntersectionObserver' in window)) return countUp(number, count)
-      const seen = new IntersectionObserver((entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return
-        seen.disconnect()
-        countUp(number, count)
-      }, { threshold: 0.6 })
-      seen.observe(box)
-    })
-    .catch(() => {})
+function setUpCoin() {
+  const coin = $('[data-coin]')
+  if (!coin || reducedMotion) return
+  coin.addEventListener('mouseenter', () => coin.classList.add('spin'))
+  coin.addEventListener('animationend', () => coin.classList.remove('spin'))
 }
 
 // --- Sections fading in, hexagon parallax --------------------------------------------
@@ -247,12 +206,12 @@ function setUpReveal() {
       entry.target.classList.add('in')
       observer.unobserve(entry.target)
     }
-  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' })
   for (const el of items) observer.observe(el)
 }
 
 function setUpParallax() {
-  const layer = document.querySelector('.hexes')
+  const layer = $('.hexes')
   if (!layer || reducedMotion) return
   // The pattern repeats every 97px, so wrapping the offset keeps it seamless.
   const TILE = 97
@@ -273,26 +232,26 @@ function setUpParallax() {
 // --- Screenshot lightbox ---------------------------------------------------------------
 
 function setUpZoom() {
-  const dialog = document.querySelector('[data-zoom-dialog]')
-  const img = document.querySelector('[data-zoom-img]')
+  const dialog = $('[data-zoom-dialog]')
+  const img = $('[data-zoom-img]')
   if (!dialog || !img || typeof dialog.showModal !== 'function') return
   for (const shot of $$('[data-zoom]')) {
     shot.addEventListener('click', () => {
       img.src = shot.dataset.zoom
-      img.alt = shot.dataset.alt || ''
+      img.alt = shot.querySelector('img')?.alt || ''
       dialog.showModal()
     })
   }
-  document.querySelector('[data-zoom-close]').addEventListener('click', () => dialog.close())
+  $('[data-zoom-close]').addEventListener('click', () => dialog.close())
   // A click on the backdrop (outside the image) closes it too.
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog) dialog.close()
   })
 }
 
+setUpToggles()
 setUpDownload()
-setUpInvite()
-setUpPioneers()
+setUpCoin()
 setUpReveal()
 setUpParallax()
 setUpZoom()
