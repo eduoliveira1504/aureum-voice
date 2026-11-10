@@ -72,11 +72,18 @@ function installerOf(release) {
   }
 }
 
-/** The newest release with an installer. Straight from the list, newest first: /releases/latest skips
- *  pre-releases, and a beta can be a pre-release newer than the last full release. */
+/** The newest full release (/releases/latest, which skips pre-releases). Only if that has no installer,
+ *  the release list, newest first, still preferring a full release over a pre-release. */
 async function latestInstaller() {
+  try {
+    const found = installerOf(await getJson(`https://api.github.com/repos/${REPO}/releases/latest`))
+    if (found) return found
+  } catch {
+    // No full release with an installer: look through the list below.
+  }
   const releases = await getJson(`https://api.github.com/repos/${REPO}/releases?per_page=10`)
-  for (const release of releases) {
+  const full = releases.filter((r) => !r.prerelease)
+  for (const release of [...full, ...releases.filter((r) => r.prerelease)]) {
     const found = installerOf(release)
     if (found) return found
   }
