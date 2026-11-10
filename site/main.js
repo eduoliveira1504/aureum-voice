@@ -143,12 +143,12 @@ function setUpDownload() {
   }
 
   if (isMacVisitor) {
-    label.textContent = 'Baixar pra Mac'
+    label.textContent = 'Baixar pra Mac (experimental)'
     useDownloadIcon(hero.querySelector('svg'))
     hero.href = '#instalar' // until the dmg is known
     other.textContent = 'Também pra Windows'
     other.dataset.osPick = 'win'
-    meta.textContent = 'macOS 12 ou mais novo · na primeira vez, veja como abrir em Instalar'
+    meta.textContent = 'macOS 12 ou mais novo · experimental · conta só com convite · na primeira vez, veja como abrir em Instalar'
   }
 
   Promise.all([latestInstaller(), isMacVisitor ? macChip() : null])
@@ -178,11 +178,11 @@ function setUpDownload() {
         hero.href = finalButton.href = intel ? mac.intel : mac.arm
         meta.textContent =
           `${installer.version} · ${megabytes(mac.size)} · ${intel ? 'Mac com Intel' : 'Mac com chip Apple'}` +
-          ' · na primeira vez, veja como abrir em Instalar'
+          ' · experimental · conta só com convite · na primeira vez, veja como abrir em Instalar'
         return
       }
       hero.href = finalButton.href = installer.url
-      meta.textContent = `${installer.version} · ${megabytes(installer.size)} · Windows 10 e 11 · atualiza sozinho`
+      meta.textContent = `${installer.version} · ${megabytes(installer.size)} · Windows 10 e 11 · atualiza sozinho · conta só com convite`
     })
     .catch(() => {
       if (isMacVisitor) hero.href = RELEASES_PAGE

@@ -35,8 +35,8 @@ Sem anúncio e sem IA dentro do app.
 
 ## Como entrar no beta
 
-O beta é aberto: é só baixar, instalar e criar a conta com e-mail e senha, sem convite. O app sai
-pra Windows (10 e 11) e Mac (macOS 12 ou mais novo), e a
+O beta é só com convite: o download é público, mas só cria conta quem recebeu um link de convite. O
+app sai pra Windows (10 e 11) e Mac (macOS 12 ou mais novo; a versão do Mac é experimental), e a
 [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/) já oferece o instalador do seu
 sistema.
 
@@ -47,7 +47,7 @@ Quem testa durante o beta ganha a insígnia **Beta Tester**, que fica no perfil 
 1. Baixe o instalador na [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/).
 2. Abra e instale. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura
    digital): clique em **Mais informações** e depois em **Executar assim mesmo**.
-3. Crie a sua conta no app.
+3. Crie a sua conta no app, com o link de convite que você recebeu.
 
 ### No Mac
 
@@ -63,7 +63,7 @@ Quem testa durante o beta ganha a insígnia **Beta Tester**, que fica no perfil 
    xattr -cr "/Applications/Aureum Voice.app"
    ```
 
-4. Crie a sua conta e libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela,
+4. Crie a sua conta, com o link de convite que você recebeu, e libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela,
    libere o Aureum em **Gravação de Tela e Áudio do Sistema** e abra o app de novo.
 
 No Mac o app ainda não se atualiza sozinho: quando sair versão nova, aparece **Baixar a versão** no
@@ -76,7 +76,11 @@ reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão
 Achou um problema? Use **Reportar problema** no app (Ctrl+Shift+R, ou Cmd+Shift+R no Mac) ou
 [abra uma issue](https://github.com/eduoliveira1504/aureum-voice/issues/new).
 
-## Todos os direitos reservados, código visível só pra consulta
+## Licença
+
+Todos os direitos reservados. O código fica visível só pra consulta e **não é open source**: não é
+permitido copiar, modificar nem distribuir sem autorização por escrito. Detalhes no [LICENSE](LICENSE).
+
 ---
 
 ## In English
@@ -87,9 +91,15 @@ soundboard, chat, side-by-side panels with add-ons (Kanban board, whiteboard, po
 reminders and a calendar), and an in-game overlay (Windows). No ads and no AI features.
 
 It's a Windows and macOS app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
-backend, with LiveKit for real-time media. The whole stack is open source and designed to run at
-zero cost. It's currently in an open beta: anyone can download it and sign up, no invite needed.
+backend, with LiveKit for real-time media, and is built on open-source components. It's currently in a
+closed, invite-only beta: the download is public, but you need an invite link to create an account.
+The macOS version is experimental.
 
 - Landing page: [eduoliveira1504.github.io/aureum-voice](https://eduoliveira1504.github.io/aureum-voice/)
 - Architecture, local setup, tests and hosting: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Architecture decision records: [docs/decisions](docs/decisions)
+
+## License
+
+All rights reserved. The source code is visible for reference only and is **not open source**:
+copying, modifying or redistributing it requires written permission. See [LICENSE](LICENSE).

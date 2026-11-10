@@ -1,1 +1,39 @@
-Todos os direitos reservados, código visível só pra consulta
+Copyright (c) 2026 Aureum. All rights reserved.
+
+SOURCE VISIBLE FOR REFERENCE ONLY
+
+This repository is public so that people can read the code. That does not make it open source.
+No license is granted to copy, modify, merge, publish, distribute, sublicense, sell, offer as a
+hosted service, or create derivative works from this code, in whole or in part, without prior
+written permission from the copyright holder.
+
+What is allowed:
+- Reading the source code.
+- Viewing and forking the repository on GitHub, as GitHub's Terms of Service allow. That
+  permission does not go beyond GitHub's own features.
+- Reporting bugs and suggesting changes through issues.
+
+The Aureum Voice application is provided "as is", without warranty of any kind, during the beta.
+Third-party components used by this project remain under their own licenses.
+The names "Aureum" and "Aureum Voice" and the Aureum logo are not licensed for use.
+
+----------------------------------------------------------------------------------------------
+
+Copyright (c) 2026 Aureum. Todos os direitos reservados.
+
+TODOS OS DIREITOS RESERVADOS, CÓDIGO VISÍVEL SÓ PRA CONSULTA
+
+Este repositório é público pra que as pessoas possam ler o código. Isso não o torna open source.
+Não é concedida nenhuma licença pra copiar, modificar, mesclar, publicar, distribuir, sublicenciar,
+vender, oferecer como serviço hospedado ou criar obras derivadas deste código, no todo ou em parte,
+sem autorização prévia e por escrito do titular dos direitos.
+
+O que é permitido:
+- Ler o código-fonte.
+- Ver e fazer fork do repositório no GitHub, como os Termos de Serviço do GitHub permitem. Essa
+  permissão não vai além dos recursos do próprio GitHub.
+- Reportar problemas e sugerir mudanças por issues.
+
+O aplicativo Aureum Voice é fornecido "como está", sem garantia de nenhum tipo, durante o beta.
+Os componentes de terceiros usados neste projeto continuam sob as licenças deles.
+Os nomes "Aureum" e "Aureum Voice" e o logo da Aureum não são licenciados pra uso.
