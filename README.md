@@ -9,7 +9,7 @@
   <a href="https://eduoliveira1504.github.io/aureum-voice/"><b>eduoliveira1504.github.io/aureum-voice</b></a>
 </p>
 
-![Visão geral de um servidor no Aureum, com as salas de voz e quem está falando](site/img/salas.png)
+![O Aureum com quatro painéis lado a lado: call, chat, Kanban e quadro](site/img/paineis.webp)
 
 O Aureum é um app de conversa pra Windows e Mac, feito pra ficar aberto o dia todo com o seu grupo de
 amigos ou o seu time:
