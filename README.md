@@ -35,13 +35,19 @@ Sem anúncio e sem IA dentro do app.
 
 ## Como entrar no beta
 
-O beta é fechado: só entra quem tem convite.
+O beta é aberto: é só baixar, instalar e criar a conta com e-mail e senha, sem convite. O app sai
+pra Windows (10 e 11) e Mac (macOS 12 ou mais novo), e a
+[página do Aureum](https://eduoliveira1504.github.io/aureum-voice/) já oferece o instalador do seu
+sistema.
 
-1. **Pegue um convite** com alguém que já está dentro. Ele chega como um link do Aureum.
-2. **Abra o link** pra criar a conta e confirmar o e-mail.
-3. **Baixe o app** na [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/) e entre com o
-   seu e-mail. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura digital):
-   clique em **Mais informações** e depois em **Executar assim mesmo**.
+Quem testa durante o beta ganha a insígnia **Beta Tester**, que fica no perfil pra sempre.
+
+### No Windows
+
+1. Baixe o instalador na [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/).
+2. Abra e instale. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura
+   digital): clique em **Mais informações** e depois em **Executar assim mesmo**.
+3. Crie a sua conta no app.
 
 ### No Mac
 
@@ -57,14 +63,11 @@ O beta é fechado: só entra quem tem convite.
    xattr -cr "/Applications/Aureum Voice.app"
    ```
 
-4. Libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela, libere o Aureum em
-   **Gravação de Tela e Áudio do Sistema** e abra o app de novo.
+4. Crie a sua conta e libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela,
+   libere o Aureum em **Gravação de Tela e Áudio do Sistema** e abra o app de novo.
 
 No Mac o app ainda não se atualiza sozinho: quando sair versão nova, aparece **Baixar a versão** no
 topo do app. O overlay nos jogos e o "pressionar para falar" são só do Windows por enquanto.
-
-Os 20 primeiros a entrar ganham a insígnia **Pioneiro**, numerada na ordem de chegada, e quem testa
-durante o beta ganha a **Beta Tester**.
 
 No Windows o app se atualiza sozinho. Se o ícone antigo continuar aparecendo depois de uma atualização,
 reinicie o PC (o Windows guarda o ícone em cache). As novidades de cada versão ficam no
@@ -89,7 +92,7 @@ reminders and a calendar), and an in-game overlay (Windows). No ads and no AI fe
 
 It's a Windows and macOS app built with Electron + React + TypeScript, on a FastAPI + Postgres + Redis + MinIO
 backend, with LiveKit for real-time media. The whole stack is open source and designed to run at
-zero cost. It's currently in a closed, invite-only beta.
+zero cost. It's currently in an open beta: anyone can download it and sign up, no invite needed.
 
 - Landing page: [eduoliveira1504.github.io/aureum-voice](https://eduoliveira1504.github.io/aureum-voice/)
 - Architecture, local setup, tests and hosting: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
