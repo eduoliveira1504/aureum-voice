@@ -38,17 +38,17 @@ O projeto deve custar R$0. Nunca execute, sugira como passo padrão ou automatiz
 - Se alguma tarefa exigir serviço pago ou que possa virar pago, PARE e pergunte antes,
   explicando o custo e a alternativa grátis.
 - Nunca colocar segredos no código ou no git; apenas no .env (que está no .gitignore).
-- EXCEÇÃO AUTORIZADA (bloco 3.18): servidor de produção numa VPS paga da Hostinger (KVM 4,
-  datacenter Brasil), contratada pelo Eduardo e dividida com os sócios. Só esse plano: nada de
+- EXCEÇÃO AUTORIZADA (bloco 3.18): servidor de produção numa VPS paga, contratada pelo
+  Eduardo (detalhes do plano em CLAUDE.local.md, fora do git). Só esse plano: nada de
   upgrade, add-on pago (backup, domínio, IP extra, painel) ou troca de plano sem perguntar.
-  Contratação e mudanças no painel da Hostinger são feitas pelo Eduardo; eu só mexo via SSH.
-- EXCEÇÃO AUTORIZADA: DuckDNS grátis para o endereço técnico (aureum-voice.duckdns.org).
+  Contratação e mudanças no painel do provedor são feitas pelo Eduardo; eu só mexo via SSH.
+- EXCEÇÃO AUTORIZADA: serviço de DNS grátis para o endereço técnico do servidor.
 - O resto da regra de R$0 continua valendo: tudo que roda na VPS é self-hosted e open source.
 - EXCEÇÕES DO PLANO B, A DESLIGAR depois da virada para a VPS (3.18, item 10, com OK do Eduardo):
   LiveKit Cloud no plano GRÁTIS e Tailscale Funnel no plano GRÁTIS. Nunca fazer upgrade de plano
   em nenhum deles; se algo exigir plano pago, PARE e pergunte.
-- EXCEÇÃO AUTORIZADA permanente: envio de e-mail por SMTP de uma conta Gmail dedicada do
-  Aureum (grátis, limite ~500/dia). Credenciais só no .env.
+- EXCEÇÃO AUTORIZADA permanente: envio de e-mail por SMTP de uma conta dedicada do
+  Aureum (grátis, com limite diário). Credenciais só no .env.
   
 
 ## Ambiente

@@ -51,3 +51,6 @@ backups/
 logs/
 *.log
 .claude/settings.local.json
+
+# --- Local, per-machine Claude instructions (never committed) ---
+CLAUDE.local.md
