@@ -403,19 +403,22 @@ are Windows only. Choices in [ADR 0045](decisions/0045-macos.md).
 
 `site/` is the public landing page, plain HTML, CSS and JS with no build step and no dependencies,
 deployed to GitHub Pages by `.github/workflows/pages.yml` on every push to `main` that touches it
-(`https://eduoliveira1504.github.io/aureum-voice/`). It reads two things at runtime and works without
-either:
+(`https://eduoliveira1504.github.io/aureum-voice/`). The layout follows
+`docs/design/landing/Landing-v2.dc.html`; the CSP allows no inline styles, so every style lives in
+`styles.css`.
 
-- the newest installer from GitHub's public API (`/releases/latest`, then the release list, since beta
-  builds are pre-releases), falling back to the releases page. A Mac visitor gets the dmg for their chip
-  (Chromium tells it; otherwise Apple Silicon), and the `#mac` section explains the first launch;
-- the live Pioneiro count from `GET /api/public/stats`, which returns only `{ "pioneers": N }`, cached
-  for 5 minutes and rate limited per IP. Only that route answers the page's origin
-  (`PUBLIC_SITE_ORIGIN`); the app-wide CORS list stays closed. If the API is down, the count is hidden.
+At runtime it only reads the newest installer from GitHub's public API: the release list, newest first
+(`/releases/latest` would skip the beta pre-releases), falling back to the releases page. The hero's
+button follows the visitor's system, and the install section opens on the right tab: a Mac visitor gets
+the dmg for their chip (Chromium tells it; otherwise Apple Silicon), a phone gets an "open it on the
+computer" note. Without JS, both the play/work modes and both install tabs show. The page no longer
+reads `GET /api/public/stats` (the Pioneiro count): the beta is open.
 
-The share preview `site/img/og.png` is rendered by `npm run og-image` in `apps/desktop`
-(`scripts/generate-og-image.mjs`), from `site/img/salas.png`. The app screenshots in `site/img/` come from
-an isolated preview stack with fictional demo data, never from real accounts.
+The screenshots in `site/img/*.webp` are synthetic: HTML/CSS scenes in `scripts/site-shots/` with bars
+for names and plain circles for avatars, rendered by `npm run site-shots` in `apps/desktop`
+(`scripts/generate-site-shots.mjs`, 2x, WebP). Never use real accounts, avatars or servers there. The
+share preview `site/img/og.png` is rendered by `npm run og-image` (`scripts/generate-og-image.mjs`) from
+`paineis.webp`, so run it after regenerating the shots.
 
 To try it locally, serve the folder with any static server, e.g. `python -m http.server -d site 4173`.
 
