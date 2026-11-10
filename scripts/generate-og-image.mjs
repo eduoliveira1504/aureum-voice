@@ -50,7 +50,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <div class="bar"></div>
 <div class="copy">
   <div class="brand"><svg viewBox="0 0 96 96"><polygon points="48,8 82.6,28 82.6,68 48,88 13.4,68 13.4,28" fill="#0E0D0B" stroke="#E8B531" stroke-width="7" stroke-linejoin="round"/><path d="M48 26 L66 70 H56 L48 50 L40 70 H30 Z" fill="#E8B531"/></svg>
-    <div class="pill"><i></i>BETA ABERTO</div></div>
+    <div class="pill"><i></i>BETA · SÓ COM CONVITE</div></div>
   <h1>Voz, chat e quadros pra quem <span>joga</span> e <span>trabalha</span> junto.</h1>
   <p>Um lugar só pra conversar, se ver e se organizar.</p>
 </div>

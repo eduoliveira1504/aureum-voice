@@ -35,8 +35,8 @@ Sem anúncio e sem IA dentro do app.
 
 ## Como entrar no beta
 
-O beta é aberto: é só baixar, instalar e criar a conta com e-mail e senha, sem convite. O app sai
-pra Windows (10 e 11) e Mac (macOS 12 ou mais novo), e a
+O beta é só com convite: o download é público, mas só cria conta quem recebeu um link de convite. O
+app sai pra Windows (10 e 11) e Mac (macOS 12 ou mais novo; a versão do Mac é experimental), e a
 [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/) já oferece o instalador do seu
 sistema.
 
@@ -47,7 +47,7 @@ Quem testa durante o beta ganha a insígnia **Beta Tester**, que fica no perfil 
 1. Baixe o instalador na [página do Aureum](https://eduoliveira1504.github.io/aureum-voice/).
 2. Abra e instale. O Windows pode avisar que o app é desconhecido (ele ainda não tem assinatura
    digital): clique em **Mais informações** e depois em **Executar assim mesmo**.
-3. Crie a sua conta no app.
+3. Crie a sua conta no app, com o link de convite que você recebeu.
 
 ### No Mac
 
@@ -63,7 +63,7 @@ Quem testa durante o beta ganha a insígnia **Beta Tester**, que fica no perfil 
    xattr -cr "/Applications/Aureum Voice.app"
    ```
 
-4. Crie a sua conta e libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela,
+4. Crie a sua conta, com o link de convite que você recebeu, e libere o microfone e a câmera quando o Mac perguntar. Pra transmitir a tela,
    libere o Aureum em **Gravação de Tela e Áudio do Sistema** e abra o app de novo.
 
 No Mac o app ainda não se atualiza sozinho: quando sair versão nova, aparece **Baixar a versão** no
