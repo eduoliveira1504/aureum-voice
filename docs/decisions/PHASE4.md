@@ -14,13 +14,13 @@ Regras do CLAUDE.md: sem IA no produto, custo R$ 0 (exceções já aprovadas con
 
 Ordem: 4.2.1 a 4.2.6. A revisão de usabilidade (4.2.7) roda junto, o tempo todo.
 
-## 4.2.1 Tipo de servidor ✅ concluído (teste manual pendente)
+## 4.2.1 Tipo de servidor ✅ concluído (testado pelo Eduardo no dev)
 
 Ver docs/decisions/0048-server-types.md.
 Produção: backup, depois `alembic upgrade heads` (core c9e5a1b3d486 cria servers.type, todos os
 servidores existentes viram Misto) e reiniciar a API, com OK do Eduardo. API antes do app: apps
 antigos continuam criando servidor (vira Misto). Teste manual: criar um servidor de cada tipo e
-conferir a lista de addons e o painel de sons na call.
+conferir a lista de addons e o painel de sons na call (feito no dev, 12/11).
 
 ### Comportamento
 - Na criação do servidor, a pessoa escolhe um tipo: Jogo, Trabalho ou Misto.
