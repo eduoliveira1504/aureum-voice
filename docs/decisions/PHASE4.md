@@ -13,8 +13,9 @@ O Eduardo decide quando gerar release. Ao terminar um bloco, marcar ✅ neste ar
 linha de Status (no mesmo commit de docs do bloco).
 Antes de corrigir qualquer bug: explicar a causa ao Eduardo.
 
-Status: 4.1.1 e 4.1.2 prontos em 12/11 (teste manual pendente; escolhas do 4.1.2 em 0047-voice-devices.md).
-Próximo: 4.1.3 e 4.1.4; depois a release 0.2.0-beta.11 (só com a 4.1) e a 4.2.
+Status: 4.1.1, 4.1.2 e 4.1.3 prontos em 12/11 (4.1.2 testado pelo Eduardo; 4.1.1 e 4.1.3 com teste manual
+pendente; escolhas do 4.1.2 em 0047-voice-devices.md). Próximo: 4.1.4; depois a release 0.2.0-beta.11 (só
+com a 4.1) e a 4.2.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados são de gente de verdade. Antes de qualquer migração em produção: pg_dump com data no nome,
@@ -61,7 +62,7 @@ um GIF" é outro `Modal` (z-50), aberto de dentro do perfil.
 - Teste: Editar perfil, abrir o menu e conferir que fica acima do modal; "Escolher um GIF" abre o
   seletor acima do perfil; Esc fecha só o de cima.
 
-## 4.1.2 Call mostra no máximo 4 pessoas ✅ concluído (teste manual pendente)
+## 4.1.2 Call mostra no máximo 4 pessoas ✅ concluído (testado pelo Eduardo em 12/11)
 Feito: o Eduardo viu só 4 na lista da sala na barra lateral. Não havia limite: a lista é o estado
 de voz que cada app informa à API, e dois jeitos tiravam quem ainda estava falando (reproduzidos nos
 testes da API): a mesma conta com o app aberto em outro aparelho (o app parado avisa "não estou em
@@ -87,7 +88,19 @@ Início (HomeHub.tsx) mostra 4 avatares + "+N". A causa está em outro lugar.
 - Corrigir na causa. Teste: 5, 9 e 12 pessoas aparecem na grade; "+N" só onde há espaço limitado.
 - Se for limite de recurso da VPS, explicar ao Eduardo e medir (teste de carga do 3.18 item 8).
 
-## 4.1.3 Perfil mostra "jogando Valorant há 374 horas"
+## 4.1.3 Perfil mostra "jogando Valorant há 374 horas" ✅ concluído (teste manual pendente)
+Feito: a atividade fica no Redis por conexão e só saía quando a conexão se despedia; um processo da
+API que morre antes de limpar (deploy, travamento, reinício) deixava a entrada órfã, sem prazo, e a
+API mostrava entradas de conexões que já não existiam (reproduzido no teste: entrada de 27/10 aparecia
+para os amigos). A leitura em produção não foi necessária. Agora só conta atividade de conexão viva
+(as órfãs são apagadas na leitura); o app reconfirma a cada 2 min o que está rodando e, sem
+reconfirmação, a atividade some em 5 min (só para o app novo; o da beta.10 continua valendo enquanto a
+conexão viver); uma varredura a cada 30 s tira as vencidas e avisa os amigos; ao subir, a API apaga
+todas as atividades guardadas. Decisão do Eduardo: nada de esconder só o tempo ("acima de 24 h");
+se a pessoa não está jogando, não aparece nada. Sem migração.
+Teste manual: abrir um jogo (ou atividade manual) e ver "Jogando X" no perfil para outra conta; fechar
+o app sem fechar o jogo: some para os outros em até 5 min; reiniciar a API: ninguém fica com
+atividade velha.
 Pista no código (apps/api/app/presence.py): a atividade fica num hash do Redis por conexão, sem prazo.
 Só sai quando o app manda "nada" ou quando a conexão é esquecida (`forget_connection`).
 `set_activity` mantém o started_at enquanto o nome for o mesmo. 374 h ≈ 15,6 dias ≈ desde a virada
