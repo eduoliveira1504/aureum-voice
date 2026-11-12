@@ -621,6 +621,10 @@ class ServerUpdate(BaseModel):
     type: ServerType | None = None
 
 
+class OwnershipTransfer(BaseModel):
+    user_id: uuid.UUID
+
+
 class ServerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

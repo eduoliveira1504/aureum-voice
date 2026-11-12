@@ -443,6 +443,7 @@ export function ConfirmModal({
   confirmLabel,
   onConfirm,
   onClose,
+  disabled = false,
   children
 }: {
   title: string
@@ -450,6 +451,8 @@ export function ConfirmModal({
   confirmLabel: string
   onConfirm(): Promise<void>
   onClose(): void
+  /** Keeps the confirm button off (e.g. until a name is typed). */
+  disabled?: boolean
   /** Extra fields under the message (e.g. a ban reason). */
   children?: ReactNode
 }): ReactNode {
@@ -477,7 +480,7 @@ export function ConfirmModal({
           <SecondaryButton type="button" onClick={onClose}>
             Cancelar
           </SecondaryButton>
-          <DangerButton type="button" onClick={confirm} disabled={busy}>
+          <DangerButton type="button" onClick={confirm} disabled={busy || disabled}>
             {confirmLabel}
           </DangerButton>
         </div>

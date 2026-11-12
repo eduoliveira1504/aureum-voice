@@ -48,6 +48,8 @@ export interface User {
   /** A "BOT" tag next to the name ("Conta automatizada do Aureum"). */
   is_bot?: boolean
   created_at: string
+  /** A deactivated account (block 4.2.2): only name and avatar, shown as "Conta desativada". */
+  deactivated?: boolean
 }
 
 export interface HeldBadge {

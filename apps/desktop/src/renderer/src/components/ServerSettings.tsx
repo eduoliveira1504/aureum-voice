@@ -364,7 +364,7 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
 
 // --- Members -----------------------------------------------------------------------
 
-type MemberAction = { kind: 'kick' | 'ban'; member: Member }
+type MemberAction = { kind: 'kick' | 'ban' | 'transfer'; member: Member }
 
 function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): ReactNode {
   const [query, setQuery] = useState('')
@@ -385,7 +385,10 @@ function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): R
           <MemberRow key={m.user.id} server={server} member={m} meId={meId} run={run} onAction={(kind) => setAction({ kind, member: m })} />
         ))}
       </div>
-      {action && (
+      {action?.kind === 'transfer' && (
+        <TransferModal server={server} member={action.member} onClose={() => setAction(null)} />
+      )}
+      {action && action.kind !== 'transfer' && (
         <ConfirmModal
           title={`${action.kind === 'kick' ? 'Expulsar' : 'Banir'} ${action.member.user.display_name}`}
           message={
@@ -423,7 +426,7 @@ function MemberRow({
   member: Member
   meId: string
   run(label: string, action: () => Promise<unknown>): Promise<boolean>
-  onAction(kind: 'kick' | 'ban'): void
+  onAction(kind: MemberAction['kind']): void
 }): ReactNode {
   const [adding, setAdding] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -486,6 +489,11 @@ function MemberRow({
           )}
         </div>
       </div>
+      {meId === server.owner_id && m.user.id !== meId && !m.user.is_bot && !m.user.deactivated && (
+        <button type="button" onClick={() => onAction('transfer')} className="rounded-control px-2.5 py-1.5 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
+          Passar a posse
+        </button>
+      )}
       {below && has(perms, Perm.KICK_MEMBERS) && (
         <button type="button" onClick={() => onAction('kick')} className="rounded-control px-2.5 py-1.5 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
           Expulsar
@@ -497,6 +505,28 @@ function MemberRow({
         </button>
       )}
     </div>
+  )
+}
+
+/** Hands the server to another member; typing the server's name confirms it. */
+function TransferModal({ server, member, onClose }: { server: ServerDetail; member: Member; onClose(): void }): ReactNode {
+  const [typed, setTyped] = useState('')
+  return (
+    <ConfirmModal
+      title={`Passar a posse para ${member.user.display_name}`}
+      message={`${member.user.display_name} vira dono de ${server.name}, com todos os poderes. Você continua no servidor, com seus cargos, e só volta a ser dono se a pessoa passar a posse de volta.`}
+      confirmLabel="Passar a posse"
+      disabled={typed.trim() !== server.name.trim()}
+      onConfirm={async () => {
+        await api(`/servers/${server.id}/transfer`, { method: 'POST', body: { user_id: member.user.id } })
+      }}
+      onClose={onClose}
+    >
+      <label className={cn(labelClass, 'mt-4 block')} htmlFor="transfer-name">
+        Digite o nome do servidor para confirmar
+      </label>
+      <input id="transfer-name" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={server.name} className={inputClass} />
+    </ConfirmModal>
   )
 }
 

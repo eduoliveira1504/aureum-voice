@@ -54,6 +54,7 @@ from app.schemas import (
     MemberUpdate,
     MessageOut,
     OverrideOut,
+    OwnershipTransfer,
     ReadStateOut,
     RoleOut,
     ServerCreate,
@@ -261,6 +262,27 @@ def _image_routes(kind: Literal["icon", "banner"]) -> None:
 
 _image_routes("icon")
 _image_routes("banner")
+
+
+@router.post("/servers/{server_id}/transfer", response_model=ServerOut)
+async def transfer_ownership(server_id: uuid.UUID, body: OwnershipTransfer, user: CurrentUser, session: SessionDep) -> ServerOut:
+    """The owner hands the server to another member (block 4.2.2: an owner can't delete their
+    account until they do). The old owner stays as a member with their roles."""
+    await get_membership(session, server_id, user.id)
+    server = await session.scalar(select(Server).where(Server.id == server_id).with_for_update())
+    assert server is not None
+    if server.owner_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only the owner can transfer the server")
+    if body.user_id == user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="You already own this server")
+    target = await session.get(User, body.user_id)
+    if target is None or await session.get(ServerMember, (server_id, body.user_id)) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Member not found")
+    if not target.is_active or target.is_bot:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This member can't own the server")
+    server.owner_id = target.id
+    await session.commit()
+    return await _publish_server(session, server)
 
 
 @router.delete("/servers/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
