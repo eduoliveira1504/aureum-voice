@@ -1,6 +1,8 @@
 import asyncio
 import json
+import re
 import uuid
+from collections import Counter
 from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -24,6 +26,25 @@ RECEIVE_TIMEOUT_SECONDS = 60
 # Close code telling the client its token is invalid/expired, so it refreshes before reconnecting.
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_FORBIDDEN_ORIGIN = 1008  # policy violation
+
+
+# The app's install id (?device=), a random id it keeps; anything else counts as none.
+DEVICE_PATTERN = re.compile(r"[A-Za-z0-9-]{8,64}")
+
+# Open connections per (user, device) and per user, in this process (the API runs as one), so a
+# dropped device that comes back within the grace keeps its place in the call.
+_device_connections: Counter[tuple[uuid.UUID, str]] = Counter()
+_user_connections: Counter[uuid.UUID] = Counter()
+
+
+def is_connected(user_id: uuid.UUID, device: str | None) -> bool:
+    """Whether that device (None: any device of the user) has a connection open here."""
+    return (_device_connections[(user_id, device)] if device else _user_connections[user_id]) > 0
+
+
+async def run_voice_sweeper() -> None:
+    """Takes out of voice who dropped and didn't come back (also after a restart)."""
+    await voice.run_sweeper(is_connected, _recipients)
 
 
 class VoiceUpdate(voice.VoiceFlags):
@@ -70,14 +91,19 @@ async def _voice_scope(channel_id: uuid.UUID, user_id: uuid.UUID) -> tuple[voice
         return None
 
 
-async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: Any) -> None:
+async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, device: str | None, data: Any) -> None:
     try:
         update = VoiceUpdate.model_validate(data)
     except ValidationError:
         return await _send_error(websocket, "Invalid voice.update payload")
 
     if update.channel_id is None:
-        return await voice.leave(user_id, _recipients)
+        # From another device than the one in the call, this changes nothing; nor from an app
+        # from before devices (no id) while a device holds the call.
+        if device is None and await voice.device_of(user_id) is not None:
+            return
+        await voice.leave(user_id, _recipients, device)
+        return
 
     found = await _voice_scope(update.channel_id, user_id)
     if found is None:
@@ -91,7 +117,9 @@ async def _handle_voice_update(websocket: WebSocket, user_id: uuid.UUID, data: A
     state = voice.VoiceState(user_id=user_id, **update.model_dump())
     if member is not None:
         voice.apply_moderation(state, muted=member.voice_muted, deafened=member.voice_deafened)
-    await voice.set_state(state, scope, _recipients)
+    if device is None:
+        await voice.forget_device(user_id)
+    await voice.set_state(state, scope, _recipients, device)
     if scope.kind == "dm":
         await calls.joined(scope.id, user_id)
 
@@ -179,7 +207,7 @@ async def _send_error(websocket: WebSocket, message: str) -> None:
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> None:
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(""), device: str = Query("")) -> None:
     # CORS doesn't apply to WebSockets: refuse browser pages from other origins (the packaged
     # app sends "file://"). Non-browser clients send no Origin and still need a valid token.
     origin = websocket.headers.get("origin")
@@ -204,12 +232,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
 
     await broker.ensure_listening()
     connection_id = uuid.uuid4().hex
+    device_id = device if DEVICE_PATTERN.fullmatch(device) else None
     broker.register(user_id, websocket, claims.epoch if claims else 0)
+    _user_connections[user_id] += 1
+    if device_id:
+        _device_connections[(user_id, device_id)] += 1
     try:
         await presence.set_chosen(user_id, chosen)
         await broker.heartbeat(user_id, connection_id)
         await presence.announce(user_id)
-        await websocket.send_json({"type": "ready", "data": {"user_id": str(user_id)}})
+        # `device` echoes the app's install id; `voice_device` is the one in a call, if any.
+        ready = {"user_id": str(user_id), "device": device_id, "voice_device": await voice.device_of(user_id)}
+        await websocket.send_json({"type": "ready", "data": ready})
         await _send_activity_snapshot(websocket, user_id)
 
         while True:
@@ -227,7 +261,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
             if message.get("type") == "ping":
                 await websocket.send_json({"type": "pong", "data": None})
             elif message.get("type") == "voice.update":
-                await _handle_voice_update(websocket, user_id, message.get("data"))
+                await _handle_voice_update(websocket, user_id, device_id, message.get("data"))
             elif message.get("type") == "overview.watch":
                 await _handle_overview_watch(websocket, user_id, message.get("data"))
             elif message.get("type") == "home.watch":
@@ -251,8 +285,21 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query("")) -> No
         await addons.socket_closed(websocket)
         broker.unregister(user_id, websocket)
         await presence.forget_connection(user_id, connection_id)
-        if await broker.disconnect(user_id, connection_id):
-            # Last connection gone: the user can't be in a call anymore.
+        _user_connections[user_id] -= 1
+        if not _user_connections[user_id]:
+            del _user_connections[user_id]
+        if device_id:
+            _device_connections[(user_id, device_id)] -= 1
+            if not _device_connections[(user_id, device_id)]:
+                del _device_connections[(user_id, device_id)]
+        last = await broker.disconnect(user_id, connection_id)
+        holder = await voice.device_of(user_id)
+        if holder is not None:
+            if holder == device_id and not is_connected(user_id, device_id):
+                # The device in the call dropped: a short grace to come back (a network blip).
+                await voice.leave_unless_back(user_id)
+        elif last:
+            # An app from before devices: its last connection gone, it can't be in a call.
             await voice.leave(user_id, _recipients)
         await presence.announce(user_id)
         await presence.announce_activity(user_id)

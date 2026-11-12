@@ -3,16 +3,26 @@
 Clients report their own voice state (channel, mute, deafen, camera, screen) over the
 WebSocket; it's stored in Redis per scope and broadcast as `voice.state` events. A scope is a
 server (its voice channels) or a DM/group (its private call). A user is in at most one voice
-channel, and drops out when their last connection closes.
+channel.
+
+Devices: one account can have the app open on several devices (each sends a random id of its
+install). The device that joined holds the place in the call: "not in a call" from another device
+of the same account is ignored, and joining from another device moves the call there (the others
+are told with `voice.device`). When the holding device's connection drops, it has a short grace
+to reconnect before it leaves the room, so a network blip doesn't make anyone vanish from the list.
+Apps from before devices (no id) keep the old rule: out when their last connection closes.
 
 Screen-share thumbnails: whoever is sharing sends a small JPEG every few seconds. Only the
 latest one per user is kept, in Redis with a short TTL (never in the database), and it goes
 only to connections watching that server's overview. It's dropped when the share ends.
 """
 
+import asyncio
 import base64
 import binascii
 import json
+import logging
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -63,6 +73,13 @@ _left_handlers: list[LeftHandler] = []
 def on_left(handler: LeftHandler) -> None:
     _left_handlers.append(handler)
 
+
+log = logging.getLogger(__name__)
+
+# How long the device in a call has to reconnect before it leaves the room.
+RECONNECT_GRACE_SECONDS = 20
+# After a restart every app reconnects; whoever hasn't come back by then has left.
+RESTART_GRACE_SECONDS = 60
 
 THUMBNAIL_TTL_SECONDS = 20  # a bit over the client's 5-10s cadence
 THUMBNAIL_MIN_INTERVAL_MS = 4000
@@ -137,6 +154,11 @@ def _user_key(user_id: uuid.UUID) -> str:
     return f"{get_settings().redis_prefix}:voice:user:{user_id}"
 
 
+def _device_key(user_id: uuid.UUID) -> str:
+    """The device holding the user's place in voice (absent: an app from before devices)."""
+    return f"{get_settings().redis_prefix}:voice:device:{user_id}"
+
+
 def _thumbnail_key(server_id: uuid.UUID, user_id: uuid.UUID) -> str:
     return f"{get_settings().redis_prefix}:voice:thumb:{server_id}:{user_id}"
 
@@ -149,6 +171,16 @@ async def current_state(user_id: uuid.UUID) -> tuple[Scope, VoiceState] | None:
     scope = Scope.parse(raw_scope)
     raw = await broker.redis.hget(_scope_key(scope), str(user_id))
     return (scope, VoiceState.model_validate_json(raw)) if raw else None
+
+
+async def device_of(user_id: uuid.UUID) -> str | None:
+    """The device in the user's call, if it's known."""
+    return await broker.redis.get(_device_key(user_id))
+
+
+async def forget_device(user_id: uuid.UUID) -> None:
+    """An app from before devices joined: the old rules apply to this call."""
+    await broker.redis.delete(_device_key(user_id))
 
 
 def valid_thumbnail(image: object) -> bool:
@@ -236,10 +268,16 @@ async def _remove(user_id: uuid.UUID, scope: Scope, recipients: list[uuid.UUID])
         await handler(scope, user_id, remaining)
 
 
-async def set_state(state: VoiceState, scope: Scope, recipients_for: RecipientsFor) -> None:
-    """Puts the user in a voice channel, leaving any channel they were in elsewhere."""
+async def set_state(state: VoiceState, scope: Scope, recipients_for: RecipientsFor, device: str | None = None) -> None:
+    """Puts the user in a voice channel, leaving any channel they were in elsewhere. `device`
+    (the app that sent it) takes the call; None (a moderator's move) leaves it where it is."""
     redis = broker.redis
     previous = await current_state(state.user_id)
+    if device is not None:
+        before = await redis.set(_device_key(state.user_id), device, get=True)
+        if before is not None and before != device:
+            # The call moved to this device: the one that had it leaves (its media too).
+            await broker.publish("voice.device", {"device": device}, [state.user_id])
     if previous is not None and previous[0] == scope and previous[1].channel_id == state.channel_id:
         state.joined_at = previous[1].joined_at
     else:
@@ -259,20 +297,85 @@ async def set_state(state: VoiceState, scope: Scope, recipients_for: RecipientsF
     await _announce(scope, state.user_id, state, recipients)
 
 
-async def leave(user_id: uuid.UUID, recipients_for: RecipientsFor) -> None:
-    """Removes the user from whatever voice channel they're in, if any."""
+async def leave(user_id: uuid.UUID, recipients_for: RecipientsFor, device: str | None = None) -> bool:
+    """Removes the user from whatever voice channel they're in, if any. With `device`, only if
+    that device holds the call (another device of theirs saying "not in a call" changes nothing).
+    Returns whether they were removed."""
+    if device is not None:
+        holder = await device_of(user_id)
+        if holder is not None and holder != device:
+            return False
+    await broker.redis.delete(_device_key(user_id))
     current = await broker.redis.getdel(_user_key(user_id))
     if current:
         scope = Scope.parse(current)
         raw = await broker.redis.hget(_scope_key(scope), str(user_id))
         channel_id = VoiceState.model_validate_json(raw).channel_id if raw else scope.id
         await _remove(user_id, scope, await recipients_for(scope, channel_id))
+        return True
+    return False
+
+
+def _grace_key() -> str:
+    """Users whose device dropped, with the time their grace ends (a sorted set)."""
+    return f"{get_settings().redis_prefix}:voice:grace"
+
+
+# Says whether the user is back: the device holding their call (None: any device) has a
+# connection open.
+IsBack = Callable[[uuid.UUID, str | None], bool]
+SWEEP_SECONDS = 2
+
+
+async def leave_unless_back(user_id: uuid.UUID, grace: float | None = None) -> None:
+    """The user leaves voice after `grace` unless their device reconnects (see sweep)."""
+    deadline = time.time() + (RECONNECT_GRACE_SECONDS if grace is None else grace)
+    await broker.redis.zadd(_grace_key(), {str(user_id): deadline})
+
+
+async def sweep(is_back: IsBack, recipients_for: RecipientsFor) -> None:
+    """Takes out of voice whoever's grace ended without their device coming back."""
+    redis = broker.redis
+    for raw in await redis.zrangebyscore(_grace_key(), "-inf", time.time()):
+        await redis.zrem(_grace_key(), raw)
+        user_id = uuid.UUID(raw)
+        try:
+            device = await device_of(user_id)
+            if not is_back(user_id, device):
+                await leave(user_id, recipients_for, device)
+        except Exception:  # one bad entry doesn't keep the others in the room
+            log.exception("Voice: could not drop a user who didn't reconnect")
+
+
+async def run_sweeper(is_back: IsBack, recipients_for: RecipientsFor) -> None:
+    """Runs for the life of the API process. Calls survive a restart in Redis, so everyone in
+    voice first gets a grace to reconnect."""
+    for user_id, _ in await users_in_voice():
+        await leave_unless_back(user_id, RESTART_GRACE_SECONDS)
+    while True:
+        try:
+            await sweep(is_back, recipients_for)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("Voice: could not drop users who didn't reconnect")
+        await asyncio.sleep(SWEEP_SECONDS)
+
+
+async def users_in_voice() -> list[tuple[uuid.UUID, str | None]]:
+    """Everyone in voice now, with the device holding their call (for the check after a restart)."""
+    prefix = _user_key(uuid.UUID(int=0))[: -len(str(uuid.UUID(int=0)))]
+    found = []
+    async for key in broker.redis.scan_iter(match=f"{prefix}*"):
+        user_id = uuid.UUID(key[len(prefix) :])
+        found.append((user_id, await device_of(user_id)))
+    return found
 
 
 async def leave_scope(user_id: uuid.UUID, scope: Scope, recipients: list[uuid.UUID]) -> None:
     """Removes the user from voice in this scope only (e.g. they left the server or group)."""
     if await broker.redis.hexists(_scope_key(scope), str(user_id)):
-        await broker.redis.delete(_user_key(user_id))
+        await broker.redis.delete(_user_key(user_id), _device_key(user_id))
         await _remove(user_id, scope, recipients)
 
 
@@ -287,5 +390,5 @@ async def clear_server(server_id: uuid.UUID) -> None:
     """Drops all voice state of a deleted server (its members get server.deleted instead)."""
     scope = server_scope(server_id)
     for state in await get_states(scope):
-        await broker.redis.delete(_user_key(state.user_id), _thumbnail_key(server_id, state.user_id))
+        await broker.redis.delete(_user_key(state.user_id), _device_key(state.user_id), _thumbnail_key(server_id, state.user_id))
     await broker.redis.delete(_scope_key(scope))

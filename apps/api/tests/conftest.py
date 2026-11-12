@@ -78,9 +78,10 @@ async def _clean_tables() -> AsyncIterator[None]:
     provider = get_provider()
     provider.sent.clear()  # type: ignore[attr-defined]
     provider.fail_next = 0  # type: ignore[attr-defined]
-    # Rate-limit counters would otherwise leak from one test into the next.
-    async for key in broker.redis.scan_iter(match=f"{get_settings().redis_prefix}:rl:*"):
-        await broker.redis.delete(key)
+    # Rate-limit counters and voice state would otherwise leak from one test into the next.
+    for pattern in ("rl", "voice"):
+        async for key in broker.redis.scan_iter(match=f"{get_settings().redis_prefix}:{pattern}:*"):
+            await broker.redis.delete(key)
 
 
 @pytest.fixture

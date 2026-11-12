@@ -36,6 +36,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await badges.sync_badges(session)
         await badges.grant_founder_if_due(session)
     workers = [
+        asyncio.create_task(ws.run_voice_sweeper()),
         asyncio.create_task(mail.run_worker()),
         asyncio.create_task(broadcast.run_worker()),
         asyncio.create_task(releases.run_worker()),
