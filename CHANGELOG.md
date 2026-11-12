@@ -1,5 +1,22 @@
 # Novidades do Aureum
 
+## 0.2.0-beta.11
+
+- **Atualização ao abrir:** toda vez que o Aureum abre (inclusive quando o PC liga), a tela de
+  carregamento procura a versão nova, baixa e instala antes de abrir o app. Se a internet ainda
+  estiver ligando, ela espera um pouquinho. Com o app já aberto, aparece uma faixa bem visível no
+  alto avisando que tem versão nova, com "Reiniciar agora" ou "Depois". Nada instala sem você clicar.
+- **App aberto em dois computadores:** se você estiver numa call por um aparelho, o outro mostra
+  "Você está nesta chamada pelo outro dispositivo", com o botão "Entrar por aqui" pra trazer a call.
+  E você nunca mais some da lista da sala por ter o app aberto em outro lugar.
+- **Correções:**
+  - A lista de quem está na sala mostrava menos gente do que tinha na call. Agora mostra todo mundo,
+    e quem tem uma queda rápida de internet não some da lista.
+  - O perfil mostrava "jogando" um jogo que a pessoa já tinha fechado havia dias ("há 374 horas").
+    Agora só aparece o que você está jogando de verdade.
+  - Em Editar perfil, o menu "Enviar imagem / Escolher um GIF" abria escondido atrás da janela.
+  - Esc com um menu aberto agora fecha só o menu.
+
 ## 0.2.0-beta.10
 
 - **Aureum no Mac:** agora tem versão pra Mac, tanto com chip Apple quanto Intel. Na primeira vez o
