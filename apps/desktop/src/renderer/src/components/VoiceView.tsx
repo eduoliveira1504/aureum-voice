@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
-import type { Channel, ServerDetail, User, VoiceState } from '../lib/api'
+import { serverAllows, type Channel, type ServerDetail, type User, type VoiceState } from '../lib/api'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
@@ -670,7 +670,8 @@ export function SoundboardControl({
   useEffect(() => {
     if (blocked && open) toggle(false)
   }, [blocked])
-  if (!serverId || !server) return null
+  // Work servers have no soundboard (block 4.2.1).
+  if (!serverId || !server || !serverAllows(server, 'soundboard')) return null
   const me = getRoom()?.localParticipant.identity ?? ''
   const channel = server.channels.find((c) => c.id === channelId)
   const perms = channel ? channelPermissions(server, channel, me) : 0

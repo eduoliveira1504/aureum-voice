@@ -1,7 +1,7 @@
 import { Crown, GripVertical, Pipette, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { api, ApiError, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
+import { api, ApiError, serverAllows, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
 import { basePermissions, has, outranks, Perm, PERMISSION_GROUPS, rankOf } from '../lib/permissions'
 import { ACCENT_PRESETS, useReadableColor } from '../store/appearance'
 import { useChat } from '../store/chat'
@@ -58,7 +58,7 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
       ['roles', 'Cargos', has(perms, Perm.MANAGE_ROLES)],
       ['members', 'Membros', has(perms, Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)],
       ['stickers', 'Figurinhas', has(perms, Perm.MANAGE_EXPRESSIONS)],
-      ['sounds', 'Painel de sons', has(perms, Perm.MANAGE_SOUNDBOARD)],
+      ['sounds', 'Painel de sons', has(perms, Perm.MANAGE_SOUNDBOARD) && serverAllows(server, 'soundboard')],
       ['bans', 'Banimentos', has(perms, Perm.BAN_MEMBERS)]
     ] as const
   ).filter(([, , allowed]) => allowed)

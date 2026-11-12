@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { api, serverAllows, type ServerTypeInfo } from '../lib/api'
-import { AddServerModal } from './modals'
+import { api, serverAllows, type AddonInfo, type ServerDetail, type ServerTypeInfo } from '../lib/api'
+import { useChat } from '../store/chat'
+import { AddServerModal, CreateAddonModal } from './modals'
+import { ServerSettingsModal } from './ServerSettings'
 
 vi.mock('../lib/api', async (original) => ({ ...(await original<object>()), api: vi.fn() }))
 
@@ -64,5 +66,36 @@ describe('serverAllows', () => {
     expect(serverAllows({ addons: ['kanban'] }, 'soundboard')).toBe(false)
     expect(serverAllows({}, 'soundboard')).toBe(true)
     expect(serverAllows(undefined, 'kanban')).toBe(true)
+  })
+})
+
+describe('addons and sounds follow the type', () => {
+  const addon = (key: string, name: string): AddonInfo => ({
+    key, name, description: '', icon: 'box', permissions: { view: 1 }, config_schema: null, announces: false
+  })
+  const ADDONS = [addon('kanban', 'Kanban'), addon('whiteboard', 'Quadro branco'), addon('calendar', 'Calendário'), addon('events', 'Eventos')]
+  const server = (type: 'game' | 'work'): ServerDetail =>
+    ({
+      id: 's1', name: 'Squad', owner_id: 'me', type, addons: TYPES.find((t) => t.type === type)!.addons,
+      channels: [], categories: [], roles: [{ id: 's1', name: '@everyone', position: 0, permissions: 0 }], members: [], voice_states: [], reads: []
+    }) as unknown as ServerDetail
+
+  it('lists only the addons the type allows', async () => {
+    vi.mocked(api).mockResolvedValue(ADDONS)
+    useChat.setState({ servers: { s1: server('game') }, meId: 'me' })
+    render(<CreateAddonModal serverId="s1" onClose={() => {}} />)
+    expect(await screen.findByText('Calendário')).toBeTruthy()
+    expect(screen.getByText('Eventos')).toBeTruthy()
+    expect(screen.queryByText('Kanban')).toBeNull()
+    expect(screen.queryByText('Quadro branco')).toBeNull()
+  })
+
+  it('hides the sound panel tab on work servers', () => {
+    vi.mocked(api).mockResolvedValue([])
+    const { unmount } = render(<ServerSettingsModal server={server('game')} meId="me" onClose={() => {}} />)
+    expect(screen.getByText('Painel de sons')).toBeTruthy()
+    unmount()
+    render(<ServerSettingsModal server={server('work')} meId="me" onClose={() => {}} />)
+    expect(screen.queryByText('Painel de sons')).toBeNull()
   })
 })

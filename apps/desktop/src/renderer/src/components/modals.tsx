@@ -5,6 +5,7 @@ import { addonModule } from '../addons/registry'
 import {
   api,
   ApiError,
+  serverAllows,
   type AddonInfo,
   type Channel,
   type Invite,
@@ -366,7 +367,8 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
   useEffect(() => {
     api<AddonInfo[]>('/addons')
       .then((list) => {
-        const usable = list.filter((a) => addonModule(a.key))
+        // Known to this app and allowed by the server's type (the API refuses the others).
+        const usable = list.filter((a) => addonModule(a.key) && serverAllows(server, a.key))
         setAddons(usable)
         if (usable[0]) {
           setKey(usable[0].key)
