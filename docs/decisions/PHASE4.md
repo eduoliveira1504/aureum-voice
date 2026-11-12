@@ -14,7 +14,13 @@ Regras do CLAUDE.md: sem IA no produto, custo R$ 0 (exceções já aprovadas con
 
 Ordem: 4.2.1 a 4.2.6. A revisão de usabilidade (4.2.7) roda junto, o tempo todo.
 
-## 4.2.1 Tipo de servidor
+## 4.2.1 Tipo de servidor ✅ concluído (teste manual pendente)
+
+Ver docs/decisions/0048-server-types.md.
+Produção: backup, depois `alembic upgrade heads` (core c9e5a1b3d486 cria servers.type, todos os
+servidores existentes viram Misto) e reiniciar a API, com OK do Eduardo. API antes do app: apps
+antigos continuam criando servidor (vira Misto). Teste manual: criar um servidor de cada tipo e
+conferir a lista de addons e o painel de sons na call.
 
 ### Comportamento
 - Na criação do servidor, a pessoa escolhe um tipo: Jogo, Trabalho ou Misto.
@@ -23,15 +29,18 @@ Ordem: 4.2.1 a 4.2.6. A revisão de usabilidade (4.2.7) roda junto, o tempo todo
 - Servidores que já existem viram "Misto" na migração (nada some para ninguém).
 - Campo de nome do servidor: o exemplo vira só "(Nome do servidor)", apagadinho, no placeholder. Remover "Os Brabos" de todo lugar (tela de criar servidor e textos de ajuda).
 
-### Tabela de addons por tipo (PROPOSTA, Eduardo confirma antes de codar)
+### Tabela de addons por tipo (confirmada pelo Eduardo)
 | Addon | Jogo | Trabalho | Misto |
 |---|---|---|---|
 | Enquetes | sim | sim | sim |
+| Eventos | sim | sim | sim |
 | Calendário | sim | sim | sim |
-| Painel de sons | sim | não | sim |
+| Painel de sons (recurso do servidor, não addon; controlado pela mesma lista) | sim | não | sim |
 | Kanban | não | sim | sim |
 | Quadro branco | não | sim | sim |
-| TFT (4.2.3) | sim | não | sim |
+| TFT (entra na lista no 4.2.3) | sim | não | sim |
+
+Enquetes em DM e grupo não mudam: não dependem de tipo de servidor.
 
 ### Técnica
 - Coluna servers.type (enum: game, work, mixed), NOT NULL, migração Alembic com default mixed para os existentes.
@@ -151,7 +160,6 @@ Addon só aparece em Jogo e Misto; fixar plano persiste e aparece no overlay; at
 - Domínio e identidade visual final.
 
 ## Perguntas em aberto
-- Tabela de addons por tipo (4.2.1): confirmar.
 - Nome de usuário e e-mail de conta excluída: liberar quando e por quanto tempo?
 - Barra de pesquisa global / Ctrl+K: fica fora da 4.2, certo?
 
