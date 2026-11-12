@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, bot, categories, images, presence, reads, voice
+from app import attachments, bot, categories, images, presence, reads, server_types, voice
 from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
@@ -180,7 +180,7 @@ EMAIL_NOT_CONFIRMED = "Confirm your e-mail to create servers"
 async def create_server(body: ServerCreate, user: CurrentUser, session: SessionDep) -> ServerDetail:
     if user.email_verified_at is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=EMAIL_NOT_CONFIRMED)
-    server = Server(name=body.name, owner_id=user.id)
+    server = Server(name=body.name, owner_id=user.id, type=body.type)
     session.add(server)
     await session.flush()
     session.add(ServerMember(server_id=server.id, user_id=user.id))
@@ -216,6 +216,8 @@ async def get_server(server_id: uuid.UUID, user: CurrentUser, session: SessionDe
 @router.patch("/servers/{server_id}", response_model=ServerOut)
 async def update_server(server_id: uuid.UUID, body: ServerUpdate, user: CurrentUser, session: SessionDep) -> ServerOut:
     (await server_access(session, server_id, user.id)).require(Perm.MANAGE_SERVER)
+    if "type" in body.model_fields_set:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The server type can't be changed")
     server = await session.get(Server, server_id)
     assert server is not None
     if body.name is not None:
@@ -493,6 +495,7 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
         addon = addons.get_addon(body.addon_key)
         if addon is None or not addon.in_channel:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown addon")
+        await server_types.require_allowed(session, server_id, addon.key)
         config = addon.parse_config(body.config)
     category = await session.get(ChannelCategory, body.category_id) if body.category_id else None
     if body.category_id and (category is None or category.server_id != server_id):

@@ -57,8 +57,8 @@ async def make_user(client: AsyncClient, username: str, *, confirmed: bool = Tru
     return ApiUser(client, token, me.json())
 
 
-async def make_server(owner: ApiUser, *members: ApiUser, name: str = "Squad") -> dict[str, Any]:
-    res = await owner.post("/servers", {"name": name})
+async def make_server(owner: ApiUser, *members: ApiUser, name: str = "Squad", type: str | None = None) -> dict[str, Any]:
+    res = await owner.post("/servers", {"name": name} | ({"type": type} if type else {}))
     assert res.status_code == 201, res.text
     server = res.json()
     if members:

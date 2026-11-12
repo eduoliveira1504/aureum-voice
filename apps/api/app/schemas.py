@@ -16,7 +16,7 @@ from pydantic import (
 )
 
 from app.config import get_settings
-from app.models import DEFAULT_ACCENT, BadgeRarity, ChannelType, OverrideTarget, Theme, UserStatus
+from app.models import DEFAULT_ACCENT, BadgeRarity, ChannelType, OverrideTarget, ServerType, Theme, UserStatus
 from app.media import MediaTier
 from app.permissions import ALL
 from app.voice import VoiceState
@@ -578,6 +578,14 @@ class AddonOut(BaseModel):
     announces: bool = False
 
 
+class ServerTypeOut(BaseModel):
+    type: ServerType
+    name: str
+    description: str
+    # Addon keys and server features, sorted.
+    addons: list[str]
+
+
 # --- Servers, channels, invites -------------------------------------------
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
@@ -585,10 +593,14 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 
 class ServerCreate(BaseModel):
     name: Name
+    # Locked after creation. Older apps don't send it and get a mixed server.
+    type: ServerType = ServerType.mixed
 
 
 class ServerUpdate(BaseModel):
     name: Name | None = None
+    # Only here to be refused with a clear message: the type never changes (block 4.2.1).
+    type: ServerType | None = None
 
 
 class ServerOut(BaseModel):
@@ -596,6 +608,9 @@ class ServerOut(BaseModel):
 
     id: uuid.UUID
     name: str
+    type: ServerType
+    # The addon keys and server features (e.g. "soundboard") this server's type allows.
+    addons: list[str]
     icon_url: str | None
     banner_url: str | None
     # As in UserMe: set when the image was cropped in the app and can be re-cropped.

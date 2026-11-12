@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
 
-from app import soundboard, storage
+from app import server_types, soundboard, storage
 from app.access import server_member_ids
 from app.deps import CurrentUser, SessionDep
 from app.models import SoundboardSound
@@ -33,6 +33,9 @@ async def _changed(session: SessionDep, server_id: uuid.UUID) -> None:
 @router.get("/servers/{server_id}/sounds", response_model=list[SoundOut])
 async def list_sounds(server_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[SoundboardSound]:
     await server_access(session, server_id, user.id)
+    # Empty, not an error, where the type has no soundboard: apps ask on every server.
+    if not await server_types.server_allows(session, server_id, server_types.SOUNDBOARD):
+        return []
     return await soundboard.of_server(session, server_id)
 
 
@@ -47,6 +50,7 @@ async def add_sound(
     volume: Annotated[SoundVolume, Form()] = 100,
 ) -> SoundboardSound:
     (await server_access(session, server_id, user.id)).require(Perm.MANAGE_SOUNDBOARD)
+    await server_types.require_allowed(session, server_id, server_types.SOUNDBOARD)
     data = await file.read(soundboard.MAX_BYTES + 1)
     sound = await soundboard.add(session, server_id, data, name, _emoji(emoji), volume, user.id)
     await session.commit()
@@ -91,6 +95,7 @@ async def delete_sound(sound_id: uuid.UUID, user: CurrentUser, session: SessionD
 async def play_sound(sound_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> SoundboardSound:
     """Asked right before the app publishes the sound in the room (app/soundboard.py)."""
     sound = await soundboard.visible(session, sound_id, user.id)
+    await server_types.require_allowed(session, sound.server_id, server_types.SOUNDBOARD)
     await soundboard.start_playing(session, sound, user.id)
     return sound
 
