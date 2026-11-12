@@ -539,7 +539,7 @@ export function ChatView({
                   message={message}
                   channelId={channel.id}
                   serverId={channel.server_id}
-                  authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : 'Alguém'}
+                  authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : 'Usuário excluído'}
                   onDelete={message.author?.id === me.id || canModerate ? () => setDeleting(message) : undefined}
                 />
               ) : (
@@ -803,7 +803,7 @@ function MessageRow({
   authorName?: string | null
 }): ReactNode {
   const author = message.author
-  const name = authorName || (author?.display_name ?? 'Usuário removido')
+  const name = authorName || (author?.display_name ?? 'Usuário excluído')
   const nameColor = useReadableColor(roleNameColor ?? author?.accent_color)
   const openProfile = (e: { currentTarget: Element }): void => {
     if (author) onOpenProfile(author, e.currentTarget)

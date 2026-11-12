@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 
 import { useAuth } from './auth/AuthProvider'
-import { ForcePasswordScreen, VerifyEmailScreen, VerifyReminder } from './components/AccountScreens'
+import { DeletionScheduledScreen, ForcePasswordScreen, VerifyEmailScreen, VerifyReminder } from './components/AccountScreens'
 import { AuthScreen } from './screens/AuthScreen'
 import { AppShell } from './screens/AppShell'
 
@@ -37,6 +37,14 @@ export function App(): ReactNode {
       <>
         <WindowDragStrip />
         <ForcePasswordScreen />
+      </>
+    )
+  }
+  if (user.deletion_due_at) {
+    return (
+      <>
+        <WindowDragStrip />
+        <DeletionScheduledScreen dueAt={user.deletion_due_at} />
       </>
     )
   }

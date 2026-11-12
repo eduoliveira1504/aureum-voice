@@ -4,16 +4,18 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { accountMessage } from '../lib/accountErrors'
 import { changePassword, confirmEmailChange, myInvites, requestEmailChange, type Me, type MyInvite } from '../lib/api'
+import { DeleteAccountSettings } from './AccountDeletion'
 import { CodeInput } from './AccountScreens'
 import { FormError, SecondaryButton } from './Modal'
 import { Field, labelClass, PrimaryButton } from './ui'
 
-/** Editar perfil › Conta: the sign-in e-mail and the password. */
+/** Editar perfil › Conta: the sign-in e-mail, the password, and deactivating or deleting the account. */
 export function AccountSettings({ user }: { user: Me }): ReactNode {
   return (
     <div className="max-w-[440px] space-y-8">
       <EmailSection user={user} />
       <PasswordSection />
+      <DeleteAccountSettings />
     </div>
   )
 }

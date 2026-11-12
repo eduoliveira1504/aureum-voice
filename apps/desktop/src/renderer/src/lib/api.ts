@@ -98,6 +98,8 @@ export interface Me extends User {
   email_verified: boolean
   /** A temporary password from the admin: nothing works until it's replaced. */
   must_change_password: boolean
+  /** Deletion asked for: only "Cancelar exclusão" works until this date (block 4.2.2). */
+  deletion_due_at?: string | null
   /** Set when the image was cropped in the app: the original is kept for "Ajustar posição". */
   avatar_crop?: ImageCrop | null
   banner_crop?: ImageCrop | null

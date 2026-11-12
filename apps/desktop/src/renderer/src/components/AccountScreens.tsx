@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useAuth } from '../auth/AuthProvider'
 import { accountMessage, codeDigits } from '../lib/accountErrors'
-import { ApiError, changePassword, changePendingEmail, resendCode, verifyEmail, type Confirmation, type Me } from '../lib/api'
+import { api, ApiError, changePassword, changePendingEmail, resendCode, verifyEmail, type Confirmation, type Me } from '../lib/api'
 import { BadgeIcon, useShownBadges } from './Badge'
 import { FormError, SecondaryButton } from './Modal'
 import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
@@ -227,6 +227,47 @@ export function ForcePasswordScreen(): ReactNode {
       </form>
       <button type="button" className="mt-4 text-sm text-fg-muted hover:text-fg" onClick={() => void logout()}>
         Sair
+      </button>
+    </Card>
+  )
+}
+
+/** Signed in during the 30 days before the account is deleted: cancel it, or sign out. */
+export function DeletionScheduledScreen({ dueAt }: { dueAt: string }): ReactNode {
+  const { reload, logout } = useAuth()
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const due = new Date(dueAt)
+  const days = Math.max(0, Math.ceil((due.getTime() - Date.now()) / 86_400_000))
+
+  async function cancel(): Promise<void> {
+    setBusy(true)
+    setError(null)
+    try {
+      await api('/users/me/deletion', { method: 'DELETE' })
+      await reload()
+    } catch (err) {
+      setError(accountMessage(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card
+      title="Sua conta vai ser excluída"
+      subtitle={
+        <>
+          A exclusão está marcada para <b>{due.toLocaleDateString('pt-BR')}</b>
+          {days > 0 ? ` (daqui a ${days} ${days === 1 ? 'dia' : 'dias'})` : ''}. Quer continuar com a conta?
+        </>
+      }
+    >
+      <FormError message={error} />
+      <PrimaryButton type="button" disabled={busy} onClick={() => void cancel()}>
+        {busy ? 'Aguarde…' : 'Cancelar exclusão'}
+      </PrimaryButton>
+      <button type="button" className="mt-4 text-sm text-fg-muted hover:text-fg" onClick={() => void logout()}>
+        Sair e manter a exclusão
       </button>
     </Card>
   )

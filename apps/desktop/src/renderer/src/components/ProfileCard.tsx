@@ -15,6 +15,7 @@ import { openMenuAt, toast } from './ContextMenu'
 import { errorText } from './modals'
 import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profileBits'
 import { CroppedGif, useGifFailed } from './ProfileGif'
+import { Avatar } from './ui'
 import { UserContextMenu, userContextMenu } from './UserMenu'
 
 const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -369,7 +370,20 @@ export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: 
 
   return (
     <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-dialog flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
-      <ProfileView user={fresh} onClose={onClose} />
+      {fresh.deactivated ? <DeactivatedCard user={fresh} /> : <ProfileView user={fresh} onClose={onClose} />}
+    </div>
+  )
+}
+
+/** A deactivated account's card (block 4.2.2): the profile itself doesn't open. */
+function DeactivatedCard({ user }: { user: User }): ReactNode {
+  return (
+    <div className="flex w-[280px] items-center gap-3 rounded-panel border border-line bg-panel p-4 shadow-2xl">
+      <Avatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} size={40} />
+      <div className="min-w-0">
+        <p className="truncate font-medium">{user.display_name}</p>
+        <p className="text-sm text-fg-muted">Conta desativada</p>
+      </div>
     </div>
   )
 }
