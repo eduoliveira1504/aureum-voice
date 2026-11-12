@@ -13,9 +13,10 @@ O Eduardo decide quando gerar release. Ao terminar um bloco, marcar ✅ neste ar
 linha de Status (no mesmo commit de docs do bloco).
 Antes de corrigir qualquer bug: explicar a causa ao Eduardo.
 
-Status: 4.1.1, 4.1.2 e 4.1.3 prontos em 12/11 (4.1.2 testado pelo Eduardo; 4.1.1 e 4.1.3 com teste manual
-pendente; escolhas do 4.1.2 em 0047-voice-devices.md). Próximo: 4.1.4; depois a release 0.2.0-beta.11 (só
-com a 4.1) e a 4.2.
+Status: Fase 4.1 pronta em 12/11 (4.1.1 a 4.1.4; 4.1.2 testado pelo Eduardo, os outros com teste manual
+pendente; escolhas do 4.1.2 em 0047-voice-devices.md). A API mudou (4.1.2 a 4.1.4, sem migração, compatível
+com a beta.10). Próximo: release 0.2.0-beta.11 (quando o Eduardo decidir, com deploy da API na VPS antes);
+depois a 4.2.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados são de gente de verdade. Antes de qualquer migração em produção: pg_dump com data no nome,
@@ -115,7 +116,24 @@ VALORANT-Win64-Shipping.exe (games.json), então a detecção em si parece certa
   não mostra tempo absurdo (acima de 24 h some o "há X horas", ou limpa a atividade).
 - Teste da API: entrada sem reenvio expira; reenvio mantém o started_at; desconectar limpa.
 
-## 4.1.4 Botão de atualização não aparece para todo mundo
+## 4.1.4 Botão de atualização não aparece para todo mundo ✅ concluído (teste manual pendente)
+Feito: várias pessoas no Windows (na beta.8 e na beta.9) não atualizaram. A release e os latest.yml /
+latest-mac.yml da beta.10 estão certos, e o botão já lia o estado ao abrir. As causas no app: a primeira
+checagem rodava antes de a internet subir (o app abre com o Windows) e falhava calada; o download de ~120 MB
+estourava o limite de 90 s da tela de carregamento; quem inicia na bandeja nem checava; uma falha só era
+tentada de novo em 6 h; o app quase nunca fecha de verdade (bandeja), então a atualização baixada não
+instalava; o botão era pequeno; e não havia log. Decisão do Eduardo: atualizar sozinho só AO ABRIR (tela
+com o logo, como o Discord) e, com o app aberto, só avisar (nada instala sem clique). Agora: a tela espera a
+conexão por até 30 s e o download por até 5 min; quem inicia na bandeja também checa (a tela só aparece se
+houver atualização, e o app volta para a bandeja); falha tenta de novo em 30 min; faixa de destaque abaixo
+da barra do topo ("Reiniciar agora" / "Depois"); a API informa a última versão (GET
+/api/public/latest-version) e, se o atualizador não entregar, a faixa oferece "Baixar agora"; log em
+logs/updater.log (pasta de dados do app), enviado no "Reportar problema", sem dados pessoais. Quem está na
+beta.8/9 ainda depende do atualizador antigo para chegar à beta.11: avisar essas pessoas direto.
+Teste manual (só com o app instalado e uma release de verdade): com a beta.11 publicada, abrir a beta.10
+instalada: a tela mostra o download e o app abre já na beta.11; com o Wi-Fi desligado no início, aparece
+"Esperando a conexão…"; com o app aberto quando a versão sair, aparece a faixa; o log fica em
+%APPDATA%\Aureum Voice\logs\updater.log.
 Sintoma: depois da beta.10, para alguns que já tinham o app o botão de atualização não aparece.
 Pistas no código: o atualizador (main/updater.ts) escreve o log só no console, então nos PCs dos
 testers não dá pra saber por que falhou; o aviso depende do evento `updates:ready` enviado uma vez ao
