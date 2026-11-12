@@ -33,7 +33,8 @@ import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
 import { createTray, destroyTray, notify, setTrayState } from './tray'
-import { getUpdateState, installUpdate, startUpdater } from './updater'
+import { checkForUpdatesNow, getUpdateState, installUpdate, startUpdater } from './updater'
+import { initUpdaterLog, updaterLogTail } from './updaterLog'
 
 captureMainConsole()
 
@@ -173,7 +174,13 @@ handle('attachments:clear', attachmentCache.clear)
 handle('images:copy', images.copyImage)
 handle('images:save', (data: unknown, name: unknown, contentType: unknown) => images.saveImage(mainWindow, data, name, contentType))
 handle('tray:set-state', setTrayState)
-handle('app:recent-logs', recentLogs)
+// The in-memory lines, then the updater's own log (a file), for "Reportar problema".
+handle('app:recent-logs', () => {
+  const updater = updaterLogTail()
+  return updater ? `${recentLogs()}
+--- updater.log ---
+${updater}` : recentLogs()
+})
 handle('media:access', requestAccess)
 handle('media:open-settings', openAccessSettings)
 handle('app:info', (): AppInfo => ({
@@ -183,6 +190,7 @@ handle('app:info', (): AppInfo => ({
 // The window restored the session (or knows it can't): the loading screen may give way.
 handle('app:ready', (online: unknown) => startup?.appReady(online === true))
 handle('updates:get-state', getUpdateState)
+handle('updates:check', checkForUpdatesNow)
 handle('updates:install', () => {
   // On the Mac it only opens the download page: the app keeps running.
   if (!getUpdateState().manual) quitting = true
@@ -455,22 +463,46 @@ function openFromSplash(): void {
   }, splash ? SPLASH_FADE_MS : 0)
 }
 
-function startWithSplash(): void {
-  createSplash()
+// Left before installing an update found while starting in the tray: the app the installer
+// reopens goes back to the tray instead of showing the window.
+const trayFlagPath = (): string => join(app.getPath('userData'), 'start-in-tray')
+
+async function takeTrayFlag(): Promise<boolean> {
+  try {
+    await rm(trayFlagPath())
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Every launch checks for an update before the app opens (block 4.1.4). `hidden` (Windows
+ * started it into the tray): no screen unless an update is coming; then the loading screen shows
+ * the download, installs, and the app comes back in the tray.
+ */
+function startWithSplash(hidden = false): void {
+  if (!hidden) createSplash()
   startup = createStartup(
     {
       status: (text) => {
         splashStatus = text
         splashWindow?.webContents.send('splash:status', text)
       },
-      open: openFromSplash,
+      open: () => {
+        if (!hidden) return openFromSplash()
+        splashWindow?.destroy() // shown for an update that didn't finish: back to the tray
+      },
       install: () => {
         quitting = true
-        installUpdate()
-      }
+        if (hidden) void writeFile(trayFlagPath(), '').catch(() => {}).finally(installUpdate)
+        else installUpdate()
+      },
+      retry: checkForUpdatesNow,
+      reveal: createSplash
     },
     // Same as the updater: never in development.
-    { checkUpdates: app.isPackaged }
+    { checkUpdates: app.isPackaged, hidden }
   )
 }
 
@@ -542,7 +574,8 @@ if (!app.requestSingleInstanceLock()) {
     installDisplayMediaHandler(isAppWindow)
     const settings = await readSettings()
     applyLoginItem(settings.openAtLogin)
-    if (!startsInTray(process.argv, settings.loginStart)) startWithSplash()
+    initUpdaterLog(join(app.getPath('userData'), 'logs'))
+    startWithSplash(startsInTray(process.argv, settings.loginStart) || (await takeTrayFlag()))
     createWindow()
     createTray({
       open: showWindow,

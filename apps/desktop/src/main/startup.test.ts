@@ -1,11 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CHECK_LIMIT_MS, createStartup, isOfflineError, startsInTray, DOWNLOAD_MAX_MS, MAX_MS, MIN_MS, STALL_MS, TEXT } from './startup'
+import {
+  CHECK_LIMIT_MS,
+  createStartup,
+  isOfflineError,
+  startsInTray,
+  DOWNLOAD_MAX_MS,
+  MAX_MS,
+  MIN_MS,
+  RETRY_ONLINE_MS,
+  STALL_MS,
+  TEXT,
+  WAIT_ONLINE_MS
+} from './startup'
 
-function setup(checkUpdates: boolean) {
-  const hooks = { status: vi.fn(), open: vi.fn(), install: vi.fn() }
-  const startup = createStartup(hooks, { checkUpdates })
-  startup.shown()
+function setup(checkUpdates: boolean, hidden = false) {
+  const hooks = { status: vi.fn(), open: vi.fn(), install: vi.fn(), retry: vi.fn(), reveal: vi.fn() }
+  const startup = createStartup(hooks, { checkUpdates, hidden })
+  if (!hidden) startup.shown()
   const texts = (): string[] => hooks.status.mock.calls.map(([text]) => text)
   return { hooks, startup, texts }
 }
@@ -75,13 +87,42 @@ describe('loading screen', () => {
     expect(hooks.install).not.toHaveBeenCalled()
   })
 
-  it('a failed check opens normally; offline shows the offline line', () => {
+  it('a failed check (not the connection) opens normally', () => {
+    const { hooks, startup } = setup(true)
+    startup.update({ kind: 'failed', offline: false })
+    startup.appReady(true)
+    vi.advanceTimersByTime(MIN_MS)
+    expect(hooks.open).toHaveBeenCalledOnce()
+    expect(hooks.retry).not.toHaveBeenCalled()
+  })
+
+  it('just after the PC starts, waits for the connection and checks again (block 4.1.4)', () => {
     const { hooks, startup, texts } = setup(true)
     startup.update({ kind: 'failed', offline: true })
     startup.appReady(false)
+    expect(texts().at(-1)).toBe(TEXT.waitingOnline)
+    vi.advanceTimersByTime(RETRY_ONLINE_MS)
+    expect(hooks.retry).toHaveBeenCalledOnce()
+    expect(hooks.open).not.toHaveBeenCalled()
+    // The network came up and there is an update: it installs before the app opens.
+    startup.update({ kind: 'downloading', percent: 3 })
+    startup.update({ kind: 'downloaded' })
+    expect(hooks.install).toHaveBeenCalledOnce()
+    expect(hooks.open).not.toHaveBeenCalled()
+  })
+
+  it('with no connection at all, opens after waiting for it, saying so', () => {
+    const t0 = Date.now()
+    const { hooks, startup, texts } = setup(true)
+    startup.appReady(false)
+    while (!hooks.open.mock.calls.length && vi.getTimerCount()) {
+      startup.update({ kind: 'failed', offline: true })
+      vi.advanceTimersByTime(RETRY_ONLINE_MS)
+    }
     vi.advanceTimersByTime(MIN_MS)
     expect(hooks.open).toHaveBeenCalledOnce()
-    expect(texts()).toEqual([TEXT.checking, TEXT.offline])
+    expect(Date.now() - t0).toBeLessThanOrEqual(WAIT_ONLINE_MS + CHECK_LIMIT_MS + MIN_MS)
+    expect(texts()).toContain(TEXT.offline)
   })
 
   it('shows the download percentage and restarts into the new version', () => {
@@ -183,5 +224,29 @@ describe('starting with Windows', () => {
   it('the old --hidden registration follows the new choice (window by default)', () => {
     expect(startsInTray(['aureum.exe', '--hidden'], 'window')).toBe(false)
     expect(startsInTray(['aureum.exe', '--hidden'], 'tray')).toBe(true)
+  })
+})
+
+describe('launched by Windows into the tray', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('without an update, nothing shows and the app stays in the tray', () => {
+    const { hooks, startup } = setup(true, true)
+    startup.appReady(true)
+    startup.update({ kind: 'none' })
+    expect(hooks.reveal).not.toHaveBeenCalled()
+    expect(hooks.open).toHaveBeenCalledOnce() // index.ts keeps the window hidden
+  })
+
+  it('with an update, the loading screen appears and it installs', () => {
+    const { hooks, startup } = setup(true, true)
+    startup.appReady(true)
+    startup.update({ kind: 'downloading', percent: 0 })
+    expect(hooks.reveal).toHaveBeenCalledOnce()
+    startup.update({ kind: 'downloading', percent: 60 })
+    expect(hooks.reveal).toHaveBeenCalledOnce()
+    startup.update({ kind: 'downloaded' })
+    expect(hooks.install).toHaveBeenCalledOnce()
   })
 })

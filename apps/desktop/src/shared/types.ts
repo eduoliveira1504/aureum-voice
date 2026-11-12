@@ -159,6 +159,9 @@ export interface UpdateState {
   /** macOS (block 3.21): the app can't update itself, so `ready` means "a newer version exists"
    * and install() opens the download page instead. */
   manual?: boolean
+  /** The last check or download failed (it's tried again in 30 minutes): the window may offer
+   * the download page if it knows of a newer version (block 4.1.4). */
+  failed?: boolean
 }
 
 /** Where Mac users download a newer version (the landing page's download section). */
@@ -241,6 +244,8 @@ export interface AureumBridge {
   }
   updates: {
     getState(): Promise<UpdateState>
+    /** Asks the updater to check now (the API said a newer version is out). */
+    check(): Promise<void>
     /** Restarts into the downloaded update (on the Mac: opens the download page). */
     install(): Promise<void>
     onReady(listener: (state: UpdateState) => void): () => void

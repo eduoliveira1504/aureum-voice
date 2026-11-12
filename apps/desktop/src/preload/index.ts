@@ -56,6 +56,7 @@ const bridge: AureumBridge = {
   },
   updates: {
     getState: () => ipcRenderer.invoke('updates:get-state'),
+    check: () => ipcRenderer.invoke('updates:check'),
     install: () => ipcRenderer.invoke('updates:install'),
     onReady: (listener) => {
       const wrapped = (_: unknown, state: UpdateState): void => listener(state)

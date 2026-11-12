@@ -10,19 +10,29 @@
  *   carries on in the background, as before.
  * - While an update is downloading, each bit of progress allows STALL_MS more, up to
  *   DOWNLOAD_MAX_MS from the start; a stalled or slow download lets the app open and keeps going in
- *   the background ("Reiniciar para atualizar" when it's done).
+ *   the background (the window's update bar when it's done).
+ * - No internet yet (the PC just started and the network is still coming up): the check is tried
+ *   again every RETRY_ONLINE_MS until WAIT_ONLINE_MS from the start, "Esperando a conexão…".
+ * - `hidden` (a launch by Windows that stays in the tray): nothing shows unless an update starts
+ *   downloading; then the screen appears (`reveal`) until it installs. Without one, the app stays
+ *   in the tray.
  */
 
 export const MIN_MS = 1200
-export const MAX_MS = 10_000
-export const CHECK_LIMIT_MS = 5000
-export const STALL_MS = 10_000
-export const DOWNLOAD_MAX_MS = 90_000
+export const MAX_MS = 15_000
+export const CHECK_LIMIT_MS = 10_000
+export const STALL_MS = 20_000
+// The installer is ~120 MB: on a slow connection that takes minutes, and updating before the app
+// opens is the point (block 4.1.4).
+export const DOWNLOAD_MAX_MS = 5 * 60_000
+export const WAIT_ONLINE_MS = 30_000
+export const RETRY_ONLINE_MS = 3000
 
 export const TEXT = {
   checking: 'Procurando atualizações…',
   downloading: (percent: number) => `Baixando atualização (${Math.floor(percent)}%)…`,
   connecting: 'Conectando…',
+  waitingOnline: 'Esperando a conexão…',
   opening: 'Abrindo o Aureum…',
   offline: 'Sem conexão, abrindo mesmo assim…'
 } as const
@@ -58,6 +68,10 @@ export interface StartupHooks {
   open(): void
   /** Restart into the downloaded version. */
   install(): void
+  /** Check for an update again (the first try found no internet). */
+  retry?(): void
+  /** `hidden` only: an update is coming, show the loading screen now. */
+  reveal?(): void
 }
 
 export interface Startup {
@@ -70,10 +84,16 @@ export interface Startup {
   readonly done: boolean
 }
 
-export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpdates: boolean }): Startup {
+export function createStartup(
+  hooks: StartupHooks,
+  { checkUpdates, hidden = false }: { checkUpdates: boolean; hidden?: boolean }
+): Startup {
   const start = Date.now()
-  // The app waits for the screen to appear, then stays behind it for the minimum time.
-  let shownAt: number | null = null
+  // The app waits for the screen to appear, then stays behind it for the minimum time. Hidden,
+  // there's no screen to wait for.
+  let shownAt: number | null = hidden ? start : null
+  let revealed = false
+  let waitingOnline = false
   let done = false
   let updateSettled = !checkUpdates
   let downloading = false
@@ -111,7 +131,7 @@ export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpda
   /** Opens once the app is ready and the update question is settled, never before MIN_MS. */
   const tryOpen = (): void => {
     if (done || !ready || !updateSettled || shownAt === null) return
-    const wait = MIN_MS - (Date.now() - shownAt)
+    const wait = hidden ? 0 : MIN_MS - (Date.now() - shownAt)
     if (wait > 0) later(wait, open)
     else open()
   }
@@ -125,17 +145,20 @@ export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpda
   const settleUpdate = (): void => {
     updateSettled = true
     downloading = false
+    waitingOnline = false
     if (!offline) say(TEXT.connecting)
     tryOpen()
+  }
+  /** A check that doesn't answer in time lets the app open (the updater carries on). */
+  const limitCheck = (): void => {
+    later(CHECK_LIMIT_MS, () => {
+      if (!updateSettled && !downloading && !waitingOnline) settleUpdate()
+    })
   }
 
   say(checkUpdates ? TEXT.checking : TEXT.connecting)
   setDeadline(MAX_MS)
-  if (checkUpdates) {
-    later(CHECK_LIMIT_MS, () => {
-      if (!updateSettled && !downloading) settleUpdate()
-    })
-  }
+  if (checkUpdates) limitCheck()
 
   return {
     get done() {
@@ -154,6 +177,11 @@ export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpda
           return
         case 'downloading':
           downloading = true
+          waitingOnline = false
+          if (hidden && !revealed) {
+            revealed = true
+            hooks.reveal?.()
+          }
           say(TEXT.downloading(phase.percent))
           // Keep the screen while it moves, within the overall limit.
           setDeadline(Math.min(Date.now() - start + STALL_MS, DOWNLOAD_MAX_MS))
@@ -164,6 +192,20 @@ export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpda
         case 'none':
           return settleUpdate()
         case 'failed':
+          if (phase.offline && !downloading && hooks.retry && Date.now() - start + RETRY_ONLINE_MS < WAIT_ONLINE_MS) {
+            // The network may still be coming up (just after the PC started): wait and ask again.
+            waitingOnline = true
+            say(TEXT.waitingOnline)
+            setDeadline(WAIT_ONLINE_MS + CHECK_LIMIT_MS)
+            later(RETRY_ONLINE_MS, () => {
+              if (done || updateSettled) return
+              waitingOnline = false
+              say(TEXT.checking)
+              limitCheck()
+              hooks.retry?.()
+            })
+            return
+          }
           if (phase.offline) {
             offline = true
             say(TEXT.offline)
@@ -174,7 +216,7 @@ export function createStartup(hooks: StartupHooks, { checkUpdates }: { checkUpda
     appReady(online) {
       if (done || ready) return
       ready = true
-      if (!online) {
+      if (!online && !waitingOnline) {
         offline = true
         say(TEXT.offline)
       }

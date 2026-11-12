@@ -13,6 +13,12 @@ describe('redact', () => {
     expect(redact(`plain ${jwt}`)).toBe('plain [token]')
   })
 
+  it('removes the account name from user folder paths', () => {
+    expect(redact('at C:\\Users\\Eduardo\\AppData\\Local\\x.exe')).toBe('at C:\\Users\\[user]\\AppData\\Local\\x.exe')
+    expect(redact('at c:/Users/ana/AppData')).toBe('at c:/Users/[user]/AppData')
+    expect(redact('at /Users/bia/Library/Caches')).toBe('at /Users/[user]/Library/Caches')
+  })
+
   it('keeps ordinary lines', () => {
     expect(redact('[warn] Key watch unavailable')).toBe('[warn] Key watch unavailable')
   })
