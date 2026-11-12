@@ -98,6 +98,15 @@ class ChannelType(str, enum.Enum):
     addon = "addon"
 
 
+class ServerType(str, enum.Enum):
+    """Picked when the server is created and locked from then on; it decides which addons the
+    server can have (see app/server_types.py)."""
+
+    game = "game"
+    work = "work"
+    mixed = "mixed"
+
+
 class UserPlan(str, enum.Enum):
     """What the user pays for. Only the free plan exists for now (see app/media.py)."""
 
@@ -342,7 +351,18 @@ class Server(Base):
     )
     # Official servers (set with the CLI) take in everyone who confirms their e-mail.
     is_official: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Locked after creation: no route changes it.
+    type: Mapped[ServerType] = mapped_column(
+        _str_enum(ServerType, "server_type"), nullable=False, default=ServerType.mixed, server_default="mixed"
+    )
     created_at: Mapped[datetime] = _created_at()
+
+    @property
+    def addons(self) -> list[str]:
+        """The addon keys (and server features like the soundboard) this server's type allows."""
+        from app.server_types import allowed_keys
+
+        return sorted(allowed_keys(self.type))
 
     @property
     def icon_crop(self) -> dict[str, Any] | None:
