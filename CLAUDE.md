@@ -2,9 +2,9 @@
 
 > Idioma: converse comigo SEMPRE em português do Brasil. Inglês só em código, commits e docs técnicos.
 
-> Fase atual: 3 (beta). Spec em docs/decisions/PHASE3.md (um bloco por vez, na ordem).
-> Fases 1 e 2 concluídas; PHASE2.md é referência histórica. Onde este arquivo e o
-> PHASE3.md divergirem, vale o PHASE3.md.
+> Fase atual: 4.2. Spec em docs/decisions/PHASE4.md (um bloco por vez, na ordem).
+> Fases 1 a 3 e 4.1 concluídas; PHASE2.md e PHASE3.md são referência histórica.
+> Onde este arquivo e o PHASE4.md divergirem, vale o PHASE4.md.
 
 App de comunicação (voz, câmera, compartilhamento de tela, chat e addons) com identidade
 própria. Público do beta: grupos de amigos e pequenos times de trabalho.
