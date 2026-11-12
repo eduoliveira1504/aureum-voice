@@ -50,7 +50,7 @@ from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 
-from app import account_deletion, account_invites, badges as badge_rules, bot, onboarding, stickers
+from app import account_deletion, account_invites, account_purge, badges as badge_rules, bot, onboarding, stickers
 from app.bot import broadcast
 from app.config import get_settings
 from app.db import SessionLocal
@@ -99,6 +99,27 @@ async def badges(action: str, username: str, badge: str | None) -> int:
                 await bot.badge_granted(user.id, badge)
         print(_describe(user))
     await broker.close()
+    return 0
+
+
+async def accounts_purge(days: int, dry_run: bool) -> int:
+    """Lists fake-looking accounts (app/account_purge.py); deletes them only without --dry-run and
+    after typing "apagar <how many>"."""
+    async with SessionLocal() as session:
+        found = await account_purge.candidates(session, days)
+        print(f"{len(found)} conta(s) candidata(s): e-mail nunca confirmado, sem servidor, sem mensagens, criada há mais de {days} dias.")
+        for candidate in found:
+            print("  " + candidate.line())
+        if dry_run or not found:
+            if dry_run:
+                print("Dry-run: nada foi apagado.")
+            return 0
+        expected = f"apagar {len(found)}"
+        if input(f'Digite "{expected}" para apagar de vez: ').strip().lower() != expected:
+            print("Cancelado. Nada foi apagado.")
+            return 1
+        done = await account_purge.purge(session, found, days)
+        print(f"{done} conta(s) apagada(s).")
     return 0
 
 
@@ -485,6 +506,11 @@ def main() -> int:
     users_cmd.add_argument("--verificado", action="store_true", help="gold check next to the name")
     users_cmd.add_argument("--bot", action="store_true", help='"BOT" tag next to the name')
 
+    accounts_cmd = commands.add_parser("accounts", help="clean up fake accounts (never confirmed, nothing done)")
+    accounts_cmd.add_argument("action", choices=("purge",))
+    accounts_cmd.add_argument("--dias", type=int, default=account_purge.DEFAULT_DAYS, help="created more than this many days ago")
+    accounts_cmd.add_argument("--dry-run", action="store_true", help="only list the candidates")
+
     invites_cmd = commands.add_parser("invites", help="create account invites")
     invites_cmd.add_argument("action", choices=("create",))
     invites_cmd.add_argument("--count", type=int, help="how many single-use invites")
@@ -561,6 +587,10 @@ def main() -> int:
             pioneer=args.pioneiro, confirmed=args.confirmado, official=args.oficial,
             verified=args.verificado, bot=args.bot,
         ))
+    if args.command == "accounts":
+        if args.dias < 1:
+            parser.error("--dias needs 1 or more")
+        return asyncio.run(accounts_purge(args.dias, args.dry_run))
     if args.command == "invites":
         if args.usos is not None and args.usos < 2:
             parser.error("--usos needs 2 or more (a single-use invite is --count 1)")
