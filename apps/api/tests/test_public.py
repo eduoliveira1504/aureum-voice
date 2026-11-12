@@ -61,3 +61,10 @@ async def test_is_rate_limited_per_ip(client: AsyncClient) -> None:
         assert (await client.get("/api/public/stats")).status_code == 200
     res = await client.get("/api/public/stats")
     assert res.status_code == 429 and "retry-after" in res.headers
+
+
+async def test_latest_version_needs_no_sign_in(client: AsyncClient) -> None:
+    """Block 4.1.4: the app compares its version with this one (GitHub is faked in conftest)."""
+    res = await client.get("/api/public/latest-version")
+    assert res.status_code == 200
+    assert res.json() == {"version": "1.0.0"}

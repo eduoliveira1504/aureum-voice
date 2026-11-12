@@ -164,6 +164,12 @@ class PublicStats(BaseModel):
     pioneers: int
 
 
+class LatestVersion(BaseModel):
+    """The newest published version of the app (None when GitHub can't be reached)."""
+
+    version: str | None
+
+
 class LoginRequest(BaseModel):
     email: LowerEmail
     password: str
