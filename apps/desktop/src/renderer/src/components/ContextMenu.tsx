@@ -66,15 +66,20 @@ function Toast(): ReactNode {
   }, [text, id])
   if (!text) return null
   return (
-    <div role="status" className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-control bg-fg px-4 py-2 text-sm font-medium text-rail shadow-xl">
+    <div role="status" className="pointer-events-none fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-control bg-fg px-4 py-2 text-sm font-medium text-rail shadow-xl">
       {text}
     </div>
   )
 }
 
+/**
+ * In the dialog layer, so it opens over the modal whose menu opened it (the host is mounted
+ * before the modals). The wrapper has no size: its content is fixed, so it blocks nothing.
+ */
 function Dialog(): ReactNode {
   const render = useDialog((s) => s.render)
-  return render ? render(() => useDialog.setState({ render: null })) : null
+  if (!render) return null
+  return <div className="fixed left-0 top-0 z-dialog">{render(() => useDialog.setState({ render: null }))}</div>
 }
 
 /** onContextMenu handler that opens a menu with `content`. */
@@ -114,14 +119,17 @@ export function ContextMenuHost(): ReactNode {
 
   useEffect(() => {
     if (!menu) return
+    // Capture phase: Escape closes the menu, not also the modal it was opened from.
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') close()
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      close()
     }
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
     window.addEventListener('blur', close)
     window.addEventListener('resize', close)
     return () => {
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('blur', close)
       window.removeEventListener('resize', close)
     }
@@ -139,7 +147,7 @@ export function ContextMenuHost(): ReactNode {
 function OpenMenu({ x, y, content, close }: { x: number; y: number; content: () => ReactNode; close(): void }): ReactNode {
   return (
     <div
-      className="fixed inset-0 z-50"
+      className="fixed inset-0 z-popover"
       onMouseDown={(e) => e.target === e.currentTarget && close()}
       onContextMenu={(e) => {
         e.preventDefault()

@@ -119,7 +119,7 @@ export function StickerPanel({ serverId, onPick }: { serverId: string | null; on
           <>
             {!query.trim() && recent.length > 0 && (
               <section>
-                <h3 className="sticky top-0 z-10 bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Recentes</h3>
+                <h3 className="sticky top-0 z-raised bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Recentes</h3>
                 <div className="grid grid-cols-4">{recent.map((s) => cell(s, null))}</div>
               </section>
             )}
@@ -129,7 +129,7 @@ export function StickerPanel({ serverId, onPick }: { serverId: string | null; on
               const locked = usableIn(pack, serverId) ? null : `Só no servidor ${title(pack)}`
               return (
                 <section key={pack.id}>
-                  <h3 className="sticky top-0 z-10 flex items-center gap-1 bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+                  <h3 className="sticky top-0 z-raised flex items-center gap-1 bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
                     {locked && <Lock size={11} />}
                     {title(pack)}
                   </h3>

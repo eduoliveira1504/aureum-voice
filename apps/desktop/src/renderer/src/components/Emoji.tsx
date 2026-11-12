@@ -212,7 +212,7 @@ function PickerFrame({ x, y, tall, children }: { x: number; y: number; tall: boo
       role="dialog"
       aria-label="Escolher emoji"
       style={{ ...pos, width: PICKER_W, height }}
-      className={cn(menuClass, 'app-no-drag fixed z-[70] flex flex-col p-0')}
+      className={cn(menuClass, 'app-no-drag fixed z-popover flex flex-col p-0')}
     >
       {children}
     </div>

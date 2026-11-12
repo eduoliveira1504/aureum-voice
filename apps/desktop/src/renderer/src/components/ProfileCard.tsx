@@ -368,7 +368,7 @@ export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: 
   }, [onClose])
 
   return (
-    <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-50 flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
+    <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-dialog flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
       <ProfileView user={fresh} onClose={onClose} />
     </div>
   )

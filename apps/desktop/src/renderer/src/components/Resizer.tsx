@@ -67,7 +67,7 @@ export function useResizable(
       aria-valuemax={spec.max}
       onPointerDown={onPointerDown}
       onDoubleClick={() => save(null)}
-      className={`group absolute inset-y-0 z-10 w-2 cursor-col-resize ${edge === 'right' ? '-right-1' : '-left-1'}`}
+      className={`group absolute inset-y-0 z-raised w-2 cursor-col-resize ${edge === 'right' ? '-right-1' : '-left-1'}`}
     >
       <span className={`absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors ${live !== null ? 'bg-accent' : 'group-hover:bg-accent/60'}`} />
     </div>

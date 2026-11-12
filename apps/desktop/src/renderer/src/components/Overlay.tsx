@@ -341,7 +341,7 @@ function WidgetBox({
       style={{ fontSize: 14 * SCALE[prefs.size] }}
     >
       {editing && (
-        <div className="pointer-events-auto absolute inset-x-2 top-2 z-10 flex items-center gap-2 rounded-control bg-panel/95 px-2.5 py-1.5 text-xs text-fg shadow-lg">
+        <div className="pointer-events-auto absolute inset-x-2 top-2 z-raised flex items-center gap-2 rounded-control bg-panel/95 px-2.5 py-1.5 text-xs text-fg shadow-lg">
           <span className="min-w-0 flex-1 truncate font-semibold">{WIDGET_NAME[widget]}</span>
           {bar}
           <button
@@ -365,7 +365,7 @@ function WidgetBox({
           data-handle
           title={resizeContent ? 'Arraste para mudar o tamanho' : 'Redimensionar'}
           onPointerDown={dragWith('resize')}
-          className={`absolute bottom-1 z-10 rounded-item bg-panel/95 p-1 text-fg-muted ${
+          className={`absolute bottom-1 z-raised rounded-item bg-panel/95 p-1 text-fg-muted ${
             resizeContent && anchor.right ? 'left-1 cursor-nesw-resize' : 'right-1 cursor-nwse-resize'
           }`}
         >

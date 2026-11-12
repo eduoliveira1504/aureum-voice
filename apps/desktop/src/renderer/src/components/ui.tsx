@@ -199,7 +199,7 @@ export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, cl
 }
 
 /** Look of dropdown menus and small popovers. */
-export const menuClass = 'z-40 rounded-control border border-line bg-main p-1.5 shadow-xl'
+export const menuClass = 'z-shell rounded-control border border-line bg-main p-1.5 shadow-xl'
 
 export function MenuItem({
   icon: Icon,

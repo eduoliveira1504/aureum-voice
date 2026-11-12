@@ -126,6 +126,36 @@
   --radius-item: 8px; /* list rows */
   --radius-control: 12px; /* buttons, inputs, cards */
   --radius-panel: 18px; /* panels, modals */
+
+  /*
+   * Layers (z-raised ... z-tour), the only z-index values components use: a bare z-50 is
+   * rejected by layers.test.ts. Bottom to top:
+   * raised   inside a component (sticky headers, hover bars, resizers)
+   * drawer   over a panel's content (member drawer, drop hints)
+   * float    over all panels (call mini-window, panel drop zones)
+   * shell    over the whole shell (fullscreen call, inline dropdowns, reminders)
+   * viewer   image viewer (its own right-click menu opens over it)
+   * modal    modals (Modal.tsx); a modal opened from inside another stacks within it
+   * dialog   what a menu opens (showDialog), the profile card, the incoming call: over any modal
+   * popover  right-click menus, emoji/GIF picker, device menus: over modals AND dialogs,
+   *          since dialogs open menus and pickers too
+   * tooltip  hover tooltips, also over popovers (badges in the profile card)
+   * tip      first-time tips (a tip can point at an open menu)
+   * toast    short confirmations ("Copiado!")
+   * tour     the first tour, over everything
+   */
+  --z-index-raised: 10;
+  --z-index-drawer: 20;
+  --z-index-float: 30;
+  --z-index-shell: 40;
+  --z-index-viewer: 45;
+  --z-index-modal: 50;
+  --z-index-dialog: 55;
+  --z-index-popover: 60;
+  --z-index-tooltip: 70;
+  --z-index-tip: 80;
+  --z-index-toast: 90;
+  --z-index-tour: 100;
 }
 
 /* Tab strips scroll sideways when crowded, without a visible scrollbar. */

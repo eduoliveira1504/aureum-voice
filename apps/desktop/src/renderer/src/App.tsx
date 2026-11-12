@@ -7,7 +7,7 @@ import { AppShell } from './screens/AppShell'
 
 /** Without the top bar (sign-in, loading), the top edge still moves the window. */
 function WindowDragStrip(): ReactNode {
-  return <div aria-hidden className="app-drag fixed inset-x-0 top-0 z-10 h-12" />
+  return <div aria-hidden className="app-drag fixed inset-x-0 top-0 z-raised h-12" />
 }
 
 export function App(): ReactNode {

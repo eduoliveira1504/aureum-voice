@@ -187,7 +187,7 @@ export function CalendarBoard({
         ) : (
           <div className="grid min-h-full grid-cols-7 border-l border-line" style={{ gridAutoRows: view === 'month' ? 'minmax(96px, 1fr)' : 'minmax(320px, 1fr)' }}>
             {WEEKDAYS.map((d) => (
-              <div key={d} className="sticky top-0 z-10 border-b border-r border-line bg-main px-2 py-1 text-xs font-semibold uppercase text-fg-subtle">
+              <div key={d} className="sticky top-0 z-raised border-b border-r border-line bg-main px-2 py-1 text-xs font-semibold uppercase text-fg-subtle">
                 {d}
               </div>
             ))}

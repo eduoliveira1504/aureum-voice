@@ -128,7 +128,7 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
 
   const iconButton = 'rounded-item p-1 text-fg-muted hover:bg-elevated hover:text-fg'
   // The bars float over the video and show while the pointer is over the window.
-  const bars = `absolute inset-x-0 z-10 flex items-center gap-0.5 bg-panel/90 px-2 py-1 transition-opacity ${
+  const bars = `absolute inset-x-0 z-raised flex items-center gap-0.5 bg-panel/90 px-2 py-1 transition-opacity ${
     hover ? 'opacity-100' : 'pointer-events-none opacity-0'
   }`
 

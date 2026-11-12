@@ -474,7 +474,7 @@ export function ChatView({
       }}
     >
       {dropping && (
-        <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-accent bg-main/90 text-center">
+        <div className="pointer-events-none absolute inset-3 z-drawer flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-accent bg-main/90 text-center">
           <Paperclip size={28} className="text-accent-text" />
           <p className="font-semibold">Solte para anexar</p>
           <p className="text-sm text-fg-muted">Até {MAX_FILES} arquivos por mensagem</p>

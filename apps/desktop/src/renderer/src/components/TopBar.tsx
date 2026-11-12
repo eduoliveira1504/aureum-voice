@@ -245,7 +245,7 @@ function ServerPreview({ server, anchor }: { server: ServerDetail; anchor: DOMRe
     <div
       role="tooltip"
       style={{ left, top: anchor.bottom + 6 }}
-      className="pointer-events-none fixed z-50 w-64 overflow-hidden rounded-panel border border-line bg-panel text-left shadow-2xl"
+      className="pointer-events-none fixed z-tooltip w-64 overflow-hidden rounded-panel border border-line bg-panel text-left shadow-2xl"
     >
       <div className="relative h-20 overflow-hidden">
         <ServerBannerLayer server={server} />

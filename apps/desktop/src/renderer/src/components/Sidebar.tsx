@@ -287,7 +287,7 @@ function Reorderable({
         <span
           aria-hidden
           data-drop-indicator={over}
-          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
+          className={`pointer-events-none absolute inset-x-1 z-raised h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
         />
       )}
       {children}
@@ -384,7 +384,7 @@ function CategorySection({
           <span
             aria-hidden
             data-drop-indicator={over}
-            className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
+            className={`pointer-events-none absolute inset-x-1 z-raised h-0.5 rounded-full bg-accent ${over === 'before' ? '-top-px' : '-bottom-px'}`}
           />
         )}
         <button

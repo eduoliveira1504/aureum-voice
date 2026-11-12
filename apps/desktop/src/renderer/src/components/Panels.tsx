@@ -338,7 +338,7 @@ function PanelView({
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setZone(null)}
       onDrop={onDrop}
     >
-      {zone && <div data-drop-zone={zone} className={`pointer-events-none absolute z-30 border-2 border-dashed border-accent bg-accent/15 ${DROP_AREA[zone]}`} />}
+      {zone && <div data-drop-zone={zone} className={`pointer-events-none absolute z-float border-2 border-dashed border-accent bg-accent/15 ${DROP_AREA[zone]}`} />}
       <div
         data-testid="panel-header"
         onDoubleClick={(e) => !(e.target as Element).closest('button') && toggleMaximize(server.id, index)}

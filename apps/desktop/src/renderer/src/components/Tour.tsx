@@ -178,7 +178,7 @@ export function TourOverlay({ steps, news = false, onEnd }: { steps: TourStep[];
 
   return createPortal(
     // Over everything, the top bar's drag region included (Electron keeps it under layers that don't opt out).
-    <div className="app-no-drag fixed inset-0 z-[70]" data-tour-overlay>
+    <div className="app-no-drag fixed inset-0 z-tour" data-tour-overlay>
       {spot ? (
         <div
           aria-hidden
@@ -251,7 +251,7 @@ export function FirstTimeTip({ tip, anchor, title, text }: { tip: string; anchor
 
   if (!mine || !target || seen) return null
   return createPortal(
-    <Placed target={target} className={`${balloonClass} app-no-drag z-[65] w-[300px]`}>
+    <Placed target={target} className={`${balloonClass} app-no-drag z-tip w-[300px]`}>
       <div role="note" aria-label={`Dica: ${title}`} data-tip={tip}>
         <GuideHeader title={title} />
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{text}</p>

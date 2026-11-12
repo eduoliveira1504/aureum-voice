@@ -100,7 +100,7 @@ export function MembersBar({ server, meId }: { server: ServerDetail; meId: strin
 
   if (!open) return null
   return (
-    <div ref={drawer} className={narrow ? 'absolute inset-y-0 right-0 z-20 shadow-2xl' : 'py-2 pr-2'}>
+    <div ref={drawer} className={narrow ? 'absolute inset-y-0 right-0 z-drawer shadow-2xl' : 'py-2 pr-2'}>
       <div className={`h-full overflow-hidden ${narrow ? 'border-l border-line' : 'rounded-panel border border-line'}`}>
         <MemberList server={server} channel={channel} meId={meId} onClose={() => toggleMembers(server.id)} />
       </div>

@@ -39,7 +39,7 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
     <div
       role="alertdialog"
       aria-label={`${name} está te ligando`}
-      className="fixed left-1/2 top-16 z-50 w-[340px] -translate-x-1/2 rounded-panel border border-line bg-panel p-4 shadow-2xl"
+      className="fixed left-1/2 top-16 z-dialog w-[340px] -translate-x-1/2 rounded-panel border border-line bg-panel p-4 shadow-2xl"
     >
       <div className="flex items-center gap-3">
         <span className="relative">
@@ -99,7 +99,7 @@ export function MissedCallNotice({ meId }: { meId: string }): ReactNode {
     dismiss()
   }
   return (
-    <div role="status" className="fixed bottom-6 right-6 z-50 flex w-[300px] items-center gap-3 rounded-panel border border-line bg-panel p-3 shadow-xl">
+    <div role="status" className="fixed bottom-6 right-6 z-dialog flex w-[300px] items-center gap-3 rounded-panel border border-line bg-panel p-3 shadow-xl">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-item bg-danger/15 text-danger">
         <PhoneMissed size={18} />
       </span>

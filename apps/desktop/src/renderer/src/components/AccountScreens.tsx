@@ -235,7 +235,7 @@ export function ForcePasswordScreen(): ReactNode {
 /** A small reminder over the app while the e-mail isn't confirmed. */
 export function VerifyReminder({ onOpen }: { onOpen(): void }): ReactNode {
   return (
-    <div role="status" className="app-no-drag fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-control border border-line bg-panel px-4 py-2.5 text-sm shadow-xl">
+    <div role="status" className="app-no-drag fixed bottom-4 left-1/2 z-shell flex -translate-x-1/2 items-center gap-3 rounded-control border border-line bg-panel px-4 py-2.5 text-sm shadow-xl">
       <MailCheck size={16} className="shrink-0 text-accent-text" />
       <span className="text-fg-muted">Confirme seu e-mail pra criar servidores e ganhar seus convites.</span>
       <button type="button" onClick={onOpen} className="font-medium text-accent-text hover:underline">

@@ -174,7 +174,7 @@ export function CallPopover({
         role="dialog"
         aria-label={label}
         style={{ ...style, width: shown }}
-        className={`fixed z-[55] space-y-3 overflow-y-auto p-3 text-sm ${menuClass}`}
+        className={`fixed z-popover space-y-3 overflow-y-auto p-3 text-sm ${menuClass}`}
       >
         {children}
         {onSettings && (

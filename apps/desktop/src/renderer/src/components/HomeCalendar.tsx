@@ -147,7 +147,7 @@ export function HomeCalendar({ onClose }: { onClose(): void }): ReactNode {
         title="Fechar calendário"
         aria-label="Fechar calendário"
         onClick={onClose}
-        className="absolute right-2 top-2 z-20 rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
+        className="absolute right-2 top-2 z-drawer rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
       >
         <X size={18} />
       </button>

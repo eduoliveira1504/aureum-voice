@@ -7,8 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import type { ProfileGif } from '../lib/api'
 import { useGifs, type KlipyItem } from '../store/gifs'
+import { isAbove } from '../test/layers'
 import { ContextMenuHost } from './ContextMenu'
 import { CroppedImageRow } from './ImageCropper'
+import { Modal } from './Modal'
 
 const MP4 = 'https://static.klipy.com/ii/abc/md.mp4'
 const STILL = 'https://static.klipy.com/ii/abc/md.jpg'
@@ -143,5 +145,58 @@ describe('Alterar avatar / banner', () => {
     const [path, options] = call.mock.calls.at(-1) as [string, { method: string; body: api.ImageCrop }]
     expect(path).toBe('/users/me/avatar/crop')
     expect(options.body).toEqual(current.crop)
+  })
+})
+
+/** Block 4.1.1: in the app the menu host is mounted BEFORE Editar perfil (AppShell), and the menu
+ * opened behind the modal, so "Escolher um GIF" couldn't be clicked. */
+describe('Alterar avatar inside Editar perfil', () => {
+  const closeProfile = vi.fn()
+
+  function inProfile(): void {
+    closeProfile.mockClear()
+    render(
+      <>
+        <ContextMenuHost />
+        <Modal title="Editar perfil" tall onClose={closeProfile}>
+          <CroppedImageRow label="Avatar" shape="avatar" path="/users/me/avatar" hasImage={false} crop={null} gifs name="Ana" onDone={onDone} />
+        </Modal>
+      </>
+    )
+  }
+  const escape = (): void => {
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+  }
+
+  it('opens the menu over the profile modal', async () => {
+    inProfile()
+    await act(async () => {})
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar avatar' }))
+    expect(isAbove(screen.getByRole('menu'), screen.getByRole('dialog', { name: 'Editar perfil' }))).toBe(true)
+  })
+
+  it('Escape closes only the menu, not the profile', async () => {
+    inProfile()
+    await act(async () => {})
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar avatar' }))
+    escape()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(closeProfile).not.toHaveBeenCalled()
+  })
+
+  it('"Escolher um GIF" opens the picker over the profile, and Escape closes only the picker', async () => {
+    inProfile()
+    await act(async () => {})
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar avatar' }))
+    fireEvent.click(screen.getByText('Escolher um GIF'))
+    const picker = screen.getByRole('dialog', { name: 'Escolher um GIF' })
+    // Opened from inside the profile, so it stacks within it, over its content.
+    expect(screen.getByRole('dialog', { name: 'Editar perfil' }).contains(picker)).toBe(true)
+    await act(async () => {})
+    escape()
+    expect(screen.queryByRole('dialog', { name: 'Escolher um GIF' })).toBeNull()
+    expect(closeProfile).not.toHaveBeenCalled()
+    escape()
+    expect(closeProfile).toHaveBeenCalledOnce()
   })
 })

@@ -85,7 +85,7 @@ export function MessageActionBar({ message, actions }: { message: Message; actio
     <div
       role="toolbar"
       aria-label="Ações da mensagem"
-      className="absolute -top-4 right-4 z-10 hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-focus-within:flex group-hover:flex"
+      className="absolute -top-4 right-4 z-raised hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-focus-within:flex group-hover:flex"
     >
       {onReact && <BarButton icon={SmilePlus} label="Reagir" onClick={(target) => openMenuAt(target, () => <QuickReactions onPick={onReact} />)} />}
       {onReply && <BarButton icon={Reply} label="Responder" onClick={onReply} />}

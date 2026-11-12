@@ -97,7 +97,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
       onPointerDown={onPointerDown}
       onDragStart={(e) => e.preventDefault()}
       style={drag ? { left: drag.x, top: drag.y } : undefined}
-      className={`fixed z-30 w-80 cursor-grab touch-none select-none overflow-hidden rounded-panel border border-line bg-panel shadow-2xl active:cursor-grabbing ${
+      className={`fixed z-float w-80 cursor-grab touch-none select-none overflow-hidden rounded-panel border border-line bg-panel shadow-2xl active:cursor-grabbing ${
         drag ? '' : CORNER_CLASS[corner]
       }`}
     >

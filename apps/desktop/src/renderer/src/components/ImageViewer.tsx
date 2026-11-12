@@ -10,7 +10,7 @@ import { useImageMenu } from './ImageMenu'
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 
 /** The viewer opened from a message's images or from "Abrir imagem" (rendered once, in AppShell).
- * Under the right-click menu's layer (z-50), so the image's own menu opens over it. */
+ * Under the right-click menu's layer (z-popover), so the image's own menu opens over it. */
 export function ImageViewerHost(): ReactNode {
   const open = useImageViewer((s) => s.open)
   return open ? <ImageViewer images={open.images} start={open.start} onClose={closeImages} /> : null
@@ -103,7 +103,7 @@ function ImageViewer({ images, start, onClose }: { images: ViewableImage[]; star
 
   const tool = 'rounded-item p-2 text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-40'
   return createPortal(
-    <div className="app-no-drag fixed inset-0 z-[45] flex flex-col bg-scrim/90" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="app-no-drag fixed inset-0 z-viewer flex flex-col bg-scrim/90" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="pr-window-controls flex h-12 shrink-0 items-center gap-1 border-b border-line bg-panel pl-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{image.name}</p>

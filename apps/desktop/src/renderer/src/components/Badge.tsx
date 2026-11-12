@@ -88,7 +88,7 @@ function BadgeTooltip({ shown, anchor }: { shown: ShownBadge; anchor: DOMRect })
   const below = anchor.top < 180
   const style: CSSProperties = below ? { left, top: anchor.bottom + 8, width } : { left, bottom: window.innerHeight - anchor.top + 8, width }
   return createPortal(
-    <div role="tooltip" style={style} className="pointer-events-none fixed z-[60] rounded-control border border-line bg-main p-3 shadow-xl">
+    <div role="tooltip" style={style} className="pointer-events-none fixed z-tooltip rounded-control border border-line bg-main p-3 shadow-xl">
       <div className="flex items-center gap-3">
         <BadgeIcon shown={shown} size={56} shine="always" />
         <div className="min-w-0">
@@ -169,7 +169,7 @@ function WithHint({ hint, children }: { hint: string; children: ReactNode }): Re
           <div
             role="tooltip"
             style={{ left: anchor.left + anchor.width / 2, top: anchor.top < 48 ? anchor.bottom + 8 : anchor.top - 8 }}
-            className={`pointer-events-none fixed z-[60] -translate-x-1/2 ${anchor.top < 48 ? '' : '-translate-y-full'} whitespace-nowrap rounded-item border border-line bg-main px-2 py-1 text-xs font-medium text-fg shadow-xl`}
+            className={`pointer-events-none fixed z-tooltip -translate-x-1/2 ${anchor.top < 48 ? '' : '-translate-y-full'} whitespace-nowrap rounded-item border border-line bg-main px-2 py-1 text-xs font-medium text-fg shadow-xl`}
           >
             {hint}
           </div>,
