@@ -3,7 +3,7 @@ from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, account_state, badges, bot, codes, mail, onboarding, ratelimit
+from app import account_deletion, account_invites, account_state, badges, bot, codes, mail, onboarding, ratelimit
 from app.accounts import is_reserved, looks_official
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep, SignedInUser
@@ -102,7 +102,7 @@ async def username_available(request: Request, session: SessionDep, username: st
         return UsernameCheck(available=False, reason="invalid")
     if is_reserved(name):
         return UsernameCheck(available=False, reason="reserved")
-    if await session.scalar(select(User.id).where(User.username == name)):
+    if await session.scalar(select(User.id).where(User.username == name)) or await account_deletion.username_held(session, name):
         return UsernameCheck(available=False, reason="taken")
     return UsernameCheck(available=True)
 
@@ -127,6 +127,9 @@ async def register(body: RegisterRequest, request: Request, session: SessionDep)
 
     if is_reserved(body.username):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This username is reserved")
+    if await account_deletion.username_held(session, body.username):
+        # A deleted account's @, held for a while: same answer as a taken one.
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This username is already taken")
     if looks_official(body.display_name or ""):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=OFFICIAL_NAME)
     existing = await session.scalar(

@@ -12,6 +12,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 _bearer = HTTPBearer(auto_error=False)
 PASSWORD_CHANGE_REQUIRED = "Password change required"
+DELETION_SCHEDULED = "Account deletion scheduled"
 
 
 async def get_signed_in_user(
@@ -43,6 +44,10 @@ async def get_current_user(user: SignedInUser) -> User:
     if user.must_change_password:
         # The app shows the "choose a new password" screen on this exact detail.
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=PASSWORD_CHANGE_REQUIRED)
+    if user.deletion_due_at is not None:
+        # Signed in during the 30 days before deletion: only "Cancelar exclusão" (or signing
+        # out) until it's cancelled. The app reads deletion_due_at from GET /users/me.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=DELETION_SCHEDULED)
     return user
 
 

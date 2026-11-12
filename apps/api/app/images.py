@@ -65,6 +65,11 @@ async def _store_cropped(data: bytes, prefix: str, crop: ImageCrop, kind: str) -
     return key
 
 
+def stored_keys(url: str | None, source: dict[str, Any] | None) -> set[str]:
+    """The stored files behind an image (its shown version and the kept original)."""
+    return _keys(url, source)
+
+
 def _keys(url: str | None, source: dict[str, Any] | None) -> set[str]:
     keys = {source["key"]} if source and "key" in source else set()  # a provider's GIF has none
     if key := storage.key_from_url(url):

@@ -115,6 +115,16 @@ class PasswordConfirm(BaseModel):
     password: str = Field(max_length=128)
 
 
+class DeletionRequest(PasswordConfirm):
+    code: str = Field(max_length=20)
+    # "Apagar também minhas mensagens": also their attachments.
+    delete_messages: bool = False
+
+
+class DeletionOut(BaseModel):
+    deletion_due_at: datetime
+
+
 class ChangeEmail(BaseModel):
     email: LowerEmail
     password: str
@@ -331,6 +341,8 @@ class UserMe(UserPublic):
     email_verified_at: datetime | None = None
     # A temporary password from the CLI: the app asks for a new one before anything else.
     must_change_password: bool = False
+    # Deletion asked for (block 4.2.2): the app shows only "Cancelar exclusão" until this date.
+    deletion_due_at: datetime | None = None
     # Set when the image was cropped in the app: the original is kept so it can be re-cropped.
     avatar_crop: ImageCrop | None = None
     banner_crop: ImageCrop | None = None

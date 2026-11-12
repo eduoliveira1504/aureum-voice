@@ -76,6 +76,15 @@ CODES = {
         warning="Não foi você que pediu? Pode ignorar este e-mail, nada muda sem o código.",
         reason="Você recebeu este e-mail porque alguém quer usar no Aureum o endereço",
     ),
+    "code_delete_account": _Code(
+        subject="Código para excluir sua conta: {codigo}",
+        preheader="Seu código para excluir a conta do Aureum: vale por 15 minutos.",
+        eyebrow="EXCLUSÃO DE CONTA",
+        title="Seu código para excluir a conta",
+        intro="Digite este código no Aureum para confirmar a exclusão da sua conta, {nome}. Ela fica desativada por 30 dias antes de ser apagada, e dá pra cancelar nesse prazo.",
+        warning="Não foi você que pediu? Pode ignorar este e-mail: nada acontece sem o código. Vale trocar sua senha.",
+        reason="Você recebeu este e-mail porque alguém pediu pra excluir a conta do Aureum ligada a",
+    ),
 }
 
 
@@ -151,9 +160,34 @@ HELP = "Use “Esqueci minha senha” na tela de entrada do Aureum pra recuperar
 
 def _notice(template: str, p: dict[str, Any]) -> tuple[dict[str, Any], str]:
     when = p["quando"]  # formatted by whoever queues it, in Brasília time
+    account = f"<b style='color:#F4EFE4'>@{html.escape(p['username'])}</b>"
+    help_text = HELP
     if template == "notice_password":
-        title, details = "Sua senha foi trocada", f"A senha da sua conta <b style='color:#F4EFE4'>@{html.escape(p['username'])}</b> foi trocada em {html.escape(when)}. As outras sessões foram encerradas."
+        title, details = "Sua senha foi trocada", f"A senha da sua conta {account} foi trocada em {html.escape(when)}. As outras sessões foram encerradas."
         plain = f"A senha da sua conta @{p['username']} foi trocada em {when}. As outras sessões foram encerradas."
+    elif template == "notice_deletion_scheduled":
+        title = "Sua conta vai ser excluída"
+        details = (
+            f"A exclusão da conta {account} foi pedida em {html.escape(when)}. Ela já está desativada e vai ser apagada "
+            f"em <b style='color:#F4EFE4'>{html.escape(p['prazo'])}</b>. Até lá, é só entrar no Aureum com seu e-mail e senha "
+            "e escolher “Cancelar exclusão” pra ter tudo de volta."
+        )
+        plain = (
+            f"A exclusão da conta @{p['username']} foi pedida em {when}. Ela já está desativada e vai ser apagada em "
+            f"{p['prazo']}. Até lá, é só entrar no Aureum com seu e-mail e senha e escolher “Cancelar exclusão”."
+        )
+        help_text = "Entre no Aureum com seu e-mail e senha e escolha “Cancelar exclusão”. Depois, troque sua senha."
+    elif template == "notice_deleted":
+        title = "Sua conta foi excluída"
+        details = (
+            f"A conta {account} foi apagada em {html.escape(when)}, como pedido. Perfil, fotos, amizades e sessões não "
+            "existem mais. Se quiser voltar um dia, é só criar uma conta nova."
+        )
+        plain = (
+            f"A conta @{p['username']} foi apagada em {when}, como pedido. Perfil, fotos, amizades e sessões não existem "
+            "mais. Se quiser voltar um dia, é só criar uma conta nova."
+        )
+        help_text = "Responda este e-mail que a gente ajuda."
     else:
         title = "O e-mail da sua conta foi trocado"
         details = (
@@ -165,14 +199,15 @@ def _notice(template: str, p: dict[str, Any]) -> tuple[dict[str, Any], str]:
         "subject": title, "preheader": plain, "eyebrow": "AVISO DE SEGURANÇA", "title": title,
         "intro": f"Oi, {p['nome']}. Estamos avisando porque foi uma mudança importante na sua conta.",
         "reason": "Você recebeu este e-mail porque este é o endereço da sua conta no Aureum:"
-        if template == "notice_password" else "Você recebeu este e-mail porque este era o endereço da sua conta no Aureum:",
-        "details": details, "help": HELP,
+        if template in ("notice_password", "notice_deletion_scheduled") else "Você recebeu este e-mail porque este era o endereço da sua conta no Aureum:",
+        "details": details, "help": help_text,
     }
     values["body"] = fill(_template("notice"), values)
-    return values, f"{title}\n\n{values['intro']}\n\n{plain}\n\nFoi você? Então está tudo certo.\nNão foi? {HELP}"
+    return values, f"{title}\n\n{values['intro']}\n\n{plain}\n\nFoi você? Então está tudo certo.\nNão foi? {help_text}"
 
 
-NAMES = (*CODES, "welcome", "notice_password", "notice_email")
+NOTICES = ("notice_password", "notice_email", "notice_deletion_scheduled", "notice_deleted")
+NAMES = (*CODES, "welcome", *NOTICES)
 
 
 async def render(template: str, to: str, params: dict[str, Any]) -> Email:
@@ -180,7 +215,7 @@ async def render(template: str, to: str, params: dict[str, Any]) -> Email:
         values, text = _code(template, params)
     elif template == "welcome":
         values, text = await _welcome(params)
-    elif template in ("notice_password", "notice_email"):
+    elif template in NOTICES:
         values, text = _notice(template, params)
     else:
         raise KeyError(template)

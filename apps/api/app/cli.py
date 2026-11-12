@@ -50,7 +50,7 @@ from fastapi import HTTPException
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 
-from app import account_invites, badges as badge_rules, bot, onboarding, stickers
+from app import account_deletion, account_invites, badges as badge_rules, bot, onboarding, stickers
 from app.bot import broadcast
 from app.config import get_settings
 from app.db import SessionLocal
@@ -177,6 +177,9 @@ async def create_user(
         if taken is not None:
             field = "username" if taken.username == username else "e-mail"
             print(f"That {field} is already taken", file=sys.stderr)
+            return 1
+        if await account_deletion.username_held(session, username):
+            print("That username belonged to a deleted account and is held for now", file=sys.stderr)
             return 1
         user = User(
             username=username, email=email, display_name=display_name, password_hash=hash_password(secret),

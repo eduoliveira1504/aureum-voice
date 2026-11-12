@@ -223,7 +223,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(""), devic
         async with SessionLocal() as session:
             user = await session.get(User, claims.user_id)
             # Ended sessions and accounts that must first replace their password get nothing.
-            if user is None or user.session_epoch != claims.epoch or user.must_change_password:
+            if user is None or user.session_epoch != claims.epoch or user.must_change_password or user.deletion_due_at:
                 user_id = None
             elif settings := await session.get(UserSettings, user.id):
                 chosen = settings.status
