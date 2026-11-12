@@ -5,6 +5,10 @@ import { sendRealtime } from './realtime'
  * process detects. Only the name is sent, and only when it changes.
  */
 
+// The API lets an activity go after 5 minutes without a report (block 4.1.3), so while playing
+// it's confirmed again this often: if the app closes or loses the connection, it disappears.
+export const RECONFIRM_MS = 120_000
+
 let detected: string | null = null
 let manual: string | null = null
 let sent: string | null | undefined
@@ -28,8 +32,12 @@ export function startActivityReporting(): () => void {
     detected = game
     report()
   })
+  const reconfirm = setInterval(() => {
+    if (manual ?? detected) report(true)
+  }, RECONFIRM_MS)
   return () => {
     stop()
+    clearInterval(reconfirm)
     sent = undefined
   }
 }
