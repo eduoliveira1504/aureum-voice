@@ -153,7 +153,18 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Copied into every token; bumping it ends all sessions (password changed or reset).
     session_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Account states (block 4.2.2, app/account_deletion.py): active -> deactivated (signing in
+    # again reactivates) -> deletion scheduled (deactivated, deleted at deletion_due_at unless
+    # cancelled) -> deleted (the row is gone).
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deletion_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # Picked when asking for deletion: also delete their messages and attachments.
+    delete_messages: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = _created_at()
+
+    @property
+    def is_active(self) -> bool:
+        return self.deactivated_at is None
 
     # Badges the user holds (see app/badges.py), loaded with the user: every profile shows them.
     badge_grants: Mapped[list["UserBadge"]] = relationship(
@@ -870,6 +881,7 @@ class EmailCodePurpose(str, enum.Enum):
     verify = "verify"  # confirm the sign-up e-mail
     reset = "reset"  # forgot the password
     change_email = "change_email"  # confirm a new address (Editar perfil › Conta)
+    delete_account = "delete_account"  # confirm asking for the account's deletion
 
 
 class EmailCode(Base):
@@ -926,6 +938,16 @@ class AccountInviteUse(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(lazy="joined")
+
+
+class ReleasedUsername(Base):
+    """The @ of a deleted account, held for a while so nobody takes it to pass for that person
+    (block 4.2.2). Only an HMAC of the name is kept, never the name itself."""
+
+    __tablename__ = "released_usernames"
+
+    username_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    held_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
 
 class PioneerNumber(Base):
