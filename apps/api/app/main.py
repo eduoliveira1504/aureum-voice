@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.moved import ServerMovedMiddleware
 from app.realtime import broker
-from app.routers import addons, auth, badges as badges_router, bug_reports, calls, categories, channels, dms, friends, gifs, home, moderation, public, roles, servers, soundboard, stickers, users, web, ws
+from app.routers import account, addons, auth, badges as badges_router, bug_reports, calls, categories, channels, dms, friends, gifs, home, moderation, public, roles, servers, soundboard, stickers, users, web, ws
 
 settings = get_settings()
 
@@ -69,6 +69,7 @@ app.add_middleware(ServerMovedMiddleware)
 
 api = APIRouter(prefix="/api")
 api.include_router(auth.router)
+api.include_router(account.router)
 api.include_router(users.router)
 api.include_router(home.router)
 # Before media_router, whose /media/{key:path} would match its screenshot route.

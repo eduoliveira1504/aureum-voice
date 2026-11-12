@@ -49,6 +49,12 @@ async def _announce(session: AsyncSession, row: Friendship) -> None:
         await broker.publish("friend.updated", out.model_dump(mode="json"), [viewer])
 
 
+async def announce_to(session: AsyncSession, row: Friendship, viewer: uuid.UUID) -> None:
+    """Sends one side its view of the row (an account coming back from deactivation)."""
+    out = await _out(session, row, viewer)
+    await broker.publish("friend.updated", out.model_dump(mode="json"), [viewer])
+
+
 async def _announce_removed(viewer: uuid.UUID, other: uuid.UUID) -> None:
     await broker.publish("friend.removed", {"user_id": str(other)}, [viewer])
 
@@ -74,8 +80,21 @@ async def list_friends(user: CurrentUser, session: SessionDep) -> list[FriendOut
         )
     )
     rows = list(rows)
+    users = {
+        u.id: u
+        for u in await session.scalars(
+            select(User).where(
+                User.id.in_({r.addressee_id if r.requester_id == user.id else r.requester_id for r in rows})
+            )
+        )
+    }
+    # Deactivated accounts leave the list until they come back (blocks stay listed).
+    rows = [
+        r for r in rows
+        if r.status == FriendshipStatus.blocked
+        or users[r.addressee_id if r.requester_id == user.id else r.requester_id].is_active
+    ]
     others = [r.addressee_id if r.requester_id == user.id else r.requester_id for r in rows]
-    users = {u.id: u for u in await session.scalars(select(User).where(User.id.in_(others)))}
     statuses = await presence.statuses(others)
     out = []
     for row, other in zip(rows, others, strict=True):
@@ -97,7 +116,8 @@ async def send_request(body: FriendRequest, user: CurrentUser, session: SessionD
     await ratelimit.hit(f"friend-request:{user.id}", *REQUESTS_PER_USER)
     username = body.username.removeprefix("@").lower()
     other = await session.scalar(select(User).where(User.username == username))
-    if other is None:
+    # A deactivated account looks like no account at all.
+    if other is None or not other.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No user with that username")
     if other.id == user.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="You can't add yourself")

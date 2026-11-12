@@ -3,7 +3,7 @@ from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
-from app import account_invites, badges, bot, codes, mail, onboarding, ratelimit
+from app import account_invites, account_state, badges, bot, codes, mail, onboarding, ratelimit
 from app.accounts import is_reserved, looks_official
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep, SignedInUser
@@ -233,6 +233,9 @@ async def login(body: LoginRequest, request: Request, session: SessionDep) -> To
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
         await session.commit()
+    if user.deactivated_at is not None and user.deletion_due_at is None:
+        # Signing in is what reactivates a deactivated account.
+        await account_state.reactivate(session, user)
     tokens = token_pair(user)
     # An install that never signed in to this account: a notice in the official DM.
     if await bot.seen_device(user.id, body.device_id):

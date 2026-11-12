@@ -111,6 +111,10 @@ class ChangePassword(BaseModel):
     new_password: Password
 
 
+class PasswordConfirm(BaseModel):
+    password: str = Field(max_length=128)
+
+
 class ChangeEmail(BaseModel):
     email: LowerEmail
     password: str
@@ -300,12 +304,26 @@ class UserPublic(BaseModel):
     is_verified: bool = False
     is_bot: bool = False
     created_at: datetime
+    # A deactivated account (block 4.2.2): only its name and avatar are shown, as "Conta
+    # desativada"; the profile doesn't open.
+    deactivated: bool = False
 
     @field_validator("custom_status", mode="after")
     @classmethod
     def _hide_expired(cls, value: CustomStatus | None) -> CustomStatus | None:
         # Expired statuses stay in the database until replaced; nobody sees them.
         return None if value is not None and value.expired() else value
+
+    @model_validator(mode="after")
+    def _hide_deactivated_profile(self) -> "UserPublic":
+        # Others see a deactivated account's name and avatar only. Not the account's own view.
+        if self.deactivated and type(self) is UserPublic:
+            self.banner_url = self.banner_gif = self.bio = self.pronouns = None
+            self.custom_status = self.favorite_song = self.accent_color = None
+            self.avatar_frame = "none"
+            self.links = []
+            self.badges = []
+        return self
 
 
 class UserMe(UserPublic):

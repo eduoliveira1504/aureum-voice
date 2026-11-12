@@ -166,6 +166,10 @@ class User(Base):
     def is_active(self) -> bool:
         return self.deactivated_at is None
 
+    @property
+    def deactivated(self) -> bool:
+        return self.deactivated_at is not None
+
     # Badges the user holds (see app/badges.py), loaded with the user: every profile shows them.
     badge_grants: Mapped[list["UserBadge"]] = relationship(
         lazy="selectin", foreign_keys="UserBadge.user_id", order_by="UserBadge.granted_at",

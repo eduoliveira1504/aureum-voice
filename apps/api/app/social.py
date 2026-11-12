@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Friendship, FriendshipStatus
+from app.models import Friendship, FriendshipStatus, User
 
 
 def between(a: uuid.UUID, b: uuid.UUID):  # noqa: ANN202
@@ -36,13 +36,17 @@ async def blocked_either_way(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) 
 
 
 async def friend_ids(session: AsyncSession, user_id: uuid.UUID) -> set[uuid.UUID]:
+    """Friends with an active account: deactivated ones can't be messaged, grouped or called."""
     rows = await session.execute(
         select(Friendship.requester_id, Friendship.addressee_id).where(
             Friendship.status == FriendshipStatus.accepted,
             or_(Friendship.requester_id == user_id, Friendship.addressee_id == user_id),
         )
     )
-    return {b if a == user_id else a for a, b in rows}
+    ids = {b if a == user_id else a for a, b in rows}
+    if not ids:
+        return ids
+    return set(await session.scalars(select(User.id).where(User.id.in_(ids), User.deactivated_at.is_(None))))
 
 
 async def blocked_by_or_blocking(session: AsyncSession, user_id: uuid.UUID) -> set[uuid.UUID]:
