@@ -16,6 +16,7 @@ import { Panels } from '../components/Panels'
 import { openReportProblem } from '../components/ReportProblem'
 import { Sidebar } from '../components/Sidebar'
 import { TopBar } from '../components/TopBar'
+import { UpdateBar } from '../components/UpdateBar'
 import { TourHost } from '../components/TourHost'
 import { CallView, VoiceView } from '../components/VoiceView'
 import type { Me } from '../lib/api'
@@ -132,6 +133,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
         </div>
       )}
       <TopBar me={user} />
+      <UpdateBar />
       <div className="relative flex min-h-0 flex-1 bg-panel">
         <Sidebar server={server ?? null} me={user} />
         {server ? <Panels server={server} me={user} /> : <HomeView me={user} />}

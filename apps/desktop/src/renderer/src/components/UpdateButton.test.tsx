@@ -13,7 +13,7 @@ afterEach(() => {
 
 function mockUpdates(state: UpdateState): { install: ReturnType<typeof vi.fn> } {
   const install = vi.fn(async () => {})
-  window.aureum.updates = { getState: async () => state, install, onReady: () => () => {} }
+  window.aureum.updates = { getState: async () => state, check: async () => {}, install, onReady: () => () => {} }
   return { install }
 }
 

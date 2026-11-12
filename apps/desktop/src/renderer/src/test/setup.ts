@@ -19,7 +19,7 @@ const bridge = {
   callWindow: { getPinned: async () => true, setPinned: vi.fn(async () => {}), move: vi.fn(async () => {}) },
   app: { info: async () => ({ version: '0.0.0-test', os: 'Test OS' }), recentLogs: async () => '', onReportProblem: unsubscribe, ready: async () => {} },
   ptt: { watch: async () => true, onHeld: unsubscribe },
-  updates: { getState: async () => ({ ready: false, version: null }), install: async () => {}, onReady: unsubscribe },
+  updates: { getState: async () => ({ ready: false, version: null }), check: async () => {}, install: async () => {}, onReady: unsubscribe },
   tray: { setState: async () => {}, onCommand: unsubscribe },
   system: { idleSeconds: async () => 0 },
   games: {
