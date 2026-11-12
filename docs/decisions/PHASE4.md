@@ -13,8 +13,8 @@ O Eduardo decide quando gerar release. Ao terminar um bloco, marcar ✅ neste ar
 linha de Status (no mesmo commit de docs do bloco).
 Antes de corrigir qualquer bug: explicar a causa ao Eduardo.
 
-Status: 4.1.1 pronto em 12/11 (teste manual pendente). Próximo: 4.1.2, 4.1.3 e 4.1.4; depois a release
-0.2.0-beta.11 (só com a 4.1) e a 4.2.
+Status: 4.1.1 e 4.1.2 prontos em 12/11 (teste manual pendente; escolhas do 4.1.2 em 0047-voice-devices.md).
+Próximo: 4.1.3 e 4.1.4; depois a release 0.2.0-beta.11 (só com a 4.1) e a 4.2.
 
 ## Regras de produção (valem para todos os blocos)
 - Os dados são de gente de verdade. Antes de qualquer migração em produção: pg_dump com data no nome,
@@ -61,7 +61,20 @@ um GIF" é outro `Modal` (z-50), aberto de dentro do perfil.
 - Teste: Editar perfil, abrir o menu e conferir que fica acima do modal; "Escolher um GIF" abre o
   seletor acima do perfil; Esc fecha só o de cima.
 
-## 4.1.2 Call mostra no máximo 4 pessoas
+## 4.1.2 Call mostra no máximo 4 pessoas ✅ concluído (teste manual pendente)
+Feito: o Eduardo viu só 4 na lista da sala na barra lateral. Não havia limite: a lista é o estado
+de voz que cada app informa à API, e dois jeitos tiravam quem ainda estava falando (reproduzidos nos
+testes da API): a mesma conta com o app aberto em outro aparelho (o app parado avisa "não estou em
+call" ao conectar; era o caso da amiga que sumiu) e a conexão que fica muda (a API tirava na hora, e o
+app nem percebia que a conexão tinha morrido). Agora o aparelho que entrou é o dono da vaga; entrar
+por outro aparelho passa a chamada para ele, e o aparelho parado mostra "Você está nesta chamada pelo
+outro dispositivo" com "Entrar por aqui"; quem cai tem 20 s para voltar (60 s depois de reiniciar a
+API); o app reconecta quando a conexão fica muda e reenvia o estado a cada minuto; recarregar o
+servidor não apaga quem entrou nesse meio-tempo. Compatível com o app da beta.10. Ver
+0047-voice-devices.md. Sem migração.
+Teste manual: duas instâncias com a mesma conta (perfis dev e dev2): entrar numa sala por uma, a
+outra mostra o aviso e a sala continua listando a pessoa; "Entrar por aqui" passa a chamada, e a
+primeira sai com "A chamada continuou no seu outro dispositivo"; com 5 pessoas, as 5 aparecem.
 Sintoma (Eduardo): com 5 amigos na call, só 4 apareciam.
 Pista no código: o layout da call (`columns()` em VoiceView.tsx) NÃO limita a 4. Só o cartão do
 Início (HomeHub.tsx) mostra 4 avatares + "+N". A causa está em outro lugar.
