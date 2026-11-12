@@ -1,6 +1,7 @@
 import {
   AudioPresets,
   ConnectionState,
+  DisconnectReason,
   Room,
   RoomEvent,
   Track,
@@ -90,6 +91,8 @@ export function micCapture(prefs = loadMediaPrefs()): AudioCaptureOptions {
 // Push-to-talk: in that mode the mic only opens while the key is held (read by the main process,
 // see lib/pushToTalk.ts). The release waits a moment so the end of a word isn't cut off.
 const PTT_RELEASE_MS = 200
+// How often our voice state is sent again during a call (see reannounce).
+const REANNOUNCE_MS = 60_000
 let pttHeld = false
 let pttRelease: ReturnType<typeof setTimeout> | null = null
 
@@ -267,6 +270,8 @@ interface VoiceStore {
   stopBoardSound(): void
   /** Re-sends our voice state (after the WebSocket reconnects). */
   announce(): void
+  /** The call went to another device of this account: leave here without telling the API. */
+  handOff(): void
   clearError(): void
 }
 
@@ -483,7 +488,12 @@ export const useVoice = create<VoiceStore>()((set, get) => {
     if (s.devices && s.devices !== prev.devices) void onDevicesChanged(s.devices, prev.devices)
   })
 
+  // While in a call our state is sent again every minute, so the room's list heals by itself if
+  // the API ever lost it.
+  let reannounce: ReturnType<typeof setInterval> | undefined
+
   const reset = (error: string | null = null): void => {
+    clearInterval(reannounce)
     room = null
     stopBoard?.()
     activeSpeakers = []
@@ -560,8 +570,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       .on(RoomEvent.ParticipantPermissionsChanged, () => {
         if (isCurrent()) for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
       })
-      .on(RoomEvent.Disconnected, () => {
+      .on(RoomEvent.Disconnected, (reason) => {
         if (!isCurrent()) return // we left on purpose
+        // The same account joined this room from another device: the call is there now.
+        if (reason === DisconnectReason.DUPLICATE_IDENTITY) return get().handOff()
         playSound('call-leave')
         reset('Você foi desconectado da voz.')
         announce()
@@ -718,6 +730,8 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       for (const p of r.remoteParticipants.values()) syncSubscriptions(p)
 
       set({ phase: 'connected' })
+      clearInterval(reannounce)
+      reannounce = setInterval(announce, REANNOUNCE_MS)
       // Devices plugged in or out during the call (see onDevicesChanged).
       stopDeviceWatch = watchDevices()
       playSound('call-join')
@@ -741,6 +755,14 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
         announce()
       }
+    },
+
+    handOff: () => {
+      const r = room
+      if (!r) return
+      reset()
+      notify('A chamada continuou no seu outro dispositivo.')
+      void r.disconnect()
     },
 
     leave: async (quiet = false) => {

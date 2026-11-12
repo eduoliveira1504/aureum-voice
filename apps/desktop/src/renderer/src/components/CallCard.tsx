@@ -4,6 +4,7 @@ import {
   Mic,
   MicOff,
   MonitorOff,
+  MonitorSmartphone,
   MonitorUp,
   PhoneOff,
   PictureInPicture2,
@@ -196,7 +197,7 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
   useEffect(() => {
     if (notice) toast(notice.text)
   }, [notice])
-  if (!info || phase === 'idle') return null
+  if (!info || phase === 'idle') return <ElsewhereCard collapsed={collapsed} meId={meId} />
 
   // The floating window is optional: shown or hidden from here (it hides itself while the call
   // is on screen anyway).
@@ -260,6 +261,62 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
       <div className="mt-1.5 flex items-center justify-between">
         <CallButtons />
       </div>
+    </section>
+  )
+}
+
+/** A call this account is in on another device (the room lists it, this app isn't in it). */
+export function useCallElsewhere(meId: string): { serverId: string | null; channelId: string; room: string; place: string } | null {
+  const phase = useVoice((s) => s.phase)
+  const servers = useChat((s) => s.servers)
+  const dms = useSocial((s) => s.dms)
+  return useMemo(() => {
+    if (phase !== 'idle') return null
+    for (const server of Object.values(servers)) {
+      const mine = server.voice_states?.find((v) => v.user_id === meId)
+      if (mine) {
+        const room = server.channels.find((c) => c.id === mine.channel_id)?.name ?? ''
+        return { serverId: server.id, channelId: mine.channel_id, room, place: server.name }
+      }
+    }
+    for (const dm of Object.values(dms)) {
+      if (dm.call && dm.voice_states?.some((v) => v.user_id === meId)) {
+        return { serverId: null, channelId: dm.id, room: dmTitle(dm, meId), place: dm.type === 'dm' ? 'Mensagem direta' : 'Grupo' }
+      }
+    }
+    return null
+  }, [phase, servers, dms, meId])
+}
+
+/** "Você está nesta chamada pelo outro dispositivo", with a button to bring the call here. */
+function ElsewhereCard({ collapsed, meId }: { collapsed: boolean; meId: string }): ReactNode {
+  const call = useCallElsewhere(meId)
+  if (!call) return null
+  const bringHere = (): void => void useVoice.getState().join(call.serverId, call.channelId)
+  const title = `Na chamada em outro dispositivo · ${call.room}`
+  if (collapsed) {
+    return (
+      <div className="flex justify-center border-t border-line bg-rail/40 py-2">
+        <button type="button" title={`${title}. Entrar por aqui`} aria-label={`${title}. Entrar por aqui`} onClick={bringHere} className="rounded-item p-1.5 text-accent-text hover:bg-elevated">
+          <MonitorSmartphone size={18} />
+        </button>
+      </div>
+    )
+  }
+  return (
+    <section aria-label="Chamada em outro dispositivo" className="border-t border-line bg-rail/40 px-3 py-2.5">
+      <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-accent-text">
+        <MonitorSmartphone size={15} className="shrink-0" />
+        <span className="truncate">{call.room}</span>
+      </p>
+      <p className="mt-0.5 text-xs text-fg-subtle">Você está nesta chamada pelo outro dispositivo. Os outros continuam vendo você na sala.</p>
+      <button
+        type="button"
+        onClick={bringHere}
+        className="mt-2 w-full rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover"
+      >
+        Entrar por aqui
+      </button>
     </section>
   )
 }

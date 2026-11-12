@@ -8,11 +8,21 @@ export interface ServerEvent<T = any> {
 export type ConnectionStatus = 'connecting' | 'online' | 'offline'
 
 const PING_INTERVAL_MS = 25_000
+// No answer (not even the pong) for this long: the connection is dead even if the socket hasn't
+// noticed (a network change), so it's dropped and opened again.
+const SILENCE_LIMIT_MS = PING_INTERVAL_MS * 2 + 5_000
 const MAX_BACKOFF_MS = 30_000
 // Server close code for an invalid/expired token.
 const CLOSE_UNAUTHORIZED = 4401
 
 let active: Realtime | null = null
+
+/**
+ * This app run, for the API: with several devices on one account, the one that joined a call
+ * holds it (another device saying "not in a call" changes nothing). Random each run and never
+ * stored: a restart leaves any call anyway.
+ */
+export const DEVICE_ID = crypto.randomUUID()
 
 /** The connection of the signed-in session (set by the app shell). */
 export function setActiveRealtime(realtime: Realtime | null): void {
@@ -71,13 +81,19 @@ export class Realtime {
     if (!token) return this.onStatus('offline') // session is gone; the auth layer signs out
     this.forceRefresh = false
 
-    const ws = new WebSocket(`${getApiBaseUrl().replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`)
+    const ws = new WebSocket(`${getApiBaseUrl().replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}&device=${DEVICE_ID}`)
     this.ws = ws
+    let heardAt = Date.now()
 
     ws.onopen = () => {
-      this.pingTimer = setInterval(() => ws.send(JSON.stringify({ type: 'ping' })), PING_INTERVAL_MS)
+      heardAt = Date.now()
+      this.pingTimer = setInterval(() => {
+        if (Date.now() - heardAt > SILENCE_LIMIT_MS) return this.drop(ws)
+        ws.send(JSON.stringify({ type: 'ping' }))
+      }, PING_INTERVAL_MS)
     }
     ws.onmessage = (message) => {
+      heardAt = Date.now()
       const event = JSON.parse(message.data) as ServerEvent
       if (event.type === 'pong') return
       if (event.type === 'ready') {
@@ -94,6 +110,16 @@ export class Realtime {
       this.onStatus('connecting')
       this.scheduleRetry()
     }
+  }
+
+  /** Gives up on a silent connection and opens a new one (its state is re-sent on 'ready'). */
+  private drop(ws: WebSocket): void {
+    clearInterval(this.pingTimer)
+    if (this.ws !== ws) return
+    this.ws = null
+    ws.close()
+    this.onStatus('connecting')
+    this.scheduleRetry()
   }
 
   private scheduleRetry(): void {

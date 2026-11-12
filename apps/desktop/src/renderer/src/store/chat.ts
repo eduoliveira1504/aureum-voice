@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { api, type Channel, type Member, type Message, type Reaction, type ReadState, type Server, type ServerDetail } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
 import { channelGroups, stepId, withArrangement } from '../lib/channelOrder'
-import type { ConnectionStatus, ServerEvent } from '../lib/realtime'
+import { DEVICE_ID, type ConnectionStatus, type ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
 import { useAppearance } from './appearance'
 import { useNav } from './nav'
@@ -368,6 +368,7 @@ export const useChat = create<ChatState>()((set, get) => {
     },
 
     refreshServer: async (id) => {
+      const startedAt = serverMutations
       let detail: ServerDetail
       try {
         detail = await api<ServerDetail>(`/servers/${id}`)
@@ -375,6 +376,8 @@ export const useChat = create<ChatState>()((set, get) => {
         return // gone (kicked or deleted): its own event removes it
       }
       if (!get().servers[id]) return // left meanwhile
+      // Voice states that changed while this was on its way are newer than the response's.
+      if (startedAt !== serverMutations) detail = { ...detail, voice_states: get().servers[id].voice_states }
       const visible = new Set(detail.channels.map((c) => c.id))
       const hidden = (get().servers[id]?.channels ?? []).filter((c) => !visible.has(c.id)).map((c) => c.id)
       for (const channelId of hidden) useNav.getState().dropChannelTab(id, channelId)
@@ -517,6 +520,11 @@ export const useChat = create<ChatState>()((set, get) => {
           }
           break
         }
+        case 'voice.device':
+          // The call went to another device of this account (it joined there).
+          if (data.device !== DEVICE_ID && useVoice.getState().phase !== 'idle') useVoice.getState().handOff()
+          break
+
         case 'voice.moved':
           // A moderator moved us to another room of the server.
           if (useVoice.getState().serverId === data.server_id) void useVoice.getState().join(data.server_id, data.channel_id)
