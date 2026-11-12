@@ -24,4 +24,16 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
   vê "Configurações do servidor", e a janela abre sem nenhuma aba.
 - **Sugestão:** esconder o item quando nenhuma aba sobra. Caso raro, pequeno.
 
+### Conta escondida dentro de Editar perfil (4.2.2)
+- **Tela:** Editar perfil › Conta (e-mail, senha, desativar ou excluir conta).
+- **Problema:** para achar "Excluir conta" é preciso abrir o próprio cartão de perfil, ir em
+  Editar perfil e depois no botão Conta. Quem procura em Configurações não encontra.
+- **Sugestão:** em Configurações, um atalho "Conta e segurança" que abre esse mesmo painel.
+  Pequeno.
+
+### "Senha atual incorreta" fora da troca de senha (4.2.2)
+- **Tela:** desativar conta, excluir conta e trocar e-mail.
+- **Problema:** senha errada mostra "Senha atual incorreta.", texto pensado para a troca de senha.
+- **Sugestão:** "Senha incorreta." em todas as telas. Pequeno.
+
 ## Resolvidos

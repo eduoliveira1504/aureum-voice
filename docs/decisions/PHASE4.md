@@ -50,7 +50,17 @@ Enquetes em DM e grupo não mudam: não dependem de tipo de servidor.
 ### Testes
 Criar servidor de cada tipo; addon fora da lista recusado pela API e escondido na interface; tentativa de trocar o tipo recusada; servidores antigos viram Misto; placeholder correto.
 
-## 4.2.2 Desativar e excluir conta
+## 4.2.2 Desativar e excluir conta ✅ concluído (teste manual pendente)
+
+Ver docs/decisions/0049-account-deletion.md (inclui a tabela do que é apagado e do que fica).
+Decidido com o Eduardo: e-mail liberado na hora da exclusão; @ preso por 90 dias (só HMAC);
+"Passar a posse" novo em Configurações do servidor › Membros; conta desativada continua nos
+servidores, como "Conta desativada". A tela ficou em Editar perfil › Conta (a Conta saiu das
+Configurações num bloco anterior). A rotina confere de hora em hora, no processo da API.
+Dry-run do purge no banco de dev (12/11): 0 candidatas.
+Produção: backup, depois `alembic upgrade heads` (core d1f7b3c5e598: estados da conta, código
+delete_account, released_usernames) e reiniciar a API, com OK do Eduardo. Teste manual:
+desativar e reativar; excluir com conta de teste e cancelar; passar a posse.
 
 ### Estados da conta
 ativa → desativada (reversível) → exclusão agendada (30 dias) → excluída.
@@ -160,7 +170,6 @@ Addon só aparece em Jogo e Misto; fixar plano persiste e aparece no overlay; at
 - Domínio e identidade visual final.
 
 ## Perguntas em aberto
-- Nome de usuário e e-mail de conta excluída: liberar quando e por quanto tempo?
 - Barra de pesquisa global / Ctrl+K: fica fora da 4.2, certo?
 
 ## Pronto quando (Fase 4.2)
