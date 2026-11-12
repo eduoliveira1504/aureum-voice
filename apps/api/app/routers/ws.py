@@ -182,14 +182,15 @@ async def _handle_thumbnail(user_id: uuid.UUID, data: Any) -> None:
 ACTIVITY_NAME_MAX = 64
 
 
-async def _handle_activity(user_id: uuid.UUID, connection_id: str, data: Any) -> None:
+async def _handle_activity(user_id: uuid.UUID, connection_id: str, device: str | None, data: Any) -> None:
     """The client's PC started (name) or stopped (null) playing a game. Only the name is sent."""
     name = data.get("name") if isinstance(data, dict) else None
     if isinstance(name, str):
         name = " ".join(name.split())[:ACTIVITY_NAME_MAX] or None
     else:
         name = None
-    await presence.set_activity(user_id, connection_id, name)
+    # Apps with a device id re-confirm their activity every couple of minutes, so it can expire.
+    await presence.set_activity(user_id, connection_id, name, expires=device is not None)
     await presence.announce_activity(user_id)
 
 
@@ -275,7 +276,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(""), devic
                 await presence.set_idle(user_id, connection_id, idle)
                 await presence.announce(user_id)
             elif message.get("type") == "activity.set":
-                await _handle_activity(user_id, connection_id, message.get("data"))
+                await _handle_activity(user_id, connection_id, device_id, message.get("data"))
             elif isinstance(message.get("type"), str) and message["type"].startswith("addon."):
                 if error := await addons.handle_socket(websocket, user_id, message["type"], message.get("data")):
                     await _send_error(websocket, error)

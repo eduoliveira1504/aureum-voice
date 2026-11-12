@@ -11,8 +11,14 @@ there: they always show as online.
 Activities ("Jogando X") live here too: each connection reports the game its PC is running
 (only the name), and the user's activity is the most recently started one. They're never
 stored in the database and vanish with the connection; offline/invisible users have none.
+Only live connections count: an entry left behind by a connection that's gone (an API process
+that died before cleaning up) is ignored and deleted. Apps that send a device id re-confirm
+their activity every couple of minutes, and theirs expires without it; the sweeper takes
+expired and orphaned entries out and tells everyone. At startup no connection survives, so
+every stored activity is dropped.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -31,6 +37,11 @@ from app.realtime import broker
 from app.schemas import Presence
 
 log = logging.getLogger(__name__)
+
+# An activity that is re-confirmed (apps with a device id do it every 2 minutes) lasts this long
+# without a new report.
+ACTIVITY_TTL_SECONDS = 300
+ACTIVITY_SWEEP_SECONDS = 30
 
 
 def _key(kind: str, user_id: uuid.UUID) -> str:
@@ -54,17 +65,23 @@ async def forget_connection(user_id: uuid.UUID, connection_id: str) -> None:
     await broker.redis.hdel(_key("activity", user_id), connection_id)
 
 
-async def set_activity(user_id: uuid.UUID, connection_id: str, name: str | None) -> None:
+async def set_activity(user_id: uuid.UUID, connection_id: str, name: str | None, *, expires: bool = False) -> None:
     """Records what a connection is playing (None: nothing). The start time is kept while
-    the name stays the same, so "for 2h" survives repeated reports."""
+    the name stays the same, so "for 2h" survives repeated reports. With `expires` (an app that
+    re-confirms it), each report extends it by ACTIVITY_TTL_SECONDS."""
     key = _key("activity", user_id)
     if name is None:
         await broker.redis.hdel(key, connection_id)
         return
     previous = await broker.redis.hget(key, connection_id)
-    if previous is not None and json.loads(previous).get("name") == name:
-        return
-    activity = {"type": "playing", "name": name, "started_at": datetime.now(UTC).isoformat()}
+    started_at = datetime.now(UTC).isoformat()
+    if previous is not None and (old := json.loads(previous)).get("name") == name:
+        if not expires:
+            return
+        started_at = old["started_at"]
+    activity: dict[str, Any] = {"type": "playing", "name": name, "started_at": started_at}
+    if expires:
+        activity["expires_at"] = time.time() + ACTIVITY_TTL_SECONDS
     await broker.redis.hset(key, connection_id, json.dumps(activity))
 
 
@@ -114,26 +131,73 @@ async def statuses(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Presence]:
     return {u: "online" if u in bots else people[u] for u in ids}
 
 
+async def _current(user_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
+    """Each user's activity from their live, unexpired entries; the others are deleted."""
+    now = time.time()
+    async with broker.redis.pipeline(transaction=False) as pipe:
+        for user_id in user_ids:
+            pipe.hgetall(_key("activity", user_id))
+            pipe.zrangebyscore(broker.presence_key(user_id), now, "+inf")
+        raw = await pipe.execute()
+    found: dict[uuid.UUID, dict[str, Any]] = {}
+    for i, user_id in enumerate(user_ids):
+        entries, alive = raw[2 * i], set(raw[2 * i + 1])
+        valid = []
+        stale = []
+        for connection_id, value in entries.items():
+            activity = json.loads(value)
+            if connection_id in alive and activity.get("expires_at", now + 1) > now:
+                valid.append({k: v for k, v in activity.items() if k != "expires_at"})
+            else:
+                stale.append(connection_id)
+        if stale:
+            await broker.redis.hdel(_key("activity", user_id), *stale)
+        if valid:
+            found[user_id] = max(valid, key=lambda a: a["started_at"])
+    return found
+
+
 async def activities(user_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
     """Visible activity per user, only for users who have one and aren't offline."""
     ids = list(dict.fromkeys(user_ids))
     if not ids:
         return {}
     try:
-        async with broker.redis.pipeline(transaction=False) as pipe:
-            for user_id in ids:
-                pipe.hvals(_key("activity", user_id))
-            raw = await pipe.execute()
+        found = await _current(ids)
     except Exception:
         log.exception("Failed to read activities")
         return {}
-    found = {
-        user_id: max((json.loads(v) for v in values), key=lambda a: a["started_at"])
-        for user_id, values in zip(ids, raw, strict=True)
-        if values
-    }
     visible = await statuses(found)
     return {user_id: a for user_id, a in found.items() if visible[user_id] != "offline"}
+
+
+def _activity_prefix() -> str:
+    return _key("activity", uuid.UUID(int=0))[: -len(str(uuid.UUID(int=0)))]
+
+
+async def sweep_activities() -> None:
+    """Takes out expired and orphaned activities, telling everyone who sees those users."""
+    prefix = _activity_prefix()
+    async for key in broker.redis.scan_iter(match=f"{prefix}*"):
+        try:
+            await announce_activity(uuid.UUID(key[len(prefix) :]))  # reading drops stale entries
+        except Exception:
+            log.exception("Presence: could not sweep an activity")
+
+
+async def run_activity_sweeper() -> None:
+    """Runs for the life of the API process. Starts by dropping every stored activity: after a
+    restart no connection is left, and the apps re-send theirs when they reconnect."""
+    async for key in broker.redis.scan_iter(match=f"{_activity_prefix()}*"):
+        await broker.redis.delete(key)
+    while True:
+        await asyncio.sleep(ACTIVITY_SWEEP_SECONDS)
+        try:
+            await sweep_activities()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("Presence: activity sweep failed")
 
 
 async def announce_activity(user_id: uuid.UUID) -> None:
