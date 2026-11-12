@@ -404,6 +404,25 @@ export interface Server {
   banner_crop?: ImageCrop | null
   owner_id: string
   created_at: string
+  /** Locked at creation (block 4.2.1). Missing from older APIs. */
+  type?: ServerType
+  /** Addon keys and server features ("soundboard") the type allows. Missing from older APIs. */
+  addons?: string[]
+}
+
+export type ServerType = 'game' | 'work' | 'mixed'
+
+/** GET /server-types: what each type comes with, for the create screen. */
+export interface ServerTypeInfo {
+  type: ServerType
+  name: string
+  description: string
+  addons: string[]
+}
+
+/** Whether the server's type has this addon or feature. Older APIs don't say: everything is. */
+export function serverAllows(server: Pick<Server, 'addons'> | undefined, key: string): boolean {
+  return !server?.addons || server.addons.includes(key)
 }
 
 export interface VoiceState {

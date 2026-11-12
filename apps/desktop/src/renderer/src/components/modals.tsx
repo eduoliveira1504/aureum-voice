@@ -2,7 +2,16 @@ import { Check, Hash, Volume2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { addonModule } from '../addons/registry'
-import { api, ApiError, type AddonInfo, type Channel, type Invite, type ServerDetail } from '../lib/api'
+import {
+  api,
+  ApiError,
+  type AddonInfo,
+  type Channel,
+  type Invite,
+  type ServerDetail,
+  type ServerType,
+  type ServerTypeInfo
+} from '../lib/api'
 import { memberName } from '../lib/members'
 import { basePermissions, has, outranks, Perm, rankOf } from '../lib/permissions'
 import { channelGroups, defaultCategory } from '../lib/channelOrder'
@@ -32,19 +41,29 @@ export function AddServerModal({ initial = 'create', onClose }: { initial?: 'cre
   const addServer = useChat((s) => s.addServer)
   const [tab, setTab] = useState<'create' | 'join'>(initial)
   const [value, setValue] = useState('')
+  // null until loaded; [] when the API is too old to have types (it then makes a mixed server).
+  const [types, setTypes] = useState<ServerTypeInfo[] | null>(null)
+  const [type, setType] = useState<ServerType | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<ServerTypeInfo[]>('/server-types')
+      .then(setTypes)
+      .catch(() => setTypes([]))
+  }, [])
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
     const input = tab === 'create' ? value.trim() : parseInviteCode(value)
     if (!input) return setError(tab === 'create' ? 'Dê um nome ao servidor.' : 'Cole o código do convite.')
+    if (tab === 'create' && types?.length && !type) return setError('Escolha o tipo do servidor.')
     setBusy(true)
     setError(null)
     try {
       const server =
         tab === 'create'
-          ? await api<ServerDetail>('/servers', { method: 'POST', body: { name: input } })
+          ? await api<ServerDetail>('/servers', { method: 'POST', body: type ? { name: input, type } : { name: input } })
           : await api<ServerDetail>(`/invites/${encodeURIComponent(input)}/join`, { method: 'POST' })
       addServer(server)
       useNav.getState().openServer(server.id)
@@ -83,14 +102,53 @@ export function AddServerModal({ initial = 'create', onClose }: { initial?: 'cre
           label={tab === 'create' ? 'Nome do servidor' : 'Código do convite'}
           value={value}
           maxLength={tab === 'create' ? 100 : 200}
-          placeholder={tab === 'create' ? 'Ex.: Os Brabos' : 'Ex.: aB3dE9fG'}
+          placeholder={tab === 'create' ? '(Nome do servidor)' : 'Ex.: aB3dE9fG'}
           onChange={(e) => setValue(e.target.value)}
         />
+        {tab === 'create' && !!types?.length && <ServerTypePicker types={types} value={type} onChange={setType} />}
         <PrimaryButton type="submit" disabled={busy}>
           {busy ? 'Aguarde…' : tab === 'create' ? 'Criar' : 'Entrar no servidor'}
         </PrimaryButton>
       </form>
     </Modal>
+  )
+}
+
+/** The three type cards on the create screen; the texts come from the API (app/server_types.py). */
+function ServerTypePicker({
+  types,
+  value,
+  onChange
+}: {
+  types: ServerTypeInfo[]
+  value: ServerType | null
+  onChange(type: ServerType): void
+}): ReactNode {
+  return (
+    <div>
+      <span className={labelClass}>Tipo do servidor</span>
+      <div role="radiogroup" aria-label="Tipo do servidor" className="grid gap-2">
+        {types.map((t) => (
+          <label
+            key={t.type}
+            className={`flex cursor-pointer items-start gap-3 rounded-control border px-3 py-2.5 ${value === t.type ? 'border-accent bg-accent/10' : 'border-line bg-main hover:bg-elevated'}`}
+          >
+            <input
+              type="radio"
+              name="server-type"
+              checked={value === t.type}
+              onChange={() => onChange(t.type)}
+              className="mt-1 accent-accent"
+            />
+            <span className="min-w-0">
+              <span className="block font-medium">{t.name}</span>
+              <span className="block text-xs text-fg-subtle">{t.description}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-fg-subtle">O tipo não pode ser alterado depois.</p>
+    </div>
   )
 }
 
