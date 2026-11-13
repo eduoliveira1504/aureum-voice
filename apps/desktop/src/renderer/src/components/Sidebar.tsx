@@ -46,6 +46,7 @@ import { PickFriendsModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, menuClass, MenuItem, PresenceAvatar, ServerIcon, useDismiss } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
 import { Tip } from './Tour'
+import { t } from '../lib/i18n'
 
 type Dialog =
   | { kind: 'invite' }
@@ -84,7 +85,7 @@ export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me })
 function CollapseButton({ collapsed, onCollapse }: { collapsed: boolean; onCollapse?: (c: boolean) => void }): ReactNode {
   if (!onCollapse) return null
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose
-  const label = collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'
+  const label = collapsed ? t('nav.expand') : t('nav.collapse')
   return (
     <button
       type="button"
@@ -163,8 +164,8 @@ function Item({
         <span className="relative shrink-0">
           <Icon size={18} className={active ? 'opacity-100' : 'opacity-75'} />
           {locked && (
-            <span title="Canal privado" className="absolute -bottom-1 -right-1 rounded-full bg-panel p-px">
-              <Lock size={9} strokeWidth={3} aria-label="Canal privado" />
+            <span title={t('nav.private')} className="absolute -bottom-1 -right-1 rounded-full bg-panel p-px">
+              <Lock size={9} strokeWidth={3} aria-label={t('nav.private')} />
             </span>
           )}
           {dot && (
@@ -174,10 +175,10 @@ function Item({
           )}
         </span>
         {!collapsed && <span className="min-w-0 flex-1 truncate font-medium">{label}</span>}
-        {!collapsed && muted && <BellOff size={13} aria-label="Silenciado" className="shrink-0 text-fg-subtle" />}
+        {!collapsed && muted && <BellOff size={13} aria-label={t('nav.muted')} className="shrink-0 text-fg-subtle" />}
         {!collapsed && panelHint && (
-          <span title="Aberto no painel" className="shrink-0 rounded bg-main px-1 text-[10px] font-semibold text-fg-subtle">
-            painel {panelHint}
+          <span title={t('nav.inPanel')} className="shrink-0 rounded bg-main px-1 text-[10px] font-semibold text-fg-subtle">
+            {t('nav.panel', { n: panelHint })}
           </span>
         )}
         {!collapsed && badge}
@@ -216,7 +217,7 @@ function Section({
           {title}
         </button>
         {onAdd && (
-          <button type="button" title={addLabel ?? 'Criar'} aria-label={addLabel ?? `Criar em ${title}`} onClick={onAdd} className="text-fg-subtle hover:text-fg">
+          <button type="button" title={addLabel ?? t('nav.create')} aria-label={addLabel ?? t('nav.createIn', { place: title })} onClick={onAdd} className="text-fg-subtle hover:text-fg">
             <Plus size={16} />
           </button>
         )}
@@ -397,7 +398,7 @@ function CategorySection({
           <span className="truncate">{category.name}</span>
         </button>
         {onAdd && (
-          <button type="button" title="Criar canal" aria-label={`Criar canal em ${category.name}`} onClick={onAdd} className="shrink-0 text-fg-subtle hover:text-fg">
+          <button type="button" title={t('nav.createChannel')} aria-label={t('nav.createChannelIn', { category: category.name })} onClick={onAdd} className="shrink-0 text-fg-subtle hover:text-fg">
             <Plus size={16} />
           </button>
         )}
@@ -471,7 +472,7 @@ function ServerPlaces({
               dot={here.length ? 'success' : undefined}
               badge={
                 <span className="flex shrink-0 items-center gap-1.5">
-                  {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">AO VIVO</span>}
+                  {live && <span className="rounded bg-danger px-1 text-[10px] font-bold leading-4 text-on-danger">{t('nav.live')}</span>}
                   {here.length > 0 && <span className="text-xs tabular-nums text-fg-subtle">{here.length}</span>}
                 </span>
               }
@@ -530,7 +531,7 @@ function ServerPlaces({
       >
         <Item
           icon={LayoutDashboard}
-          label="Visão geral"
+          label={t('nav.overview')}
           collapsed={collapsed}
           active={placeOf('overview').active}
           panelHint={placeOf('overview').hint}
@@ -576,27 +577,27 @@ function ServerPlaces({
       {dialog?.kind === 'addon' && <CreateAddonModal serverId={server.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'leave' && (
         <ConfirmModal
-          title={`Sair de ${server.name}`}
-          message="Você só volta com um novo convite."
-          confirmLabel="Sair do servidor"
+          title={t('nav.leaveTitle', { name: server.name })}
+          message={t('nav.leaveConfirm')}
+          confirmLabel={t('nav.leaveServer')}
           onConfirm={() => api(`/servers/${server.id}/members/me`, { method: 'DELETE' })}
           onClose={() => setDialog(null)}
         />
       )}
       {dialog?.kind === 'delete' && (
         <ConfirmModal
-          title={`Excluir ${server.name}`}
-          message="Todos os canais e mensagens serão apagados para sempre."
-          confirmLabel="Excluir servidor"
+          title={t('nav.deleteTitle', { name: server.name })}
+          message={t('nav.deleteConfirm')}
+          confirmLabel={t('nav.deleteServer')}
           onConfirm={() => api(`/servers/${server.id}`, { method: 'DELETE' })}
           onClose={() => setDialog(null)}
         />
       )}
       {dialog?.kind === 'deleteChannel' && (
         <ConfirmModal
-          title={`Excluir ${dialog.channel.type === 'text' ? '#' : ''}${dialog.channel.name}`}
+          title={t('nav.deleteTitle', { name: `${dialog.channel.type === 'text' ? '#' : ''}${dialog.channel.name}` })}
           message={deleteChannelMessage(dialog.channel)}
-          confirmLabel="Excluir canal"
+          confirmLabel={t('nav.deleteChannel')}
           onConfirm={() => api(`/channels/${dialog.channel.id}`, { method: 'DELETE' })}
           onClose={() => setDialog(null)}
         />
@@ -623,8 +624,8 @@ function ChannelActions({
     <span className="hidden items-center pr-1 group-hover:flex">
       <button
         type="button"
-        title="Configurações do canal"
-        aria-label="Configurações do canal"
+        title={t('nav.channelSettings')}
+        aria-label={t('nav.channelSettings')}
         onClick={() => onPick({ kind: 'channelSettings', channel })}
         className="p-1 text-fg-subtle hover:text-fg"
       >
@@ -633,8 +634,8 @@ function ChannelActions({
       {canDelete && (
         <button
           type="button"
-          title="Excluir canal"
-          aria-label="Excluir canal"
+          title={t('nav.deleteChannel')}
+          aria-label={t('nav.deleteChannel')}
           onClick={() => onPick({ kind: 'deleteChannel', channel })}
           className="p-1 text-fg-subtle hover:text-danger"
         >
@@ -682,8 +683,8 @@ function ServerHeader({
     <button
       type="button"
       data-tour="menu-servidor"
-      title="Menu do servidor"
-      aria-label="Menu do servidor"
+      title={t('nav.serverMenu')}
+      aria-label={t('nav.serverMenu')}
       aria-expanded={open}
       onClick={() => setOpen((v) => !v)}
       className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
@@ -721,17 +722,17 @@ function ServerHeader({
       )}
       {open && (
         <div className={`${menuClass} absolute left-2 right-2 top-full mt-1 min-w-[200px]`}>
-          {canSettings && <MenuItem label="Configurações do servidor" onClick={pick({ kind: 'settings' })} />}
+          {canSettings && <MenuItem label={t('nav.serverSettings')} onClick={pick({ kind: 'settings' })} />}
           {/* Invites also create accounts, so @everyone can't hand them out by default. */}
-          {canInvite && <MenuItem label="Convidar pessoas" onClick={pick({ kind: 'invite' })} />}
-          {canCreate && <MenuItem label="Criar canal" onClick={pick({ kind: 'channel', type: 'text' })} />}
-          {canCreate && <MenuItem label="Criar categoria" onClick={pick({ kind: 'category' })} />}
-          {canAddAddons && <MenuItem label="Adicionar addon" onClick={pick({ kind: 'addon' })} />}
+          {canInvite && <MenuItem label={t('nav.invite')} onClick={pick({ kind: 'invite' })} />}
+          {canCreate && <MenuItem label={t('nav.createChannel')} onClick={pick({ kind: 'channel', type: 'text' })} />}
+          {canCreate && <MenuItem label={t('nav.createCategory')} onClick={pick({ kind: 'category' })} />}
+          {canAddAddons && <MenuItem label={t('nav.addAddon')} onClick={pick({ kind: 'addon' })} />}
           {(canSettings || canInvite || canCreate) && <div className="my-1 h-px bg-line" />}
           {isOwner ? (
-            <MenuItem label="Excluir servidor" danger onClick={pick({ kind: 'delete' })} />
+            <MenuItem label={t('nav.deleteServer')} danger onClick={pick({ kind: 'delete' })} />
           ) : (
-            <MenuItem label="Sair do servidor" danger onClick={pick({ kind: 'leave' })} />
+            <MenuItem label={t('nav.leaveServer')} danger onClick={pick({ kind: 'leave' })} />
           )}
         </div>
       )}
@@ -754,15 +755,15 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
   return (
     <>
       <div className={`flex border-b border-line ${collapsed ? 'flex-col items-center gap-1 py-2' : 'h-12 items-center pl-3 pr-1.5'}`}>
-        {!collapsed && <h2 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold">Início</h2>}
+        {!collapsed && <h2 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold">{t('nav.home')}</h2>}
         <CollapseButton collapsed={collapsed} onCollapse={onCollapse} />
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
         <div className="space-y-px">
-          <Item icon={House} label="Início" collapsed={collapsed} active={homePage === 'hub'} onClick={() => openHome('hub')} />
+          <Item icon={House} label={t('nav.home')} collapsed={collapsed} active={homePage === 'hub'} onClick={() => openHome('hub')} />
           <Item
             icon={Users}
-            label="Amigos"
+            label={t('nav.friends')}
             collapsed={collapsed}
             active={homePage === 'friends'}
             dot={collapsed && pending > 0 ? 'accent' : undefined}
@@ -770,7 +771,7 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
             onClick={() => openHome('friends')}
           />
         </div>
-        <Section title="Mensagens diretas" collapsed={collapsed} onAdd={() => setCreating(true)} addLabel="Novo grupo">
+        <Section title={t('nav.dms')} collapsed={collapsed} onAdd={() => setCreating(true)} addLabel={t('nav.newGroup')}>
           {list.map((dm) => (
             <DmItem
               key={dm.id}
@@ -782,13 +783,13 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
               onClose={() => (dm.type === 'dm' ? void useSocial.getState().closeDm(dm.id).catch(() => {}) : setLeaving(dm))}
             />
           ))}
-          {list.length === 0 && !collapsed && <p className="px-2 py-3 text-sm text-fg-subtle">Suas conversas e grupos aparecem aqui.</p>}
+          {list.length === 0 && !collapsed && <p className="px-2 py-3 text-sm text-fg-subtle">{t('nav.dmsEmpty')}</p>}
         </Section>
       </div>
       {creating && (
         <PickFriendsModal
-          title="Novo grupo"
-          confirmLabel="Criar grupo"
+          title={t('nav.newGroup')}
+          confirmLabel={t('nav.createGroup')}
           withName
           onConfirm={async (ids, name) => openHome((await createGroup(ids, name)).id)}
           onClose={() => setCreating(false)}
@@ -796,9 +797,9 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
       )}
       {leaving && (
         <ConfirmModal
-          title={`Sair de ${dmTitle(leaving, me.id)}`}
-          message="Você só volta se alguém do grupo te adicionar de novo."
-          confirmLabel="Sair do grupo"
+          title={t('nav.leaveTitle', { name: dmTitle(leaving, me.id) })}
+          message={t('nav.leaveGroupConfirm')}
+          confirmLabel={t('nav.leaveGroup')}
           onConfirm={() => useSocial.getState().closeDm(leaving.id)}
           onClose={() => setLeaving(null)}
         />
@@ -829,7 +830,7 @@ function DmItem({
   const status = useSocial((s) => (peer ? (s.presence[peer.id] ?? 'offline') : undefined))
   const title = dmTitle(dm, meId)
   const live = !!dm.call && dm.voice_states.length > 0
-  const closeLabel = dm.type === 'dm' ? 'Fechar conversa' : 'Sair do grupo'
+  const closeLabel = dm.type === 'dm' ? t('nav.closeDm') : t('nav.leaveGroup')
 
   return (
     <div
@@ -856,11 +857,11 @@ function DmItem({
         {!collapsed && (
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{title}</span>
-            {dm.type === 'group_dm' && <span className="block text-xs text-fg-subtle">{dm.members.length} pessoas</span>}
+            {dm.type === 'group_dm' && <span className="block text-xs text-fg-subtle">{t('nav.people', { count: dm.members.length })}</span>}
           </span>
         )}
         {!collapsed && live && (
-          <span title="Chamada em andamento" className="shrink-0 text-success">
+          <span title={t('nav.callOn')} className="shrink-0 text-success">
             <Phone size={14} />
           </span>
         )}
@@ -898,10 +899,10 @@ function RoomPeople({
   // Who's speaking is only known inside our own call.
   const speaking = useVoice((s) => (mine ? s.speaking : null))
   return (
-    <ul aria-label="Na sala" className="mb-1 ml-6 space-y-px">
+    <ul aria-label={t('nav.inRoom')} className="mb-1 ml-6 space-y-px">
       {states.map((v) => {
         const user = people.get(v.user_id)
-        const name = user?.display_name ?? 'Alguém'
+        const name = user?.display_name ?? t('nav.someone')
         return (
           <li
             key={v.user_id}
@@ -912,13 +913,13 @@ function RoomPeople({
               <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={20} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[13px]">{name}</span>
-            {v.screen && <span className="shrink-0 rounded bg-danger px-1 text-[9px] font-bold leading-4 text-on-danger">AO VIVO</span>}
-            {v.camera && <Video size={13} aria-label="Câmera ligada" className="shrink-0" />}
+            {v.screen && <span className="shrink-0 rounded bg-danger px-1 text-[9px] font-bold leading-4 text-on-danger">{t('nav.live')}</span>}
+            {v.camera && <Video size={13} aria-label={t('nav.cameraOn')} className="shrink-0" />}
             {v.user_id !== meId && <LocallyMuted userId={v.user_id} size={13} />}
             {v.deafened ? (
-              <HeadphoneOff size={13} aria-label={v.server_deafened ? 'Áudio desativado pelo servidor' : 'Sem áudio'} className={`shrink-0 ${v.server_deafened ? 'text-danger' : ''}`} />
+              <HeadphoneOff size={13} aria-label={v.server_deafened ? t('nav.serverDeafened') : t('nav.deafened')} className={`shrink-0 ${v.server_deafened ? 'text-danger' : ''}`} />
             ) : (
-              v.muted && <MicOff size={13} aria-label={v.server_muted ? 'Silenciado pelo servidor' : 'Microfone desligado'} className={`shrink-0 ${v.server_muted ? 'text-danger' : ''}`} />
+              v.muted && <MicOff size={13} aria-label={v.server_muted ? t('nav.serverMuted') : t('nav.micOff')} className={`shrink-0 ${v.server_muted ? 'text-danger' : ''}`} />
             )}
           </li>
         )
@@ -934,7 +935,7 @@ function VoiceError({ collapsed }: { collapsed: boolean }): ReactNode {
   return (
     <div role="alert" className="flex items-start gap-2 border-t border-line bg-danger/15 px-3 py-2 text-xs">
       <span className="flex-1">{error}</span>
-      <button type="button" onClick={clearError} className="text-fg-muted hover:text-fg" aria-label="Fechar">
+      <button type="button" onClick={clearError} className="text-fg-muted hover:text-fg" aria-label={t('common.close')}>
         <X size={14} />
       </button>
     </div>

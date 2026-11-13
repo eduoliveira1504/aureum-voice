@@ -31,12 +31,13 @@ import { ConfirmModal, errorText } from './modals'
 import { ProfilePopover } from './ProfileCard'
 import { Field, PrimaryButton } from './ui'
 import { Tip } from './Tour'
+import { t } from '../lib/i18n'
 
 /** Runs an action from a menu; failures show as a short message. */
 function run(action: Promise<unknown>, done?: string): void {
   action.then(
     () => done && toast(done),
-    (err) => toast(errorText(err, 'Não deu certo. Tente de novo.'))
+    (err) => toast(errorText(err, t('common.tryAgainError')))
   )
 }
 
@@ -88,26 +89,26 @@ export function UserContextMenu({
           <Separator />
         </>
       )}
-      <Item icon={UserRound} label="Ver perfil" onClick={openProfile} />
+      <Item icon={UserRound} label={t('top.viewProfile')} onClick={openProfile} />
       {!isMe && isFriend && (
         <>
-          <Item icon={MessageCircle} label="Mensagem" onClick={() => run(social.openDm(user.id))} />
-          <Item icon={Phone} label="Ligar" onClick={() => run(social.openDm(user.id).then(social.startCall))} />
+          <Item icon={MessageCircle} label={t('people.menu.message')} onClick={() => run(social.openDm(user.id))} />
+          <Item icon={Phone} label={t('people.menu.call')} onClick={() => run(social.openDm(user.id).then(social.startCall))} />
         </>
       )}
-      {!isMe && !friend && !officialBot && <Item icon={UserPlus} label="Adicionar amigo" onClick={() => run(social.sendRequest(user.username), 'Pedido enviado')} />}
-      {!isMe && friend?.kind === 'incoming' && <Item icon={Check} label="Aceitar pedido de amizade" onClick={() => run(social.accept(user.id))} />}
-      {!isMe && friend?.kind === 'outgoing' && <Item icon={X} label="Cancelar pedido de amizade" onClick={() => run(social.remove(user.id))} />}
+      {!isMe && !friend && !officialBot && <Item icon={UserPlus} label={t('people.menu.addFriend')} onClick={() => run(social.sendRequest(user.username), t('people.menu.requestSent'))} />}
+      {!isMe && friend?.kind === 'incoming' && <Item icon={Check} label={t('people.menu.acceptRequest')} onClick={() => run(social.accept(user.id))} />}
+      {!isMe && friend?.kind === 'outgoing' && <Item icon={X} label={t('people.menu.cancelRequest')} onClick={() => run(social.remove(user.id))} />}
       {!isMe && isFriend && (
         <Item
           icon={UserMinus}
-          label="Remover amizade"
+          label={t('people.menu.unfriend')}
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Remover ${user.display_name}`}
-                message="Vocês deixam de ser amigos. A conversa continua aí, mas só amigos trocam mensagens e ligações."
-                confirmLabel="Remover amizade"
+                title={t('people.menu.unfriendTitle', { name: user.display_name })}
+                message={t('people.menu.unfriendConfirm')}
+                confirmLabel={t('people.menu.unfriend')}
                 onConfirm={() => social.remove(user.id)}
                 onClose={close}
               />
@@ -121,7 +122,7 @@ export function UserContextMenu({
           <Separator />
           {inMyCall && (
             <SliderItem
-              label="Volume"
+              label={t('people.menu.volume')}
               value={audio?.volume ?? 100}
               min={0}
               max={200}
@@ -130,29 +131,29 @@ export function UserContextMenu({
               onChange={(volume) => setUserAudio(user.id, { volume })}
             />
           )}
-          <CheckItem label="Silenciar para mim" checked={!!audio?.muted} onChange={() => setUserAudio(user.id, { muted: !audio?.muted })} />
+          <CheckItem label={t('people.menu.muteForMe')} checked={!!audio?.muted} onChange={() => setUserAudio(user.id, { muted: !audio?.muted })} />
         </>
       )}
 
       {server && member && <ServerItems server={server} member={member} meId={meId} />}
 
       <Separator />
-      <Item icon={Copy} label="Copiar ID" onClick={() => copy(user.id, 'ID copiado')} />
+      <Item icon={Copy} label={t('nav.menus.copyId')} onClick={() => copy(user.id, t('nav.menus.idCopied'))} />
       {!isMe &&
         !officialBot &&
         (friend?.kind === 'blocked' ? (
-          <Item icon={Ban} label="Desbloquear" onClick={() => run(social.unblock(user.id))} />
+          <Item icon={Ban} label={t('people.menu.unblock')} onClick={() => run(social.unblock(user.id))} />
         ) : (
           <Item
             icon={Ban}
-            label="Bloquear"
+            label={t('people.menu.block')}
             danger
             onClick={() =>
               showDialog((close) => (
                 <ConfirmModal
-                  title={`Bloquear ${user.display_name}`}
-                  message="A amizade acaba e essa pessoa não consegue mais te mandar pedidos, mensagens nem te ligar."
-                  confirmLabel="Bloquear"
+                  title={t('people.menu.blockTitle', { name: user.display_name })}
+                  message={t('people.menu.blockConfirm')}
+                  confirmLabel={t('people.menu.block')}
                   onConfirm={() => social.block(user.id)}
                   onClose={close}
                 />
@@ -197,12 +198,12 @@ function ServerItems({ server, member, meId }: { server: ServerDetail; member: M
       {canNick && (
         <Item
           icon={Pencil}
-          label={isMe ? 'Mudar meu apelido' : 'Definir apelido'}
+          label={isMe ? t('people.menu.myNickname') : t('people.menu.setNickname')}
           onClick={() => showDialog((close) => <NicknameModal server={server} member={member} onClose={close} />)}
         />
       )}
       {roles.length > 0 && (
-        <Submenu icon={Shield} label="Cargos">
+        <Submenu icon={Shield} label={t('people.menu.roles')}>
           {roles.map((role) => {
             const holds = member.role_ids.includes(role.id)
             return (
@@ -220,17 +221,17 @@ function ServerItems({ server, member, meId }: { server: ServerDetail; member: M
         </Submenu>
       )}
       {canMute && (
-        <CheckItem label="Silenciar no servidor" checked={member.voice_muted} onChange={() => moderate({ muted: !member.voice_muted })} />
+        <CheckItem label={t('people.menu.serverMute')} checked={member.voice_muted} onChange={() => moderate({ muted: !member.voice_muted })} />
       )}
       {canDeafen && (
         <CheckItem
-          label="Ensurdecer no servidor"
+          label={t('people.menu.serverDeafen')}
           checked={member.voice_deafened}
           onChange={() => moderate({ deafened: !member.voice_deafened })}
         />
       )}
       {rooms.length > 0 && (
-        <Submenu icon={ArrowRightLeft} label="Mover para">
+        <Submenu icon={ArrowRightLeft} label={t('people.menu.moveTo')}>
           {rooms.map((r) => (
             <Item key={r.id} icon={Volume2} label={r.name ?? ''} onClick={() => moderate({ channel_id: r.id }, `${name} foi para ${r.name}`)} />
           ))}
@@ -239,14 +240,14 @@ function ServerItems({ server, member, meId }: { server: ServerDetail; member: M
       {canKick && (
         <Item
           icon={UserX}
-          label={`Expulsar ${name}`}
+          label={t('people.menu.kickNamed', { name })}
           danger
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Expulsar ${name}`}
-                message="Sai do servidor agora, mas pode voltar com um convite novo."
-                confirmLabel="Expulsar"
+                title={t('people.menu.kickNamed', { name })}
+                message={t('people.menu.kickConfirm')}
+                confirmLabel={t('server.members.kick')}
                 onConfirm={() => api(`/servers/${sid}/members/${user.id}`, { method: 'DELETE' })}
                 onClose={close}
               />
@@ -257,14 +258,14 @@ function ServerItems({ server, member, meId }: { server: ServerDetail; member: M
       {canBan && (
         <Item
           icon={Gavel}
-          label={`Banir ${name}`}
+          label={t('people.menu.banNamed', { name })}
           danger
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Banir ${name}`}
-                message="Sai do servidor e não consegue voltar, nem com convite, até ser desbanido."
-                confirmLabel="Banir"
+                title={t('people.menu.banNamed', { name })}
+                message={t('people.menu.banConfirm')}
+                confirmLabel={t('server.members.ban')}
                 onConfirm={() => api(`/servers/${sid}/bans/${user.id}`, { method: 'PUT', body: {} })}
                 onClose={close}
               />
@@ -288,26 +289,26 @@ function NicknameModal({ server, member, onClose }: { server: ServerDetail; memb
       await api(`/servers/${server.id}/members/${member.user.id}`, { method: 'PATCH', body: { nickname: value.trim() || null } })
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Não foi possível salvar o apelido.'))
+      setError(errorText(err, t('people.menu.nicknameFailed')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Apelido" subtitle={`Como ${member.user.display_name} aparece em ${server.name}.`} onClose={onClose}>
+    <Modal title={t('people.menu.nickname')} subtitle={t('people.menu.nicknameHint', { name: member.user.display_name, server: server.name })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <FormError message={error} />
         <Field
-          label="Apelido"
+          label={t('people.menu.nickname')}
           value={value}
           maxLength={32}
           autoFocus
           placeholder={member.user.display_name}
-          hint="Deixe vazio para usar o nome de exibição."
+          hint={t('people.menu.nicknameEmpty')}
           onChange={(e) => setValue(e.target.value)}
         />
         <PrimaryButton type="submit" disabled={busy}>
-          Salvar
+          {t('common.save')}
         </PrimaryButton>
       </form>
     </Modal>
@@ -318,5 +319,5 @@ function NicknameModal({ server, member, onClose }: { server: ServerDetail; memb
 export function LocallyMuted({ userId, size = 14 }: { userId: string; size?: number }): ReactNode {
   const audio = useAppearance((s) => s.settings.user_audio[userId])
   if (!audio?.muted && (audio?.volume ?? 100) > 0) return null
-  return <VolumeX size={size} aria-label="Silenciado para você" className="shrink-0 text-danger" />
+  return <VolumeX size={size} aria-label={t('people.menu.mutedForYou')} className="shrink-0 text-danger" />
 }

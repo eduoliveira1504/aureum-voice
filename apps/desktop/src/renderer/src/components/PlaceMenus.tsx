@@ -12,6 +12,7 @@ import { ChannelSettingsModal } from './ChannelSettings'
 import { CheckItem, copy, Item, Label, Separator, showDialog, toast } from './ContextMenu'
 import { ConfirmModal, CreateAddonModal, CreateChannelModal, errorText, InviteModal } from './modals'
 import { ServerSettingsModal } from './ServerSettings'
+import { t } from '../lib/i18n'
 
 /** Silenced channels and servers (user setting): no unread badges, mentions still count. */
 export function useMuted(id: string): boolean {
@@ -30,10 +31,10 @@ function CreateItems({ server, meId, categoryId }: { server: ServerDetail; meId:
   if (!has(perms, Perm.MANAGE_CHANNELS)) return null
   return (
     <>
-      <Item icon={Hash} label="Criar canal de texto" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={categoryId} onClose={close} />)} />
-      <Item icon={Volume2} label="Criar canal de voz" onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="voice" categoryId={categoryId} onClose={close} />)} />
+      <Item icon={Hash} label={t('nav.menus.createText')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={categoryId} onClose={close} />)} />
+      <Item icon={Volume2} label={t('nav.menus.createVoice')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="voice" categoryId={categoryId} onClose={close} />)} />
       {has(perms, Perm.MANAGE_ADDONS) && (
-        <Item icon={Puzzle} label="Adicionar addon" onClick={() => showDialog((close) => <CreateAddonModal serverId={server.id} categoryId={categoryId} onClose={close} />)} />
+        <Item icon={Puzzle} label={t('nav.addAddon')} onClick={() => showDialog((close) => <CreateAddonModal serverId={server.id} categoryId={categoryId} onClose={close} />)} />
       )}
     </>
   )
@@ -44,7 +45,7 @@ export function ChannelListMenu({ server, meId }: { server: ServerDetail; meId: 
   return (
     <>
       <CreateItems server={server} meId={meId} />
-      <Item icon={FolderPlus} label="Criar categoria" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} onClose={close} />)} />
+      <Item icon={FolderPlus} label={t('nav.createCategory')} onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} onClose={close} />)} />
     </>
   )
 }
@@ -57,11 +58,11 @@ export function CategoryMenu({ server, category, meId }: { server: ServerDetail;
     <>
       <Label>{category.name}</Label>
       <CreateItems server={server} meId={meId} categoryId={category.id} />
-      {canManage && <Item icon={Pencil} label="Renomear" onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />}
+      {canManage && <Item icon={Pencil} label={t('nav.menus.rename')} onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />}
       {has(perms, Perm.MANAGE_ROLES) && (
         <Item
           icon={Shield}
-          label="Permissões"
+          label={t('nav.menus.permissions')}
           onClick={() =>
             showDialog((close) => (
               <LiveServer id={server.id} onClose={close}>
@@ -75,18 +76,18 @@ export function CategoryMenu({ server, category, meId }: { server: ServerDetail;
         />
       )}
       <Separator />
-      <Item icon={Copy} label="Copiar ID" onClick={() => copy(category.id, 'ID copiado')} />
+      <Item icon={Copy} label={t('nav.menus.copyId')} onClick={() => copy(category.id, t('nav.menus.idCopied'))} />
       {canManage && (
         <Item
           icon={Trash2}
-          label="Excluir categoria"
+          label={t('nav.menus.deleteCategory')}
           danger
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Excluir ${category.name}`}
-                message="Os canais dela não são apagados: ficam sem categoria, no topo, com as permissões que têm agora."
-                confirmLabel="Excluir"
+                title={t('nav.deleteTitle', { name: category.name })}
+                message={t('nav.menus.deleteCategoryConfirm')}
+                confirmLabel={t('common.delete')}
                 onConfirm={() => api(`/categories/${category.id}`, { method: 'DELETE' }).then(() => useChat.getState().refreshServer(server.id))}
                 onClose={close}
               />
@@ -101,8 +102,8 @@ export function CategoryMenu({ server, category, meId }: { server: ServerDetail;
 /** Creates an invite and copies its code (invites have no web link: the code is what people paste). */
 function copyInvite(serverId: string): void {
   api<Invite>(`/servers/${serverId}/invites`, { method: 'POST', body: {} }).then(
-    (invite) => copy(invite.code, 'Código do convite copiado'),
-    (err) => toast(errorText(err, 'Não foi possível criar o convite.'))
+    (invite) => copy(invite.code, t('nav.menus.inviteCopied')),
+    (err) => toast(errorText(err, t('server.invite.failed')))
   )
 }
 
@@ -117,9 +118,9 @@ function LiveServer({ id, onClose, children }: { id: string; onClose(): void; ch
 
 /** What the confirmation says before a channel is deleted. */
 export function deleteChannelMessage(channel: Channel): string {
-  if (channel.type === 'text') return 'Todas as mensagens do canal serão apagadas.'
-  if (channel.type === 'addon') return 'O addon e tudo o que foi feito nele serão apagados.'
-  return 'A sala de voz será removida.'
+  if (channel.type === 'text') return t('nav.menus.deleteText')
+  if (channel.type === 'addon') return t('nav.menus.deleteAddon')
+  return t('nav.menus.deleteVoice')
 }
 
 export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; channel: Channel; meId: string }): ReactNode {
@@ -134,21 +135,21 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
   const index = section.findIndex((c) => c.id === channel.id)
   const canMove = has(basePermissions(server, meId), Perm.MANAGE_CHANNELS) && section.length > 1
   const move = (delta: -1 | 1) => (): void => {
-    useChat.getState().moveChannel(server.id, channel.id, delta).catch((err) => toast(errorText(err, 'Não foi possível mover o canal.')))
+    useChat.getState().moveChannel(server.id, channel.id, delta).catch((err) => toast(errorText(err, t('nav.menus.moveFailed'))))
   }
 
   return (
     <>
       <Label>{label}</Label>
       {text && (read?.unread_count || read?.mention_count) ? (
-        <Item icon={CheckCheck} label="Marcar como lido" onClick={() => useChat.getState().markRead(channel.id, true)} />
+        <Item icon={CheckCheck} label={t('nav.menus.markRead')} onClick={() => useChat.getState().markRead(channel.id, true)} />
       ) : null}
-      {text && <CheckItem label="Silenciar canal" checked={muted} onChange={() => toggleMuted(channel.id)} />}
-      <Item icon={Columns2} label="Abrir em novo painel" onClick={() => useNav.getState().openTab(server.id, channelTab(channel.id), true)} />
+      {text && <CheckItem label={t('nav.menus.muteChannel')} checked={muted} onChange={() => toggleMuted(channel.id)} />}
+      <Item icon={Columns2} label={t('nav.menus.openPanel')} onClick={() => useNav.getState().openTab(server.id, channelTab(channel.id), true)} />
       {canSettings && (
         <Item
           icon={SlidersHorizontal}
-          label="Configurações do canal"
+          label={t('nav.channelSettings')}
           onClick={() =>
             showDialog((close) => (
               <LiveServer id={server.id} onClose={close}>
@@ -161,22 +162,22 @@ export function ChannelMenu({ server, channel, meId }: { server: ServerDetail; c
           }
         />
       )}
-      {canMove && index > 0 && <Item icon={ArrowUp} label="Mover para cima" onClick={move(-1)} />}
-      {canMove && index < section.length - 1 && <Item icon={ArrowDown} label="Mover para baixo" onClick={move(1)} />}
-      {has(basePermissions(server, meId), Perm.CREATE_INVITE) && <Item icon={Link} label="Copiar convite" onClick={() => copyInvite(server.id)} />}
+      {canMove && index > 0 && <Item icon={ArrowUp} label={t('nav.menus.moveUp')} onClick={move(-1)} />}
+      {canMove && index < section.length - 1 && <Item icon={ArrowDown} label={t('nav.menus.moveDown')} onClick={move(1)} />}
+      {has(basePermissions(server, meId), Perm.CREATE_INVITE) && <Item icon={Link} label={t('nav.menus.copyInvite')} onClick={() => copyInvite(server.id)} />}
       <Separator />
-      <Item icon={Copy} label="Copiar ID" onClick={() => copy(channel.id, 'ID copiado')} />
+      <Item icon={Copy} label={t('nav.menus.copyId')} onClick={() => copy(channel.id, t('nav.menus.idCopied'))} />
       {canDelete && (
         <Item
           icon={Trash2}
-          label="Excluir canal"
+          label={t('nav.deleteChannel')}
           danger
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Excluir ${label}`}
+                title={t('nav.deleteTitle', { name: label })}
                 message={deleteChannelMessage(channel)}
-                confirmLabel="Excluir canal"
+                confirmLabel={t('nav.deleteChannel')}
                 onConfirm={() => api(`/channels/${channel.id}`, { method: 'DELETE' })}
                 onClose={close}
               />
@@ -204,19 +205,19 @@ export function ServerMenu({ server, meId, tabs }: { server: ServerDetail; meId:
   const markRead = (): void => {
     api<ReadState[]>(`/servers/${server.id}/read`, { method: 'POST' }).then(
       (states) => useChat.getState().mergeReads(states),
-      (err) => toast(errorText(err, 'Não deu certo. Tente de novo.'))
+      (err) => toast(errorText(err, t('common.tryAgainError')))
     )
   }
 
   return (
     <>
       <Label>{server.name}</Label>
-      {unread && <Item icon={CheckCheck} label="Marcar tudo como lido" onClick={markRead} />}
-      <CheckItem label="Silenciar servidor" checked={muted} onChange={() => toggleMuted(server.id)} />
+      {unread && <Item icon={CheckCheck} label={t('nav.menus.markAllRead')} onClick={markRead} />}
+      <CheckItem label={t('nav.menus.muteServer')} checked={muted} onChange={() => toggleMuted(server.id)} />
       {canSettings && (
         <Item
           icon={Settings}
-          label="Configurações do servidor"
+          label={t('nav.serverSettings')}
           onClick={() =>
             showDialog((close) => (
               <LiveServer id={server.id} onClose={close}>
@@ -230,29 +231,29 @@ export function ServerMenu({ server, meId, tabs }: { server: ServerDetail; meId:
         <>
           <Item
             icon={UserPlus}
-            label="Convidar pessoas"
+            label={t('nav.invite')}
             onClick={() => showDialog((close) => <InviteModal server={server} onClose={close} />)}
           />
-          <Item icon={Link} label="Copiar convite" onClick={() => copyInvite(server.id)} />
+          <Item icon={Link} label={t('nav.menus.copyInvite')} onClick={() => copyInvite(server.id)} />
         </>
       )}
       {eventsChannel && (
-        <Item icon={CalendarPlus} label="Criar evento" onClick={() => useNav.getState().openAddonItem(server.id, eventsChannel.id, 'new')} />
+        <Item icon={CalendarPlus} label={t('nav.menus.createEvent')} onClick={() => useNav.getState().openAddonItem(server.id, eventsChannel.id, 'new')} />
       )}
       <Separator />
-      <Item icon={Copy} label="Copiar ID" onClick={() => copy(server.id, 'ID copiado')} />
-      {tabs && <Item icon={X} label="Fechar aba" onClick={() => useNav.getState().closeServerTab(server.id, tabs)} />}
+      <Item icon={Copy} label={t('nav.menus.copyId')} onClick={() => copy(server.id, t('nav.menus.idCopied'))} />
+      {tabs && <Item icon={X} label={t('nav.menus.closeTab')} onClick={() => useNav.getState().closeServerTab(server.id, tabs)} />}
       {!isOwner && (
         <Item
           icon={LogOut}
-          label="Sair do servidor"
+          label={t('nav.leaveServer')}
           danger
           onClick={() =>
             showDialog((close) => (
               <ConfirmModal
-                title={`Sair de ${server.name}`}
-                message="Você só volta com um novo convite."
-                confirmLabel="Sair do servidor"
+                title={t('nav.leaveTitle', { name: server.name })}
+                message={t('nav.leaveConfirm')}
+                confirmLabel={t('nav.leaveServer')}
                 onConfirm={() => api(`/servers/${server.id}/members/me`, { method: 'DELETE' })}
                 onClose={close}
               />

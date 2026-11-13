@@ -6,15 +6,16 @@ import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { FormError, Modal } from './Modal'
 import { cn, Field, GroupAvatar, inputClass, PresenceAvatar, PrimaryButton } from './ui'
+import { t } from '../lib/i18n'
 
 const MAX_GROUP = 10
 
 function socialError(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
-    if (err.status === 403) return 'Só dá pra fazer isso com amigos.'
-    if (typeof err.detail === 'string' && err.detail.startsWith('Groups hold')) return `Grupos têm no máximo ${MAX_GROUP} pessoas.`
+    if (err.status === 403) return t('people.social.friendsOnly')
+    if (typeof err.detail === 'string' && err.detail.startsWith('Groups hold')) return t('people.social.groupMax', { count: MAX_GROUP })
   }
-  return err instanceof TypeError ? 'Não foi possível conectar ao servidor.' : fallback
+  return err instanceof TypeError ? t('server.join.unreachable') : fallback
 }
 
 /**
@@ -59,24 +60,24 @@ export function PickFriendsModal({
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (!picked.length) return setError('Escolha pelo menos um amigo.')
+    if (!picked.length) return setError(t('people.social.pickOne'))
     setBusy(true)
     setError(null)
     try {
       await onConfirm(picked, name.trim())
       onClose()
     } catch (err) {
-      setError(socialError(err, 'Algo deu errado. Tente de novo.'))
+      setError(socialError(err, t('sounds.error')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title={title} subtitle={subtitle ?? `Você pode escolher mais ${room - picked.length}.`} onClose={onClose}>
+    <Modal title={title} subtitle={subtitle ?? t('people.social.room', { count: room - picked.length })} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
         {withName && (
-          <Field label="Nome do grupo (opcional)" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Squad da sexta" />
+          <Field label={t('people.social.groupName')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={t('people.social.groupPlaceholder')} />
         )}
         <label className="relative block">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
@@ -84,15 +85,15 @@ export function PickFriendsModal({
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar amigos"
-            aria-label="Buscar amigos"
+            placeholder={t('people.social.searchFriends')}
+            aria-label={t('people.social.searchFriends')}
             className={cn(inputClass, 'pl-9')}
           />
         </label>
         <div className="max-h-72 space-y-0.5 overflow-y-auto">
           {list.length === 0 && (
             <p className="py-6 text-center text-sm text-fg-subtle">
-              {Object.values(friends).some((f) => f.kind === 'friend') ? 'Ninguém com esse nome.' : 'Adicione amigos primeiro.'}
+              {Object.values(friends).some((f) => f.kind === 'friend') ? t('people.social.nobody') : t('people.social.addFirst')}
             </p>
           )}
           {list.map((f) => {
@@ -121,7 +122,7 @@ export function PickFriendsModal({
           })}
         </div>
         <PrimaryButton type="submit" disabled={busy || picked.length === 0}>
-          {busy ? 'Aguarde…' : confirmLabel}
+          {busy ? t('auth.wait') : confirmLabel}
         </PrimaryButton>
       </form>
     </Modal>
@@ -141,35 +142,34 @@ export function RenameGroupModal({ id, current, onClose }: { id: string; current
       await renameGroup(id, name.trim() || null)
       onClose()
     } catch (err) {
-      setError(socialError(err, 'Não foi possível renomear o grupo.'))
+      setError(socialError(err, t('people.social.renameFailed')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Renomear grupo" subtitle="Deixe vazio para usar os nomes das pessoas." onClose={onClose}>
+    <Modal title={t('people.social.renameTitle')} subtitle={t('people.social.renameHint')} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
-        <Field autoFocus label="Nome do grupo" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />
+        <Field autoFocus label={t('people.social.name')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Salvando…' : 'Salvar'}
+          {busy ? t('common.saving') : t('common.save')}
         </PrimaryButton>
       </form>
     </Modal>
   )
 }
 
-const ADD_FRIEND_HINT = 'Digite o @username da pessoa. Ela precisa aceitar o pedido.'
 
 function requestError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 404) return 'Ninguém com esse username.'
-    if (err.status === 400) return 'Esse é você.'
-    if (err.status === 403) return 'Não dá pra enviar um pedido para essa pessoa.'
-    if (err.status === 429) return 'Muitos pedidos seguidos. Tente de novo mais tarde.'
-    if (err.status === 409) return err.detail === 'Unblock this user first' ? 'Desbloqueie essa pessoa primeiro.' : 'Vocês já são amigos.'
+    if (err.status === 404) return t('people.social.noUser')
+    if (err.status === 400) return t('people.social.yourself')
+    if (err.status === 403) return t('people.social.cantRequest')
+    if (err.status === 429) return t('people.social.tooMany')
+    if (err.status === 409) return err.detail === 'Unblock this user first' ? t('people.social.unblockFirst') : t('people.social.alreadyFriends')
   }
-  return err instanceof TypeError ? 'Não foi possível conectar ao servidor.' : 'Algo deu errado. Tente de novo.'
+  return err instanceof TypeError ? t('server.join.unreachable') : t('sounds.error')
 }
 
 /** Sends a friend request by @username: a page of its own in Amigos, or the body of a modal (`bare`). */
@@ -190,8 +190,8 @@ export function AddFriend({ bare = false }: { bare?: boolean }): ReactNode {
         ok: true,
         text:
           friend.kind === 'friend'
-            ? `Você e ${friend.user.display_name} agora são amigos.`
-            : `Pedido enviado para ${friend.user.display_name}.`
+            ? t('people.social.nowFriends', { name: friend.user.display_name })
+            : t('people.social.sentTo', { name: friend.user.display_name })
       })
       setValue('')
     } catch (err) {
@@ -205,8 +205,8 @@ export function AddFriend({ bare = false }: { bare?: boolean }): ReactNode {
     <div className={bare ? '' : 'px-6 py-6'}>
       {!bare && (
         <>
-          <h3 className="font-display text-lg font-semibold">Adicionar amigo</h3>
-          <p className="mt-1 text-sm text-fg-muted">{ADD_FRIEND_HINT}</p>
+          <h3 className="font-display text-lg font-semibold">{t('people.social.addFriend')}</h3>
+          <p className="mt-1 text-sm text-fg-muted">{t('people.social.addHint')}</p>
         </>
       )}
       <form
@@ -224,8 +224,8 @@ export function AddFriend({ bare = false }: { bare?: boolean }): ReactNode {
             setValue(e.target.value)
             setResult(null)
           }}
-          placeholder="username"
-          aria-label="Username"
+          placeholder={t('people.social.username')}
+          aria-label={t('people.social.usernameAria')}
           className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] outline-none placeholder:text-fg-subtle"
         />
         <button
@@ -233,7 +233,7 @@ export function AddFriend({ bare = false }: { bare?: boolean }): ReactNode {
           disabled={busy || !value.trim()}
           className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Enviar pedido
+          {t('people.social.send')}
         </button>
       </form>
       {result && <p className={`mt-2 text-sm ${result.ok ? 'text-success' : 'text-danger'}`}>{result.text}</p>}
@@ -243,7 +243,7 @@ export function AddFriend({ bare = false }: { bare?: boolean }): ReactNode {
 
 export function AddFriendModal({ onClose }: { onClose(): void }): ReactNode {
   return (
-    <Modal title="Adicionar amigo" subtitle={ADD_FRIEND_HINT} onClose={onClose}>
+    <Modal title={t('people.social.addFriend')} subtitle={t('people.social.addHint')} onClose={onClose}>
       <AddFriend bare />
     </Modal>
   )
@@ -277,14 +277,14 @@ export function StartCallModal({ meId, onClose }: { meId: string; onClose(): voi
       await social.startCall(channelId)
       onClose()
     } catch (err) {
-      setError(socialError(err, 'Não foi possível iniciar a chamada.'))
+      setError(socialError(err, t('people.social.callFailed')))
       setBusy(false)
     }
   }
 
   const row = 'flex w-full items-center gap-3 rounded-item px-2 py-1.5 text-left hover:bg-elevated disabled:opacity-50'
   return (
-    <Modal title="Iniciar chamada" subtitle="Ligue pra um amigo ou um grupo." onClose={onClose}>
+    <Modal title={t('people.social.startCall')} subtitle={t('people.social.startCallHint')} onClose={onClose}>
       <div className="space-y-4">
         <FormError message={error} />
         <label className="relative block">
@@ -293,21 +293,21 @@ export function StartCallModal({ meId, onClose }: { meId: string; onClose(): voi
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar amigos e grupos"
-            aria-label="Buscar amigos e grupos"
+            placeholder={t('people.social.searchAll')}
+            aria-label={t('people.social.searchAll')}
             className={cn(inputClass, 'pl-9')}
           />
         </label>
         <div className="max-h-80 space-y-0.5 overflow-y-auto">
           {people.length === 0 && groups.length === 0 && (
-            <p className="py-6 text-center text-sm text-fg-subtle">{q ? 'Ninguém com esse nome.' : 'Adicione amigos primeiro.'}</p>
+            <p className="py-6 text-center text-sm text-fg-subtle">{q ? t('people.social.nobody') : t('people.social.addFirst')}</p>
           )}
           {groups.map((d) => (
             <button key={d.id} type="button" disabled={busy} onClick={() => void call({ channelId: d.id })} className={row}>
               <GroupAvatar url={d.icon_url} size={32} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{dmTitle(d, meId)}</span>
-                <span className="block text-xs text-fg-subtle">Grupo · {d.members.length} pessoas</span>
+                <span className="block text-xs text-fg-subtle">{t('people.social.groupPeople', { count: d.members.length })}</span>
               </span>
               <Phone size={16} className="shrink-0 text-fg-subtle" />
             </button>
