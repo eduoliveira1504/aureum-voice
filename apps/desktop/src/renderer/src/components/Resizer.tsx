@@ -1,6 +1,7 @@
 import { useState, type PointerEvent, type ReactNode } from 'react'
 
 import { useAppearance } from '../store/appearance'
+import { t } from '../lib/i18n'
 
 export interface ColumnSpec {
   /** Key in the user's column_sizes setting. */
@@ -61,7 +62,7 @@ export function useResizable(
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Redimensionar coluna"
+      aria-label={t('shell.resizeColumn')}
       aria-valuenow={width}
       aria-valuemin={spec.min}
       aria-valuemax={spec.max}

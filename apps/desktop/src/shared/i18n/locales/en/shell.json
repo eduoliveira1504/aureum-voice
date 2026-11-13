@@ -1,0 +1,44 @@
+{
+  "copyFailed": "Couldn't copy.",
+  "news": "What's new in Aureum",
+  "panels": {
+    "resize": "Resize panels",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "closeOthers": "Close others",
+    "overview": "Overview",
+    "call": "Call",
+    "callIn": "Call · {{room}}",
+    "closeTab": "Close tab",
+    "closeNamed": "Close {{name}}",
+    "backEsc": "Back to the layout (Esc)",
+    "back": "Back to the layout",
+    "close": "Close panel",
+    "noCall": "You're not in a call",
+    "noCallHint": "Join a room to see the call here.",
+    "unknownAddon": "This addon doesn't exist in this version of Aureum. Update the app to use it.",
+    "max": "At most {{count}} panels"
+  },
+  "resizeColumn": "Resize column",
+  "stickersHere": "They can only be sent in this server.",
+  "tour": {
+    "new": "New",
+    "skip": "Skip",
+    "back": "Back",
+    "gotIt": "Got it",
+    "inviteTitle": "Want a quick tour of Aureum?",
+    "inviteHint": "Less than a minute to get to know the layout. You can replay it later in the profile menu.",
+    "yes": "Yes, let's go",
+    "later": "Not now"
+  },
+  "update": {
+    "aria": "Aureum update",
+    "ready": "Aureum version {{version}} is ready. Restart to use it.",
+    "manual": "Aureum version {{version}} is out. Download and install it over this one.",
+    "restart": "Restart now",
+    "download": "Download now",
+    "later": "Later"
+  },
+  "connectionLost": "Connection lost. Reconnecting…",
+  "onlyYou": "Just you"
+}

@@ -21,9 +21,11 @@ import enPermissions from './locales/en/permissions.json'
 import enProfile from './locales/en/profile.json'
 import enServer from './locales/en/server.json'
 import enSettings from './locales/en/settings.json'
+import enShell from './locales/en/shell.json'
 import enSounds from './locales/en/sounds.json'
 import enSystem from './locales/en/system.json'
 import enTop from './locales/en/top.json'
+import enTour from './locales/en/tour.json'
 import ptAccount from './locales/pt-BR/account.json'
 import ptAuth from './locales/pt-BR/auth.json'
 import ptBugs from './locales/pt-BR/bugs.json'
@@ -40,9 +42,11 @@ import ptPermissions from './locales/pt-BR/permissions.json'
 import ptProfile from './locales/pt-BR/profile.json'
 import ptServer from './locales/pt-BR/server.json'
 import ptSettings from './locales/pt-BR/settings.json'
+import ptShell from './locales/pt-BR/shell.json'
 import ptSounds from './locales/pt-BR/sounds.json'
 import ptSystem from './locales/pt-BR/system.json'
 import ptTop from './locales/pt-BR/top.json'
+import ptTour from './locales/pt-BR/tour.json'
 
 export const ptBR = {
   common: ptCommon,
@@ -63,7 +67,9 @@ export const ptBR = {
   nav: ptNav,
   top: ptTop,
   people: ptPeople,
-  home: ptHome
+  home: ptHome,
+  tour: ptTour,
+  shell: ptShell
 }
 
 export const en: typeof ptBR = {
@@ -85,7 +91,9 @@ export const en: typeof ptBR = {
   nav: enNav,
   top: enTop,
   people: enPeople,
-  home: enHome
+  home: enHome,
+  tour: enTour,
+  shell: enShell
 }
 
 export const resources = {

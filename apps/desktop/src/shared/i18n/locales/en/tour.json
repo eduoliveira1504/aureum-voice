@@ -1,0 +1,137 @@
+{
+  "tips": {
+    "call": {
+      "controls": {
+        "title": "Your call bar",
+        "text": "Microphone, audio, camera and screen are here; the little arrow next to each one switches the device (microphone, output and camera). At the top of the call, Focus and Grid change how you see people. Left the call screen? It becomes a floating mini window, and \"Pop out\" takes the call to its own window, on top of everything."
+      },
+      "soundboard": {
+        "title": "Soundboard",
+        "text": "Play a short sound for everyone in the room. Don't want to hear other people's sounds? The panel itself has the volume and \"Mute other people's sounds\"."
+      },
+      "overlay": {
+        "title": "Overlay in games",
+        "text": "While you play, Aureum shows over the game who is speaking, the cameras and the notices, in separate widgets. It only shows in games, never in other programs. In Settings › Overlay you change each widget's position and the cameras' layout."
+      }
+    },
+    "screen": {
+      "watch": {
+        "title": "Someone is streaming",
+        "text": "Nothing from the stream arrives before you click: press Watch to join the live."
+      },
+      "watching": {
+        "title": "Watching a screen",
+        "text": "Hover over the stream: the bottom corner has its volume (saved for that person), full screen and the stop watching button. Double-clicking also opens full screen."
+      },
+      "share": {
+        "title": "Sharp text or Motion",
+        "text": "Sharp text keeps letters, code and spreadsheets readable; Motion favors smoothness, better for games and videos. Choose based on what you'll show."
+      }
+    },
+    "server": {
+      "owner": {
+        "title": "Your server",
+        "text": "This menu has the invites and the server settings: categories, roles and who sees each channel (private channel). To change the order of channels and categories, just drag them in the sidebar."
+      }
+    },
+    "addon": {
+      "kanban": {
+        "title": "Kanban",
+        "text": "Organize tasks in columns: create cards and drag them between columns, with an assignee and a due date. Due dates show in the Calendar and in My tasks, on Home."
+      },
+      "whiteboard": {
+        "title": "Whiteboard",
+        "text": "A whiteboard to draw together, in real time: shapes, arrows, text and images. Everyone in the channel sees the changes right away."
+      },
+      "events": {
+        "title": "Events",
+        "text": "Schedule server meetups with date and time. Each person answers Going, Maybe or Not going, @aureum reminds whoever is going before it starts and the event shows in the Calendar and on Home."
+      },
+      "calendar": {
+        "title": "Calendar",
+        "text": "Brings the server's events and Kanban due dates into one view, by month, week or list. Click an item to open where it is."
+      }
+    },
+    "chat": {
+      "polls": {
+        "title": "Polls and attachments",
+        "text": "In + you attach files or create a poll for the conversation to vote."
+      },
+      "reactions": {
+        "title": "Reactions",
+        "text": "To react, hover over the message and pick an emoji (reply and forward are there too). Clicking an existing reaction adds yours."
+      }
+    },
+    "dm": {
+      "receipts": {
+        "title": "Direct message",
+        "text": "The ✓✓ under your message shows the person has seen it. Rather not show it? Turn off Read receipts in Settings › Privacy (then you don't see when others read either)."
+      },
+      "official": {
+        "title": "Official conversation",
+        "text": "This is Aureum's official conversation: notices, security and what's new. We never ask for your password."
+      }
+    },
+    "people": {
+      "menu": {
+        "title": "Context menu",
+        "text": "Right-clicking anyone, in the chat, in the call or in the member list, opens this menu with everything you can do with them."
+      }
+    },
+    "ptt": {
+      "key": {
+        "title": "Push to talk",
+        "text": "This is your push-to-talk key: hold it in a call to open the microphone. To change it, click here and press another key or a side mouse button."
+      }
+    }
+  },
+  "steps": {
+    "welcome": {
+      "title": "Welcome to Aureum!",
+      "text": "Up for a quick look around? It takes less than a minute, and you can leave anytime (Esc)."
+    },
+    "tabs": {
+      "title": "Tabs at the top",
+      "text": "Home is always first and each server gets its own tab (drag to change the order). In \"+\" you create, join or reopen a server."
+    },
+    "home": {
+      "title": "Home: your hub",
+      "text": "Who's live, your servers, what you missed, your tasks and a calendar that brings together every server's events and due dates. Friends and private conversations are in the sidebar."
+    },
+    "sidebar": {
+      "title": "Server sidebar",
+      "text": "Categories with the voice rooms, the conversations and the addons. Click a room to join the call. Need room? Collapse the bar with the button at its top."
+    },
+    "overview": {
+      "title": "Overview",
+      "text": "The live rooms, who's speaking or streaming and the server's next events, all on one screen."
+    },
+    "panels": {
+      "title": "Side-by-side panels",
+      "text": "Open up to 4 things at once: chat, call, Kanban... Drag a channel to a panel's edge or use the split buttons in its corner."
+    },
+    "members": {
+      "title": "Members",
+      "text": "The member list sits in a single bar on the right, whatever panel is open. Open and close it here or with {{key}}."
+    },
+    "addons": {
+      "title": "Addons",
+      "text": "Kanban, Whiteboard, Events and Calendar live inside the server, like channels. The Calendar brings the Kanban due dates and the events together in one place."
+    },
+    "profile": {
+      "title": "Your profile",
+      "text": "In the avatar you view and edit the profile (avatar and banner accept GIFs) and your Account, change the status, open Settings and report a problem ({{key}})."
+    },
+    "bell": {
+      "title": "Notifications",
+      "text": "The bell shows friend requests, missed calls and what's new in each Aureum version."
+    },
+    "done": {
+      "title": "All set!",
+      "text": "When you use something for the first time, we show a tip. In a call, \"Pop out\" takes the call to its own window, on top of everything. To replay this tour, just go to the profile menu."
+    }
+  },
+  "start": "Start",
+  "finish": "Done",
+  "next": "Next"
+}

@@ -6,6 +6,7 @@ import { TIPS, type TipKey } from '../lib/tips'
 import { useAppearance } from '../store/appearance'
 import { useOnboarding } from '../store/onboarding'
 import { Logo } from './Logo'
+import { t } from '../lib/i18n'
 
 /**
  * The tour's engine and the first-time tips (block 3.16): our own component, no library.
@@ -194,7 +195,7 @@ export function TourOverlay({ steps, news = false, onEnd }: { steps: TourStep[];
             <GuideHeader
               id="tour-title"
               title={step.title}
-              badge={news && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-on-accent">Novidade</span>}
+              badge={news && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-on-accent">{t('shell.tour.new')}</span>}
             />
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">{step.text}</p>
             <div className="mt-4 flex items-center gap-1">
@@ -203,16 +204,16 @@ export function TourOverlay({ steps, news = false, onEnd }: { steps: TourStep[];
               </span>
               {!last && (
                 <button type="button" className={quietButton} onClick={() => endRef.current()}>
-                  Pular
+                  {t('shell.tour.skip')}
                 </button>
               )}
               {index > 0 && (
                 <button type="button" className={quietButton} onClick={() => move(-1)}>
-                  Voltar
+                  {t('shell.tour.back')}
                 </button>
               )}
               <button ref={nextRef} type="button" className={mainButton} onClick={() => move(1)}>
-                {step.next ?? (last ? 'Concluir' : 'Próximo')}
+                {step.next ?? (last ? t('tour.finish') : t('tour.next'))}
               </button>
             </div>
           </div>
@@ -257,7 +258,7 @@ export function FirstTimeTip({ tip, anchor, title, text }: { tip: string; anchor
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{text}</p>
         <div className="mt-3 flex justify-end">
           <button type="button" className={mainButton} onClick={() => useOnboarding.getState().dismissTip(tip)}>
-            Entendi
+            {t('shell.tour.gotIt')}
           </button>
         </div>
       </div>

@@ -39,6 +39,7 @@ import { applyThumbnail, rewatchOverview } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
 import { AccessNotice } from '../components/AccessNotice'
 import { isMac } from '../lib/platform'
+import { t } from '../lib/i18n'
 
 // Below this width the sidebar shows icons only and a single panel fits.
 const NARROW_QUERY = '(max-width: 1099px)'
@@ -129,7 +130,7 @@ export function AppShell({ user }: { user: Me }): ReactNode {
     <div className="flex h-full flex-col">
       {loaded && status !== 'online' && (
         <div className="shrink-0 bg-accent py-1 text-center text-sm font-medium text-on-accent">
-          Conexão perdida. Reconectando…
+          {t('shell.connectionLost')}
         </div>
       )}
       <TopBar me={user} />

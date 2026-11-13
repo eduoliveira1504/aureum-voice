@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { CHANGELOG, releaseNotes } from '../lib/changelog'
 import { useAppearance } from '../store/appearance'
 import { Modal } from './Modal'
+import { t } from '../lib/i18n'
 
 /** "**bold**" in changelog lines. */
 function Inline({ text }: { text: string }): ReactNode {
@@ -33,7 +34,7 @@ export function useUnseenNews(): { title: string | null; markSeen(): void } {
 /** Everything that changed, version by version. */
 export function NewsModal({ onClose }: { onClose(): void }): ReactNode {
   return (
-    <Modal title="Novidades do Aureum" onClose={onClose} wide>
+    <Modal title={t('shell.news')} onClose={onClose} wide>
       <div className="space-y-5 pr-1">
         {CHANGELOG.map((section) => (
           <section key={section.title}>

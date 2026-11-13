@@ -1,0 +1,44 @@
+{
+  "copyFailed": "Não foi possível copiar.",
+  "news": "Novidades do Aureum",
+  "panels": {
+    "resize": "Redimensionar painéis",
+    "moveLeft": "Mover para a esquerda",
+    "moveRight": "Mover para a direita",
+    "closeOthers": "Fechar outras",
+    "overview": "Visão geral",
+    "call": "Chamada",
+    "callIn": "Chamada · {{room}}",
+    "closeTab": "Fechar aba",
+    "closeNamed": "Fechar {{name}}",
+    "backEsc": "Voltar ao layout (Esc)",
+    "back": "Voltar ao layout",
+    "close": "Fechar painel",
+    "noCall": "Você não está numa chamada",
+    "noCallHint": "Entre numa sala para ver a chamada aqui.",
+    "unknownAddon": "Este addon não existe nesta versão do Aureum. Atualize o app para usá-lo.",
+    "max": "Máximo de {{count}} painéis"
+  },
+  "resizeColumn": "Redimensionar coluna",
+  "stickersHere": "Só podem ser enviadas neste servidor.",
+  "tour": {
+    "new": "Novidade",
+    "skip": "Pular",
+    "back": "Voltar",
+    "gotIt": "Entendi",
+    "inviteTitle": "Quer fazer um tour rápido pelo Aureum?",
+    "inviteHint": "Menos de um minuto pra conhecer o layout. Dá pra rever depois no menu do perfil.",
+    "yes": "Sim, bora",
+    "later": "Agora não"
+  },
+  "update": {
+    "aria": "Atualização do Aureum",
+    "ready": "A versão {{version}} do Aureum está pronta. Reinicie para usar.",
+    "manual": "Saiu a versão {{version}} do Aureum. Baixe e instale por cima desta.",
+    "restart": "Reiniciar agora",
+    "download": "Baixar agora",
+    "later": "Depois"
+  },
+  "connectionLost": "Conexão perdida. Reconectando…",
+  "onlyYou": "Só você"
+}

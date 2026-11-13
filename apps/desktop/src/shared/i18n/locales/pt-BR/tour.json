@@ -1,0 +1,137 @@
+{
+  "tips": {
+    "call": {
+      "controls": {
+        "title": "Sua barra da call",
+        "text": "Microfone, áudio, câmera e tela ficam aqui; a setinha ao lado de cada um troca o aparelho (microfone, saída e câmera). No alto da call, Foco e Grade mudam o jeito de ver as pessoas. Saiu da tela da call? Ela vira uma janelinha flutuante, e \"Destacar\" leva a chamada pra uma janela própria, por cima de tudo."
+      },
+      "soundboard": {
+        "title": "Painel de sons",
+        "text": "Toque um som curto pra todo mundo da sala. Não quer ouvir os sons dos outros? No próprio painel tem o volume e \"Silenciar sons dos outros\"."
+      },
+      "overlay": {
+        "title": "Overlay nos jogos",
+        "text": "Enquanto você joga, o Aureum mostra por cima do jogo quem está falando, as câmeras e os avisos, em widgets separados. Ele só aparece em jogos, nunca em outros programas. Em Configurações › Overlay você muda a posição de cada widget e o formato das câmeras."
+      }
+    },
+    "screen": {
+      "watch": {
+        "title": "Tem alguém transmitindo",
+        "text": "Nada da transmissão chega antes do clique: aperte Assistir pra entrar na live."
+      },
+      "watching": {
+        "title": "Assistindo uma tela",
+        "text": "Passe o mouse na transmissão: no canto de baixo ficam o volume dela (fica salvo pra essa pessoa), a tela cheia e o botão de parar de assistir. Dois cliques também abrem a tela cheia."
+      },
+      "share": {
+        "title": "Texto nítido ou Movimento",
+        "text": "Texto nítido deixa letras, código e planilhas legíveis; Movimento prioriza a fluidez, melhor pra jogos e vídeos. Escolha conforme o que você vai mostrar."
+      }
+    },
+    "server": {
+      "owner": {
+        "title": "Seu servidor",
+        "text": "Neste menu ficam os convites e as configurações do servidor: categorias, cargos e quem vê cada canal (canal privado). Pra mudar a ordem de canais e categorias, é só arrastar na barra lateral."
+      }
+    },
+    "addon": {
+      "kanban": {
+        "title": "Kanban",
+        "text": "Organize tarefas em colunas: crie cartões e arraste entre elas, com responsável e prazo. Os prazos aparecem no Calendário e em Minhas tarefas, no Início."
+      },
+      "whiteboard": {
+        "title": "Quadro",
+        "text": "Um quadro branco pra desenhar junto, em tempo real: formas, setas, texto e imagens. Todo mundo do canal vê as mudanças na hora."
+      },
+      "events": {
+        "title": "Eventos",
+        "text": "Marque encontros do servidor com data e hora. Cada pessoa responde Vou, Talvez ou Não vou, o @aureum lembra quem vai antes de começar e o evento aparece no Calendário e no Início."
+      },
+      "calendar": {
+        "title": "Calendário",
+        "text": "Junta numa vista só os eventos e os prazos do Kanban do servidor, por mês, semana ou lista. Clique num item pra abrir onde ele está."
+      }
+    },
+    "chat": {
+      "polls": {
+        "title": "Enquetes e anexos",
+        "text": "No + você anexa arquivos ou cria uma enquete pra conversa votar."
+      },
+      "reactions": {
+        "title": "Reações",
+        "text": "Pra reagir, passe o mouse na mensagem e escolha um emoji (lá também ficam responder e encaminhar). Clicar numa reação que já existe soma a sua."
+      }
+    },
+    "dm": {
+      "receipts": {
+        "title": "Mensagem privada",
+        "text": "O ✓✓ embaixo da sua mensagem mostra que a pessoa já viu. Prefere não mostrar? Desligue a Confirmação de leitura em Configurações › Privacidade (aí você também não vê quando os outros leem)."
+      },
+      "official": {
+        "title": "Conversa oficial",
+        "text": "Esta é a conversa oficial do Aureum: avisos, segurança e novidades. A gente nunca pede sua senha."
+      }
+    },
+    "people": {
+      "menu": {
+        "title": "Menu de contexto",
+        "text": "O botão direito em qualquer pessoa, no chat, na call ou na lista de membros, abre este menu com tudo o que dá pra fazer com ela."
+      }
+    },
+    "ptt": {
+      "key": {
+        "title": "Pressionar para falar",
+        "text": "É aqui que fica a sua tecla de falar: segure ela numa call pra abrir o microfone. Pra trocar, clique aqui e aperte outra tecla ou um botão lateral do mouse."
+      }
+    }
+  },
+  "steps": {
+    "welcome": {
+      "title": "Bem-vindo ao Aureum!",
+      "text": "Bora dar uma volta rápida? Leva menos de um minuto, e dá pra sair quando quiser (Esc)."
+    },
+    "tabs": {
+      "title": "Abas no topo",
+      "text": "O Início fica sempre primeiro e cada servidor ganha a sua aba (arraste pra mudar a ordem). No \"+\" você cria, entra ou reabre um servidor."
+    },
+    "home": {
+      "title": "Início: o seu hub",
+      "text": "Quem está ao vivo, seus servidores, o que você perdeu, suas tarefas e um calendário que junta os eventos e prazos de todos os servidores. Amigos e conversas privadas ficam na barra lateral."
+    },
+    "sidebar": {
+      "title": "Barra lateral do servidor",
+      "text": "Categorias com as salas de voz, as conversas e os addons. Clique numa sala pra entrar na call. Precisa de espaço? Recolha a barra pelo botão no alto dela."
+    },
+    "overview": {
+      "title": "Visão geral",
+      "text": "As salas ao vivo, quem está falando ou transmitindo e os próximos eventos do servidor, tudo numa tela só."
+    },
+    "panels": {
+      "title": "Painéis lado a lado",
+      "text": "Abra até 4 coisas ao mesmo tempo: chat, call, Kanban... Arraste um canal até a borda de um painel ou use os botões de dividir no canto dele."
+    },
+    "members": {
+      "title": "Membros",
+      "text": "A lista de membros fica numa barra só, à direita, seja qual for o painel aberto. Abre e fecha aqui ou com {{key}}."
+    },
+    "addons": {
+      "title": "Addons",
+      "text": "Kanban, Quadro, Eventos e Calendário moram dentro do servidor, como canais. O Calendário junta num lugar só os prazos do Kanban e os eventos."
+    },
+    "profile": {
+      "title": "Seu perfil",
+      "text": "No avatar você vê e edita o perfil (avatar e banner aceitam GIF) e a sua Conta, muda o status, abre as Configurações e reporta um problema ({{key}})."
+    },
+    "bell": {
+      "title": "Notificações",
+      "text": "O sino mostra pedidos de amizade, chamadas perdidas e as novidades de cada versão do Aureum."
+    },
+    "done": {
+      "title": "Pronto!",
+      "text": "Quando você usar algo pela primeira vez, a gente mostra uma dica. Numa call, \"Destacar\" leva a chamada pra uma janela própria, por cima de tudo. Pra rever este tour, é só ir no menu do perfil."
+    }
+  },
+  "start": "Começar",
+  "finish": "Concluir",
+  "next": "Próximo"
+}

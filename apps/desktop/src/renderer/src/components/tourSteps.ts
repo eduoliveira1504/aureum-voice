@@ -2,6 +2,7 @@ import { shortcut } from '../lib/platform'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import type { TourStep } from './Tour'
+import { t } from '../lib/i18n'
 
 /**
  * The first tour (block 3.16), on the Aureum's own layout. The guide is the official logo.
@@ -30,23 +31,37 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
     since: 1,
-    title: 'Bem-vindo ao Aureum!',
-    text: 'Bora dar uma volta rápida? Leva menos de um minuto, e dá pra sair quando quiser (Esc).',
-    next: 'Começar'
+    get title() {
+      return t('tour.steps.welcome.title')
+    },
+    get text() {
+      return t('tour.steps.welcome.text')
+    },
+    get next() {
+      return t('tour.start')
+    }
   },
   {
     id: 'tabs',
     since: 1,
     anchor: 'abas',
-    title: 'Abas no topo',
-    text: 'O Início fica sempre primeiro e cada servidor ganha a sua aba (arraste pra mudar a ordem). No "+" você cria, entra ou reabre um servidor.'
+    get title() {
+      return t('tour.steps.tabs.title')
+    },
+    get text() {
+      return t('tour.steps.tabs.text')
+    }
   },
   {
     id: 'home',
     since: 1,
     anchor: 'inicio',
-    title: 'Início: o seu hub',
-    text: 'Quem está ao vivo, seus servidores, o que você perdeu, suas tarefas e um calendário que junta os eventos e prazos de todos os servidores. Amigos e conversas privadas ficam na barra lateral.',
+    get title() {
+      return t('tour.steps.home.title')
+    },
+    get text() {
+      return t('tour.steps.home.text')
+    },
     prepare: () => useNav.getState().openHome('hub')
   },
   {
@@ -54,8 +69,12 @@ export const TOUR_STEPS: TourStep[] = [
     since: 1,
     needsServer: true,
     anchor: 'sidebar',
-    title: 'Barra lateral do servidor',
-    text: 'Categorias com as salas de voz, as conversas e os addons. Clique numa sala pra entrar na call. Precisa de espaço? Recolha a barra pelo botão no alto dela.',
+    get title() {
+      return t('tour.steps.sidebar.title')
+    },
+    get text() {
+      return t('tour.steps.sidebar.text')
+    },
     prepare: openTourServer
   },
   {
@@ -63,8 +82,12 @@ export const TOUR_STEPS: TourStep[] = [
     since: 1,
     needsServer: true,
     anchor: 'visao-geral',
-    title: 'Visão geral',
-    text: 'As salas ao vivo, quem está falando ou transmitindo e os próximos eventos do servidor, tudo numa tela só.',
+    get title() {
+      return t('tour.steps.overview.title')
+    },
+    get text() {
+      return t('tour.steps.overview.text')
+    },
     prepare: openTourServer
   },
   {
@@ -72,8 +95,12 @@ export const TOUR_STEPS: TourStep[] = [
     since: 1,
     needsServer: true,
     anchor: 'paineis',
-    title: 'Painéis lado a lado',
-    text: 'Abra até 4 coisas ao mesmo tempo: chat, call, Kanban... Arraste um canal até a borda de um painel ou use os botões de dividir no canto dele.',
+    get title() {
+      return t('tour.steps.panels.title')
+    },
+    get text() {
+      return t('tour.steps.panels.text')
+    },
     prepare: openTourServer
   },
   {
@@ -81,9 +108,11 @@ export const TOUR_STEPS: TourStep[] = [
     since: 1,
     needsServer: true,
     anchor: 'membros',
-    title: 'Membros',
+    get title() {
+      return t('tour.steps.members.title')
+    },
     get text() {
-      return `A lista de membros fica numa barra só, à direita, seja qual for o painel aberto. Abre e fecha aqui ou com ${shortcut('Ctrl+Shift+U')}.`
+      return t('tour.steps.members.text', { key: shortcut('Ctrl+Shift+U') })
     },
     prepare: openTourServer
   },
@@ -93,31 +122,47 @@ export const TOUR_STEPS: TourStep[] = [
     needsServer: true,
     anchor: 'addons',
     centerIfMissing: true,
-    title: 'Addons',
-    text: 'Kanban, Quadro, Eventos e Calendário moram dentro do servidor, como canais. O Calendário junta num lugar só os prazos do Kanban e os eventos.',
+    get title() {
+      return t('tour.steps.addons.title')
+    },
+    get text() {
+      return t('tour.steps.addons.text')
+    },
     prepare: openTourServer
   },
   {
     id: 'profile',
     since: 1,
     anchor: 'perfil',
-    title: 'Seu perfil',
+    get title() {
+      return t('tour.steps.profile.title')
+    },
     get text() {
-      return `No avatar você vê e edita o perfil (avatar e banner aceitam GIF) e a sua Conta, muda o status, abre as Configurações e reporta um problema (${shortcut('Ctrl+Shift+R')}).`
+      return t('tour.steps.profile.text', { key: shortcut('Ctrl+Shift+R') })
     }
   },
   {
     id: 'bell',
     since: 1,
     anchor: 'sino',
-    title: 'Notificações',
-    text: 'O sino mostra pedidos de amizade, chamadas perdidas e as novidades de cada versão do Aureum.'
+    get title() {
+      return t('tour.steps.bell.title')
+    },
+    get text() {
+      return t('tour.steps.bell.text')
+    }
   },
   {
     id: 'done',
     since: 1,
-    title: 'Pronto!',
-    text: 'Quando você usar algo pela primeira vez, a gente mostra uma dica. Numa call, "Destacar" leva a chamada pra uma janela própria, por cima de tudo. Pra rever este tour, é só ir no menu do perfil.',
-    next: 'Concluir'
+    get title() {
+      return t('tour.steps.done.title')
+    },
+    get text() {
+      return t('tour.steps.done.text')
+    },
+    get next() {
+      return t('tour.finish')
+    }
   }
 ]

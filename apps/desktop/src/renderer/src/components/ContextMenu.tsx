@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactM
 import { create } from 'zustand'
 
 import { menuClass, MenuItem } from './ui'
+import { t } from '../lib/i18n'
 
 /**
  * Right-click menus. One menu is open at a time, rendered by <ContextMenuHost /> at the
@@ -51,7 +52,7 @@ export function toast(text: string): void {
 export function copy(text: string, what = 'Copiado'): void {
   navigator.clipboard.writeText(text).then(
     () => toast(`${what}!`),
-    () => toast('Não foi possível copiar.')
+    () => toast(t('shell.copyFailed'))
   )
 }
 

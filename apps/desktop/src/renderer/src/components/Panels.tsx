@@ -30,6 +30,7 @@ import { contextMenu, Item } from './ContextMenu'
 import { ServerOverview } from './ServerOverview'
 import { Tip } from './Tour'
 import { VoiceView } from './VoiceView'
+import { t } from '../lib/i18n'
 
 /** Drag payload of a panel tab or a sidebar item: `{ tab, from? }` (from = source panel). */
 export const PANEL_DRAG_TYPE = 'application/x-aureum-panel-tab'
@@ -211,7 +212,7 @@ function Divider({
     <div
       role="separator"
       aria-orientation={row ? 'vertical' : 'horizontal'}
-      aria-label="Redimensionar painéis"
+      aria-label={t('shell.panels.resize')}
       onPointerDown={onPointerDown}
       onDoubleClick={() => useNav.getState().evenPanels(serverId, savedPath)}
       style={boxStyle(box)}
@@ -240,9 +241,9 @@ function TabMenu({ serverId, index, tab }: { serverId: string; index: number; ta
   const movable = tab !== 'overview'
   return (
     <>
-      {movable && at > first && <Item icon={ArrowLeft} label="Mover para a esquerda" onClick={() => moveTabBy(serverId, index, tab, -1)} />}
-      {movable && at < panel.tabs.length - 1 && <Item icon={ArrowRight} label="Mover para a direita" onClick={() => moveTabBy(serverId, index, tab, 1)} />}
-      <Item icon={X} label="Fechar outras" onClick={() => closeOtherTabs(serverId, index, tab)} />
+      {movable && at > first && <Item icon={ArrowLeft} label={t('shell.panels.moveLeft')} onClick={() => moveTabBy(serverId, index, tab, -1)} />}
+      {movable && at < panel.tabs.length - 1 && <Item icon={ArrowRight} label={t('shell.panels.moveRight')} onClick={() => moveTabBy(serverId, index, tab, 1)} />}
+      <Item icon={X} label={t('shell.panels.closeOthers')} onClick={() => closeOtherTabs(serverId, index, tab)} />
     </>
   )
 }
@@ -251,9 +252,9 @@ function tabInfo(tab: PanelTab, server: ServerDetail, callRoom: string | null): 
   const ref = parseTab(tab)
   switch (ref.kind) {
     case 'overview':
-      return { icon: LayoutDashboard, label: 'Visão geral' }
+      return { icon: LayoutDashboard, label: t('shell.panels.overview') }
     case 'call':
-      return { icon: Volume2, label: callRoom ? `Chamada · ${callRoom}` : 'Chamada' }
+      return { icon: Volume2, label: callRoom ? t('shell.panels.callIn', { room: callRoom }) : t('shell.panels.call') }
     case 'channel': {
       const channel = server.channels.find((c) => c.id === ref.id)
       const icon = channel?.type === 'voice' ? Volume2 : channel?.type === 'addon' ? addonIcon(channel.addon_key) : Hash
@@ -394,8 +395,8 @@ function PanelView({
                 {!pinned && (
                   <button
                     type="button"
-                    title="Fechar aba"
-                    aria-label={`Fechar ${label}`}
+                    title={t('shell.panels.closeTab')}
+                    aria-label={t('shell.panels.closeNamed', { name: label })}
                     onClick={(e) => {
                       e.stopPropagation()
                       closeTab(server.id, owner, tab)
@@ -415,8 +416,8 @@ function PanelView({
           {maximized && (
             <button
               type="button"
-              title="Voltar ao layout (Esc)"
-              aria-label="Voltar ao layout"
+              title={t('shell.panels.backEsc')}
+              aria-label={t('shell.panels.back')}
               onClick={() => toggleMaximize(server.id, index)}
               className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
             >
@@ -428,8 +429,8 @@ function PanelView({
           {canClose && (
             <button
               type="button"
-              title="Fechar painel"
-              aria-label="Fechar painel"
+              title={t('shell.panels.close')}
+              aria-label={t('shell.panels.close')}
               onClick={() => closePanel(server.id, index)}
               className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
             >
@@ -454,12 +455,12 @@ function TabContent({ tab, server, me }: { tab: PanelTab; server: ServerDetail; 
       return <ServerOverview server={server} me={me} />
     case 'call': {
       const channel = server.channels.find((c) => c.id === callChannelId)
-      if (!channel) return <Placeholder title="Você não está numa chamada" text="Entre numa sala para ver a chamada aqui." />
+      if (!channel) return <Placeholder title={t('shell.panels.noCall')} text={t('shell.panels.noCallHint')} />
       return <VoiceView server={server} channel={channel} meId={me.id} />
     }
     case 'channel': {
       const channel = server.channels.find((c) => c.id === ref.id)
-      if (!channel) return <Placeholder title="Carregando…" text="" />
+      if (!channel) return <Placeholder title={t('common.loading')} text="" />
       if (channel.type === 'addon') return <AddonView key={channel.id} server={server} channel={channel} me={me} />
       if (channel.type === 'text') {
         const perms = channelPermissions(server, channel, me.id)
@@ -498,7 +499,7 @@ function AddonView({ server, channel, me }: { server: ServerDetail; channel: Cha
   const addon = addonModule(channel.addon_key)
   const openItem = useNav((s) => (s.addonItem?.channelId === channel.id ? s.addonItem.itemId : null))
   if (!addon) {
-    return <Placeholder title={channel.name ?? 'Addon'} text="Este addon não existe nesta versão do Aureum. Atualize o app para usá-lo." />
+    return <Placeholder title={channel.name ?? 'Addon'} text={t('shell.panels.unknownAddon')} />
   }
   const tip = channel.addon_key ? ADDON_TIPS[channel.addon_key] : undefined
   return (

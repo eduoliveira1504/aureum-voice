@@ -266,8 +266,7 @@ export function ServerStickersTab({ server }: { server: ServerDetail }): ReactNo
           </div>
         </div>
         <p className="text-xs text-fg-subtle">
-          {t('media.stickers.rules', { used: stickers.length, max: MAX_PER_SERVER })}
-          Só podem ser enviadas neste servidor.
+          {t('media.stickers.rules', { used: stickers.length, max: MAX_PER_SERVER })} {t('shell.stickersHere')}
         </p>
       </div>
 

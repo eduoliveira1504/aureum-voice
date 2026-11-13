@@ -7,6 +7,7 @@ import { useAppearance } from './appearance'
 import { useChat } from './chat'
 import { useNav } from './nav'
 import { useVoice } from './voice'
+import { t } from '../lib/i18n'
 
 /** How long an incoming call rings before it counts as missed (the API uses the same). */
 export const RING_MS = 30_000
@@ -96,7 +97,7 @@ const doNotDisturb = (): boolean => useAppearance.getState().settings.status ===
 export function dmTitle(dm: Dm, meId: string | null): string {
   if (dm.name) return dm.name
   const others = dm.members.filter((m) => m.user.id !== meId).map((m) => m.user.display_name)
-  return others.length ? others.join(', ') : 'Só você'
+  return others.length ? others.join(', ') : t('shell.onlyYou')
 }
 
 /** The other person of a 1:1 DM. */

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
 import { DOWNLOAD_PAGE, type UpdateState } from '../../../shared/types'
 import { isNewer } from '../../../shared/version'
+import { t } from '../lib/i18n'
 
 /**
  * The update bar under the top bar (block 4.1.4): hard to miss, and never installs by itself.
@@ -88,18 +89,18 @@ export function UpdateBar(): ReactNode {
   }
 
   return (
-    <div role="status" aria-label="Atualização do Aureum" className="app-no-drag flex shrink-0 items-center gap-3 bg-accent px-4 py-2 text-sm text-on-accent">
+    <div role="status" aria-label={t('shell.update.aria')} className="app-no-drag flex shrink-0 items-center gap-3 bg-accent px-4 py-2 text-sm text-on-accent">
       {offer.kind === 'restart' ? <RefreshCw size={16} className="shrink-0" /> : <Download size={16} className="shrink-0" />}
       <span className="min-w-0 flex-1 truncate font-medium">
         {offer.kind === 'restart'
-          ? `A versão ${offer.version} do Aureum está pronta. Reinicie para usar.`
-          : `Saiu a versão ${offer.version} do Aureum. Baixe e instale por cima desta.`}
+          ? t('shell.update.ready', { version: offer.version })
+          : t('shell.update.manual', { version: offer.version })}
       </span>
       <button type="button" onClick={act} className="shrink-0 rounded-control bg-main px-3 py-1 text-xs font-semibold text-fg hover:bg-elevated">
-        {offer.kind === 'restart' ? 'Reiniciar agora' : 'Baixar agora'}
+        {offer.kind === 'restart' ? t('shell.update.restart') : t('shell.update.download')}
       </button>
-      <button type="button" onClick={later} className="flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium hover:bg-main/20" aria-label="Depois">
-        Depois <X size={14} />
+      <button type="button" onClick={later} className="flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium hover:bg-main/20" aria-label={t('shell.update.later')}>
+        {t('shell.update.later')} <X size={14} />
       </button>
     </div>
   )

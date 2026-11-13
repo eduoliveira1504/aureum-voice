@@ -34,7 +34,7 @@ const KEY_STEP = 12
 export type CropShape = 'avatar' | 'banner' | 'icon' | 'server-banner'
 
 interface Preview {
-  label: 'profileCard' | 'nextToName' | 'top' | 'lists' | 'overview'
+  place: 'profileCard' | 'nextToName' | 'top' | 'lists' | 'overview'
   size: Size
   rounded: string
   /** Shown next to the small one, as in a member list. */
@@ -46,28 +46,28 @@ const SHAPES: Record<CropShape, { frame: Size; rounded: string; previews: Previe
     frame: { width: 280, height: 280 },
     rounded: 'rounded-full',
     previews: [
-      { label: 'profileCard', size: { width: 88, height: 88 }, rounded: 'rounded-full' },
-      { label: 'nextToName', size: { width: 24, height: 24 }, rounded: 'rounded-full', withName: true }
+      { place: 'profileCard', size: { width: 88, height: 88 }, rounded: 'rounded-full' },
+      { place: 'nextToName', size: { width: 24, height: 24 }, rounded: 'rounded-full', withName: true }
     ]
   },
   // The profile card's banner is 340 x 120.
   banner: {
     frame: { width: 408, height: 144 },
     rounded: 'rounded-control',
-    previews: [{ label: 'profileCard', size: { width: 340, height: 120 }, rounded: 'rounded-control' }]
+    previews: [{ place: 'profileCard', size: { width: 340, height: 120 }, rounded: 'rounded-control' }]
   },
   icon: {
     frame: { width: 280, height: 280 },
     rounded: 'rounded-[18%]',
     previews: [
-      { label: 'top', size: { width: 48, height: 48 }, rounded: 'rounded-item' },
-      { label: 'lists', size: { width: 24, height: 24 }, rounded: 'rounded-item', withName: true }
+      { place: 'top', size: { width: 48, height: 48 }, rounded: 'rounded-item' },
+      { place: 'lists', size: { width: 24, height: 24 }, rounded: 'rounded-item', withName: true }
     ]
   },
   'server-banner': {
     frame: { width: 420, height: 140 },
     rounded: 'rounded-control',
-    previews: [{ label: 'overview', size: { width: 300, height: 100 }, rounded: 'rounded-control' }]
+    previews: [{ place: 'overview', size: { width: 300, height: 100 }, rounded: 'rounded-control' }]
   }
 }
 
@@ -109,7 +109,7 @@ function PreviewOf({
   )
   return (
     <div>
-      <span className={labelClass}>{t(`media.crop.previews.${preview.label}`)}</span>
+      <span className={labelClass}>{t(`media.crop.previews.${preview.place}`)}</span>
       {preview.withName ? (
         <span className="flex items-center gap-2 rounded-item bg-main px-2 py-1.5">
           {box}
@@ -273,7 +273,7 @@ export function ImageCropModal({
         {image && view && (
           <div className="min-w-0 space-y-4">
             {previews.map((p) => (
-              <PreviewOf key={p.label} preview={p} src={src} video={video} view={view} image={image} name={name} />
+              <PreviewOf key={p.place} preview={p} src={src} video={video} view={view} image={image} name={name} />
             ))}
           </div>
         )}
@@ -518,7 +518,7 @@ export function ImageRow({
         </button>
         {hasImage && (
           <button type="button" disabled={busy} onClick={onRemove} className="text-sm text-fg-muted hover:text-fg">
-            Remover
+            {t('common.remove')}
           </button>
         )}
         <input ref={input} type="file" accept={ACCEPT} hidden aria-label={t('media.crop.fileOf', { what: label.toLowerCase() })} onChange={onPick} />

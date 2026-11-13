@@ -5,6 +5,7 @@ import type { Panel, PanelLayout, PanelNode, PanelTab } from '../lib/api'
 import { evenRatio, matches, nodeAt, removePanel, rowOf, setRatio, splitPanel, type Edge, type TreePath } from '../lib/panelTree'
 import { useAppearance } from './appearance'
 import { useVoice } from './voice'
+import { t } from '../lib/i18n'
 
 /**
  * Where the user is in the app shell: the Home tab or a server tab, and inside a server, which
@@ -322,7 +323,7 @@ export const useNav = create<NavState>()((set, get) => {
       if (!edge && index === undefined && from === panel) return get().activateTab(serverId, panel, tab)
       // Taking the only tab of a panel frees a place, so a full layout can still be rearranged.
       const full = layout.panels.length >= MAX_PANELS && !alone
-      if (edge && full && !get().narrow) toast(`Máximo de ${MAX_PANELS} painéis`)
+      if (edge && full && !get().narrow) toast(t('shell.panels.max', { count: MAX_PANELS }))
       const split = !!edge && !full && !get().narrow
 
       let tree = treeOf(layout)

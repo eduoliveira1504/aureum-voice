@@ -9,6 +9,7 @@ import { Modal, SecondaryButton } from './Modal'
 import { TourOverlay } from './Tour'
 import { TOUR_STEPS, tourServer } from './tourSteps'
 import { PrimaryButton } from './ui'
+import { t } from '../lib/i18n'
 
 /** After the loading screen fades out and the first layout settles. */
 const START_DELAY_MS = 900
@@ -61,13 +62,13 @@ export function TourHost(): ReactNode {
 function TourInvite(): ReactNode {
   const { acceptInvite, declineInvite } = useOnboarding.getState()
   return (
-    <Modal title="Quer fazer um tour rápido pelo Aureum?" subtitle="Menos de um minuto pra conhecer o layout. Dá pra rever depois no menu do perfil." onClose={declineInvite}>
+    <Modal title={t('shell.tour.inviteTitle')} subtitle={t('shell.tour.inviteHint')} onClose={declineInvite}>
       <div className="flex flex-col gap-2">
         <PrimaryButton type="button" onClick={acceptInvite}>
-          Sim, bora
+          {t('shell.tour.yes')}
         </PrimaryButton>
         <SecondaryButton type="button" onClick={declineInvite}>
-          Agora não
+          {t('shell.tour.later')}
         </SecondaryButton>
       </div>
     </Modal>
