@@ -20,17 +20,19 @@ import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
 import { Avatar, Field, inputClass, labelClass, PrimaryButton, Segmented, ToggleRow } from './ui'
+import { t as tr } from '../lib/i18n'
+import { Trans } from 'react-i18next'
 
 export function errorText(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
-    if (err.status === 404) return 'Convite não encontrado.'
-    if (err.status === 410) return 'Esse convite expirou ou atingiu o limite de usos.'
+    if (err.status === 404) return tr('server.join.notFound')
+    if (err.status === 410) return tr('server.join.expired')
     if (err.status === 403 && err.detail === 'Confirm your e-mail to create servers') {
-      return 'Confirme seu e-mail para criar servidores (o aviso fica no rodapé do app).'
+      return tr('server.join.confirmEmail')
     }
-    if (err.status === 403) return 'Você não tem permissão para isso.'
+    if (err.status === 403) return tr('server.forbidden')
   }
-  return err instanceof TypeError ? 'Não foi possível conectar ao servidor.' : fallback
+  return err instanceof TypeError ? tr('server.join.unreachable') : fallback
 }
 
 /** Accepts a bare code or anything ending in it (e.g. a pasted link). */
@@ -57,8 +59,8 @@ export function AddServerModal({ initial = 'create', onClose }: { initial?: 'cre
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
     const input = tab === 'create' ? value.trim() : parseInviteCode(value)
-    if (!input) return setError(tab === 'create' ? 'Dê um nome ao servidor.' : 'Cole o código do convite.')
-    if (tab === 'create' && types?.length && !type) return setError('Escolha o tipo do servidor.')
+    if (!input) return setError(tab === 'create' ? tr('server.join.nameIt') : tr('server.join.pasteCode'))
+    if (tab === 'create' && types?.length && !type) return setError(tr('server.join.pickType'))
     setBusy(true)
     setError(null)
     try {
@@ -70,22 +72,22 @@ export function AddServerModal({ initial = 'create', onClose }: { initial?: 'cre
       useNav.getState().openServer(server.id)
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Algo deu errado. Tente de novo.'))
+      setError(errorText(err, tr('sounds.error')))
       setBusy(false)
     }
   }
 
   return (
     <Modal
-      title={tab === 'create' ? 'Criar um servidor' : 'Entrar em um servidor'}
-      subtitle={tab === 'create' ? 'Um lugar pra você e seus amigos.' : 'Cole o código de convite que te mandaram.'}
+      title={tab === 'create' ? tr('server.join.createTitle') : tr('server.join.joinTitle')}
+      subtitle={tab === 'create' ? tr('server.join.createHint') : tr('server.join.joinHint')}
       onClose={onClose}
     >
       <div className="mb-4">
         <Segmented
           options={[
-            { value: 'create', label: 'Criar' },
-            { value: 'join', label: 'Tenho um convite' }
+            { value: 'create', label: tr('server.join.create') },
+            { value: 'join', label: tr('server.join.haveInvite') }
           ]}
           value={tab}
           onChange={(t) => {
@@ -100,15 +102,15 @@ export function AddServerModal({ initial = 'create', onClose }: { initial?: 'cre
         <Field
           key={tab}
           autoFocus
-          label={tab === 'create' ? 'Nome do servidor' : 'Código do convite'}
+          label={tab === 'create' ? tr('server.join.name') : tr('server.join.code')}
           value={value}
           maxLength={tab === 'create' ? 100 : 200}
-          placeholder={tab === 'create' ? '(Nome do servidor)' : 'Ex.: aB3dE9fG'}
+          placeholder={tab === 'create' ? tr('server.join.namePlaceholder') : tr('server.join.codePlaceholder')}
           onChange={(e) => setValue(e.target.value)}
         />
         {tab === 'create' && !!types?.length && <ServerTypePicker types={types} value={type} onChange={setType} />}
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Aguarde…' : tab === 'create' ? 'Criar' : 'Entrar no servidor'}
+          {busy ? tr('auth.wait') : tab === 'create' ? tr('server.join.create') : tr('server.join.joinButton')}
         </PrimaryButton>
       </form>
     </Modal>
@@ -127,8 +129,8 @@ function ServerTypePicker({
 }): ReactNode {
   return (
     <div>
-      <span className={labelClass}>Tipo do servidor</span>
-      <div role="radiogroup" aria-label="Tipo do servidor" className="grid gap-2">
+      <span className={labelClass}>{tr('server.join.type')}</span>
+      <div role="radiogroup" aria-label={tr('server.join.type')} className="grid gap-2">
         {types.map((t) => (
           <label
             key={t.type}
@@ -142,13 +144,13 @@ function ServerTypePicker({
               className="mt-1 accent-accent"
             />
             <span className="min-w-0">
-              <span className="block font-medium">{t.name}</span>
-              <span className="block text-xs text-fg-subtle">{t.description}</span>
+              <span className="block font-medium">{tr(`server.types.${t.type}.name`, { defaultValue: t.name })}</span>
+              <span className="block text-xs text-fg-subtle">{tr(`server.types.${t.type}.description`, { defaultValue: t.description })}</span>
             </span>
           </label>
         ))}
       </div>
-      <p className="mt-2 text-xs text-fg-subtle">O tipo não pode ser alterado depois.</p>
+      <p className="mt-2 text-xs text-fg-subtle">{tr('server.join.typeLocked')}</p>
     </div>
   )
 }
@@ -161,7 +163,7 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
   useEffect(() => {
     api<Invite>(`/servers/${server.id}/invites`, { method: 'POST', body: {} })
       .then(setInvite)
-      .catch((err) => setError(errorText(err, 'Não foi possível criar o convite.')))
+      .catch((err) => setError(errorText(err, tr('server.invite.failed'))))
   }, [server.id])
 
   async function copy(): Promise<void> {
@@ -172,9 +174,9 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
   }
 
   return (
-    <Modal title={`Convidar para ${server.name}`} onClose={onClose}>
+    <Modal title={tr('server.invite.title', { name: server.name })} onClose={onClose}>
       <FormError message={error} />
-      <span className={labelClass}>Código do convite</span>
+      <span className={labelClass}>{tr('server.invite.code')}</span>
       <div className="flex items-center gap-2 rounded-control border border-line bg-main p-1.5 pl-3">
         <code className="flex-1 select-text font-mono text-lg tracking-wider">{invite?.code ?? '…'}</code>
         <button
@@ -184,12 +186,11 @@ export function InviteModal({ server, onClose }: { server: ServerDetail; onClose
           className="flex items-center gap-1.5 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
           {copied && <Check size={16} />}
-          {copied ? 'Copiado!' : 'Copiar'}
+          {copied ? tr('server.invite.copied') : tr('common.copy')}
         </button>
       </div>
       <p className="mt-2 text-xs text-fg-subtle">
-        Expira em 7 dias. Quem ainda não tem conta usa o código no <b>cadastro</b>; quem já tem cola em{' '}
-        <b>+ → Tenho um convite</b>.
+        <Trans i18nKey="server.invite.hint" components={{ b: <b /> }} />
       </p>
     </Modal>
   )
@@ -229,15 +230,15 @@ function PrivateAccess({
   return (
     <div className="space-y-2">
       <ToggleRow
-        title="Canal privado"
-        description={`Só os cargos e membros escolhidos ${voice ? 'veem e entram na sala' : 'veem o canal'}.`}
+        title={tr('server.newChannel.private')}
+        description={voice ? tr('server.newChannel.privateRoom') : tr('server.newChannel.privateText')}
         checked={value.private}
         onChange={(on) => onChange({ ...value, private: on })}
       />
       {value.private && (
         <div className="rounded-control border border-line bg-main p-1.5">
           <div className="max-h-48 overflow-y-auto">
-            {roles.length > 0 && <p className={`${labelClass} px-2 pt-1`}>Cargos</p>}
+            {roles.length > 0 && <p className={`${labelClass} px-2 pt-1`}>{tr('server.newChannel.roles')}</p>}
             {roles.map((r) => (
               <label key={r.id} className={row}>
                 <input type="checkbox" checked={value.roles.includes(r.id)} onChange={() => toggle('roles', r.id)} className="accent-accent" />
@@ -248,7 +249,7 @@ function PrivateAccess({
                 <span className="truncate">{r.name}</span>
               </label>
             ))}
-            {members.length > 0 && <p className={`${labelClass} px-2 pt-2`}>Membros</p>}
+            {members.length > 0 && <p className={`${labelClass} px-2 pt-2`}>{tr('server.newChannel.members')}</p>}
             {members.map((m) => (
               <label key={m.user.id} className={row}>
                 <input type="checkbox" checked={value.members.includes(m.user.id)} onChange={() => toggle('members', m.user.id)} className="accent-accent" />
@@ -257,7 +258,7 @@ function PrivateAccess({
               </label>
             ))}
           </div>
-          <p className="px-2 pb-1 pt-2 text-xs text-fg-subtle">Você continua com acesso. Dá pra ajustar depois em Configurações do canal → Permissões.</p>
+          <p className="px-2 pb-1 pt-2 text-xs text-fg-subtle">{tr('server.newChannel.keepAccess')}</p>
         </div>
       )}
     </div>
@@ -271,9 +272,9 @@ function CategorySelect({ serverId, value, onChange }: { serverId: string; value
   if (!categories.length) return null
   return (
     <label className="block">
-      <span className={labelClass}>Categoria</span>
-      <select aria-label="Categoria" value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
-        <option value="">Sem categoria</option>
+      <span className={labelClass}>{tr('server.newChannel.category')}</span>
+      <select aria-label={tr('server.newChannel.category')} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <option value="">{tr('server.newChannel.noCategory')}</option>
         {categories.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
@@ -307,20 +308,20 @@ export function CreateChannelModal({
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (!name.trim()) return setError('Dê um nome ao canal.')
+    if (!name.trim()) return setError(tr('server.newChannel.nameIt'))
     setBusy(true)
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, { method: 'POST', body: { name, type, category_id: category || null, ...accessBody(access) } })
       if (type === 'text') openTab(serverId, channelTab(channel.id))
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Não foi possível criar o canal.'))
+      setError(errorText(err, tr('server.newChannel.failed')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Criar canal" onClose={onClose}>
+    <Modal title={tr('server.newChannel.title')} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
         <div className="space-y-2">
@@ -332,19 +333,19 @@ export function CreateChannelModal({
               <input type="radio" name="type" checked={type === t} onChange={() => setType(t)} className="accent-accent" />
               {t === 'text' ? <Hash size={18} className="shrink-0 text-fg-muted" /> : <Volume2 size={18} className="shrink-0 text-fg-muted" />}
               <span>
-                <span className="block font-medium">{t === 'text' ? 'Texto' : 'Voz'}</span>
+                <span className="block font-medium">{t === 'text' ? tr('server.newChannel.text') : tr('server.newChannel.voice')}</span>
                 <span className="block text-xs text-fg-subtle">
-                  {t === 'text' ? 'Mensagens, memes e links' : 'Voz, câmera e compartilhamento de tela'}
+                  {t === 'text' ? tr('server.newChannel.textHint') : tr('server.newChannel.voiceHint')}
                 </span>
               </span>
             </label>
           ))}
         </div>
-        <Field autoFocus label="Nome do canal" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={type === 'text' ? 'novo-canal' : 'Sala de jogo'} />
+        <Field autoFocus label={tr('server.channel.name')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={type === 'text' ? tr('server.newChannel.textPlaceholder') : tr('server.newChannel.voicePlaceholder')} />
         <CategorySelect serverId={serverId} value={category} onChange={setCategory} />
         <PrivateAccess serverId={serverId} voice={type === 'voice'} value={access} onChange={setAccess} />
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Criando…' : 'Criar canal'}
+          {busy ? tr('server.newChannel.creating') : tr('server.newChannel.title')}
         </PrimaryButton>
       </form>
     </Modal>
@@ -375,7 +376,7 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
           setName(usable[0].name)
         }
       })
-      .catch((err) => setError(errorText(err, 'Não foi possível carregar os addons.')))
+      .catch((err) => setError(errorText(err, tr('server.newAddon.loadFailed'))))
   }, [])
 
   const pick = (addon: AddonInfo): void => {
@@ -387,7 +388,7 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
     if (!key) return
-    if (!name.trim()) return setError('Dê um nome ao addon.')
+    if (!name.trim()) return setError(tr('server.newAddon.nameIt'))
     setBusy(true)
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, {
@@ -397,17 +398,17 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
       openTab(serverId, channelTab(channel.id))
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Não foi possível adicionar o addon.'))
+      setError(errorText(err, tr('server.newAddon.failed')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Adicionar addon" onClose={onClose}>
+    <Modal title={tr('server.newAddon.title')} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
-        {addons === null && !error && <p className="text-sm text-fg-muted">Carregando…</p>}
-        {addons?.length === 0 && <p className="text-sm text-fg-muted">Nenhum addon disponível nesta versão.</p>}
+        {addons === null && !error && <p className="text-sm text-fg-muted">{tr('common.loading')}</p>}
+        {addons?.length === 0 && <p className="text-sm text-fg-muted">{tr('server.newAddon.none')}</p>}
         <div className="space-y-2">
           {addons?.map((addon) => {
             const Icon = addonModule(addon.key)!.icon
@@ -426,11 +427,11 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
             )
           })}
         </div>
-        {key && <Field label="Nome" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
+        {key && <Field label={tr('server.newAddon.name')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
         {key && <PrivateAccess serverId={serverId} voice={false} value={access} onChange={setAccess} />}
         <CategorySelect serverId={serverId} value={category} onChange={setCategory} />
         <PrimaryButton type="submit" disabled={busy || !key}>
-          {busy ? 'Adicionando…' : 'Adicionar'}
+          {busy ? tr('server.newAddon.adding') : tr('server.newAddon.add')}
         </PrimaryButton>
       </form>
     </Modal>
@@ -465,7 +466,7 @@ export function ConfirmModal({
       await onConfirm()
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Algo deu errado. Tente de novo.'))
+      setError(errorText(err, tr('sounds.error')))
       setBusy(false)
     }
   }
@@ -478,7 +479,7 @@ export function ConfirmModal({
         <FormError message={error} />
         <div className="grid grid-cols-2 gap-3">
           <SecondaryButton type="button" onClick={onClose}>
-            Cancelar
+            {tr('common.cancel')}
           </SecondaryButton>
           <DangerButton type="button" onClick={confirm} disabled={busy || disabled}>
             {confirmLabel}

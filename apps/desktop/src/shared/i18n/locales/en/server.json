@@ -40,5 +40,136 @@
     "perms": "{{name}} permissions",
     "permsHint": "Synced channels follow what is set here.",
     "here": "in this category"
+  },
+  "settings": {
+    "tabs": {
+      "general": "Overview",
+      "roles": "Roles",
+      "members": "Members",
+      "stickers": "Stickers",
+      "sounds": "Soundboard",
+      "bans": "Bans"
+    },
+    "title": "{{name}} settings",
+    "icon": "Icon",
+    "banner": "Banner",
+    "imageHint": "PNG, JPG, GIF or WebP up to 8 MB. Animated GIFs and WebPs stay animated.",
+    "name": "Server name"
+  },
+  "roles": {
+    "create": "Create role",
+    "dragHint": "Drag to change the hierarchy. Roles above rule the ones below.",
+    "saveFailed": "Couldn't save the role.",
+    "readOnly": "This role is at your level or above: view only.",
+    "name": "Role name",
+    "color": "Color",
+    "otherColor": "Other color",
+    "noColor": "No color",
+    "icon": "Role icon",
+    "uploadFailed": "Couldn't upload the image.",
+    "hoist": "Display separately",
+    "hoistHint": "People with the role show in their own group in the member list.",
+    "mentionable": "Mentionable",
+    "mentionableHint": "Reserved: role mentions come in a future version.",
+    "everyoneHint": "What everyone on the server can do, before the other roles.",
+    "undo": "Undo",
+    "delete": "Delete role",
+    "deleteTitle": "Delete {{name}}",
+    "deleteConfirm": "People with the role lose its permissions."
+  },
+  "members": {
+    "search": "Search member",
+    "kickTitle": "Kick {{name}}",
+    "banTitle": "Ban {{name}}",
+    "kickConfirm": "They leave the server, but can come back with an invite.",
+    "banConfirm": "They leave the server and can't come back while banned.",
+    "kick": "Kick",
+    "ban": "Ban",
+    "reason": "Reason (optional)",
+    "owner": "Server owner",
+    "removeRole": "Remove {{name}}",
+    "addRole": "Give role",
+    "transfer": "Transfer ownership",
+    "transferTitle": "Transfer ownership to {{name}}",
+    "transferConfirm": "{{name}} becomes the owner of {{server}}, with every power. You stay on the server, with your roles, and only become the owner again if they hand it back.",
+    "typeName": "Type the server's name to confirm"
+  },
+  "bans": {
+    "none": "Nobody banned.",
+    "noReason": "No reason given",
+    "revoke": "Revoke"
+  },
+  "join": {
+    "notFound": "Invite not found.",
+    "expired": "That invite expired or reached its use limit.",
+    "confirmEmail": "Confirm your email to create servers (the notice is at the bottom of the app).",
+    "unreachable": "Couldn't connect to the server.",
+    "nameIt": "Give the server a name.",
+    "pasteCode": "Paste the invite code.",
+    "pickType": "Pick the server type.",
+    "createTitle": "Create a server",
+    "joinTitle": "Join a server",
+    "createHint": "A place for you and your friends.",
+    "joinHint": "Paste the invite code you got.",
+    "create": "Create",
+    "haveInvite": "I have an invite",
+    "name": "Server name",
+    "code": "Invite code",
+    "namePlaceholder": "(Server name)",
+    "codePlaceholder": "E.g. aB3dE9fG",
+    "joinButton": "Join server",
+    "type": "Server type",
+    "typeLocked": "The type can't be changed later."
+  },
+  "types": {
+    "game": {
+      "name": "Gaming",
+      "description": "To play together: polls, events, calendar and soundboard."
+    },
+    "work": {
+      "name": "Work",
+      "description": "For teams: kanban, whiteboard, polls, events and calendar."
+    },
+    "mixed": {
+      "name": "Mixed",
+      "description": "Everything: the gaming and the work addons."
+    }
+  },
+  "invite": {
+    "failed": "Couldn't create the invite.",
+    "title": "Invite to {{name}}",
+    "code": "Invite code",
+    "copied": "Copied!",
+    "hint": "Expires in 7 days. People without an account use the code when <b>signing up</b>; people with one paste it in <b>+ → I have an invite</b>."
+  },
+  "newChannel": {
+    "private": "Private channel",
+    "privateRoom": "Only the chosen roles and members see and join the room.",
+    "privateText": "Only the chosen roles and members see the channel.",
+    "roles": "Roles",
+    "members": "Members",
+    "keepAccess": "You keep access. You can adjust it later in Channel settings → Permissions.",
+    "category": "Category",
+    "noCategory": "No category",
+    "nameIt": "Give the channel a name.",
+    "failed": "Couldn't create the channel.",
+    "title": "Create channel",
+    "text": "Text",
+    "voice": "Voice",
+    "textHint": "Messages, memes and links",
+    "voiceHint": "Voice, camera and screen sharing",
+    "textPlaceholder": "new-channel",
+    "voicePlaceholder": "Game room",
+    "creating": "Creating…"
+  },
+  "newAddon": {
+    "loadFailed": "Couldn't load the addons.",
+    "nameIt": "Give the addon a name.",
+    "failed": "Couldn't add the addon.",
+    "title": "Add addon",
+    "none": "No addon available in this version.",
+    "name": "Name",
+    "adding": "Adding…",
+    "add": "Add"
   }
 }

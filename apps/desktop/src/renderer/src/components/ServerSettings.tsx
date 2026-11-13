@@ -13,9 +13,10 @@ import { ServerBannerLayer } from './ServerBanner'
 import { ServerSoundsTab } from './Soundboard'
 import { ServerStickersTab } from './Stickers'
 import { Avatar, cn, Field, inputClass, labelClass, menuClass, PrimaryButton, ServerIcon, ToggleRow, useDismiss } from './ui'
+import { t } from '../lib/i18n'
 
 function errorText(err: unknown, fallback: string): string {
-  if (err instanceof ApiError && err.status === 403) return 'Você não tem permissão para isso.'
+  if (err instanceof ApiError && err.status === 403) return t('server.forbidden')
   if (err instanceof ApiError && (err.status === 413 || err.status === 415)) return uploadError(err)
   return fallback
 }
@@ -30,7 +31,7 @@ function useAction(serverId: string): {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const run = useCallback(
-    async (label: string, action: () => Promise<unknown>, fallback = 'Algo deu errado. Tente de novo.') => {
+    async (label: string, action: () => Promise<unknown>, fallback = t('sounds.error')) => {
       setBusy(label)
       setError(null)
       try {
@@ -55,18 +56,18 @@ export function ServerSettingsModal({ server, meId, onClose }: { server: ServerD
   const perms = basePermissions(server, meId)
   const tabs = (
     [
-      ['general', 'Visão geral', has(perms, Perm.MANAGE_SERVER)],
-      ['roles', 'Cargos', has(perms, Perm.MANAGE_ROLES)],
-      ['members', 'Membros', has(perms, Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)],
-      ['stickers', 'Figurinhas', has(perms, Perm.MANAGE_EXPRESSIONS)],
-      ['sounds', 'Painel de sons', has(perms, Perm.MANAGE_SOUNDBOARD) && serverAllows(server, 'soundboard')],
-      ['bans', 'Banimentos', has(perms, Perm.BAN_MEMBERS)]
+      ['general', t('server.settings.tabs.general'), has(perms, Perm.MANAGE_SERVER)],
+      ['roles', t('server.settings.tabs.roles'), has(perms, Perm.MANAGE_ROLES)],
+      ['members', t('server.settings.tabs.members'), has(perms, Perm.MANAGE_ROLES | Perm.KICK_MEMBERS | Perm.BAN_MEMBERS)],
+      ['stickers', t('server.settings.tabs.stickers'), has(perms, Perm.MANAGE_EXPRESSIONS)],
+      ['sounds', t('server.settings.tabs.sounds'), has(perms, Perm.MANAGE_SOUNDBOARD) && serverAllows(server, 'soundboard')],
+      ['bans', t('server.settings.tabs.bans'), has(perms, Perm.BAN_MEMBERS)]
     ] as const
   ).filter(([, , allowed]) => allowed)
   const [tab, setTab] = useState<Tab>(tabs[0]?.[0] ?? 'general')
 
   return (
-    <Modal title={`Configurações de ${server.name}`} wide tall onClose={onClose}>
+    <Modal title={t('server.settings.title', { name: server.name })} wide tall onClose={onClose}>
       <ModalTabs<Tab> tabs={tabs} isCurrent={(key) => tab === key} onSelect={setTab} />
       <ModalBody>
         {tab === 'general' && <GeneralTab server={server} />}
@@ -98,11 +99,11 @@ function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
           <ServerIcon name={server.name} url={server.icon_url} size={48} />
         </span>
       </div>
-      <CroppedImageRow label="Ícone" shape="icon" path={`/servers/${server.id}/icon`} hasImage={!!server.icon_url} crop={server.icon_crop}
+      <CroppedImageRow label={t('server.settings.icon')} shape="icon" path={`/servers/${server.id}/icon`} hasImage={!!server.icon_url} crop={server.icon_crop}
         name={server.name} onDone={refresh} />
-      <CroppedImageRow label="Banner" shape="server-banner" path={`/servers/${server.id}/banner`} hasImage={!!server.banner_url}
+      <CroppedImageRow label={t('server.settings.banner')} shape="server-banner" path={`/servers/${server.id}/banner`} hasImage={!!server.banner_url}
         crop={server.banner_crop} name={server.name} onDone={refresh} />
-      <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB. GIFs e WebPs animados continuam animados.</p>
+      <p className="-mt-2 text-xs text-fg-subtle">{t('server.settings.imageHint')}</p>
       <form
         className="flex items-end gap-3"
         onSubmit={(e) => {
@@ -111,11 +112,11 @@ function GeneralTab({ server }: { server: ServerDetail }): ReactNode {
         }}
       >
         <div className="flex-1">
-          <Field label="Nome do servidor" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+          <Field label={t('server.settings.name')} maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="w-32">
           <PrimaryButton type="submit" disabled={busy !== null || !name.trim() || name.trim() === server.name}>
-            Salvar
+            {t('common.save')}
           </PrimaryButton>
         </div>
       </form>
@@ -165,7 +166,7 @@ function RolesTab({ server, meId }: { server: ServerDetail; meId: string }): Rea
           onClick={() => void create()}
           className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-control border border-dashed border-line py-2 text-sm font-medium text-fg-muted hover:border-accent hover:text-fg"
         >
-          <Plus size={16} /> Criar cargo
+          <Plus size={16} /> {t('server.roles.create')}
         </button>
         {ordered.map((r) => (
           <button
@@ -196,7 +197,7 @@ function RolesTab({ server, meId }: { server: ServerDetail; meId: string }): Rea
           <span className="w-[14px]" />
           <span className="min-w-0 flex-1 truncate">@everyone</span>
         </button>
-        <p className="px-2 pt-2 text-xs text-fg-subtle">Arraste para mudar a hierarquia. Cargos de cima mandam nos de baixo.</p>
+        <p className="px-2 pt-2 text-xs text-fg-subtle">{t('server.roles.dragHint')}</p>
         <FormError message={error} />
       </div>
       <RoleEditor key={role.id} server={server} role={role} meId={meId} onDeleted={() => setSelected(server.id)} />
@@ -223,7 +224,7 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
     const body = everyone
       ? { permissions: form.permissions }
       : { name: form.name.trim(), color: form.color, hoist: form.hoist, mentionable: form.mentionable, permissions: form.permissions }
-    void run('save', () => api(`/roles/${role.id}`, { method: 'PATCH', body }), 'Não foi possível salvar o cargo.')
+    void run('save', () => api(`/roles/${role.id}`, { method: 'PATCH', body }), t('server.roles.saveFailed'))
   }
   const toggle = (bit: number, on: boolean): void =>
     setForm((f) => ({ ...f, permissions: on ? f.permissions | bit : f.permissions & ~bit }))
@@ -232,15 +233,15 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
     <div className="min-w-0 space-y-4">
       {!editable && (
         <p className="rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">
-          Esse cargo está no seu nível ou acima: só dá pra ver.
+          {t('server.roles.readOnly')}
         </p>
       )}
       <FormError message={error} />
       {!everyone && (
         <>
-          <Field label="Nome do cargo" maxLength={100} disabled={!editable} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Field label={t('server.roles.name')} maxLength={100} disabled={!editable} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <div>
-            <span className={labelClass}>Cor</span>
+            <span className={labelClass}>{t('server.roles.color')}</span>
             <div className="flex flex-wrap items-center gap-2">
               {ACCENT_PRESETS.map(({ id, hex }) => (
                 <button
@@ -254,45 +255,45 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
                   style={{ background: hex }}
                 />
               ))}
-              <label title="Outra cor" className="relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line text-fg-muted hover:text-fg">
+              <label title={t('server.roles.otherColor')} className="relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line text-fg-muted hover:text-fg">
                 <Pipette size={14} />
                 <input type="color" disabled={!editable} value={form.color ?? ACCENT_PRESETS[0].hex} onChange={(e) => setForm({ ...form, color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
               {form.color && editable && (
                 <button type="button" onClick={() => setForm({ ...form, color: null })} className="text-xs text-fg-subtle hover:text-fg">
-                  Sem cor
+                  {t('server.roles.noColor')}
                 </button>
               )}
             </div>
           </div>
           {editable && (
           <ImageRow
-            label="Ícone do cargo"
+            label={t('server.roles.icon')}
             busy={busy === 'icon'}
             hasImage={!!role.icon_url}
             onPick={(e) => {
               const body = imageForm(e, setError)
-              if (body) void run('icon', () => api(`/roles/${role.id}/icon`, { method: 'POST', body }), 'Não foi possível enviar a imagem.')
+              if (body) void run('icon', () => api(`/roles/${role.id}/icon`, { method: 'POST', body }), t('server.roles.uploadFailed'))
             }}
             onRemove={() => void run('icon', () => api(`/roles/${role.id}/icon`, { method: 'DELETE' }))}
           />
           )}
           <ToggleRow
-            title="Exibir separadamente"
-            description="Quem tem o cargo aparece num grupo próprio na lista de membros."
+            title={t('server.roles.hoist')}
+            description={t('server.roles.hoistHint')}
             checked={form.hoist}
             onChange={(hoist) => editable && setForm({ ...form, hoist })}
           />
           <ToggleRow
-            title="Mencionável"
-            description="Reservado: menções a cargos chegam numa próxima versão."
+            title={t('server.roles.mentionable')}
+            description={t('server.roles.mentionableHint')}
             checked={form.mentionable}
             onChange={(mentionable) => editable && setForm({ ...form, mentionable })}
           />
         </>
       )}
 
-      {everyone && <p className="text-sm text-fg-muted">O que todo mundo do servidor pode fazer, antes dos outros cargos.</p>}
+      {everyone && <p className="text-sm text-fg-muted">{t('server.roles.everyoneHint')}</p>}
       {PERMISSION_GROUPS.map((group) => (
         <section key={group.title}>
           <h3 className={labelClass}>{group.title}</h3>
@@ -328,7 +329,7 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
         <div className="sticky bottom-0 flex items-center gap-3 bg-panel py-3">
           <div className="w-36">
             <PrimaryButton type="button" disabled={!dirty || busy !== null || (!everyone && !form.name.trim())} onClick={save}>
-              {busy === 'save' ? 'Salvando…' : 'Salvar'}
+              {busy === 'save' ? t('common.saving') : t('common.save')}
             </PrimaryButton>
           </div>
           {dirty && (
@@ -337,21 +338,21 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
               onClick={() => setForm({ name: role.name, color: role.color, hoist: role.hoist, mentionable: role.mentionable, permissions: role.permissions })}
               className="text-sm text-fg-muted hover:text-fg"
             >
-              Desfazer
+              {t('server.roles.undo')}
             </button>
           )}
           {!everyone && (
             <button type="button" onClick={() => setConfirming(true)} className="ml-auto text-sm font-medium text-danger hover:underline">
-              Excluir cargo
+              {t('server.roles.delete')}
             </button>
           )}
         </div>
       )}
       {confirming && (
         <ConfirmModal
-          title={`Excluir ${role.name}`}
-          message="Quem tem o cargo perde as permissões dele."
-          confirmLabel="Excluir cargo"
+          title={t('server.roles.deleteTitle', { name: role.name })}
+          message={t('server.roles.deleteConfirm')}
+          confirmLabel={t('server.roles.delete')}
           onConfirm={async () => {
             await api(`/roles/${role.id}`, { method: 'DELETE' })
             onDeleted()
@@ -380,7 +381,7 @@ function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): R
 
   return (
     <div className="space-y-3">
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar membro" className={inputClass} />
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('server.members.search')} className={inputClass} />
       <FormError message={error} />
       <div className="divide-y divide-line">
         {members.map((m) => (
@@ -392,13 +393,13 @@ function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): R
       )}
       {action && action.kind !== 'transfer' && (
         <ConfirmModal
-          title={`${action.kind === 'kick' ? 'Expulsar' : 'Banir'} ${action.member.user.display_name}`}
+          title={t(action.kind === 'kick' ? 'server.members.kickTitle' : 'server.members.banTitle', { name: action.member.user.display_name })}
           message={
             action.kind === 'kick'
-              ? 'A pessoa sai do servidor, mas pode voltar com um convite.'
-              : 'A pessoa sai do servidor e não consegue voltar enquanto estiver banida.'
+              ? t('server.members.kickConfirm')
+              : t('server.members.banConfirm')
           }
-          confirmLabel={action.kind === 'kick' ? 'Expulsar' : 'Banir'}
+          confirmLabel={action.kind === 'kick' ? t('server.members.kick') : t('server.members.ban')}
           onConfirm={async () => {
             const path = `/servers/${server.id}/${action.kind === 'kick' ? 'members' : 'bans'}/${action.member.user.id}`
             await (action.kind === 'kick'
@@ -409,7 +410,7 @@ function MembersTab({ server, meId }: { server: ServerDetail; meId: string }): R
           onClose={() => setAction(null)}
         >
           {action.kind === 'ban' && (
-            <input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Motivo (opcional)" className={cn(inputClass, 'mt-4')} />
+            <input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder={t('server.members.reason')} className={cn(inputClass, 'mt-4')} />
           )}
         </ConfirmModal>
       )}
@@ -450,7 +451,7 @@ function MemberRow({
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium">{m.user.display_name}</span>
           <span className="truncate text-xs text-fg-subtle">@{m.user.username}</span>
-          {isOwner && <Crown size={14} aria-label="Dono do servidor" className="shrink-0 text-accent-text" />}
+          {isOwner && <Crown size={14} aria-label={t('server.members.owner')} className="shrink-0 text-accent-text" />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           {roles.map((r) => (
@@ -458,7 +459,7 @@ function MemberRow({
               <RoleDot role={r} size={8} />
               {r.name}
               {canAssign && outranks(server, meId, r.position) && (
-                <button type="button" aria-label={`Tirar ${r.name}`} title={`Tirar ${r.name}`} onClick={() => void run('role', () => api(path(r.id), { method: 'DELETE' }))} className="text-fg-subtle hover:text-fg">
+                <button type="button" aria-label={t('server.members.removeRole', { name: r.name })} title={t('server.members.removeRole', { name: r.name })} onClick={() => void run('role', () => api(path(r.id), { method: 'DELETE' }))} className="text-fg-subtle hover:text-fg">
                   <X size={12} />
                 </button>
               )}
@@ -466,7 +467,7 @@ function MemberRow({
           ))}
           {canAssign && assignable.length > 0 && (
             <div ref={ref} className="relative">
-              <button type="button" aria-label="Dar cargo" title="Dar cargo" onClick={() => setAdding((v) => !v)} className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-line text-fg-muted hover:border-accent hover:text-fg">
+              <button type="button" aria-label={t('server.members.addRole')} title={t('server.members.addRole')} onClick={() => setAdding((v) => !v)} className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-line text-fg-muted hover:border-accent hover:text-fg">
                 <Plus size={12} />
               </button>
               {adding && (
@@ -493,17 +494,17 @@ function MemberRow({
       </div>
       {meId === server.owner_id && m.user.id !== meId && !m.user.is_bot && !m.user.deactivated && (
         <button type="button" onClick={() => onAction('transfer')} className="rounded-control px-2.5 py-1.5 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
-          Passar a posse
+          {t('server.members.transfer')}
         </button>
       )}
       {below && has(perms, Perm.KICK_MEMBERS) && (
         <button type="button" onClick={() => onAction('kick')} className="rounded-control px-2.5 py-1.5 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
-          Expulsar
+          {t('server.members.kick')}
         </button>
       )}
       {below && has(perms, Perm.BAN_MEMBERS) && (
         <button type="button" onClick={() => onAction('ban')} className="rounded-control px-2.5 py-1.5 text-sm text-danger hover:bg-danger/10">
-          Banir
+          {t('server.members.ban')}
         </button>
       )}
     </div>
@@ -515,9 +516,9 @@ function TransferModal({ server, member, onClose }: { server: ServerDetail; memb
   const [typed, setTyped] = useState('')
   return (
     <ConfirmModal
-      title={`Passar a posse para ${member.user.display_name}`}
-      message={`${member.user.display_name} vira dono de ${server.name}, com todos os poderes. Você continua no servidor, com seus cargos, e só volta a ser dono se a pessoa passar a posse de volta.`}
-      confirmLabel="Passar a posse"
+      title={t('server.members.transferTitle', { name: member.user.display_name })}
+      message={t('server.members.transferConfirm', { name: member.user.display_name, server: server.name })}
+      confirmLabel={t('server.members.transfer')}
       disabled={typed.trim() !== server.name.trim()}
       onConfirm={async () => {
         await api(`/servers/${server.id}/transfer`, { method: 'POST', body: { user_id: member.user.id } })
@@ -525,7 +526,7 @@ function TransferModal({ server, member, onClose }: { server: ServerDetail; memb
       onClose={onClose}
     >
       <label className={cn(labelClass, 'mt-4 block')} htmlFor="transfer-name">
-        Digite o nome do servidor para confirmar
+        {t('server.members.typeName')}
       </label>
       <input id="transfer-name" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={server.name} className={inputClass} />
     </ConfirmModal>
@@ -540,11 +541,11 @@ function BansTab({ server }: { server: ServerDetail }): ReactNode {
   const load = useCallback(() => api<Ban[]>(`/servers/${server.id}/bans`).then(setBans), [server.id])
   useEffect(() => void load().catch(() => setBans([])), [load])
 
-  if (bans === null) return <p className="text-sm text-fg-muted">Carregando…</p>
+  if (bans === null) return <p className="text-sm text-fg-muted">{t('common.loading')}</p>
   return (
     <div className="space-y-3">
       <FormError message={error} />
-      {bans.length === 0 && <p className="text-sm text-fg-muted">Ninguém banido.</p>}
+      {bans.length === 0 && <p className="text-sm text-fg-muted">{t('server.bans.none')}</p>}
       <div className="divide-y divide-line">
         {bans.map((ban) => (
           <BanRow key={ban.user.id} ban={ban} onUnban={() => void run('unban', () => api(`/servers/${server.id}/bans/${ban.user.id}`, { method: 'DELETE' }).then(load))} />
@@ -563,10 +564,10 @@ function BanRow({ ban, onUnban }: { ban: Ban; onUnban(): void }): ReactNode {
         <span className="block truncate font-medium" style={nameColor ? { color: nameColor } : undefined}>
           {ban.user.display_name}
         </span>
-        <span className="block truncate text-xs text-fg-subtle">{ban.reason || 'Sem motivo informado'}</span>
+        <span className="block truncate text-xs text-fg-subtle">{ban.reason || t('server.bans.noReason')}</span>
       </div>
       <button type="button" onClick={onUnban} className="rounded-control px-2.5 py-1.5 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
-        Revogar
+        {t('server.bans.revoke')}
       </button>
     </div>
   )

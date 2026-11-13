@@ -40,5 +40,136 @@
     "perms": "Permissões de {{name}}",
     "permsHint": "Os canais sincronizados seguem o que for definido aqui.",
     "here": "nesta categoria"
+  },
+  "settings": {
+    "tabs": {
+      "general": "Visão geral",
+      "roles": "Cargos",
+      "members": "Membros",
+      "stickers": "Figurinhas",
+      "sounds": "Painel de sons",
+      "bans": "Banimentos"
+    },
+    "title": "Configurações de {{name}}",
+    "icon": "Ícone",
+    "banner": "Banner",
+    "imageHint": "PNG, JPG, GIF ou WebP de até 8 MB. GIFs e WebPs animados continuam animados.",
+    "name": "Nome do servidor"
+  },
+  "roles": {
+    "create": "Criar cargo",
+    "dragHint": "Arraste para mudar a hierarquia. Cargos de cima mandam nos de baixo.",
+    "saveFailed": "Não foi possível salvar o cargo.",
+    "readOnly": "Esse cargo está no seu nível ou acima: só dá pra ver.",
+    "name": "Nome do cargo",
+    "color": "Cor",
+    "otherColor": "Outra cor",
+    "noColor": "Sem cor",
+    "icon": "Ícone do cargo",
+    "uploadFailed": "Não foi possível enviar a imagem.",
+    "hoist": "Exibir separadamente",
+    "hoistHint": "Quem tem o cargo aparece num grupo próprio na lista de membros.",
+    "mentionable": "Mencionável",
+    "mentionableHint": "Reservado: menções a cargos chegam numa próxima versão.",
+    "everyoneHint": "O que todo mundo do servidor pode fazer, antes dos outros cargos.",
+    "undo": "Desfazer",
+    "delete": "Excluir cargo",
+    "deleteTitle": "Excluir {{name}}",
+    "deleteConfirm": "Quem tem o cargo perde as permissões dele."
+  },
+  "members": {
+    "search": "Buscar membro",
+    "kickTitle": "Expulsar {{name}}",
+    "banTitle": "Banir {{name}}",
+    "kickConfirm": "A pessoa sai do servidor, mas pode voltar com um convite.",
+    "banConfirm": "A pessoa sai do servidor e não consegue voltar enquanto estiver banida.",
+    "kick": "Expulsar",
+    "ban": "Banir",
+    "reason": "Motivo (opcional)",
+    "owner": "Dono do servidor",
+    "removeRole": "Tirar {{name}}",
+    "addRole": "Dar cargo",
+    "transfer": "Passar a posse",
+    "transferTitle": "Passar a posse para {{name}}",
+    "transferConfirm": "{{name}} vira dono de {{server}}, com todos os poderes. Você continua no servidor, com seus cargos, e só volta a ser dono se a pessoa passar a posse de volta.",
+    "typeName": "Digite o nome do servidor para confirmar"
+  },
+  "bans": {
+    "none": "Ninguém banido.",
+    "noReason": "Sem motivo informado",
+    "revoke": "Revogar"
+  },
+  "join": {
+    "notFound": "Convite não encontrado.",
+    "expired": "Esse convite expirou ou atingiu o limite de usos.",
+    "confirmEmail": "Confirme seu e-mail para criar servidores (o aviso fica no rodapé do app).",
+    "unreachable": "Não foi possível conectar ao servidor.",
+    "nameIt": "Dê um nome ao servidor.",
+    "pasteCode": "Cole o código do convite.",
+    "pickType": "Escolha o tipo do servidor.",
+    "createTitle": "Criar um servidor",
+    "joinTitle": "Entrar em um servidor",
+    "createHint": "Um lugar pra você e seus amigos.",
+    "joinHint": "Cole o código de convite que te mandaram.",
+    "create": "Criar",
+    "haveInvite": "Tenho um convite",
+    "name": "Nome do servidor",
+    "code": "Código do convite",
+    "namePlaceholder": "(Nome do servidor)",
+    "codePlaceholder": "Ex.: aB3dE9fG",
+    "joinButton": "Entrar no servidor",
+    "type": "Tipo do servidor",
+    "typeLocked": "O tipo não pode ser alterado depois."
+  },
+  "types": {
+    "game": {
+      "name": "Jogo",
+      "description": "Pra jogar junto: enquetes, eventos, calendário e painel de sons."
+    },
+    "work": {
+      "name": "Trabalho",
+      "description": "Pra times: kanban, quadro branco, enquetes, eventos e calendário."
+    },
+    "mixed": {
+      "name": "Misto",
+      "description": "Tudo junto: os addons de jogo e de trabalho."
+    }
+  },
+  "invite": {
+    "failed": "Não foi possível criar o convite.",
+    "title": "Convidar para {{name}}",
+    "code": "Código do convite",
+    "copied": "Copiado!",
+    "hint": "Expira em 7 dias. Quem ainda não tem conta usa o código no <b>cadastro</b>; quem já tem cola em <b>+ → Tenho um convite</b>."
+  },
+  "newChannel": {
+    "private": "Canal privado",
+    "privateRoom": "Só os cargos e membros escolhidos veem e entram na sala.",
+    "privateText": "Só os cargos e membros escolhidos veem o canal.",
+    "roles": "Cargos",
+    "members": "Membros",
+    "keepAccess": "Você continua com acesso. Dá pra ajustar depois em Configurações do canal → Permissões.",
+    "category": "Categoria",
+    "noCategory": "Sem categoria",
+    "nameIt": "Dê um nome ao canal.",
+    "failed": "Não foi possível criar o canal.",
+    "title": "Criar canal",
+    "text": "Texto",
+    "voice": "Voz",
+    "textHint": "Mensagens, memes e links",
+    "voiceHint": "Voz, câmera e compartilhamento de tela",
+    "textPlaceholder": "novo-canal",
+    "voicePlaceholder": "Sala de jogo",
+    "creating": "Criando…"
+  },
+  "newAddon": {
+    "loadFailed": "Não foi possível carregar os addons.",
+    "nameIt": "Dê um nome ao addon.",
+    "failed": "Não foi possível adicionar o addon.",
+    "title": "Adicionar addon",
+    "none": "Nenhum addon disponível nesta versão.",
+    "name": "Nome",
+    "adding": "Adicionando…",
+    "add": "Adicionar"
   }
 }
