@@ -27,5 +27,10 @@
     "ember": "Ember",
     "sapphire": "Sapphire"
   },
-  "loadFailed": "Could not load the settings."
+  "loadFailed": "Could not load the settings.",
+  "loadError": "Could not load.",
+  "tryAgainError": "That didn't work. Try again.",
+  "nothingHere": "Nothing here.",
+  "send": "Send",
+  "sending": "Sending…"
 }

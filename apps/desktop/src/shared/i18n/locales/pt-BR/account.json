@@ -52,5 +52,55 @@
   "reminder": {
     "text": "Confirme seu e-mail pra criar servidores e ganhar seus convites.",
     "action": "Confirmar agora"
+  },
+  "email": {
+    "title": "E-mail",
+    "current": "E-mail da conta",
+    "changed": "E-mail trocado. Avisamos o endereço antigo.",
+    "change": "Trocar e-mail",
+    "new": "E-mail novo",
+    "password": "Sua senha",
+    "passwordHint": "Pra confirmar que é você.",
+    "send": "Mandar código pro e-mail novo",
+    "sent": "Mandamos um código para <b>{{email}}</b>. O e-mail da conta só muda depois de confirmar.",
+    "confirm": "Confirmar e-mail novo"
+  },
+  "password": {
+    "title": "Senha",
+    "changed": "Senha trocada. As outras sessões foram encerradas.",
+    "change": "Trocar senha",
+    "current": "Senha atual",
+    "repeat": "Repita a senha nova"
+  },
+  "invites": {
+    "status": {
+      "free": "Livre",
+      "pending": "Aguardando confirmação",
+      "used": "Usado"
+    },
+    "official": "Contas oficiais não têm convites.",
+    "confirmFirst": "Confirme seu e-mail pra ganhar seus convites.",
+    "intro": "O beta é fechado: só entra quem recebe convite. Cada link vale pra uma pessoa, e conta como usado quando ela confirma o e-mail.",
+    "none": "Você não tem convites.",
+    "copyLink": "Copiar link"
+  },
+  "close": {
+    "title": "Desativar ou excluir conta",
+    "deactivate": "Desativar",
+    "deactivateHint": "Sua conta some para os outros: o perfil fica escondido e você sai da lista de amigos de todo mundo. Suas mensagens, servidores e amizades ficam guardados. Para voltar, é só entrar de novo com seu e-mail e senha.",
+    "deactivateAccount": "Desativar conta",
+    "delete": "Excluir",
+    "deleteHint": "A conta fica desativada por 30 dias e depois é apagada de vez: perfil, fotos, amizades e convites. Nesse prazo, entrar de novo deixa você cancelar. Se você é dono de algum servidor, passe a posse antes. Suas mensagens ficam com o autor \"Usuário excluído\", a não ser que você peça para apagá-las também.",
+    "deleteAccount": "Excluir conta",
+    "typePassword": "Digite sua senha.",
+    "deactivateModal": "Você sai da conta em todos os aparelhos. Para reativar, é só entrar de novo com seu e-mail e senha.",
+    "owner": "Você ainda é dono destes servidores. Passe a posse para alguém (Configurações do servidor › Membros) ou exclua o servidor, e depois volte aqui.",
+    "gotIt": "Entendi",
+    "confirmPassword": "Confirme sua senha. Depois, mandamos um código de 6 números para o seu e-mail.",
+    "sendCode": "Enviar código",
+    "typeCode": "Digite o código que chegou no seu e-mail.",
+    "deleteMessages": "Apagar também minhas mensagens",
+    "deleteMessagesHint": "Em canais, conversas e grupos, junto com os arquivos. Desmarcado, elas ficam com o autor \"Usuário excluído\".",
+    "grace": "A conta fica desativada agora e é apagada em 30 dias. Até lá, entrar de novo deixa você cancelar."
   }
 }

@@ -1,5 +1,6 @@
 import { ImageOff } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { api } from '../lib/api'
 import type { AppInfo } from '../../../shared/types'
@@ -43,6 +44,7 @@ export async function openReportProblem(): Promise<void> {
 }
 
 export function ReportProblemModal({ snapshot, onClose }: { snapshot: Snapshot; onClose(): void }): ReactNode {
+  const { t } = useTranslation()
   const [description, setDescription] = useState('')
   // Off by default: the window may show private conversations.
   const [withScreenshot, setWithScreenshot] = useState(false)
@@ -65,19 +67,19 @@ export function ReportProblemModal({ snapshot, onClose }: { snapshot: Snapshot; 
     try {
       await api('/bug-reports', { method: 'POST', body: form })
       onClose()
-      toast('Problema enviado. Obrigado!')
+      toast(t('bugs.report.sent'))
     } catch (err) {
-      setError(errorText(err, 'Não foi possível enviar. Tente de novo.'))
+      setError(errorText(err, t('bugs.report.failed')))
       setSending(false)
     }
   }
 
   return (
-    <Modal title="Reportar problema" subtitle="Conta o que aconteceu: o que você fez e o que esperava." onClose={onClose}>
+    <Modal title={t('bugs.report.title')} subtitle={t('bugs.report.subtitle')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <FormError message={error} />
         <label className="block">
-          <span className={labelClass}>O que aconteceu?</span>
+          <span className={labelClass}>{t('bugs.report.what')}</span>
           <textarea
             autoFocus
             required
@@ -93,43 +95,43 @@ export function ReportProblemModal({ snapshot, onClose }: { snapshot: Snapshot; 
           <div className="rounded-control border border-line bg-main p-3">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
               <input type="checkbox" checked={withScreenshot} onChange={(e) => setWithScreenshot(e.target.checked)} className="accent-accent" />
-              Anexar print da janela
+              {t('bugs.report.attach')}
             </label>
             {withScreenshot && preview ? (
               <div className="mt-3">
                 <p className="mb-2 text-xs text-fg-muted">
-                  Confira antes de enviar: o print pode mostrar conversas privadas.
+                  {t('bugs.report.check')}
                 </p>
-                <img src={preview} alt="Print da janela" className="max-h-48 w-full rounded-control border border-line object-contain" />
+                <img src={preview} alt={t('bugs.report.preview')} className="max-h-48 w-full rounded-control border border-line object-contain" />
                 <button
                   type="button"
                   onClick={() => setWithScreenshot(false)}
                   className="mt-2 flex items-center gap-1.5 rounded-control px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10"
                 >
-                  <ImageOff size={14} /> Remover print
+                  <ImageOff size={14} /> {t('bugs.report.remove')}
                 </button>
               </div>
             ) : (
-              <p className="mt-1 text-xs text-fg-subtle">Desmarcado: o print não é enviado.</p>
+              <p className="mt-1 text-xs text-fg-subtle">{t('bugs.report.notSent')}</p>
             )}
           </div>
         )}
 
         <details className="text-xs text-fg-subtle">
           <summary className="cursor-pointer select-none">
-            Também vão: versão {snapshot.info.version}, {snapshot.info.os} e os últimos registros do app
+            {t('bugs.report.alsoSent', { version: snapshot.info.version, os: snapshot.info.os })}
           </summary>
           <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-control border border-line bg-main p-2 font-mono text-[11px]">
-            {snapshot.logs || '(nenhum registro)'}
+            {snapshot.logs || t('bugs.report.noLogs')}
           </pre>
         </details>
 
         <div className="flex gap-2">
           <SecondaryButton type="button" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </SecondaryButton>
           <PrimaryButton type="submit" disabled={sending || !description.trim()}>
-            {sending ? 'Enviando…' : 'Enviar'}
+            {sending ? t('common.sending') : t('common.send')}
           </PrimaryButton>
         </div>
       </form>

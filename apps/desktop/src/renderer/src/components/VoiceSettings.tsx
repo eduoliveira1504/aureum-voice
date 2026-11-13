@@ -1,8 +1,10 @@
 import { Mic, Square } from 'lucide-react'
 import { Track, type AudioProcessorOptions } from 'livekit-client'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { GATE_RANGE, gateOf, inputGainOf, isHandsFree, loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
+import { t as translate } from '../lib/i18n'
 import { MicProcessor } from '../lib/micProcessor'
 import { isMac } from '../lib/platform'
 import { useAppearance } from '../store/appearance'
@@ -50,7 +52,7 @@ function useMicTest(running: boolean, prefs: MediaPrefs): MicTest {
         processor.current = current
         setTest({ level: -100, open: false, deviceLabel: track.label, error: null, output: current.processedTrack ?? null })
       } catch {
-        if (!cancelled) setTest((t) => ({ ...t, error: 'Não foi possível abrir o microfone.' }))
+        if (!cancelled) setTest((t) => ({ ...t, error: translate('settings.voice.micError') }))
       }
     })()
     return () => {
@@ -87,6 +89,7 @@ function useLoopback(track: MediaStreamTrack | null, outputId: string): void {
 
 /** Settings > Voz e vídeo: devices, the mic test, processing, sensitivity and the input mode. */
 export function VoiceSettings(): ReactNode {
+  const { t } = useTranslation()
   const { applyDevicePrefs, applyMicProcessing } = useVoice.getState()
   const [prefs, setPrefs] = useState<MediaPrefs>(loadMediaPrefs)
   const devices = useDevices((s) => s.devices)
@@ -114,10 +117,10 @@ export function VoiceSettings(): ReactNode {
     <label className="block">
       <span className={labelClass}>{label}</span>
       <select value={prefs[key]} onChange={(e) => update({ [key]: e.target.value })} className={inputClass}>
-        <option value="">Padrão do sistema</option>
+        <option value="">{t('settings.voice.systemDefault')}</option>
         {list?.map((d, i) => (
           <option key={d.deviceId} value={d.deviceId}>
-            {d.label || `Dispositivo ${i + 1}`}
+            {d.label || t('settings.voice.device', { number: i + 1 })}
           </option>
         ))}
       </select>
@@ -127,20 +130,20 @@ export function VoiceSettings(): ReactNode {
   return (
     <div className="max-w-[440px] space-y-4">
       <div>
-        {select('Microfone', 'audioInput', devices?.audioinput)}
-        {inUse && <p className="mt-1.5 text-xs text-fg-subtle">Em uso: {inUse}</p>}
+        {select(t('settings.voice.microphone'), 'audioInput', devices?.audioinput)}
+        {inUse && <p className="mt-1.5 text-xs text-fg-subtle">{t('settings.voice.inUse', { device: inUse })}</p>}
         {inUse && isHandsFree(inUse) && (
           <p role="note" className="mt-2 rounded-control border border-line bg-elevated px-3 py-2 text-xs text-fg-muted">
-            Fones Bluetooth perdem qualidade quando o microfone deles está ligado. Se puder, use outro microfone.
+            {t('settings.voice.handsFree')}
           </p>
         )}
       </div>
-      {select('Saída de áudio', 'audioOutput', devices?.audiooutput)}
-      {select('Câmera', 'videoInput', devices?.videoinput)}
+      {select(t('settings.voice.output'), 'audioOutput', devices?.audiooutput)}
+      {select(t('settings.voice.camera'), 'videoInput', devices?.videoinput)}
       <ScreenVolumeDefault />
 
       <section className="space-y-2">
-        <span className={labelClass}>Teste de microfone</span>
+        <span className={labelClass}>{t('settings.voice.micTest')}</span>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -151,14 +154,14 @@ export function VoiceSettings(): ReactNode {
             className="flex shrink-0 items-center gap-2 rounded-control border border-line bg-main px-3 py-2 text-sm font-medium hover:border-fg-subtle"
           >
             {testing ? <Square size={14} /> : <Mic size={16} />}
-            {testing ? 'Parar' : 'Testar'}
+            {testing ? t('settings.voice.stop') : t('settings.voice.test')}
           </button>
           <Meter level={testing ? test.level : -100} open={test.open} gateDb={gateOf(prefs)} />
         </div>
         {testing && (
           <ToggleRow
-            title="Ouvir minha voz"
-            description="Toca o microfone já com os ajustes abaixo, do jeito que os outros ouvem. Use fones, senão o som volta pro microfone."
+            title={t('settings.voice.hearMe')}
+            description={t('settings.voice.hearMeHint')}
             checked={hearing}
             onChange={setHearing}
           />
@@ -167,31 +170,31 @@ export function VoiceSettings(): ReactNode {
       </section>
 
       <ToggleRow
-        title="Supressão de ruído"
-        description="Reduz barulho de fundo, como teclado e ventilador. Processado no seu PC, antes do áudio sair."
+        title={t('settings.voice.noise')}
+        description={t('settings.voice.noiseHint')}
         checked={prefs.noiseSuppression}
         onChange={(noiseSuppression) => update({ noiseSuppression }, false)}
       />
       <ToggleRow
-        title="Cancelamento de eco"
-        description="Evita que o som das caixas de som volte pelo microfone. Com fone de ouvido, pode desligar."
+        title={t('settings.voice.echo')}
+        description={t('settings.voice.echoHint')}
         checked={prefs.echoCancellation}
         onChange={(echoCancellation) => update({ echoCancellation })}
       />
       <ToggleRow
-        title="Ganho automático"
-        description="Ajusta o volume do microfone sozinho para a sua voz chegar sempre no mesmo nível."
+        title={t('settings.voice.gain')}
+        description={t('settings.voice.gainHint')}
         checked={prefs.autoGainControl}
         onChange={(autoGainControl) => update({ autoGainControl })}
       />
 
       {prefs.inputMode === 'voice' && (
         <section className="space-y-2">
-          <span className={labelClass}>Sensibilidade</span>
+          <span className={labelClass}>{t('settings.voice.sensitivity')}</span>
           <Segmented<'auto' | 'manual'>
             options={[
-              { value: 'auto', label: 'Automática' },
-              { value: 'manual', label: 'Manual' }
+              { value: 'auto', label: t('settings.voice.auto') },
+              { value: 'manual', label: t('settings.voice.manual') }
             ]}
             value={prefs.sensitivity}
             onChange={(sensitivity) => update({ sensitivity }, false)}
@@ -200,7 +203,7 @@ export function VoiceSettings(): ReactNode {
             <>
               <input
                 type="range"
-                aria-label="Sensibilidade do microfone"
+                aria-label={t('settings.voice.sensitivityAria')}
                 min={GATE_RANGE.min}
                 max={GATE_RANGE.max}
                 step={1}
@@ -209,11 +212,11 @@ export function VoiceSettings(): ReactNode {
                 className="w-full accent-accent"
               />
               <p className="text-xs text-fg-subtle">
-                Abaixo da marca, o microfone fica mudo. Use o teste acima: a barra fica dourada quando a sua voz passa.
+                {t('settings.voice.manualHint')}
               </p>
             </>
           ) : (
-            <p className="text-xs text-fg-subtle">O microfone fica aberto e a supressão de ruído tira o que não é voz.</p>
+            <p className="text-xs text-fg-subtle">{t('settings.voice.autoHint')}</p>
           )}
         </section>
       )}
@@ -227,16 +230,17 @@ export function VoiceSettings(): ReactNode {
 /** "Volume padrão das transmissões" (3.24 C): where watching someone's screen starts when I never
  * adjusted them. Saved in the account; people with a volume of their own keep it. */
 function ScreenVolumeDefault(): ReactNode {
+  const { t } = useTranslation()
   const value = useAppearance((s) => s.settings.screen_volume_default)
   const update = useAppearance((s) => s.update)
   return (
     <section>
       <label className="block">
-        <span className={labelClass}>Volume padrão das transmissões</span>
+        <span className={labelClass}>{t('settings.voice.screenVolume')}</span>
         <span className="flex items-center gap-3">
           <input
             type="range"
-            aria-label="Volume padrão das transmissões"
+            aria-label={t('settings.voice.screenVolume')}
             min={0}
             max={100}
             step={5}
@@ -248,7 +252,7 @@ function ScreenVolumeDefault(): ReactNode {
         </span>
       </label>
       <p className="mt-1.5 text-xs text-fg-subtle">
-        Para quem você nunca ajustou. O volume que você deixa na tela de cada pessoa fica salvo na sua conta.
+        {t('settings.voice.screenVolumeHint')}
       </p>
     </section>
   )
@@ -257,11 +261,12 @@ function ScreenVolumeDefault(): ReactNode {
 /** The mic level bar, with the manual sensitivity mark. Filled with the accent while the voice
  * passes the gate. */
 function Meter({ level, open, gateDb }: { level: number; open: boolean; gateDb: number | null }): ReactNode {
+  const { t } = useTranslation()
   const passing = gateDb === null ? level > METER_FLOOR : open
   return (
     <div
       role="meter"
-      aria-label="Volume do microfone"
+      aria-label={t('settings.voice.meter')}
       aria-valuemin={METER_FLOOR}
       aria-valuemax={0}
       aria-valuenow={Math.round(Math.max(METER_FLOOR, level))}

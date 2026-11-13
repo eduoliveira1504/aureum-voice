@@ -1,0 +1,30 @@
+{
+  "open": "Abertos ({{count}})",
+  "closed": "Fechados ({{count}})",
+  "deletedAccount": "Conta apagada",
+  "resolved": "Resolvido",
+  "notBug": "Não é bug",
+  "reopen": "Reabrir",
+  "confirmed": "Confirmado",
+  "confirmHint": "Avisa no canal de bugs e pra pessoa que o bug é real e já está sendo corrigido",
+  "confirm": "Confirmar bug",
+  "resolve": "Marcar como resolvido",
+  "dismissHint": "Fecha sem insígnia, sem aviso no canal e sem mensagem pra pessoa",
+  "dismiss": "Fechar (não é bug)",
+  "logs": "Registros do app",
+  "screenshot": "Print enviado",
+  "report": {
+    "title": "Reportar problema",
+    "subtitle": "Conta o que aconteceu: o que você fez e o que esperava.",
+    "what": "O que aconteceu?",
+    "attach": "Anexar print da janela",
+    "check": "Confira antes de enviar: o print pode mostrar conversas privadas.",
+    "preview": "Print da janela",
+    "remove": "Remover print",
+    "notSent": "Desmarcado: o print não é enviado.",
+    "alsoSent": "Também vão: versão {{version}}, {{os}} e os últimos registros do app",
+    "noLogs": "(nenhum registro)",
+    "sent": "Problema enviado. Obrigado!",
+    "failed": "Não foi possível enviar. Tente de novo."
+  }
+}

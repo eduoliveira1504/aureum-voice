@@ -1,0 +1,30 @@
+{
+  "open": "Open ({{count}})",
+  "closed": "Closed ({{count}})",
+  "deletedAccount": "Deleted account",
+  "resolved": "Fixed",
+  "notBug": "Not a bug",
+  "reopen": "Reopen",
+  "confirmed": "Confirmed",
+  "confirmHint": "Tells the bugs channel and the person that the bug is real and is being fixed",
+  "confirm": "Confirm bug",
+  "resolve": "Mark as fixed",
+  "dismissHint": "Closes without a badge, a channel notice or a message to the person",
+  "dismiss": "Close (not a bug)",
+  "logs": "App logs",
+  "screenshot": "Screenshot sent",
+  "report": {
+    "title": "Report a problem",
+    "subtitle": "Tell us what happened: what you did and what you expected.",
+    "what": "What happened?",
+    "attach": "Attach a screenshot of the window",
+    "check": "Check it before sending: the screenshot may show private conversations.",
+    "preview": "Window screenshot",
+    "remove": "Remove screenshot",
+    "notSent": "Unchecked: the screenshot isn't sent.",
+    "alsoSent": "Also sent: version {{version}}, {{os}} and the latest app logs",
+    "noLogs": "(no logs)",
+    "sent": "Problem sent. Thank you!",
+    "failed": "Couldn't send. Try again."
+  }
+}

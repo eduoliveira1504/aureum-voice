@@ -52,5 +52,55 @@
   "reminder": {
     "text": "Confirm your email to create servers and get your invites.",
     "action": "Confirm now"
+  },
+  "email": {
+    "title": "Email",
+    "current": "Account email",
+    "changed": "Email changed. We let the old address know.",
+    "change": "Change email",
+    "new": "New email",
+    "password": "Your password",
+    "passwordHint": "To confirm it's you.",
+    "send": "Send code to the new email",
+    "sent": "We sent a code to <b>{{email}}</b>. The account's email only changes after you confirm.",
+    "confirm": "Confirm new email"
+  },
+  "password": {
+    "title": "Password",
+    "changed": "Password changed. The other sessions were signed out.",
+    "change": "Change password",
+    "current": "Current password",
+    "repeat": "Repeat the new password"
+  },
+  "invites": {
+    "status": {
+      "free": "Available",
+      "pending": "Waiting for confirmation",
+      "used": "Used"
+    },
+    "official": "Official accounts don't have invites.",
+    "confirmFirst": "Confirm your email to get your invites.",
+    "intro": "The beta is closed: only people with an invite can join. Each link is for one person, and counts as used when they confirm their email.",
+    "none": "You don't have invites.",
+    "copyLink": "Copy link"
+  },
+  "close": {
+    "title": "Deactivate or delete account",
+    "deactivate": "Deactivate",
+    "deactivateHint": "Your account disappears for others: the profile is hidden and you leave everyone's friend list. Your messages, servers and friendships are kept. To come back, just sign in again with your email and password.",
+    "deactivateAccount": "Deactivate account",
+    "delete": "Delete",
+    "deleteHint": "The account stays deactivated for 30 days and then is deleted for good: profile, pictures, friendships and invites. During that time, signing in again lets you cancel. If you own a server, hand it over first. Your messages stay with the author \"Deleted user\", unless you ask to delete them too.",
+    "deleteAccount": "Delete account",
+    "typePassword": "Type your password.",
+    "deactivateModal": "You're signed out on every device. To reactivate, just sign in again with your email and password.",
+    "owner": "You still own these servers. Hand them over to someone (Server settings › Members) or delete the server, then come back here.",
+    "gotIt": "Got it",
+    "confirmPassword": "Confirm your password. Then we'll send a 6-digit code to your email.",
+    "sendCode": "Send code",
+    "typeCode": "Type the code that arrived in your email.",
+    "deleteMessages": "Also delete my messages",
+    "deleteMessagesHint": "In channels, conversations and groups, along with the files. Unchecked, they stay with the author \"Deleted user\".",
+    "grace": "The account is deactivated now and deleted in 30 days. Until then, signing in again lets you cancel."
   }
 }

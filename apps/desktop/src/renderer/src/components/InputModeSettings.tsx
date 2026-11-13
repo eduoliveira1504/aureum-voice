@@ -1,5 +1,6 @@
 import { AudioLines, Keyboard } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { loadMediaPrefs, saveMediaPrefs, type MediaPrefs } from '../lib/mediaPrefs'
 import { pttKeyLabel, pttKeyOfKeyboard, pttKeyOfMouse } from '../lib/pushToTalk'
@@ -14,6 +15,7 @@ import { Tip } from './Tour'
  * Picking push-to-talk without a key starts recording one right away.
  */
 export function InputModeSettings(): ReactNode {
+  const { t } = useTranslation()
   const [prefs, setPrefs] = useState<MediaPrefs>(loadMediaPrefs)
   const [recording, setRecording] = useState(false)
   const sounds = useAppearance((s) => s.settings.sounds)
@@ -63,11 +65,11 @@ export function InputModeSettings(): ReactNode {
   const ptt = prefs.inputMode === 'ptt'
   return (
     <section className="space-y-3">
-      <span className={labelClass}>Modo de entrada</span>
+      <span className={labelClass}>{t('settings.inputMode.title')}</span>
       <Segmented<'voice' | 'ptt'>
         options={[
-          { value: 'voice', label: 'Detecção de voz', icon: AudioLines },
-          { value: 'ptt', label: 'Pressionar para falar', icon: Keyboard }
+          { value: 'voice', label: t('settings.inputMode.voice'), icon: AudioLines },
+          { value: 'ptt', label: t('settings.inputMode.ptt'), icon: Keyboard }
         ]}
         value={prefs.inputMode}
         onChange={(inputMode) => {
@@ -79,7 +81,7 @@ export function InputModeSettings(): ReactNode {
         <>
           <div className="rounded-control border border-line bg-main px-3 py-2.5">
             <div className="flex items-center justify-between gap-4">
-              <span className="font-medium">Tecla para falar</span>
+              <span className="font-medium">{t('settings.inputMode.key')}</span>
               {prefs.pttKey && !recording && <Tip id="ptt.key" />}
               <button
                 type="button"
@@ -89,21 +91,21 @@ export function InputModeSettings(): ReactNode {
                   recording ? 'border-accent text-accent-text' : 'border-line bg-elevated hover:border-fg-subtle'
                 }`}
               >
-                {recording ? 'Pressione uma tecla…' : prefs.pttKey ? pttKeyLabel(prefs.pttKey) : 'Escolher tecla'}
+                {recording ? t('settings.inputMode.pressKey') : prefs.pttKey ? pttKeyLabel(prefs.pttKey) : t('settings.inputMode.chooseKey')}
               </button>
             </div>
             <p className="mt-1.5 text-xs text-fg-subtle">
               {recording
-                ? 'Uma tecla ou um botão lateral do mouse. Esc cancela.'
-                : 'Funciona com o Aureum em segundo plano e em jogos. O app lê só essa tecla, e só enquanto você está numa call nesse modo.'}
+                ? t('settings.inputMode.recordingHint')
+                : t('settings.inputMode.keyHint')}
             </p>
             {!prefs.pttKey && !recording && (
-              <p className="mt-1.5 text-xs text-danger">Sem tecla escolhida, o microfone funciona por detecção de voz.</p>
+              <p className="mt-1.5 text-xs text-danger">{t('settings.inputMode.noKey')}</p>
             )}
           </div>
           <ToggleRow
-            title="Som ao apertar e soltar"
-            description="Um clique curto confirma quando o microfone abre e fecha."
+            title={t('settings.inputMode.sounds')}
+            description={t('settings.inputMode.soundsHint')}
             checked={soundsOn}
             onChange={setSounds}
           />
