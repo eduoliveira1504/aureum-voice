@@ -43,7 +43,7 @@ function TimeField({ label, value, onCommit }: { label: string; value: number; o
     <label className="flex items-center gap-1.5 text-xs text-fg-subtle">
       {label}
       <input
-        aria-label={`${label} do trecho`}
+        aria-label={t('shell.clipField', { label })}
         value={text ?? formatTime(value)}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}

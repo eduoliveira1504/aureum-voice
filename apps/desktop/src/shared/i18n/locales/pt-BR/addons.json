@@ -1,0 +1,116 @@
+{
+  "kanban": {
+    "name": "Kanban",
+    "description": "Colunas e cards para organizar o que o grupo está fazendo.",
+    "announces": {
+      "label": "Avisar movimentações em",
+      "hint": "Quando alguém move um card para outra coluna, aparece uma linha nesse canal de texto.",
+      "warning": "Pessoas sem acesso ao quadro vão ver os títulos dos cards nesse canal."
+    },
+    "stages": {
+      "todo": "A fazer",
+      "doing": "Fazendo",
+      "done": "Feito"
+    },
+    "colors": {
+      "gray": "Cinza",
+      "red": "Vermelho",
+      "orange": "Laranja",
+      "yellow": "Amarelo",
+      "green": "Verde",
+      "teal": "Turquesa",
+      "blue": "Azul",
+      "purple": "Roxo",
+      "pink": "Rosa"
+    },
+    "fields": {
+      "title": "título",
+      "description": "descrição",
+      "assignee": "responsável",
+      "labels": "etiquetas",
+      "due_date": "prazo"
+    },
+    "history": {
+      "created": "criou “{{title}}” em {{column}}",
+      "updated": "mudou {{fields}} de “{{title}}”",
+      "moved": "moveu “{{title}}” de {{from}} para {{to}}",
+      "deleted": "excluiu “{{title}}”",
+      "columnCreated": "criou a coluna {{name}}",
+      "columnRenamed": "renomeou a coluna {{old}} para {{name}}",
+      "columnUpdated": "alterou a coluna {{name}}",
+      "columnDeleted": "excluiu a coluna {{name}}",
+      "loadFailed": "Não foi possível carregar o histórico.",
+      "empty": "Nada por aqui ainda.",
+      "someone": "Alguém",
+      "more": "Ver mais",
+      "title": "Histórico do quadro"
+    },
+    "labels": {
+      "color": "Cor",
+      "saveFailed": "Não foi possível salvar a etiqueta.",
+      "title": "Etiquetas",
+      "deleteNamed": "Excluir {{name}}",
+      "none": "Nenhuma etiqueta ainda.",
+      "name": "Nome da etiqueta",
+      "new": "Nova etiqueta",
+      "create": "Criar"
+    },
+    "card": {
+      "forbidden": "Você não pode mexer neste quadro.",
+      "deleted": "Este card foi excluído.",
+      "saveFailed": "Não foi possível salvar o card.",
+      "nameIt": "Dê um título ao card.",
+      "card": "Card",
+      "title": "Título",
+      "description": "Descrição",
+      "descriptionPlaceholder": "Detalhes, links, o que falta…",
+      "noDescription": "Sem descrição.",
+      "history": "Histórico",
+      "column": "Coluna",
+      "assignee": "Responsável",
+      "nobody": "Ninguém",
+      "noAccess": "Sem acesso ao quadro",
+      "due": "Prazo",
+      "labels": "Etiquetas",
+      "createLabels": "Crie etiquetas em “Etiquetas”, no topo do quadro.",
+      "noLabels": "O quadro ainda não tem etiquetas.",
+      "delete": "Excluir",
+      "deleteTitle": "Excluir card",
+      "deleteConfirm": "Excluir “{{title}}”? Isso não pode ser desfeito."
+    },
+    "board": {
+      "openFailed": "Não foi possível abrir o quadro.",
+      "forbidden": "Você não tem permissão para isso.",
+      "saveFailed": "Não foi possível salvar a mudança.",
+      "loading": "Carregando o quadro…",
+      "counts_one": "{{todo}} a fazer · {{doing}} fazendo · {{count}} feito",
+      "counts_other": "{{todo}} a fazer · {{doing}} fazendo · {{count}} feitos",
+      "readOnly": "Somente leitura",
+      "labels": "Etiquetas",
+      "history": "Histórico",
+      "noCards": "Nenhum card.",
+      "you": "Você",
+      "columnName": "Nome da coluna",
+      "columnOptions": "Opções da coluna {{name}}",
+      "rename": "Renomear",
+      "countsAs": "Conta no progresso como",
+      "current": "atual",
+      "moveLeft": "Mover para a esquerda",
+      "moveRight": "Mover para a direita",
+      "deleteColumn": "Excluir coluna",
+      "hasCards": "tem cards",
+      "addCard": "Adicionar card",
+      "cardTitle": "Título do card",
+      "cardHint": "Enter cria · Esc cancela",
+      "newColumn": "Nova coluna"
+    },
+    "summary": {
+      "empty": "Nenhum card ainda.",
+      "doneOf": "{{done}} de {{total}} cards feitos",
+      "todo": "{{count}} a fazer",
+      "doing": "{{count}} fazendo",
+      "done_one": "{{count}} feito",
+      "done_other": "{{count}} feitos"
+    }
+  }
+}

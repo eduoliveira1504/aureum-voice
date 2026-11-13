@@ -1,13 +1,25 @@
 import { create } from 'zustand'
 
 import { api } from '../../lib/api'
+import { t } from '../../lib/i18n'
 
 export type Stage = 'todo' | 'doing' | 'done'
 /** Names of the --label-<color> tokens. */
 export type LabelColor = 'gray' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'pink'
 
 export const LABEL_COLORS: LabelColor[] = ['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']
-export const STAGE_LABEL: Record<Stage, string> = { todo: 'A fazer', doing: 'Fazendo', done: 'Feito' }
+/** Read in the app's language when shown (getters). */
+export const STAGE_LABEL: Record<Stage, string> = {
+  get todo() {
+    return t('addons.kanban.stages.todo')
+  },
+  get doing() {
+    return t('addons.kanban.stages.doing')
+  },
+  get done() {
+    return t('addons.kanban.stages.done')
+  }
+}
 
 export interface KanbanColumn {
   id: string

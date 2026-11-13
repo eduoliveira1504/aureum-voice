@@ -9,11 +9,12 @@ import { memberName } from '../../lib/members'
 import { boardMembers, labelStyle } from './bits'
 import { HistoryList } from './BoardModals'
 import { columnCards, useKanban, type CardFields, type KanbanCard } from './store'
+import { t } from '../../lib/i18n'
 
 function errorText(err: unknown): string {
-  if (err instanceof ApiError && err.status === 403) return 'Você não pode mexer neste quadro.'
-  if (err instanceof ApiError && err.status === 404) return 'Este card foi excluído.'
-  return 'Não foi possível salvar o card.'
+  if (err instanceof ApiError && err.status === 403) return t('addons.kanban.card.forbidden')
+  if (err instanceof ApiError && err.status === 404) return t('addons.kanban.card.deleted')
+  return t('addons.kanban.card.saveFailed')
 }
 
 /** A card's details: everything about it, editable for who can edit the board, plus its history. */
@@ -50,7 +51,7 @@ export function CardModal({
   const dirty = Object.keys(fields).length > 0 || column !== card.column_id
 
   async function save(): Promise<void> {
-    if (!title.trim()) return setError('Dê um título ao card.')
+    if (!title.trim()) return setError(t('addons.kanban.card.nameIt'))
     setBusy(true)
     setError(null)
     const store = useKanban.getState()
@@ -69,40 +70,40 @@ export function CardModal({
   const toggleLabel = (id: string): void => setLabels((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
 
   return (
-    <Modal title={editable ? 'Card' : card.title} wide onClose={onClose}>
+    <Modal title={editable ? t('addons.kanban.card.card') : card.title} wide onClose={onClose}>
       <div className="grid max-h-[65vh] gap-6 overflow-y-auto pr-1 md:grid-cols-[1fr_220px]">
         <div className="min-w-0 space-y-4">
           <FormError message={error} />
           {editable && (
             <label className="block">
-              <span className={labelClass}>Título</span>
+              <span className={labelClass}>{t('addons.kanban.card.title')}</span>
               <input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
             </label>
           )}
           <label className="block">
-            <span className={labelClass}>Descrição</span>
+            <span className={labelClass}>{t('addons.kanban.card.description')}</span>
             {editable ? (
               <textarea
                 value={description}
                 maxLength={5000}
                 rows={6}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detalhes, links, o que falta…"
+                placeholder={t('addons.kanban.card.descriptionPlaceholder')}
                 className={cn(inputClass, 'resize-y')}
               />
             ) : (
-              <p className="whitespace-pre-wrap text-sm text-fg-muted">{card.description || 'Sem descrição.'}</p>
+              <p className="whitespace-pre-wrap text-sm text-fg-muted">{card.description || t('addons.kanban.card.noDescription')}</p>
             )}
           </label>
           <section>
-            <h3 className={labelClass}>Histórico</h3>
+            <h3 className={labelClass}>{t('addons.kanban.card.history')}</h3>
             <HistoryList server={server} channelId={channel.id} cardId={card.id} />
           </section>
         </div>
 
         <div className="space-y-4">
           <label className="block">
-            <span className={labelClass}>Coluna</span>
+            <span className={labelClass}>{t('addons.kanban.card.column')}</span>
             <select value={column} disabled={!editable} onChange={(e) => setColumn(e.target.value)} className={inputClass}>
               {board.columns.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -112,9 +113,9 @@ export function CardModal({
             </select>
           </label>
           <label className="block">
-            <span className={labelClass}>Responsável</span>
+            <span className={labelClass}>{t('addons.kanban.card.assignee')}</span>
             <select value={assignee} disabled={!editable} onChange={(e) => setAssignee(e.target.value)} className={inputClass}>
-              <option value="">Ninguém</option>
+              <option value="">{t('addons.kanban.card.nobody')}</option>
               {members.map((m) => (
                 <option key={m.user.id} value={m.user.id}>
                   {memberName(m)}
@@ -122,16 +123,16 @@ export function CardModal({
               ))}
               {/* Someone who can't see the board anymore still shows as they are. */}
               {card.assignee_id && !members.some((m) => m.user.id === card.assignee_id) && (
-                <option value={card.assignee_id}>Sem acesso ao quadro</option>
+                <option value={card.assignee_id}>{t('addons.kanban.card.noAccess')}</option>
               )}
             </select>
           </label>
           <label className="block">
-            <span className={labelClass}>Prazo</span>
+            <span className={labelClass}>{t('addons.kanban.card.due')}</span>
             <input type="date" value={due} disabled={!editable} onChange={(e) => setDue(e.target.value)} className={inputClass} />
           </label>
           <div>
-            <span className={labelClass}>Etiquetas</span>
+            <span className={labelClass}>{t('addons.kanban.card.labels')}</span>
             {board.labels.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {board.labels.map((label) => {
@@ -153,7 +154,7 @@ export function CardModal({
               </div>
             ) : (
               <p className="text-xs text-fg-subtle">
-                {board.can_manage ? 'Crie etiquetas em “Etiquetas”, no topo do quadro.' : 'O quadro ainda não tem etiquetas.'}
+                {board.can_manage ? t('addons.kanban.card.createLabels') : t('addons.kanban.card.noLabels')}
               </p>
             )}
           </div>
@@ -167,16 +168,16 @@ export function CardModal({
             onClick={() => setDeleting(true)}
             className="flex items-center gap-1.5 rounded-control px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10"
           >
-            <Trash2 size={16} /> Excluir
+            <Trash2 size={16} /> {t('addons.kanban.card.delete')}
           </button>
           <div className="ml-auto w-32">
             <SecondaryButton type="button" onClick={onClose}>
-              Cancelar
+              {t('common.cancel')}
             </SecondaryButton>
           </div>
           <div className="w-32">
             <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void save()}>
-              {busy ? 'Salvando…' : 'Salvar'}
+              {busy ? t('common.saving') : t('common.save')}
             </PrimaryButton>
           </div>
         </div>
@@ -184,9 +185,9 @@ export function CardModal({
 
       {deleting && (
         <ConfirmModal
-          title="Excluir card"
-          message={`Excluir “${card.title}”? Isso não pode ser desfeito.`}
-          confirmLabel="Excluir"
+          title={t('addons.kanban.card.deleteTitle')}
+          message={t('addons.kanban.card.deleteConfirm', { title: card.title })}
+          confirmLabel={t('addons.kanban.card.delete')}
           onConfirm={async () => {
             await useKanban.getState().deleteCard(channel.id, card.id)
             onClose()

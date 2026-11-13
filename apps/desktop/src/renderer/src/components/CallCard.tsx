@@ -301,7 +301,7 @@ function ElsewhereCard({ collapsed, meId }: { collapsed: boolean; meId: string }
   if (collapsed) {
     return (
       <div className="flex justify-center border-t border-line bg-rail/40 py-2">
-        <button type="button" title={`${title}. Entrar por aqui`} aria-label={`${title}. Entrar por aqui`} onClick={bringHere} className="rounded-item p-1.5 text-accent-text hover:bg-elevated">
+        <button type="button" title={t('shell.joinHere', { title })} aria-label={t('shell.joinHere', { title })} onClick={bringHere} className="rounded-item p-1.5 text-accent-text hover:bg-elevated">
           <MonitorSmartphone size={18} />
         </button>
       </div>

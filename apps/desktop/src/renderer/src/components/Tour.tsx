@@ -199,7 +199,7 @@ export function TourOverlay({ steps, news = false, onEnd }: { steps: TourStep[];
             />
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">{step.text}</p>
             <div className="mt-4 flex items-center gap-1">
-              <span className="mr-auto text-xs tabular-nums text-fg-subtle" aria-label={`Passo ${index + 1} de ${steps.length}`}>
+              <span className="mr-auto text-xs tabular-nums text-fg-subtle" aria-label={t('shell.step', { n: index + 1, total: steps.length })}>
                 {index + 1}/{steps.length}
               </span>
               {!last && (
@@ -253,7 +253,7 @@ export function FirstTimeTip({ tip, anchor, title, text }: { tip: string; anchor
   if (!mine || !target || seen) return null
   return createPortal(
     <Placed target={target} className={`${balloonClass} app-no-drag z-tip w-[300px]`}>
-      <div role="note" aria-label={`Dica: ${title}`} data-tip={tip}>
+      <div role="note" aria-label={t('shell.tip', { title })} data-tip={tip}>
         <GuideHeader title={title} />
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">{text}</p>
         <div className="mt-3 flex justify-end">

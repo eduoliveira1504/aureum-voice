@@ -325,7 +325,7 @@ function PanelView({
 
   return (
     <section
-      aria-label={`Painel ${index + 1}`}
+      aria-label={t('shell.panel', { n: index + 1 })}
       onMouseDownCapture={() => focusPanel(server.id, index)}
       style={boxStyle(box)}
       className={`absolute flex flex-col overflow-hidden rounded-panel border bg-main ${

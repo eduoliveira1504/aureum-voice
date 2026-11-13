@@ -40,5 +40,11 @@
     "later": "Depois"
   },
   "connectionLost": "Conexão perdida. Reconectando…",
-  "onlyYou": "Só você"
+  "onlyYou": "Só você",
+  "joinHere": "{{title}}. Entrar por aqui",
+  "streaming": "{{count}} transmitindo",
+  "panel": "Painel {{n}}",
+  "step": "Passo {{n}} de {{total}}",
+  "tip": "Dica: {{title}}",
+  "clipField": "{{label}} do trecho"
 }

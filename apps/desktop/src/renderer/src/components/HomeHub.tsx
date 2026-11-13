@@ -1010,8 +1010,8 @@ function ServerTile({ summary: s, onOpen }: { summary: ServerSummary; onOpen?: (
         <ServerIcon name={s.server.name} url={s.server.icon_url} size={32} />
         {s.streaming > 0 && (
           <span
-            title={`${s.streaming} transmitindo`}
-            aria-label={`${s.streaming} transmitindo`}
+            title={t('shell.streaming', { count: s.streaming })}
+            aria-label={t('shell.streaming', { count: s.streaming })}
             className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-panel bg-danger"
           />
         )}

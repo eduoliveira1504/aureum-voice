@@ -18,6 +18,7 @@ import {
   type KanbanColumn,
   type Stage
 } from './store'
+import { t } from '../../lib/i18n'
 
 /** Its own drag type, so the shell's panel drop zones ignore cards. */
 const CARD_DRAG_TYPE = 'application/x-aureum-kanban-card'
@@ -41,7 +42,7 @@ export function KanbanPanel({ server, channel, me, openItem, onItemOpened }: Add
     void useKanban
       .getState()
       .load(channel.id)
-      .catch(() => setError('Não foi possível abrir o quadro.'))
+      .catch(() => setError(t('addons.kanban.board.openFailed')))
   }, [channel.id])
 
   // A card picked outside the board (Home's tasks): open it once the board is here.
@@ -53,13 +54,13 @@ export function KanbanPanel({ server, channel, me, openItem, onItemOpened }: Add
   }, [openItem, loaded, channel.id, onItemOpened])
 
   const fail = useCallback((err: unknown): void => {
-    setError(err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar a mudança.')
+    setError(err instanceof ApiError && err.status === 403 ? t('addons.kanban.board.forbidden') : t('addons.kanban.board.saveFailed'))
   }, [])
 
   if (!board) {
     return (
       <div className="flex flex-1 items-center justify-center bg-main text-sm text-fg-subtle">
-        {error ?? 'Carregando o quadro…'}
+        {error ?? t('addons.kanban.board.loading')}
       </div>
     )
   }
@@ -87,9 +88,9 @@ export function KanbanPanel({ server, channel, me, openItem, onItemOpened }: Add
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-main">
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm">
         <span className="text-fg-muted">
-          {counts.todo} a fazer · {counts.doing} fazendo · {counts.done} {counts.done === 1 ? 'feito' : 'feitos'}
+          {t('addons.kanban.board.counts', { todo: counts.todo, doing: counts.doing, count: counts.done })}
         </span>
-        {!board.can_edit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">Somente leitura</span>}
+        {!board.can_edit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">{t('addons.kanban.board.readOnly')}</span>}
         {error && (
           <span role="alert" className="text-danger">
             {error}
@@ -97,9 +98,9 @@ export function KanbanPanel({ server, channel, me, openItem, onItemOpened }: Add
         )}
         <div className="ml-auto flex gap-1">
           {board.can_manage && (
-            <ToolbarButton icon={Tags} label="Etiquetas" onClick={() => setDialog('labels')} />
+            <ToolbarButton icon={Tags} label={t('addons.kanban.board.labels')} onClick={() => setDialog('labels')} />
           )}
-          <ToolbarButton icon={History} label="Histórico" onClick={() => setDialog('history')} />
+          <ToolbarButton icon={History} label={t('addons.kanban.board.history')} onClick={() => setDialog('history')} />
         </div>
       </header>
 
@@ -241,7 +242,7 @@ function ColumnView({
           </div>
         ))}
         {drop === cards.length && <DropMarker />}
-        {!cards.length && drop === null && <p className="px-1 py-2 text-xs text-fg-subtle">Nenhum card.</p>}
+        {!cards.length && drop === null && <p className="px-1 py-2 text-xs text-fg-subtle">{t('addons.kanban.board.noCards')}</p>}
       </div>
       {board.can_edit && <NewCard channelId={channelId} columnId={column.id} onError={onError} />}
     </section>
@@ -306,7 +307,7 @@ function CardTile({
           )}
           {assignee && (
             <span className="ml-auto flex min-w-0 items-center gap-1.5 text-fg-subtle" title={memberName(assignee)}>
-              <span className="truncate">{assignee.user.id === meId ? 'Você' : memberName(assignee)}</span>
+              <span className="truncate">{assignee.user.id === meId ? t('addons.kanban.board.you') : memberName(assignee)}</span>
               <Avatar name={memberName(assignee)} url={assignee.user.avatar_url} gif={assignee.user.avatar_gif} size={20} />
             </span>
           )}
@@ -378,7 +379,7 @@ function ColumnHeader({
         <form onSubmit={rename} className="flex-1">
           <input
             autoFocus
-            aria-label="Nome da coluna"
+            aria-label={t('addons.kanban.board.columnName')}
             maxLength={60}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -400,7 +401,7 @@ function ColumnHeader({
         <div ref={menuRef} className="relative">
           <button
             type="button"
-            aria-label={`Opções da coluna ${column.name}`}
+            aria-label={t('addons.kanban.board.columnOptions', { name: column.name })}
             aria-expanded={menu}
             onClick={() => setMenu((m) => !m)}
             className="rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg"
@@ -411,18 +412,18 @@ function ColumnHeader({
             <div className={`${menuClass} absolute right-0 top-full mt-1 w-56`}>
               <MenuItem
                 icon={Pencil}
-                label="Renomear"
+                label={t('addons.kanban.board.rename')}
                 onClick={() => {
                   setMenu(false)
                   setRenaming(true)
                 }}
               />
-              <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">Conta no progresso como</p>
+              <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">{t('addons.kanban.board.countsAs')}</p>
               {(Object.keys(STAGE_LABEL) as Stage[]).map((stage) => (
                 <MenuItem
                   key={stage}
                   label={STAGE_LABEL[stage]}
-                  hint={column.stage === stage ? 'atual' : undefined}
+                  hint={column.stage === stage ? t('addons.kanban.board.current') : undefined}
                   onClick={() => {
                     setMenu(false)
                     if (stage !== column.stage) void patch({ stage })
@@ -430,17 +431,17 @@ function ColumnHeader({
                 />
               ))}
               <div className="my-1 h-px bg-line" />
-              <MenuItem icon={ChevronLeft} label="Mover para a esquerda" disabled={index === 0} onClick={() => void move(index - 1)} />
+              <MenuItem icon={ChevronLeft} label={t('addons.kanban.board.moveLeft')} disabled={index === 0} onClick={() => void move(index - 1)} />
               <MenuItem
                 icon={ChevronRight}
-                label="Mover para a direita"
+                label={t('addons.kanban.board.moveRight')}
                 disabled={index === board.columns.length - 1}
                 onClick={() => void move(index + 1)}
               />
               <MenuItem
                 icon={Trash2}
-                label="Excluir coluna"
-                hint={count ? 'tem cards' : undefined}
+                label={t('addons.kanban.board.deleteColumn')}
+                hint={count ? t('addons.kanban.board.hasCards') : undefined}
                 danger
                 disabled={count > 0 || board.columns.length <= 1}
                 onClick={() => void remove()}
@@ -479,7 +480,7 @@ function NewCard({ channelId, columnId, onError }: { channelId: string; columnId
         onClick={() => setOpen(true)}
         className="m-2 mt-0 flex items-center gap-1.5 rounded-control px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg"
       >
-        <Plus size={16} /> Adicionar card
+        <Plus size={16} /> {t('addons.kanban.board.addCard')}
       </button>
     )
   }
@@ -487,8 +488,8 @@ function NewCard({ channelId, columnId, onError }: { channelId: string; columnId
     <form onSubmit={submit} className="p-2 pt-0">
       <input
         autoFocus
-        aria-label="Título do card"
-        placeholder="Título do card"
+        aria-label={t('addons.kanban.board.cardTitle')}
+        placeholder={t('addons.kanban.board.cardTitle')}
         maxLength={200}
         value={title}
         // Not disabled: that would drop the focus, and typing several cards in a row needs it.
@@ -503,7 +504,7 @@ function NewCard({ channelId, columnId, onError }: { channelId: string; columnId
         }}
         className={cn(inputClass, 'py-2 text-sm')}
       />
-      <p className="mt-1 px-1 text-[11px] text-fg-subtle">Enter cria · Esc cancela</p>
+      <p className="mt-1 px-1 text-[11px] text-fg-subtle">{t('addons.kanban.board.cardHint')}</p>
     </form>
   )
 }
@@ -532,7 +533,7 @@ function NewColumn({ channelId, onError }: { channelId: string; onError(err: unk
         onClick={() => setOpen(true)}
         className="flex h-11 w-72 shrink-0 items-center gap-1.5 rounded-panel border border-dashed border-line px-3 text-sm font-medium text-fg-muted hover:bg-panel hover:text-fg"
       >
-        <Plus size={16} /> Nova coluna
+        <Plus size={16} /> {t('addons.kanban.board.newColumn')}
       </button>
     )
   }
@@ -540,8 +541,8 @@ function NewColumn({ channelId, onError }: { channelId: string; onError(err: unk
     <form onSubmit={submit} className="w-72 shrink-0">
       <input
         autoFocus
-        aria-label="Nome da coluna"
-        placeholder="Nome da coluna"
+        aria-label={t('addons.kanban.board.columnName')}
+        placeholder={t('addons.kanban.board.columnName')}
         maxLength={60}
         value={name}
         onChange={(e) => setName(e.target.value)}

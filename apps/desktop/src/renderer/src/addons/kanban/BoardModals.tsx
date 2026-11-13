@@ -5,8 +5,9 @@ import { FormError, Modal } from '../../components/Modal'
 import { Avatar, inputClass } from '../../components/ui'
 import { api, type ServerDetail } from '../../lib/api'
 import { memberName } from '../../lib/members'
-import { describe, formatWhen, LABEL_COLOR_NAME, LabelChip } from './bits'
+import { describe, formatWhen, labelColorName, LabelChip } from './bits'
 import { boardPath, LABEL_COLORS, useKanban, type HistoryEntry, type KanbanLabel, type LabelColor } from './store'
+import { t } from '../../lib/i18n'
 
 const PAGE = 50
 
@@ -35,15 +36,15 @@ export function HistoryList({ server, channelId, cardId }: { server: ServerDetai
     void load()
   }, [channelId, cardId, updatedAt])
 
-  if (error) return <p className="text-sm text-danger">Não foi possível carregar o histórico.</p>
-  if (!entries) return <p className="text-sm text-fg-subtle">Carregando…</p>
-  if (!entries.length) return <p className="text-sm text-fg-subtle">Nada por aqui ainda.</p>
+  if (error) return <p className="text-sm text-danger">{t('addons.kanban.history.loadFailed')}</p>
+  if (!entries) return <p className="text-sm text-fg-subtle">{t('common.loading')}</p>
+  if (!entries.length) return <p className="text-sm text-fg-subtle">{t('addons.kanban.history.empty')}</p>
   const people = new Map(server.members.map((m) => [m.user.id, m]))
   return (
     <ol className="space-y-2.5">
       {entries.map((entry) => {
         const actor = entry.actor_id ? people.get(entry.actor_id) : undefined
-        const name = actor ? memberName(actor) : 'Alguém'
+        const name = actor ? memberName(actor) : t('addons.kanban.history.someone')
         return (
           <li key={entry.id} className="flex items-start gap-2.5 text-sm">
             <Avatar name={name} url={actor?.user.avatar_url} gif={actor?.user.avatar_gif} size={24} />
@@ -57,7 +58,7 @@ export function HistoryList({ server, channelId, cardId }: { server: ServerDetai
       {more && (
         <li>
           <button type="button" onClick={() => void load(entries[entries.length - 1].id)} className="text-sm font-semibold text-accent-text hover:underline">
-            Ver mais
+            {t('addons.kanban.history.more')}
           </button>
         </li>
       )}
@@ -67,7 +68,7 @@ export function HistoryList({ server, channelId, cardId }: { server: ServerDetai
 
 export function HistoryModal({ server, channelId, onClose }: { server: ServerDetail; channelId: string; onClose(): void }): ReactNode {
   return (
-    <Modal title="Histórico do quadro" onClose={onClose}>
+    <Modal title={t('addons.kanban.history.title')} onClose={onClose}>
       <div className="max-h-[60vh] overflow-y-auto pr-1">
         <HistoryList server={server} channelId={channelId} />
       </div>
@@ -77,15 +78,15 @@ export function HistoryModal({ server, channelId, onClose }: { server: ServerDet
 
 function ColorPicker({ value, onChange }: { value: LabelColor; onChange(color: LabelColor): void }): ReactNode {
   return (
-    <div role="radiogroup" aria-label="Cor" className="flex flex-wrap gap-1.5">
+    <div role="radiogroup" aria-label={t('addons.kanban.labels.color')} className="flex flex-wrap gap-1.5">
       {LABEL_COLORS.map((color) => (
         <button
           key={color}
           type="button"
           role="radio"
           aria-checked={value === color}
-          aria-label={LABEL_COLOR_NAME[color]}
-          title={LABEL_COLOR_NAME[color]}
+          aria-label={labelColorName(color)}
+          title={labelColorName(color)}
           onClick={() => onChange(color)}
           style={{ background: `var(--label-${color})` }}
           className={`h-6 w-6 rounded-full ring-offset-2 ring-offset-panel ${value === color ? 'ring-2 ring-fg' : ''}`}
@@ -109,7 +110,7 @@ export function LabelsModal({ channelId, onClose }: { channelId: string; onClose
     try {
       await action()
     } catch {
-      setError('Não foi possível salvar a etiqueta.')
+      setError(t('addons.kanban.labels.saveFailed'))
     } finally {
       setBusy(false)
     }
@@ -129,7 +130,7 @@ export function LabelsModal({ channelId, onClose }: { channelId: string; onClose
   }
 
   return (
-    <Modal title="Etiquetas" onClose={onClose}>
+    <Modal title={t('addons.kanban.labels.title')} onClose={onClose}>
       <div className="space-y-4">
         <FormError message={error} />
         <ul className="space-y-2">
@@ -148,7 +149,7 @@ export function LabelsModal({ channelId, onClose }: { channelId: string; onClose
               </div>
               <button
                 type="button"
-                aria-label={`Excluir ${label.name}`}
+                aria-label={t('addons.kanban.labels.deleteNamed', { name: label.name })}
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
@@ -162,13 +163,13 @@ export function LabelsModal({ channelId, onClose }: { channelId: string; onClose
               </button>
             </li>
           ))}
-          {!labels.length && <li className="text-sm text-fg-subtle">Nenhuma etiqueta ainda.</li>}
+          {!labels.length && <li className="text-sm text-fg-subtle">{t('addons.kanban.labels.none')}</li>}
         </ul>
         <form onSubmit={create} className="space-y-2.5 rounded-control border border-dashed border-line p-3">
           <div className="flex items-center gap-2">
             <input
-              aria-label="Nome da etiqueta"
-              placeholder="Nova etiqueta"
+              aria-label={t('addons.kanban.labels.name')}
+              placeholder={t('addons.kanban.labels.new')}
               maxLength={30}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -179,7 +180,7 @@ export function LabelsModal({ channelId, onClose }: { channelId: string; onClose
               disabled={busy || !name.trim()}
               className="shrink-0 rounded-control bg-accent px-4 py-2.5 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
             >
-              Criar
+              {t('addons.kanban.labels.create')}
             </button>
           </div>
           <ColorPicker value={color} onChange={setColor} />

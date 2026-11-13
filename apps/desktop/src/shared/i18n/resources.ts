@@ -6,6 +6,7 @@
  */
 
 import enAccount from './locales/en/account.json'
+import enAddons from './locales/en/addons.json'
 import enAuth from './locales/en/auth.json'
 import enBugs from './locales/en/bugs.json'
 import enCall from './locales/en/call.json'
@@ -27,6 +28,7 @@ import enSystem from './locales/en/system.json'
 import enTop from './locales/en/top.json'
 import enTour from './locales/en/tour.json'
 import ptAccount from './locales/pt-BR/account.json'
+import ptAddons from './locales/pt-BR/addons.json'
 import ptAuth from './locales/pt-BR/auth.json'
 import ptBugs from './locales/pt-BR/bugs.json'
 import ptCall from './locales/pt-BR/call.json'
@@ -69,7 +71,8 @@ export const ptBR = {
   people: ptPeople,
   home: ptHome,
   tour: ptTour,
-  shell: ptShell
+  shell: ptShell,
+  addons: ptAddons
 }
 
 export const en: typeof ptBR = {
@@ -93,7 +96,8 @@ export const en: typeof ptBR = {
   people: enPeople,
   home: enHome,
   tour: enTour,
-  shell: enShell
+  shell: enShell,
+  addons: enAddons
 }
 
 export const resources = {

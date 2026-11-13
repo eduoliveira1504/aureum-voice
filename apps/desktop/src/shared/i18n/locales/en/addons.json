@@ -1,0 +1,116 @@
+{
+  "kanban": {
+    "name": "Kanban",
+    "description": "Columns and cards to organize what the group is doing.",
+    "announces": {
+      "label": "Announce moves in",
+      "hint": "When someone moves a card to another column, a line shows up in that text channel.",
+      "warning": "People without access to the board will see the cards' titles in that channel."
+    },
+    "stages": {
+      "todo": "To do",
+      "doing": "Doing",
+      "done": "Done"
+    },
+    "colors": {
+      "gray": "Gray",
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "green": "Green",
+      "teal": "Teal",
+      "blue": "Blue",
+      "purple": "Purple",
+      "pink": "Pink"
+    },
+    "fields": {
+      "title": "title",
+      "description": "description",
+      "assignee": "assignee",
+      "labels": "labels",
+      "due_date": "due date"
+    },
+    "history": {
+      "created": "created “{{title}}” in {{column}}",
+      "updated": "changed {{fields}} of “{{title}}”",
+      "moved": "moved “{{title}}” from {{from}} to {{to}}",
+      "deleted": "deleted “{{title}}”",
+      "columnCreated": "created the column {{name}}",
+      "columnRenamed": "renamed the column {{old}} to {{name}}",
+      "columnUpdated": "changed the column {{name}}",
+      "columnDeleted": "deleted the column {{name}}",
+      "loadFailed": "Couldn't load the history.",
+      "empty": "Nothing here yet.",
+      "someone": "Someone",
+      "more": "See more",
+      "title": "Board history"
+    },
+    "labels": {
+      "color": "Color",
+      "saveFailed": "Couldn't save the label.",
+      "title": "Labels",
+      "deleteNamed": "Delete {{name}}",
+      "none": "No labels yet.",
+      "name": "Label name",
+      "new": "New label",
+      "create": "Create"
+    },
+    "card": {
+      "forbidden": "You can't change this board.",
+      "deleted": "This card was deleted.",
+      "saveFailed": "Couldn't save the card.",
+      "nameIt": "Give the card a title.",
+      "card": "Card",
+      "title": "Title",
+      "description": "Description",
+      "descriptionPlaceholder": "Details, links, what's left…",
+      "noDescription": "No description.",
+      "history": "History",
+      "column": "Column",
+      "assignee": "Assignee",
+      "nobody": "Nobody",
+      "noAccess": "No access to the board",
+      "due": "Due date",
+      "labels": "Labels",
+      "createLabels": "Create labels in “Labels”, at the top of the board.",
+      "noLabels": "The board doesn't have labels yet.",
+      "delete": "Delete",
+      "deleteTitle": "Delete card",
+      "deleteConfirm": "Delete “{{title}}”? This can't be undone."
+    },
+    "board": {
+      "openFailed": "Couldn't open the board.",
+      "forbidden": "You don't have permission for that.",
+      "saveFailed": "Couldn't save the change.",
+      "loading": "Loading the board…",
+      "counts_one": "{{todo}} to do · {{doing}} doing · {{count}} done",
+      "counts_other": "{{todo}} to do · {{doing}} doing · {{count}} done",
+      "readOnly": "Read only",
+      "labels": "Labels",
+      "history": "History",
+      "noCards": "No cards.",
+      "you": "You",
+      "columnName": "Column name",
+      "columnOptions": "{{name}} column options",
+      "rename": "Rename",
+      "countsAs": "Counts in progress as",
+      "current": "current",
+      "moveLeft": "Move left",
+      "moveRight": "Move right",
+      "deleteColumn": "Delete column",
+      "hasCards": "has cards",
+      "addCard": "Add card",
+      "cardTitle": "Card title",
+      "cardHint": "Enter creates · Esc cancels",
+      "newColumn": "New column"
+    },
+    "summary": {
+      "empty": "No cards yet.",
+      "doneOf": "{{done}} of {{total}} cards done",
+      "todo": "{{count}} to do",
+      "doing": "{{count}} doing",
+      "done_one": "{{count}} done",
+      "done_other": "{{count}} done"
+    }
+  }
+}
