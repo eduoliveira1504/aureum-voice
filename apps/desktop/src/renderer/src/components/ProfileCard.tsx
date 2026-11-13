@@ -17,8 +17,10 @@ import { activityLabel, FramedAvatar, StatusBubble, useElapsed } from './profile
 import { CroppedGif, useGifFailed } from './ProfileGif'
 import { Avatar } from './ui'
 import { UserContextMenu, userContextMenu } from './UserMenu'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
-const joinedFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
+const JOINED = { day: 'numeric', month: 'short', year: 'numeric' } as const
 
 const Heading = ({ children }: { children: ReactNode }): ReactNode => (
   <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">{children}</div>
@@ -51,7 +53,7 @@ function NowBlock({ user }: { user: User }): ReactNode {
   if (!activity && !song) return null
   return (
     <section>
-      <Heading>Agora</Heading>
+      <Heading>{t('profile.card.now')}</Heading>
       <div className="space-y-2">
         {activity && (
           <div className="flex items-center gap-3 rounded-item bg-elevated p-2">
@@ -60,7 +62,7 @@ function NowBlock({ user }: { user: User }): ReactNode {
             </span>
             <span className="min-w-0 leading-tight">
               <span className="block truncate text-sm font-semibold">{activityLabel(activity)}</span>
-              {elapsed && <span className="text-xs text-fg-muted">Começou {elapsed}</span>}
+              {elapsed && <span className="text-xs text-fg-muted">{t('profile.card.started', { elapsed })}</span>}
             </span>
           </div>
         )}
@@ -71,10 +73,10 @@ function NowBlock({ user }: { user: User }): ReactNode {
             </span>
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-sm font-semibold">{song.title}</span>
-              <span className="block truncate text-xs text-fg-muted">{song.artist} · música do perfil</span>
+              <span className="block truncate text-xs text-fg-muted">{t('profile.card.songOf', { artist: song.artist })}</span>
             </span>
             {song.url && (
-              <a href={song.url} target="_blank" rel="noreferrer" title="Abrir música" aria-label="Abrir música" className="rounded-item p-1.5 text-fg-muted hover:bg-main hover:text-fg">
+              <a href={song.url} target="_blank" rel="noreferrer" title={t('profile.card.openSong')} aria-label={t('profile.card.openSong')} className="rounded-item p-1.5 text-fg-muted hover:bg-main hover:text-fg">
                 <ExternalLink size={16} strokeWidth={1.8} />
               </a>
             )}
@@ -96,7 +98,7 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
         if (done) toast(done)
         onDone()
       },
-      (err) => toast(errorText(err, 'Não deu certo. Tente de novo.'))
+      (err) => toast(errorText(err, t('common.tryAgainError')))
     )
   }
   const button = 'flex flex-1 items-center justify-center gap-2 rounded-control px-3 py-2 text-sm font-semibold'
@@ -105,23 +107,23 @@ function Actions({ user, meId, onDone }: { user: User; meId: string; onDone(): v
       {friend?.kind === 'friend' ? (
         <>
           <button type="button" onClick={() => run(social.openDm(user.id))} className={`${button} bg-accent text-on-accent hover:bg-accent-hover`}>
-            <MessageCircle size={16} strokeWidth={1.8} /> Mensagem
+            <MessageCircle size={16} strokeWidth={1.8} /> {t('profile.card.message')}
           </button>
           <button type="button" onClick={() => run(social.openDm(user.id).then(social.startCall))} className={`${button} bg-elevated hover:bg-main`}>
-            <Phone size={16} strokeWidth={1.8} /> Ligar
+            <Phone size={16} strokeWidth={1.8} /> {t('profile.card.call')}
           </button>
         </>
       ) : (
         !friend && (
-          <button type="button" onClick={() => run(social.sendRequest(user.username), 'Pedido enviado')} className={`${button} bg-accent text-on-accent hover:bg-accent-hover`}>
-            <UserPlus size={16} strokeWidth={1.8} /> Adicionar amigo
+          <button type="button" onClick={() => run(social.sendRequest(user.username), t('people.menu.requestSent'))} className={`${button} bg-accent text-on-accent hover:bg-accent-hover`}>
+            <UserPlus size={16} strokeWidth={1.8} /> {t('profile.card.addFriend')}
           </button>
         )
       )}
       <button
         type="button"
-        title="Mais opções"
-        aria-label="Mais opções"
+        title={t('profile.card.more')}
+        aria-label={t('profile.card.more')}
         onClick={(e) => openMenuAt(e.currentTarget, () => <UserContextMenu user={user} meId={meId} serverId={place === 'home' ? null : place} />)}
         className="ml-auto rounded-control bg-elevated px-3 py-2 text-fg-muted hover:bg-main hover:text-fg"
       >
@@ -147,9 +149,9 @@ function CardTabs({ tab, count, onSelect }: { tab: CardTab; count: number; onSel
     </button>
   )
   return (
-    <div role="tablist" aria-label="Seções do perfil" className="flex shrink-0 gap-1 rounded-control border border-line p-0.5">
-      {item('profile', 'Perfil')}
-      {item('badges', count ? `Insígnias (${count})` : 'Insígnias')}
+    <div role="tablist" aria-label={t('profile.card.sections')} className="flex shrink-0 gap-1 rounded-control border border-line p-0.5">
+      {item('profile', t('profile.card.profile'))}
+      {item('badges', count ? t('profile.card.badgesCount', { count }) : t('profile.card.badges'))}
     </div>
   )
 }
@@ -192,8 +194,8 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
   // From your own card: straight next to your name, or to the editor when three are there.
   const feature = (key: string): void => {
     const keys = withFeatured(shownBadges, key)
-    if (!keys) return toast('Você já destaca 3 insígnias. Troque em Editar perfil.')
-    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, 'Não foi possível destacar.')))
+    if (!keys) return toast(t('profile.card.featureFull'))
+    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, t('chat.featureFailed'))))
   }
 
   return (
@@ -243,7 +245,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
               <>
               {user.bio && (
                 <section>
-                  <Heading>Sobre mim</Heading>
+                  <Heading>{t('profile.card.about')}</Heading>
                   <p className="select-text whitespace-pre-wrap break-words text-sm">{user.bio}</p>
                 </section>
               )}
@@ -252,7 +254,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
 
               {roles.length > 0 && (
                 <section>
-                  <Heading>Cargos</Heading>
+                  <Heading>{t('profile.card.roles')}</Heading>
                   <div className="flex flex-wrap gap-1.5">
                     {roles.map((r) => (
                       <span key={r.id} className="flex items-center gap-1.5 rounded-item bg-elevated px-2 py-0.5 text-xs font-medium">
@@ -266,7 +268,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
 
               {user.links.length > 0 && (
                 <section>
-                  <Heading>Links</Heading>
+                  <Heading>{t('profile.card.links')}</Heading>
                   <div className="space-y-1">
                     {user.links.map((link) => (
                       <a
@@ -286,8 +288,8 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
               )}
 
               <section>
-                <Heading>Membro desde</Heading>
-                <p className="text-sm">{joinedFmt.format(new Date(user.created_at))}</p>
+                <Heading>{t('profile.card.memberSince')}</Heading>
+                <p className="text-sm">{dateFormat(JOINED).format(new Date(user.created_at))}</p>
               </section>
 
               </>
@@ -311,7 +313,7 @@ export function ProfileView({ user, onClose }: { user: User; onClose?: () => voi
               }}
               className="flex w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
             >
-              <Pencil size={16} strokeWidth={1.8} /> Editar perfil
+              <Pencil size={16} strokeWidth={1.8} /> {t('profile.card.edit')}
             </button>
           )}
         </div>
@@ -369,7 +371,7 @@ export function ProfilePopover({ user, anchor, onClose }: { user: User; anchor: 
   }, [onClose])
 
   return (
-    <div ref={ref} role="dialog" aria-label={`Perfil de ${user.display_name}`} className="fixed z-dialog flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
+    <div ref={ref} role="dialog" aria-label={t('profile.card.profileOf', { name: user.display_name })} className="fixed z-dialog flex max-h-[calc(100vh-16px)] flex-col rounded-panel" style={pos}>
       {fresh.deactivated ? <DeactivatedCard user={fresh} /> : <ProfileView user={fresh} onClose={onClose} />}
     </div>
   )
@@ -382,7 +384,7 @@ function DeactivatedCard({ user }: { user: User }): ReactNode {
       <Avatar name={user.display_name} url={user.avatar_url} gif={user.avatar_gif} size={40} />
       <div className="min-w-0">
         <p className="truncate font-medium">{user.display_name}</p>
-        <p className="text-sm text-fg-muted">Conta desativada</p>
+        <p className="text-sm text-fg-muted">{t('profile.card.deactivated')}</p>
       </div>
     </div>
   )

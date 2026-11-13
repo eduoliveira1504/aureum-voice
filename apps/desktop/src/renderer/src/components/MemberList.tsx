@@ -14,6 +14,7 @@ import { ActivityLine, StatusBubble } from './profileBits'
 import { COLUMNS, useResizable } from './Resizer'
 import { PresenceAvatar } from './ui'
 import { userContextMenu } from './UserMenu'
+import { t } from '../lib/i18n'
 
 export interface MemberGroup {
   key: string
@@ -29,8 +30,8 @@ export function groupMembers(server: ServerDetail, members: Member[] = server.me
   const byName = (a: Member, b: Member): number => memberName(a).localeCompare(memberName(b))
   const hoisted = server.roles.filter((r) => r.hoist && r.id !== server.id) // strongest first
   const groups = new Map<string, MemberGroup>(hoisted.map((r) => [r.id, { key: r.id, title: r.name, members: [] }]))
-  const online: MemberGroup = { key: 'online', title: 'Online', members: [] }
-  const offline: MemberGroup = { key: 'offline', title: 'Offline', members: [] }
+  const online: MemberGroup = { key: 'online', title: t('profile.members.online'), members: [] }
+  const offline: MemberGroup = { key: 'offline', title: t('profile.members.offline'), members: [] }
   for (const member of members) {
     if (!member.online) {
       offline.members.push(member)
@@ -130,16 +131,16 @@ export function MemberList({
   const scoped = !!channel && (isPrivate(server, channel) || members.length < server.members.length)
 
   return (
-    <aside aria-label="Membros" style={{ width }} className="relative flex h-full shrink-0 flex-col bg-panel">
+    <aside aria-label={t('profile.members.title')} style={{ width }} className="relative flex h-full shrink-0 flex-col bg-panel">
       {handle}
       <header className="flex h-12 shrink-0 items-center border-b border-line pl-4 pr-2">
         <h2 className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold">
-          Membros{scoped && ` · ${channel.type === 'text' ? '#' : ''}${channel.name}`}
+          {t('profile.members.title')}{scoped && ` · ${channel.type === 'text' ? '#' : ''}${channel.name}`}
         </h2>
         <button
           type="button"
-          title="Fechar membros"
-          aria-label="Fechar membros"
+          title={t('profile.members.close')}
+          aria-label={t('profile.members.close')}
           onClick={onClose}
           className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
         >
@@ -209,7 +210,7 @@ export function MemberRow({
         )}
       </span>
       {icon?.icon_url && <img src={mediaUrl(icon.icon_url)} alt={icon.name} title={icon.name} className="h-4 w-4 shrink-0 object-contain" />}
-      {m.user.id === server.owner_id && <Crown size={14} aria-label="Dono do servidor" className="shrink-0 text-accent-text" />}
+      {m.user.id === server.owner_id && <Crown size={14} aria-label={t('profile.members.owner')} className="shrink-0 text-accent-text" />}
     </button>
   )
 }

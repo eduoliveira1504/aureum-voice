@@ -2,8 +2,10 @@ import { Lock, Star } from 'lucide-react'
 import { useEffect, useMemo, type ReactNode } from 'react'
 
 import type { Badge, HeldBadge } from '../lib/api'
-import { badgeTitle, RARITY_LABEL, RARITY_RANK, sortBadges, useBadges, type ShownBadge } from '../store/badges'
-import { BadgeIcon, dateFormat, RARITY_TEXT } from './Badge'
+import { badgeTitle, RARITY_RANK, sortBadges, useBadges, type ShownBadge } from '../store/badges'
+import { BadgeIcon, GRANTED, RARITY_TEXT } from './Badge'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 /** Every badge of the Aureum: the person's own first (rarest first), then the rest, locked. */
 function useInventory(badges: HeldBadge[]): { badge: Badge; held: ShownBadge | null }[] {
@@ -65,9 +67,9 @@ export function useBadgeCount(badges: HeldBadge[]): { owned: number; total: numb
 
 /** Why a badge you don't have is locked: what earns it, or that nobody can earn it anymore. */
 function lockedText(badge: Badge): string {
-  if (badge.available === false) return 'Não disponível mais'
+  if (badge.available === false) return t('profile.badges.unavailable')
   if (badge.how_to_get) return badge.how_to_get
-  return badge.exclusive_beta ? 'Só durante o beta' : 'Ainda não é sua'
+  return badge.exclusive_beta ? t('profile.badges.betaOnly') : t('profile.badges.notYours')
 }
 
 function BadgeCard({
@@ -88,7 +90,7 @@ function BadgeCard({
   const shown: ShownBadge = held ?? { key: badge.key, number: null, granted_at: '', badge }
   return (
     <li
-      aria-label={held ? badgeTitle(shown) : `${badge.name} (não tem)`}
+      aria-label={held ? badgeTitle(shown) : t('profile.badges.notHeld', { name: badge.name })}
       className={`group relative flex flex-col items-center rounded-control border text-center ${compact ? 'p-2.5' : 'p-4'} ${
         held ? 'border-line bg-main' : 'border-dashed border-line bg-transparent'
       }`}
@@ -100,13 +102,13 @@ function BadgeCard({
         {held ? badgeTitle(shown) : badge.name}
       </span>
       <span className={`text-[11px] font-semibold uppercase tracking-wide ${RARITY_TEXT[badge.rarity]}`}>
-        {RARITY_LABEL[badge.rarity]}
-        {badge.exclusive_beta && ' · Beta'}
+        {t(`profile.badges.rarity.${badge.rarity}`)}
+        {badge.exclusive_beta && t('profile.badges.beta')}
       </span>
       {badge.description && held && <span className="mt-1 text-xs text-fg-muted">{badge.description}</span>}
       <span className="mt-1.5 text-[11px] text-fg-subtle">
         {held ? (
-          `Recebida em ${dateFormat.format(new Date(held.granted_at))}`
+          t('profile.badges.received', { date: dateFormat(GRANTED).format(new Date(held.granted_at)) })
         ) : (
           <span className="inline-flex items-start gap-1">
             <Lock size={11} className="mt-0.5 shrink-0" /> {lockedText(badge)}
@@ -114,8 +116,8 @@ function BadgeCard({
         )}
       </span>
       {featured && (
-        <span title="Em destaque no perfil" className="absolute right-1.5 top-1.5 text-accent-text">
-          <Star size={14} fill="currentColor" aria-label="Em destaque" />
+        <span title={t('profile.badges.featuredOnProfile')} className="absolute right-1.5 top-1.5 text-accent-text">
+          <Star size={14} fill="currentColor" aria-label={t('profile.badges.featuredShort')} />
         </span>
       )}
       {onFeature && !featured && (
@@ -126,7 +128,7 @@ function BadgeCard({
             featureAlways ? 'mt-2 w-full' : 'absolute inset-x-2 bottom-2 opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
           }`}
         >
-          Destacar
+          {t('profile.badges.feature')}
         </button>
       )}
     </li>

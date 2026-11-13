@@ -6,20 +6,22 @@ import { api, type CustomStatus, type Me } from '../lib/api'
 import { FormError, Modal } from './Modal'
 import { errorText } from './modals'
 import { cn, inputClass, labelClass, PrimaryButton } from './ui'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const EMOJIS = ['😀', '😎', '🥱', '😴', '🤒', '🎮', '🎧', '📚', '💻', '🍕', '☕', '🏃', '✈️', '🎬', '🔥', '❤️', '🛠️', '🎉', '🤫', '👀']
 
 export type Duration = 'keep' | '30m' | '1h' | '4h' | 'today' | 'never'
 
-const DURATIONS: { value: Duration; label: string }[] = [
-  { value: '30m', label: '30 minutos' },
-  { value: '1h', label: '1 hora' },
-  { value: '4h', label: '4 horas' },
-  { value: 'today', label: 'Hoje' },
-  { value: 'never', label: 'Não limpar' }
-]
+const duration = (value: Exclude<Duration, 'keep'>): { value: Duration; readonly label: string } => ({
+  value,
+  get label() {
+    return t(`profile.status.durations.${value}`)
+  }
+})
+const DURATIONS = [duration('30m'), duration('1h'), duration('4h'), duration('today'), duration('never')]
 
-const expiryFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+const EXPIRY = { weekday: 'short', hour: '2-digit', minute: '2-digit' } as const
 
 export interface StatusDraft {
   emoji: string | null
@@ -66,8 +68,8 @@ export function CustomStatusEditor({
       <div className="flex gap-2">
         <button
           type="button"
-          title="Escolher emoji"
-          aria-label="Escolher emoji"
+          title={t('profile.status.pickEmoji')}
+          aria-label={t('profile.status.pickEmoji')}
           aria-expanded={picking}
           onClick={() => setPicking((v) => !v)}
           className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-control border border-line bg-main text-xl hover:border-accent"
@@ -78,15 +80,15 @@ export function CustomStatusEditor({
           maxLength={128}
           value={draft.text}
           onChange={(e) => onChange({ ...draft, text: e.target.value })}
-          placeholder="Como você está?"
-          aria-label="Texto do status"
+          placeholder={t('profile.status.placeholder')}
+          aria-label={t('profile.status.text')}
           className={cn(inputClass, 'min-w-0')}
         />
         {(draft.text || draft.emoji) && (
           <button
             type="button"
-            title="Limpar status"
-            aria-label="Limpar status"
+            title={t('profile.status.clear')}
+            aria-label={t('profile.status.clear')}
             onClick={() => onChange({ emoji: null, text: '', duration: 'never' })}
             className="shrink-0 rounded-control px-2 text-fg-muted hover:bg-elevated hover:text-fg"
           >
@@ -111,15 +113,15 @@ export function CustomStatusEditor({
           ))}
           {draft.emoji && (
             <button type="button" onClick={() => onChange({ ...draft, emoji: null })} className="px-2 text-xs text-fg-muted hover:text-fg">
-              Sem emoji
+              {t('profile.status.noEmoji')}
             </button>
           )}
         </div>
       )}
       <label className="block">
-        <span className={labelClass}>Limpar depois de</span>
+        <span className={labelClass}>{t('profile.status.clearAfter')}</span>
         <select value={draft.duration} onChange={(e) => onChange({ ...draft, duration: e.target.value as Duration })} className={inputClass}>
-          {keep && <option value="keep">Manter ({expiryFmt.format(new Date(previous.expires_at!))})</option>}
+          {keep && <option value="keep">{t('profile.status.keep', { time: dateFormat(EXPIRY).format(new Date(previous.expires_at!)) })}</option>}
           {DURATIONS.map((d) => (
             <option key={d.value} value={d.value}>
               {d.label}
@@ -145,18 +147,18 @@ export function CustomStatusModal({ me, onClose }: { me: Me; onClose(): void }):
       setUser(await api<Me>('/users/me', { method: 'PATCH', body: { custom_status: statusFromDraft(draft, me.custom_status) } }))
       onClose()
     } catch (err) {
-      setError(errorText(err, 'Não foi possível salvar o status.'))
+      setError(errorText(err, t('profile.status.failed')))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Status personalizado" onClose={onClose}>
+    <Modal title={t('profile.status.title')} onClose={onClose}>
       <div className="space-y-4">
         <FormError message={error} />
         <CustomStatusEditor draft={draft} previous={me.custom_status} onChange={setDraft} />
         <PrimaryButton type="button" disabled={busy} onClick={() => void save()}>
-          {busy ? 'Salvando…' : 'Salvar'}
+          {busy ? t('common.saving') : t('common.save')}
         </PrimaryButton>
       </div>
     </Modal>

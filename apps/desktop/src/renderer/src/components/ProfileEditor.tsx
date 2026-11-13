@@ -15,6 +15,7 @@ import { errorText } from './modals'
 import { ProfileView } from './ProfileCard'
 import { FRAME_PRESETS } from './profileBits'
 import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
+import { t as tr } from '../lib/i18n'
 
 const MAX_LINKS = 5
 
@@ -73,13 +74,13 @@ function isHttps(url: string): boolean {
 
 /** What's wrong with the form, or null. The API checks the same rules. */
 function problem(form: Form): string | null {
-  if (!form.display_name.trim()) return 'O nome de exibição não pode ficar vazio.'
+  if (!form.display_name.trim()) return tr('profile.editor.nameEmpty')
   const [title, artist, url] = [form.song.title.trim(), form.song.artist.trim(), form.song.url.trim()]
-  if ((title || artist || url) && !(title && artist)) return 'A música precisa de título e artista.'
-  if (url && !isHttps(url)) return 'O link da música precisa começar com https://'
+  if ((title || artist || url) && !(title && artist)) return tr('profile.editor.songNeeds')
+  if (url && !isHttps(url)) return tr('profile.editor.songHttps')
   for (const link of form.links) {
-    if (!link.label.trim() || !link.url.trim()) return 'Cada link precisa de nome e endereço.'
-    if (!isHttps(link.url.trim())) return `O link "${link.label.trim()}" precisa começar com https://`
+    if (!link.label.trim() || !link.url.trim()) return tr('profile.editor.linkNeeds')
+    if (!isHttps(link.url.trim())) return tr('profile.editor.linkHttps', { label: link.label.trim() })
   }
   return null
 }
@@ -140,7 +141,7 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
         setSaved(true)
       }
     } catch (err) {
-      setError(errorText(err, 'Não foi possível salvar.'))
+      setError(errorText(err, tr('server.saveFailed')))
     } finally {
       setBusy(null)
     }
@@ -160,38 +161,38 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
     <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-6">
       <div className="min-w-0 space-y-5">
         <FormError message={error} />
-        <CroppedImageRow<Me> label="Avatar" shape="avatar" path="/users/me/avatar" hasImage={!!user.avatar_url} crop={user.avatar_crop}
+        <CroppedImageRow<Me> label={tr('profile.editor.avatar')} shape="avatar" path="/users/me/avatar" hasImage={!!user.avatar_url} crop={user.avatar_crop}
           gifs currentGif={user.avatar_gif} name={preview.display_name} onDone={setUser} />
-        <CroppedImageRow<Me> label="Banner" shape="banner" path="/users/me/banner" hasImage={!!user.banner_url} crop={user.banner_crop}
+        <CroppedImageRow<Me> label={tr('profile.editor.banner')} shape="banner" path="/users/me/banner" hasImage={!!user.banner_url} crop={user.banner_crop}
           gifs currentGif={user.banner_gif} name={preview.display_name} onDone={setUser} />
-        <p className="-mt-2 text-xs text-fg-subtle">PNG, JPG, GIF ou WebP de até 8 MB, ou um GIF da busca. GIFs e WebPs animados continuam animados.</p>
+        <p className="-mt-2 text-xs text-fg-subtle">{tr('profile.editor.imageHint')}</p>
 
         <div className="grid grid-cols-[minmax(0,1fr)_160px] gap-3">
-          <Field label="Nome de exibição" maxLength={64} value={form.display_name} onChange={(e) => patch({ display_name: e.target.value })} />
-          <Field label="Pronomes" maxLength={40} placeholder="ex: ele/dele" value={form.pronouns} onChange={(e) => patch({ pronouns: e.target.value })} />
+          <Field label={tr('profile.editor.displayName')} maxLength={64} value={form.display_name} onChange={(e) => patch({ display_name: e.target.value })} />
+          <Field label={tr('profile.editor.pronouns')} maxLength={40} placeholder={tr('profile.editor.pronounsPlaceholder')} value={form.pronouns} onChange={(e) => patch({ pronouns: e.target.value })} />
         </div>
 
         <div>
-          <span className={labelClass}>Status personalizado</span>
+          <span className={labelClass}>{tr('profile.editor.customStatus')}</span>
           <CustomStatusEditor draft={form.status} previous={user.custom_status} onChange={(status) => patch({ status })} />
         </div>
 
         <label className="block">
           <span className={`${labelClass} flex justify-between`}>
-            Sobre mim <span className="font-normal normal-case">{form.bio.length}/190</span>
+            {tr('profile.editor.about')} <span className="font-normal normal-case">{form.bio.length}/190</span>
           </span>
           <textarea
             rows={3}
             maxLength={190}
             value={form.bio}
             onChange={(e) => patch({ bio: e.target.value })}
-            placeholder="Conte um pouco sobre você"
+            placeholder={tr('profile.editor.aboutPlaceholder')}
             className={cn(inputClass, 'resize-none')}
           />
         </label>
 
         <div>
-          <span className={labelClass}>Cor do perfil</span>
+          <span className={labelClass}>{tr('profile.editor.color')}</span>
           <div className="flex flex-wrap items-center gap-2">
             {ACCENT_PRESETS.map(({ id, hex }) => (
               <button
@@ -206,21 +207,21 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
             ))}
             <label
               className="relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line text-fg-muted hover:text-fg"
-              title="Outra cor"
+              title={tr('profile.editor.otherColor')}
             >
               <Pipette size={16} />
               <input type="color" value={form.accent_color ?? ACCENT_PRESETS[0].hex} onChange={(e) => patch({ accent_color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
             </label>
             {form.accent_color && (
               <button type="button" onClick={() => patch({ accent_color: null })} className="text-xs text-fg-subtle hover:text-fg">
-                Remover cor
+                {tr('profile.editor.removeColor')}
               </button>
             )}
           </div>
         </div>
 
         <div>
-          <span className={labelClass}>Moldura do avatar</span>
+          <span className={labelClass}>{tr('profile.editor.frame')}</span>
           <div className="flex flex-wrap gap-2">
             {FRAME_OPTIONS.map(({ key, name, color }) => (
               <button
@@ -243,27 +244,27 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
         </div>
 
         <div>
-          <span className={labelClass}>Música do perfil</span>
+          <span className={labelClass}>{tr('profile.editor.song')}</span>
           <div className="grid grid-cols-2 gap-2">
-            <input maxLength={100} aria-label="Título da música" placeholder="Título" value={form.song.title} onChange={(e) => setSong({ title: e.target.value })} className={inputClass} />
-            <input maxLength={100} aria-label="Artista" placeholder="Artista" value={form.song.artist} onChange={(e) => setSong({ artist: e.target.value })} className={inputClass} />
-            <input maxLength={512} aria-label="Link da música" placeholder="Link (opcional, https://…)" value={form.song.url} onChange={(e) => setSong({ url: e.target.value })} className={cn(inputClass, 'col-span-2')} />
+            <input maxLength={100} aria-label={tr('profile.editor.songTitle')} placeholder={tr('profile.editor.title')} value={form.song.title} onChange={(e) => setSong({ title: e.target.value })} className={inputClass} />
+            <input maxLength={100} aria-label={tr('profile.editor.artist')} placeholder={tr('profile.editor.artist')} value={form.song.artist} onChange={(e) => setSong({ artist: e.target.value })} className={inputClass} />
+            <input maxLength={512} aria-label={tr('profile.editor.songLink')} placeholder={tr('profile.editor.songLinkPlaceholder')} value={form.song.url} onChange={(e) => setSong({ url: e.target.value })} className={cn(inputClass, 'col-span-2')} />
           </div>
         </div>
 
         <div>
           <span className={`${labelClass} flex justify-between`}>
-            Links <span className="font-normal normal-case">{form.links.length}/{MAX_LINKS}</span>
+            {tr('profile.editor.links')} <span className="font-normal normal-case">{form.links.length}/{MAX_LINKS}</span>
           </span>
           <div className="space-y-2">
             {form.links.map((link, i) => (
               <div key={i} className="flex gap-2">
-                <input maxLength={32} aria-label="Nome do link" placeholder="Nome" value={link.label} onChange={(e) => setLink(i, { label: e.target.value })} className={cn(inputClass, 'shrink-0 grow-0 basis-36')} />
-                <input maxLength={512} aria-label="Endereço do link" placeholder="https://…" value={link.url} onChange={(e) => setLink(i, { url: e.target.value })} className={cn(inputClass, 'min-w-0 flex-1')} />
+                <input maxLength={32} aria-label={tr('profile.editor.linkName')} placeholder={tr('profile.editor.name')} value={link.label} onChange={(e) => setLink(i, { label: e.target.value })} className={cn(inputClass, 'shrink-0 grow-0 basis-36')} />
+                <input maxLength={512} aria-label={tr('profile.editor.linkUrl')} placeholder="https://…" value={link.url} onChange={(e) => setLink(i, { url: e.target.value })} className={cn(inputClass, 'min-w-0 flex-1')} />
                 <button
                   type="button"
-                  title="Remover link"
-                  aria-label="Remover link"
+                  title={tr('profile.editor.removeLink')}
+                  aria-label={tr('profile.editor.removeLink')}
                   onClick={() => patch({ links: form.links.filter((_, j) => j !== i) })}
                   className="shrink-0 rounded-control px-2 text-fg-muted hover:bg-elevated hover:text-danger"
                 >
@@ -277,7 +278,7 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
                 onClick={() => patch({ links: [...form.links, { label: '', url: 'https://' }] })}
                 className="flex items-center gap-1.5 rounded-control px-2 py-1.5 text-sm font-medium text-accent-text hover:bg-elevated"
               >
-                <Plus size={16} /> Adicionar link
+                <Plus size={16} /> {tr('profile.editor.addLink')}
               </button>
             )}
           </div>
@@ -288,22 +289,22 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
         <div className="flex items-center gap-3">
           <div className="w-40 shrink-0">
             <PrimaryButton type="button" disabled={!dirty || !!invalid || busy !== null} onClick={save}>
-              {busy === 'save' ? 'Salvando…' : 'Salvar'}
+              {busy === 'save' ? tr('common.saving') : tr('common.save')}
             </PrimaryButton>
           </div>
           {dirty && invalid && <span className="text-sm text-danger">{invalid}</span>}
-          {dirty && !invalid && <span className="text-sm text-fg-muted">Você tem alterações não salvas.</span>}
+          {dirty && !invalid && <span className="text-sm text-fg-muted">{tr('profile.editor.unsaved')}</span>}
           {dirty && (
             <button type="button" onClick={() => setForm(formOf(user))} className="text-sm font-medium text-fg-muted hover:text-fg">
-              Desfazer
+              {tr('profile.editor.undo')}
             </button>
           )}
-          {saved && !dirty && <span className="text-sm text-success">Perfil salvo!</span>}
+          {saved && !dirty && <span className="text-sm text-success">{tr('profile.editor.saved')}</span>}
         </div>
       </div>
 
       <div>
-        <span className={labelClass}>Prévia</span>
+        <span className={labelClass}>{tr('profile.editor.preview')}</span>
         <div className="sticky top-0">
           <ProfileView user={preview} />
         </div>

@@ -6,6 +6,7 @@ import { badgeTitle, featuredBadges, MAX_FEATURED, withFeatured } from '../store
 import { BadgeIcon, NameMarks, useShownBadges } from './Badge'
 import { BadgeInventory, useBadgeCount } from './BadgeInventory'
 import { labelClass } from './ui'
+import { t } from '../lib/i18n'
 
 /** The held badges with a featured list applied (null: no choice, the automatic pick). */
 export function withPositions(badges: HeldBadge[], featured: string[] | null): HeldBadge[] {
@@ -53,18 +54,15 @@ export function FeaturedBadgesEditor({
   return (
     <div>
       <span className={`${labelClass} flex justify-between`}>
-        Insígnias{' '}
-        <span className="font-normal normal-case">
-          {owned} de {total}
-        </span>
+        {t('profile.badges.title')}{' '}
+        <span className="font-normal normal-case">{t('profile.badges.count', { owned, total })}</span>
       </span>
       <p className="mb-2 text-xs text-fg-muted">
-        Até {MAX_FEATURED} aparecem ao lado do seu nome e no topo do cartão, na ordem que você escolher. Todas ficam visíveis
-        na aba Insígnias do seu perfil.
+        {t('profile.badges.hint', { count: MAX_FEATURED })}
       </p>
 
       <div className="rounded-control border border-line bg-main p-3">
-        <div className="flex flex-wrap items-center gap-2" aria-label="Insígnias em destaque">
+        <div className="flex flex-wrap items-center gap-2" aria-label={t('profile.badges.featured')}>
           {row.map((s) => (
             <span
               key={s.key}
@@ -90,8 +88,8 @@ export function FeaturedBadgesEditor({
               <span className="max-w-[140px] truncate font-medium">{badgeTitle(s)}</span>
               <button
                 type="button"
-                title="Tirar do destaque"
-                aria-label={`Tirar ${badgeTitle(s)} do destaque`}
+                title={t('profile.badges.unfeature')}
+                aria-label={t('profile.badges.unfeatureNamed', { name: badgeTitle(s) })}
                 onClick={() => remove(s.key)}
                 className="rounded-item p-0.5 text-fg-muted hover:bg-main hover:text-fg"
               >
@@ -99,23 +97,23 @@ export function FeaturedBadgesEditor({
               </button>
             </span>
           ))}
-          {!row.length && <span className="text-sm text-fg-muted">Nenhuma insígnia em destaque.</span>}
+          {!row.length && <span className="text-sm text-fg-muted">{t('profile.badges.none')}</span>}
           {featured !== null && (
             <button type="button" onClick={() => onChange(null)} className="ml-auto text-xs font-medium text-fg-muted hover:text-fg">
-              Voltar ao automático
+              {t('profile.badges.auto')}
             </button>
           )}
         </div>
         <p className="mt-2 text-xs text-fg-subtle">
-          {featured === null ? 'Automático: as 2 mais raras. Destaque uma para escolher você mesmo.' : 'Arraste para mudar a ordem.'}
+          {featured === null ? t('profile.badges.autoHint') : t('profile.badges.dragHint')}
         </p>
         <div className="mt-3 flex min-w-0 items-center gap-1.5 border-t border-line pt-3">
-          <span className="text-xs text-fg-muted">Assim fica:</span>
+          <span className="text-xs text-fg-muted">{t('profile.badges.looks')}</span>
           <span className="min-w-0 truncate text-sm font-semibold">{user.display_name}</span>
           <NameMarks user={user} />
         </div>
       </div>
-      {full && <p role="alert" className="mt-1.5 text-sm text-danger">Já tem {MAX_FEATURED} em destaque. Tire uma antes de destacar outra.</p>}
+      {full && <p role="alert" className="mt-1.5 text-sm text-danger">{t('profile.badges.full', { count: MAX_FEATURED })}</p>}
 
       <div className="mt-3">
         <BadgeInventory badges={user.badges} featured={keys} onFeature={add} featureAlways />

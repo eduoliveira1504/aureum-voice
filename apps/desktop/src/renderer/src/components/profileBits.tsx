@@ -5,6 +5,7 @@ import type { Activity, AvatarFrame, CustomStatus, Presence, User } from '../lib
 import { useUserActivity } from '../store/activity'
 import { ACCENT_PRESETS } from '../store/appearance'
 import { Avatar, StatusDot } from './ui'
+import { t } from '../lib/i18n'
 
 /** Fixed frame colors; 'accent' follows the profile color (or the app accent without one). */
 const FRAME_KEYS = ['gold', 'amethyst', 'emerald', 'ember', 'sapphire'] as const
@@ -109,13 +110,15 @@ export function useElapsed(since: string | undefined): string | null {
   }, [since])
   if (!since) return null
   const minutes = Math.max(0, Math.floor((now - new Date(since).getTime()) / 60_000))
-  if (minutes < 1) return 'agora há pouco'
-  if (minutes < 60) return `há ${minutes} min`
+  if (minutes < 1) return t('profile.elapsed.justNow')
+  if (minutes < 60) return t('profile.elapsed.minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  return `há ${hours} h${minutes % 60 && hours < 10 ? ` ${minutes % 60} min` : ''}`
+  return minutes % 60 && hours < 10
+    ? t('profile.elapsed.hoursMinutes', { hours, minutes: minutes % 60 })
+    : t('profile.elapsed.hours', { count: hours })
 }
 
-export const activityLabel = (activity: Activity): string => `Jogando ${activity.name}`
+export const activityLabel = (activity: Activity): string => t('profile.playing', { game: activity.name })
 
 /** Small "Jogando X" line (member lists, Active now). */
 export function ActivityLine({ userId, className = '' }: { userId: string; className?: string }): ReactNode {

@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { createPortal } from 'react-dom'
 
 import type { BadgeRarity, HeldBadge, User } from '../lib/api'
-import { badgeTitle, featuredBadges, RARITY_LABEL, sortBadges, useBadges, type ShownBadge } from '../store/badges'
+import { badgeTitle, featuredBadges, sortBadges, useBadges, type ShownBadge } from '../store/badges'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const SMALL_MAX = 32
-export const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })
+/** How the date a badge was received reads. */
+export const GRANTED = { dateStyle: 'long' } as const
 
 /** The rarity's name in its metal's color. */
 export const RARITY_TEXT: Record<BadgeRarity, string> = {
@@ -94,12 +97,12 @@ function BadgeTooltip({ shown, anchor }: { shown: ShownBadge; anchor: DOMRect })
         <div className="min-w-0">
           <div className="font-display font-semibold leading-tight">{badgeTitle(shown)}</div>
           <div className={`text-xs font-semibold uppercase tracking-wide ${RARITY_TEXT[shown.badge.rarity]}`}>
-            {RARITY_LABEL[shown.badge.rarity]}
+            {t(`profile.badges.rarity.${shown.badge.rarity}`)}
           </div>
         </div>
       </div>
       {shown.badge.description && <p className="mt-2 text-sm text-fg-muted">{shown.badge.description}</p>}
-      <p className="mt-1.5 text-xs text-fg-subtle">Recebida em {dateFormat.format(new Date(shown.granted_at))}</p>
+      <p className="mt-1.5 text-xs text-fg-subtle">{t('profile.badges.received', { date: dateFormat(GRANTED).format(new Date(shown.granted_at)) })}</p>
     </div>,
     document.body
   )
@@ -124,7 +127,7 @@ export function BadgeList({ badges, onMore }: { badges: HeldBadge[]; onMore?: ()
           type="button"
           disabled={!onMore}
           onClick={onMore}
-          title="Ver todas as insígnias"
+          title={t('profile.badges.seeAll')}
           className="rounded-item px-0.5 text-xs font-semibold text-fg-muted enabled:hover:text-fg"
         >
           +{rest}
@@ -182,7 +185,7 @@ function WithHint({ hint, children }: { hint: string; children: ReactNode }): Re
 /** The gold check of verified accounts: a hexagon like the badges' frame, with a tick. */
 export function VerifiedMark({ size = 16 }: { size?: number }): ReactNode {
   return (
-    <WithHint hint="Conta verificada">
+    <WithHint hint={t('profile.badges.verified')}>
       <svg viewBox="0 0 96 96" width={size} height={size} aria-hidden className="block shrink-0 text-badge-gold">
         <polygon
           points="48,10 80.9,29 80.9,67 48,86 15.1,67 15.1,29"
@@ -200,9 +203,9 @@ export function VerifiedMark({ size = 16 }: { size?: number }): ReactNode {
 /** The small "BOT" tag of the Aureum's automated accounts. */
 export function BotTag(): ReactNode {
   return (
-    <WithHint hint="Conta automatizada do Aureum">
+    <WithHint hint={t('profile.badges.bot')}>
       <span className="rounded-[4px] border border-line bg-elevated px-1 text-[10px] font-bold leading-[14px] tracking-wide text-fg-muted">
-        BOT
+        {t('profile.badges.botTag')}
       </span>
     </WithHint>
   )

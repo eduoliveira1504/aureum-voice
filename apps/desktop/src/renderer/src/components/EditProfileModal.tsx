@@ -7,6 +7,7 @@ import { AccountSettings } from './AccountSettings'
 import { Modal } from './Modal'
 import { ConfirmModal } from './modals'
 import { ProfileEditor } from './ProfileEditor'
+import { t } from '../lib/i18n'
 
 /**
  * Asks before leaving a form with changes that weren't saved. `guard(leave)` runs `leave` right
@@ -19,9 +20,9 @@ export function useUnsavedGuard(): { setDirty(dirty: boolean): void; guard(leave
   const guard = useCallback((leave: () => void) => (dirty.current ? setPending(() => leave) : leave()), [])
   const dialog = pending && (
     <ConfirmModal
-      title="Descartar alterações?"
-      message="Você mudou o perfil e ainda não salvou. Se sair agora, as mudanças se perdem."
-      confirmLabel="Descartar"
+      title={t('profile.edit.discardTitle')}
+      message={t('profile.edit.discardConfirm')}
+      confirmLabel={t('profile.edit.discard')}
       onConfirm={async () => {
         dirty.current = false
         pending()
@@ -46,15 +47,15 @@ export function EditProfileHost({ me }: { me: Me }): ReactNode {
     })
   const switchButton = 'flex items-center gap-1.5 rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg'
   return (
-    <Modal title={account ? 'Conta' : 'Editar perfil'} tall onClose={close}>
+    <Modal title={account ? t('profile.edit.account') : t('profile.edit.title')} tall onClose={close}>
       <div className="mb-3 mt-3 flex shrink-0 justify-end">
         {account ? (
           <button type="button" onClick={() => setAccount(false)} className={switchButton}>
-            <ArrowLeft size={16} /> Voltar ao perfil
+            <ArrowLeft size={16} /> {t('profile.edit.back')}
           </button>
         ) : (
           <button type="button" onClick={() => guard(() => setAccount(true))} className={switchButton}>
-            <UserCog size={16} /> Conta
+            <UserCog size={16} /> {t('profile.edit.account')}
           </button>
         )}
       </div>

@@ -5,13 +5,6 @@ import { api, type Badge, type BadgeRarity, type HeldBadge, type Me } from '../l
 /** Rarest first, the order profiles list badges in. */
 export const RARITY_RANK: Record<BadgeRarity, number> = { mitica: 0, lendaria: 1, rara: 2, comum: 3 }
 
-export const RARITY_LABEL: Record<BadgeRarity, string> = {
-  comum: 'Comum',
-  rara: 'Rara',
-  lendaria: 'Lendária',
-  mitica: 'Mítica'
-}
-
 /** A held badge with what it looks like. */
 export interface ShownBadge extends HeldBadge {
   badge: Badge
