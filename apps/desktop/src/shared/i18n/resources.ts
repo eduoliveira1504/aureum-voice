@@ -6,14 +6,18 @@
  */
 
 import enCommon from './locales/en/common.json'
+import enSettings from './locales/en/settings.json'
 import ptCommon from './locales/pt-BR/common.json'
+import ptSettings from './locales/pt-BR/settings.json'
 
 export const ptBR = {
-  common: ptCommon
+  common: ptCommon,
+  settings: ptSettings
 }
 
 export const en: typeof ptBR = {
-  common: enCommon
+  common: enCommon,
+  settings: enSettings
 }
 
 export const resources = {

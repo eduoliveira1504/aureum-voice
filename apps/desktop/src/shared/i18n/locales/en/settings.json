@@ -1,0 +1,25 @@
+{
+  "title": "Settings",
+  "logout": "Sign out",
+  "tabs": {
+    "invites": "Invites",
+    "activity": "Activity",
+    "appearance": "Appearance",
+    "language": "Language",
+    "voice": "Voice and video",
+    "sounds": "Sounds",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "tips": "Tips",
+    "overlay": "Overlay",
+    "windows": "Windows",
+    "mac": "Mac",
+    "reports": "Problems",
+    "about": "About"
+  },
+  "language": {
+    "label": "App language",
+    "systemNow": "Use system language ({{language}})",
+    "hint": "Only on this computer. Messages from the server and emails stay in Portuguese for now."
+  }
+}

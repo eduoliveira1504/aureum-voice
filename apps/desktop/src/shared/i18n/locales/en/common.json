@@ -18,5 +18,6 @@
     "system": "Use system language",
     "pt-BR": "Português (Brasil)",
     "en": "English"
-  }
+  },
+  "saveFailed": "Could not save."
 }

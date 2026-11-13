@@ -1,0 +1,25 @@
+{
+  "title": "Configurações",
+  "logout": "Sair da conta",
+  "tabs": {
+    "invites": "Convites",
+    "activity": "Atividade",
+    "appearance": "Aparência",
+    "language": "Idioma",
+    "voice": "Voz e vídeo",
+    "sounds": "Sons",
+    "notifications": "Notificações",
+    "privacy": "Privacidade",
+    "tips": "Dicas",
+    "overlay": "Overlay",
+    "windows": "Windows",
+    "mac": "Mac",
+    "reports": "Problemas",
+    "about": "Sobre"
+  },
+  "language": {
+    "label": "Idioma do app",
+    "systemNow": "Seguir o sistema ({{language}})",
+    "hint": "Vale só neste computador. Mensagens vindas do servidor e e-mails continuam em português por enquanto."
+  }
+}

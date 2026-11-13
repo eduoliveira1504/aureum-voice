@@ -18,5 +18,6 @@
     "system": "Seguir o sistema",
     "pt-BR": "Português (Brasil)",
     "en": "English"
-  }
+  },
+  "saveFailed": "Não foi possível salvar."
 }
