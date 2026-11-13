@@ -149,7 +149,13 @@ Addon só aparece em Jogo e Misto; fixar plano persiste e aparece no overlay; at
 - Atualização por WebSocket, sem polling.
 - Testes: atividade some quando o app fecha ou fica sem sinal; opção de privacidade esconde; tempo atualiza.
 
-## 4.2.6 Idioma (português e inglês)
+## 4.2.6 Idioma (português e inglês) ✅ concluído (teste manual pendente)
+
+Ver docs/decisions/0050-i18n.md. Aprovado com o Eduardo: i18next + react-i18next (MIT); três opções
+(Seguir o sistema, Português (Brasil), English); a escolha fica neste computador, não na conta.
+Tudo no app desktop, sem migração nem mudança na API. Ficam em português: textos que a API escreve
+(insígnias, avisos da @aureum, avisos 503), e-mails e o CHANGELOG das Novidades. Teste manual:
+trocar o idioma com uma call aberta, a janela destacada e o overlay; conferir bandeja e menu do Mac.
 - Configurações › Idioma, com Português (Brasil) e English. Padrão: idioma do sistema; sem tradução disponível, português.
 - Extrair todos os textos do app para arquivos de tradução. Biblioteca de i18n nova: perguntar antes, licença permissiva.
 - Datas, horas e números no formato do idioma.

@@ -11,6 +11,8 @@ for real-time media. The whole stack is open source and designed to run at zero 
 
 ## Features
 
+- The app in Portuguese (Brazil) and English, following the system's language by default and
+  switching at once from Settings › Language ([ADR 0050](decisions/0050-i18n.md))
 - Email + password accounts (Argon2, short-lived JWT access tokens + refresh tokens kept in the OS
   keychain via Electron `safeStorage`)
 - Closed beta: sign-up needs an account invite (single-use ones for every confirmed user, group ones
@@ -127,7 +129,7 @@ for real-time media. The whole stack is open source and designed to run at zero 
   original (with or without a mention), forwards to up to 5 conversations (a snapshot of the original,
   files re-checked in the destination), copy text or the message's link, mark as unread. Emoji
   reactions with live counts. Emojis drawn with Twemoji (shipped with the app at `twemoji/`, so they
-  look the same on every PC), a picker with Portuguese search from emojibase, skin tone and recents
+  look the same on every PC), a picker with search in the app's language from emojibase, skin tone and recents
   synced in the settings, and `:name` autocomplete
   ([ADR 0032](decisions/0032-message-actions-replies-forwards-emojis-reactions.md))
 - "Enviada" / "Vista" in 1:1 DMs, from the read state, with "Confirmação de leitura" in Settings ›
@@ -304,7 +306,24 @@ python -m venv .venv
 ```
 
 For the desktop app, `npm run typecheck` checks the main and renderer processes, and `npm test` runs
-the component tests (Vitest + Testing Library in jsdom, no server needed).
+the component tests (Vitest + Testing Library in jsdom, no server needed). On Windows, run them from
+a path with an uppercase drive letter (`C:\...`): from `c:\...` Vitest loads itself twice and every
+file fails with "failed to find the current suite".
+
+### Translations
+
+The app is in Portuguese (Brazil) and English (docs/decisions/0050-i18n.md). Texts live in
+`apps/desktop/src/shared/i18n/locales/<pt-BR|en>/<area>.json`; a key reads `area.thing`.
+
+- In a component, `import { t } from '../lib/i18n'` and call `t('area.thing')` while rendering
+  (never at a module's top level). Text with markup inside uses `<Trans i18nKey=… components={{ b: <b /> }} />`.
+- Add every key to both files. `npm run typecheck` fails on a key missing in English or a `t()` key
+  that doesn't exist; `npm test` fails on extra keys, missing `{{variables}}` and fixed text left in
+  a screen (`HARDCODED_TEXT_OUT=out.txt npx vitest run src/renderer/src/test/hardcodedText.test.ts`
+  writes the full list).
+- Plurals: `key_one` and `key_other`, called with `{ count }`.
+- Dates and numbers: `dateFormat(options)` and `numberFormat(options)` from `lib/format.ts`.
+- A new area file goes in `shared/i18n/resources.ts`, in both objects.
 
 ### Sounds
 

@@ -36,4 +36,22 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
 - **Problema:** senha errada mostra "Senha atual incorreta.", texto pensado para a troca de senha.
 - **Sugestão:** "Senha incorreta." em todas as telas. Pequeno.
 
+### Textos do servidor em português no app em inglês (4.2.6)
+- **Tela:** perfil (insígnias e como ganhar), conversa oficial da @aureum, Novidades.
+- **Problema:** com o app em English, os nomes e descrições das insígnias, as mensagens da @aureum
+  e o texto das Novidades continuam em português (vêm da API ou do CHANGELOG, fora do escopo).
+- **Sugestão:** quando abrir o app para fora, a API mandar chaves (ou os dois idiomas) para
+  insígnias e avisos. Médio; vira item novo.
+
+### Revisão do inglês (4.2.6)
+- **Tela:** todas.
+- **Problema:** o inglês foi escrito junto com a extração, sem revisão de quem fala a língua.
+- **Sugestão:** uma passada de alguém fluente antes de divulgar o app em inglês. Pequeno.
+
+### Emojis buscados pelo nome no outro idioma (4.2.6)
+- **Tela:** seletor de emojis e o autocompletar `:nome`.
+- **Problema:** a busca segue o idioma do app; quem usa o app em inglês e digita `:fogo` não acha.
+- **Sugestão:** procurar nos dois catálogos e mostrar o do idioma atual primeiro. Pequeno, se o
+  beta pedir.
+
 ## Resolvidos

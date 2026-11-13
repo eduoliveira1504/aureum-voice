@@ -1,5 +1,12 @@
 # Novidades do Aureum
 
+## Próxima versão
+
+- **Aureum em inglês:** em Configurações › Idioma dá pra escolher Português (Brasil), English ou
+  seguir o idioma do computador (o padrão). A troca vale na hora, sem reiniciar, e inclui datas,
+  números, a bandeja, os emojis e o quadro branco. Por enquanto, as mensagens que vêm do servidor
+  (insígnias, avisos da @aureum) e os e-mails continuam em português.
+
 ## 0.2.0-beta.11
 
 - **Atualização ao abrir:** toda vez que o Aureum abre (inclusive quando o PC liga), a tela de
