@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { formatTime, moveEdge, parseTime, toMono, wavePeaks, type Selection } from '../lib/soundTrim'
 import { inputClass } from './ui'
+import { numberFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const BARS = 120
 const KEY_STEP_SECONDS = 0.1
@@ -138,7 +140,7 @@ export function SoundTrimEditor({
   )
 
   return (
-    <div className="space-y-2" role="group" aria-label="Recortar som">
+    <div className="space-y-2" role="group" aria-label={t('sounds.trimEditor.area')}>
       <div ref={area} className="relative h-20 select-none overflow-hidden rounded-control border border-line bg-panel">
         <div aria-hidden className="absolute inset-0 flex items-center gap-px px-px">
           {peaks.map((peak, i) => (
@@ -150,8 +152,8 @@ export function SoundTrimEditor({
           className="pointer-events-none absolute inset-y-0 bg-accent/25"
           style={{ left: `${percent(selection.start)}%`, width: `${percent(selection.end) - percent(selection.start)}%` }}
         />
-        {handle('start', 'Início do trecho')}
-        {handle('end', 'Fim do trecho')}
+        {handle('start', t('sounds.trimEditor.start'))}
+        {handle('end', t('sounds.trimEditor.end'))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -160,16 +162,16 @@ export function SoundTrimEditor({
           className="flex h-8 items-center gap-1.5 rounded-control border border-line px-2.5 text-sm text-fg-muted hover:text-fg"
         >
           {stopPlaying ? <Square size={14} /> : <Play size={14} />}
-          Ouvir trecho
+          {t('sounds.trimEditor.listen')}
         </button>
-        <TimeField label="Início" value={selection.start} onCommit={(to) => move('start', to)} />
-        <TimeField label="Fim" value={selection.end} onCommit={(to) => move('end', to)} />
-        <span className="text-xs text-fg-subtle">{(selection.end - selection.start).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s de até 5 s</span>
+        <TimeField label={t('sounds.trimEditor.startShort')} value={selection.start} onCommit={(to) => move('start', to)} />
+        <TimeField label={t('sounds.trimEditor.endShort')} value={selection.end} onCommit={(to) => move('end', to)} />
+        <span className="text-xs text-fg-subtle">{t('sounds.trimEditor.length', { seconds: numberFormat({ maximumFractionDigits: 1 }).format(selection.end - selection.start) })}</span>
         <span className="flex-1" />
-        <button type="button" title="Aproximar" aria-label="Aproximar" onClick={() => zoom(0.5)} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
+        <button type="button" title={t('sounds.trimEditor.zoomIn')} aria-label={t('sounds.trimEditor.zoomIn')} onClick={() => zoom(0.5)} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
           <ZoomIn size={16} />
         </button>
-        <button type="button" title="Afastar" aria-label="Afastar" onClick={() => zoom(2)} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
+        <button type="button" title={t('sounds.trimEditor.zoomOut')} aria-label={t('sounds.trimEditor.zoomOut')} onClick={() => zoom(2)} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
           <ZoomOut size={16} />
         </button>
       </div>

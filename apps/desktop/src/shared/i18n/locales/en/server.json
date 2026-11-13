@@ -1,0 +1,44 @@
+{
+  "forbidden": "You don't have permission for that.",
+  "saveFailed": "Couldn't save.",
+  "channel": {
+    "tabs": {
+      "general": "General",
+      "addon": "Addon",
+      "permissions": "Permissions"
+    },
+    "name": "Channel name",
+    "here": "in this channel",
+    "off": "Off",
+    "wider_one": "({{count}} person sees the channel, but not the addon.)",
+    "wider_other": "({{count}} people see the channel, but not the addon.)",
+    "useAnyway": "Use anyway",
+    "synced": "Follows {{category}}'s permissions. Changing something here gives this channel its own permissions.",
+    "ownPerms": "Has its own permissions, different from {{category}}.",
+    "sync": "Sync with the category",
+    "addTarget": "Add role or member",
+    "everyone": "Applies to everyone {{place}}. Denying \"View channels\" here makes it private; then allow it for the right roles.",
+    "forRole": "Changes what people with this role can do only {{place}}.",
+    "forMember": "Changes what this person can do only {{place}}.",
+    "readOnly": "It's at your level or above: view only.",
+    "inheritHint": "Inherit = uses the role's permission on the server",
+    "removeOverrides": "Remove overrides",
+    "states": {
+      "deny": "Deny",
+      "inherit": "Inherit",
+      "allow": "Allow"
+    }
+  },
+  "category": {
+    "notFound": "That category doesn't exist anymore.",
+    "saveFailed": "Couldn't save the category.",
+    "nameIt": "Give the category a name.",
+    "rename": "Rename category",
+    "create": "Create category",
+    "name": "Category name",
+    "namePlaceholder": "Games",
+    "perms": "{{name}} permissions",
+    "permsHint": "Synced channels follow what is set here.",
+    "here": "in this category"
+  }
+}

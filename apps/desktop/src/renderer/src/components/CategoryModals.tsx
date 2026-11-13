@@ -4,11 +4,12 @@ import { api, ApiError, type Category, type ServerDetail } from '../lib/api'
 import { PermissionsEditor, categoryAsChannel } from './ChannelSettings'
 import { FormError, Modal } from './Modal'
 import { Field, PrimaryButton } from './ui'
+import { t } from '../lib/i18n'
 
 function categoryError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 403) return 'Você não tem permissão para isso.'
-  if (err instanceof ApiError && err.status === 404) return 'Essa categoria não existe mais.'
-  return 'Não foi possível salvar a categoria.'
+  if (err instanceof ApiError && err.status === 403) return t('server.forbidden')
+  if (err instanceof ApiError && err.status === 404) return t('server.category.notFound')
+  return t('server.category.saveFailed')
 }
 
 /** Creates a category, or renames `category`. */
@@ -19,7 +20,7 @@ export function CategoryNameModal({ serverId, category, onClose }: { serverId: s
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (!name.trim()) return setError('Dê um nome à categoria.')
+    if (!name.trim()) return setError(t('server.category.nameIt'))
     setBusy(true)
     try {
       if (category) await api(`/categories/${category.id}`, { method: 'PATCH', body: { name: name.trim() } })
@@ -32,12 +33,12 @@ export function CategoryNameModal({ serverId, category, onClose }: { serverId: s
   }
 
   return (
-    <Modal title={category ? 'Renomear categoria' : 'Criar categoria'} onClose={onClose}>
+    <Modal title={category ? t('server.category.rename') : t('server.category.create')} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
         <FormError message={error} />
-        <Field autoFocus label="Nome da categoria" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder="Jogos" />
+        <Field autoFocus label={t('server.category.name')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} placeholder={t('server.category.namePlaceholder')} />
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Salvando…' : 'Salvar'}
+          {busy ? t('common.saving') : t('common.save')}
         </PrimaryButton>
       </form>
     </Modal>
@@ -57,8 +58,8 @@ export function CategoryPermissionsModal({
   onClose(): void
 }): ReactNode {
   return (
-    <Modal title={`Permissões de ${category.name}`} subtitle="Os canais sincronizados seguem o que for definido aqui." wide onClose={onClose}>
-      <PermissionsEditor server={server} channel={categoryAsChannel(category)} meId={meId} path={`/categories/${category.id}/overrides`} place="nesta categoria" />
+    <Modal title={t('server.category.perms', { name: category.name })} subtitle={t('server.category.permsHint')} wide onClose={onClose}>
+      <PermissionsEditor server={server} channel={categoryAsChannel(category)} meId={meId} path={`/categories/${category.id}/overrides`} place={t('server.category.here')} />
     </Modal>
   )
 }

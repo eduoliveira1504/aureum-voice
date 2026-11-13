@@ -1,0 +1,44 @@
+{
+  "forbidden": "Você não tem permissão para isso.",
+  "saveFailed": "Não foi possível salvar.",
+  "channel": {
+    "tabs": {
+      "general": "Geral",
+      "addon": "Addon",
+      "permissions": "Permissões"
+    },
+    "name": "Nome do canal",
+    "here": "neste canal",
+    "off": "Desligado",
+    "wider_one": "({{count}} pessoa vê o canal, mas não o addon.)",
+    "wider_other": "({{count}} pessoas veem o canal, mas não o addon.)",
+    "useAnyway": "Usar mesmo assim",
+    "synced": "Segue as permissões de {{category}}. Mudar algo aqui dá a este canal permissões próprias.",
+    "ownPerms": "Tem permissões próprias, diferentes de {{category}}.",
+    "sync": "Sincronizar com a categoria",
+    "addTarget": "Adicionar cargo ou membro",
+    "everyone": "Vale para todo mundo {{place}}. Negar \"Ver canais\" aqui deixa privado; depois libere para os cargos certos.",
+    "forRole": "Muda o que quem tem esse cargo pode fazer só {{place}}.",
+    "forMember": "Muda o que essa pessoa pode fazer só {{place}}.",
+    "readOnly": "Está no seu nível ou acima: só dá pra ver.",
+    "inheritHint": "Herdar = usa a permissão do cargo no servidor",
+    "removeOverrides": "Remover ajustes",
+    "states": {
+      "deny": "Negar",
+      "inherit": "Herdar",
+      "allow": "Permitir"
+    }
+  },
+  "category": {
+    "notFound": "Essa categoria não existe mais.",
+    "saveFailed": "Não foi possível salvar a categoria.",
+    "nameIt": "Dê um nome à categoria.",
+    "rename": "Renomear categoria",
+    "create": "Criar categoria",
+    "name": "Nome da categoria",
+    "namePlaceholder": "Jogos",
+    "perms": "Permissões de {{name}}",
+    "permsHint": "Os canais sincronizados seguem o que for definido aqui.",
+    "here": "nesta categoria"
+  }
+}

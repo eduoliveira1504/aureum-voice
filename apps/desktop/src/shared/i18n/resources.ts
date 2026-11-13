@@ -14,8 +14,11 @@ import enCommon from './locales/en/common.json'
 import enErrors from './locales/en/errors.json'
 import enMedia from './locales/en/media.json'
 import enOverlay from './locales/en/overlay.json'
+import enPermissions from './locales/en/permissions.json'
 import enProfile from './locales/en/profile.json'
+import enServer from './locales/en/server.json'
 import enSettings from './locales/en/settings.json'
+import enSounds from './locales/en/sounds.json'
 import enSystem from './locales/en/system.json'
 import ptAccount from './locales/pt-BR/account.json'
 import ptAuth from './locales/pt-BR/auth.json'
@@ -26,8 +29,11 @@ import ptCommon from './locales/pt-BR/common.json'
 import ptErrors from './locales/pt-BR/errors.json'
 import ptMedia from './locales/pt-BR/media.json'
 import ptOverlay from './locales/pt-BR/overlay.json'
+import ptPermissions from './locales/pt-BR/permissions.json'
 import ptProfile from './locales/pt-BR/profile.json'
+import ptServer from './locales/pt-BR/server.json'
 import ptSettings from './locales/pt-BR/settings.json'
+import ptSounds from './locales/pt-BR/sounds.json'
 import ptSystem from './locales/pt-BR/system.json'
 
 export const ptBR = {
@@ -42,7 +48,10 @@ export const ptBR = {
   overlay: ptOverlay,
   call: ptCall,
   chat: ptChat,
-  media: ptMedia
+  media: ptMedia,
+  permissions: ptPermissions,
+  server: ptServer,
+  sounds: ptSounds
 }
 
 export const en: typeof ptBR = {
@@ -57,7 +66,10 @@ export const en: typeof ptBR = {
   overlay: enOverlay,
   call: enCall,
   chat: enChat,
-  media: enMedia
+  media: enMedia,
+  permissions: enPermissions,
+  server: enServer,
+  sounds: enSounds
 }
 
 export const resources = {

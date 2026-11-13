@@ -11,6 +11,8 @@ import { ConfirmModal } from './modals'
 import { FormError } from './Modal'
 import { SoundTrimEditor } from './SoundTrimEditor'
 import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from './ui'
+import { numberFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const NO_SOUNDS: Sound[] = []
 // What the API takes as it is; anything else has to go up as a cut WAV.
@@ -18,20 +20,20 @@ const AS_UPLOADED = /\.(mp3|ogg|wav)$/i
 
 function soundError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 413) return 'O som pode ter até 1 MB.'
-    if (err.status === 415) return 'Use um arquivo MP3, OGG ou WAV.'
-    if (err.status === 409) return `Até ${MAX_SOUNDS} sons por servidor.`
-    if (err.status === 403) return 'Você não tem permissão para isso.'
+    if (err.status === 413) return t('sounds.tooBig')
+    if (err.status === 415) return t('sounds.format')
+    if (err.status === 409) return t('sounds.limit', { count: MAX_SOUNDS })
+    if (err.status === 403) return t('server.forbidden')
     if (err.status === 422) {
       return typeof err.detail === 'string' && err.detail.includes('seconds')
-        ? 'O som pode ter até 5 segundos.'
-        : 'O nome precisa de 2 a 30 letras; o emoji, um só.'
+        ? t('sounds.tooLong')
+        : t('sounds.invalid')
     }
   }
-  return 'Algo deu errado. Tente de novo.'
+  return t('sounds.error')
 }
 
-export const seconds = (ms: number): string => `${(ms / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} s`
+export const seconds = (ms: number): string => `${numberFormat({ maximumFractionDigits: 1 }).format(ms / 1000)} s`
 
 /** Plays one thing at a time here; clicking the playing one again stops it. */
 function usePreview(): { playing: string | null; toggle(key: string, src: () => Promise<string>, volume: number): void } {
@@ -94,7 +96,7 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
         // A short file that the API takes can go straight; the editor stays one click away.
         setTrimming(buffer.duration > MAX_CLIP_SECONDS || picked.size > MAX_SOUND_BYTES || !AS_UPLOADED.test(picked.name))
       })
-      .catch((err) => setError(err instanceof SoundFileError ? err.message : 'Não deu para ler esse áudio.'))
+      .catch((err) => setError(err instanceof SoundFileError ? err.message : t('sounds.unreadable')))
       .finally(() => setBusy(false))
   }
 
@@ -134,7 +136,7 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
     <div className="max-w-[560px] space-y-5">
       <FormError message={error} />
       <div className="space-y-2">
-        <span className={labelClass}>Novo som</span>
+        <span className={labelClass}>{t('sounds.new')}</span>
         <div className="space-y-2 rounded-control border border-line bg-main p-3">
           <div className="flex gap-2">
             <button
@@ -143,7 +145,7 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
               className="flex min-w-0 flex-1 items-center gap-2 rounded-control border border-dashed border-line px-3 py-2 text-left text-sm text-fg-subtle hover:text-fg"
             >
               <Plus size={16} className="shrink-0" />
-              <span className="truncate">{file ? file.name : 'Escolher arquivo'}</span>
+              <span className="truncate">{file ? file.name : t('sounds.pickFile')}</span>
             </button>
             <input
               ref={filePicker}
@@ -158,8 +160,8 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
             <button
               type="button"
               disabled={!fileUrl}
-              title="Ouvir"
-              aria-label="Ouvir o arquivo escolhido"
+              title={t('sounds.listen')}
+              aria-label={t('sounds.listenFile')}
               onClick={() => fileUrl && preview.toggle('new', async () => fileUrl, volume)}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-line text-fg-subtle hover:text-fg disabled:opacity-40"
             >
@@ -168,8 +170,8 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
             <button
               type="button"
               disabled={!decoded}
-              title="Recortar"
-              aria-label="Recortar o arquivo escolhido"
+              title={t('sounds.trim')}
+              aria-label={t('sounds.trimFile')}
               aria-pressed={trimming}
               onClick={() => setTrimming(true)}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-line text-fg-subtle hover:text-fg disabled:opacity-40"
@@ -183,14 +185,14 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={30}
-              placeholder="Nome (ex: buzina)"
-              aria-label="Nome do som"
+              placeholder={t('sounds.namePlaceholder')}
+              aria-label={t('sounds.name')}
               className={cn(inputClass, 'flex-1')}
             />
             <button
               type="button"
-              title="Emoji do som"
-              aria-label="Emoji do som"
+              title={t('sounds.emoji')}
+              aria-label={t('sounds.emoji')}
               onClick={(e) => pickEmoji(e.currentTarget, setEmoji)}
               onContextMenu={(e) => {
                 e.preventDefault()
@@ -201,13 +203,13 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
               {emoji ? <Emoji emoji={emoji} size={22} /> : <Smile size={18} />}
             </button>
           </div>
-          <VolumeRow label="Volume padrão" value={volume} onChange={setVolume} />
+          <VolumeRow label={t('sounds.defaultVolume')} value={volume} onChange={setVolume} />
           <PrimaryButton type="button" disabled={busy || !file || name.trim().length < 2 || full} onClick={() => void add()}>
-            {busy ? 'Enviando…' : 'Adicionar'}
+            {busy ? t('common.sending') : t('sounds.add')}
           </PrimaryButton>
         </div>
         <p className="text-xs text-fg-subtle">
-          MP3, OGG, WAV ou M4A de até 10 MB e 10 minutos; o som fica com até 5 segundos, escolhidos no recorte. {sounds.length}/{MAX_SOUNDS} usados. Só tocam nas salas deste servidor.
+          {t('sounds.rules', { used: sounds.length, max: MAX_SOUNDS })}
         </p>
       </div>
 
@@ -228,9 +230,9 @@ export function ServerSoundsTab({ server }: { server: ServerDetail }): ReactNode
 
       {removing && (
         <ConfirmModal
-          title="Remover som"
-          message={`Remover "${removing.name}" do painel de sons?`}
-          confirmLabel="Remover"
+          title={t('sounds.removeTitle')}
+          message={t('sounds.removeConfirm', { name: removing.name })}
+          confirmLabel={t('common.remove')}
           onConfirm={async () => {
             await api(`/sounds/${removing.id}`, { method: 'DELETE' })
             await reload()
@@ -286,7 +288,7 @@ function SoundItem({
   return (
     <li className="space-y-1.5 rounded-control border border-line bg-main px-3 py-2">
       <div className="flex items-center gap-2">
-        <button type="button" title="Ouvir" aria-label={`Ouvir ${sound.name}`} onClick={onPreview} className={cn(button, 'text-fg-subtle')}>
+        <button type="button" title={t('sounds.listen')} aria-label={t('sounds.listenNamed', { name: sound.name })} onClick={onPreview} className={cn(button, 'text-fg-subtle')}>
           {playing ? <Square size={14} /> : <Play size={14} />}
         </button>
         {sound.emoji && <Emoji emoji={sound.emoji} size={18} />}
@@ -299,20 +301,20 @@ function SoundItem({
             }}
           >
             <input autoFocus value={name} maxLength={30} onChange={(e) => setName(e.target.value)} onBlur={() => setEditing(false)}
-              aria-label="Novo nome" className={cn(inputClass, 'py-1 text-sm')} />
+              aria-label={t('sounds.newName')} className={cn(inputClass, 'py-1 text-sm')} />
           </form>
         ) : (
           <span className="min-w-0 flex-1 truncate text-sm">{sound.name}</span>
         )}
         <span className="text-xs tabular-nums text-fg-subtle">{seconds(sound.duration_ms)}</span>
         <div className="flex text-fg-subtle">
-          <button type="button" title="Renomear" aria-label={`Renomear ${sound.name}`} onClick={() => setEditing(true)} className={button}>
+          <button type="button" title={t('sounds.rename')} aria-label={t('sounds.renameNamed', { name: sound.name })} onClick={() => setEditing(true)} className={button}>
             <Pencil size={14} />
           </button>
           <button
             type="button"
-            title="Trocar emoji"
-            aria-label={`Trocar emoji de ${sound.name}`}
+            title={t('sounds.changeEmoji')}
+            aria-label={t('sounds.changeEmojiOf', { name: sound.name })}
             onClick={(e) => pickEmoji(e.currentTarget, (emoji) => void onChange({ emoji }))}
             onContextMenu={(e) => {
               e.preventDefault()
@@ -322,12 +324,12 @@ function SoundItem({
           >
             <Smile size={14} />
           </button>
-          <button type="button" title="Remover" aria-label={`Remover ${sound.name}`} onClick={onRemove} className={cn(button, 'hover:text-danger')}>
+          <button type="button" title={t('common.remove')} aria-label={t('sounds.removeNamed', { name: sound.name })} onClick={onRemove} className={cn(button, 'hover:text-danger')}>
             <Trash2 size={14} />
           </button>
         </div>
       </div>
-      <VolumeRow label={`Volume de ${sound.name}`} value={volume} onChange={setVolume} onCommit={() => volume !== sound.volume && void onChange({ volume })} />
+      <VolumeRow label={t('sounds.volumeOf', { name: sound.name })} value={volume} onChange={setVolume} onCommit={() => volume !== sound.volume && void onChange({ volume })} />
     </li>
   )
 }
@@ -358,24 +360,24 @@ export function SoundboardGrid({ serverId, canManage }: { serverId: string; canM
   }, [serverId])
 
   if (!sounds) {
-    return <p className="py-6 text-center text-fg-subtle">{failed ? 'Não foi possível carregar os sons.' : 'Carregando…'}</p>
+    return <p className="py-6 text-center text-fg-subtle">{failed ? t('sounds.loadFailed') : t('common.loading')}</p>
   }
   if (!sounds.length) {
     return (
       <p className="py-4 text-center text-fg-subtle">
-        Este servidor ainda não tem sons.
-        {canManage && <span className="block text-xs">Adicione em Configurações do servidor › Painel de sons.</span>}
+        {t('sounds.empty')}
+        {canManage && <span className="block text-xs">{t('sounds.addHint')}</span>}
       </p>
     )
   }
   return (
-    <ul className="grid grid-cols-3 gap-1.5" aria-label="Sons do servidor">
+    <ul className="grid grid-cols-3 gap-1.5" aria-label={t('sounds.list')}>
       {sounds.map((sound) => (
         <li key={sound.id}>
           <button
             type="button"
             title={`${sound.name} (${seconds(sound.duration_ms)})`}
-            aria-label={`Tocar ${sound.name}`}
+            aria-label={t('sounds.play', { name: sound.name })}
             disabled={!!playing || waiting}
             onClick={() => void useVoice.getState().playBoardSound(sound)}
             className={cn(
@@ -402,11 +404,11 @@ export function SoundboardPrefs({ compact = false }: { compact?: boolean }): Rea
   return (
     <div className={compact ? 'space-y-2 border-t border-line pt-3' : 'space-y-2'}>
       <div className={cn(muted && 'opacity-50')}>
-        <VolumeRow label="Volume dos sons dos outros" value={volume} onChange={(v) => update({ soundboard_volume: v })} />
+        <VolumeRow label={t('sounds.othersVolume')} value={volume} onChange={(v) => update({ soundboard_volume: v })} />
       </div>
       <ToggleRow
-        title="Silenciar sons dos outros"
-        description={compact ? 'Os seus continuam tocando para a sala.' : 'Você não ouve os sons que as outras pessoas tocam. Os seus continuam tocando para a sala.'}
+        title={t('sounds.muteOthers')}
+        description={compact ? t('sounds.muteOthersShort') : t('sounds.muteOthersHint')}
         checked={muted}
         onChange={(on) => update({ soundboard_muted: on })}
       />

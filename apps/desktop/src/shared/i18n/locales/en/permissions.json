@@ -1,0 +1,138 @@
+{
+  "groups": {
+    "server": "Server",
+    "text": "Conversations",
+    "voice": "Voice rooms",
+    "addons": "Addons",
+    "channel": "Channel"
+  },
+  "perms": {
+    "ADMINISTRATOR": {
+      "label": "Administrator",
+      "description": "Has every permission and ignores the channels' ones. Be careful giving it."
+    },
+    "MANAGE_SERVER": {
+      "label": "Manage server",
+      "description": "Change name, icon and banner."
+    },
+    "MANAGE_ROLES": {
+      "label": "Manage roles",
+      "description": "Create and edit roles below yours and the channels' permissions."
+    },
+    "MANAGE_CHANNELS": {
+      "label": "Manage channels",
+      "description": "Create, rename and delete channels."
+    },
+    "KICK_MEMBERS": {
+      "label": "Kick members",
+      "description": "Remove people below you from the server."
+    },
+    "BAN_MEMBERS": {
+      "label": "Ban members",
+      "description": "Kick and keep from coming back."
+    },
+    "CREATE_INVITE": {
+      "label": "Create invites",
+      "description": "Invites also create new Aureum accounts."
+    },
+    "CHANGE_NICKNAME": {
+      "label": "Change nickname",
+      "description": "Pick your own nickname on this server."
+    },
+    "MANAGE_NICKNAMES": {
+      "label": "Manage nicknames",
+      "description": "Change the nickname of people below you."
+    },
+    "VIEW_CHANNEL": {
+      "label": "View channels",
+      "description": "Without it the channel is invisible."
+    },
+    "SEND_MESSAGES": {
+      "label": "Send messages"
+    },
+    "READ_HISTORY": {
+      "label": "Read history",
+      "description": "Without it, you only see what arrives while the channel is open."
+    },
+    "MANAGE_MESSAGES": {
+      "label": "Manage messages",
+      "description": "Delete other people's messages."
+    },
+    "ATTACH_FILES": {
+      "label": "Attach files",
+      "description": "Images, videos, files and voice messages."
+    },
+    "ADD_REACTIONS": {
+      "label": "React",
+      "description": "Create new reactions. Adding to an existing reaction doesn't need it."
+    },
+    "USE_STICKERS": {
+      "label": "Use stickers",
+      "description": "Send Aureum's and this server's stickers."
+    },
+    "MANAGE_EXPRESSIONS": {
+      "label": "Manage stickers",
+      "description": "Upload, rename and remove the server's stickers."
+    },
+    "MENTION_EVERYONE": {
+      "label": "Mention @everyone",
+      "description": "Reserved: role mentions come in a future version."
+    },
+    "CONNECT": {
+      "label": "Connect",
+      "description": "Join the room."
+    },
+    "SPEAK": {
+      "label": "Speak"
+    },
+    "VIDEO": {
+      "label": "Camera"
+    },
+    "STREAM": {
+      "label": "Stream screen"
+    },
+    "MUTE_MEMBERS": {
+      "label": "Mute members",
+      "description": "Turn off the microphone of people below you, until released."
+    },
+    "DEAFEN_MEMBERS": {
+      "label": "Deafen members",
+      "description": "Cut the audio (and microphone) of people below you."
+    },
+    "MOVE_MEMBERS": {
+      "label": "Move members",
+      "description": "Take people below you to another room."
+    },
+    "USE_SOUNDBOARD": {
+      "label": "Use the soundboard",
+      "description": "Play the server's sounds in the room (needs Speak)."
+    },
+    "MANAGE_SOUNDBOARD": {
+      "label": "Manage sounds",
+      "description": "Add, edit and remove the server's soundboard sounds."
+    },
+    "MANAGE_ADDONS": {
+      "label": "Manage addons",
+      "description": "Add, configure and delete addons (with Manage channels)."
+    },
+    "EDIT_WHITEBOARD": {
+      "label": "Edit whiteboard",
+      "description": "Draw, write and create boards. Without it, view only."
+    },
+    "MANAGE_EVENTS": {
+      "label": "Manage events",
+      "description": "Create, edit and cancel events. People who manage addons can too. Everyone who sees the channel answers."
+    }
+  },
+  "addon": {
+    "SEND_MESSAGES": {
+      "label": "Participate",
+      "description": "Change the addon's content (edit the page, move cards...)."
+    },
+    "MANAGE_ADDONS": {
+      "label": "Manage addon",
+      "description": "Change the addon's settings and, with Manage channels, delete it."
+    }
+  },
+  "managePermissions": "Manage permissions"
+}

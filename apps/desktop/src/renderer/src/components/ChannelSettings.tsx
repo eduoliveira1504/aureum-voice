@@ -8,15 +8,24 @@ import { channelPermissions, has, outranks, Perm, PERM_INFO, rankOf, type PermNa
 import { useChat } from '../store/chat'
 import { FormError, Modal, ModalBody, ModalTabs, SecondaryButton } from './Modal'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, useDismiss } from './ui'
+import { t } from '../lib/i18n'
 
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
 const TEXT: PermName[] = ['SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'MENTION_EVERYONE']
 const VOICE: PermName[] = ['CONNECT', 'SPEAK', 'VIDEO', 'STREAM', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS', 'MOVE_MEMBERS']
 
 /** How a permission reads in an addon channel, where it's not about messages or rooms. */
-const ADDON_LABELS: Partial<Record<PermName, { label: string; description: string }>> = {
-  SEND_MESSAGES: { label: 'Participar', description: 'Mexer no conteúdo do addon (editar a página, mover cards...).' },
-  MANAGE_ADDONS: { label: 'Gerenciar addon', description: 'Mudar as configurações do addon e, com Gerenciar canais, excluí-lo.' }
+const addonLabel = (perm: 'SEND_MESSAGES' | 'MANAGE_ADDONS'): { label: string; description: string } => ({
+  label: t(`permissions.addon.${perm}.label`),
+  description: t(`permissions.addon.${perm}.description`)
+})
+const ADDON_LABELS: Partial<Record<PermName, { readonly label: string; readonly description: string }>> = {
+  get SEND_MESSAGES() {
+    return addonLabel('SEND_MESSAGES')
+  },
+  get MANAGE_ADDONS() {
+    return addonLabel('MANAGE_ADDONS')
+  }
 }
 
 /** What an override can change in this channel, in titled sections. An addon channel shows its
@@ -30,22 +39,22 @@ export const categoryAsChannel = (category: Category): Channel =>
 function permSections(channel: Channel): { title: string; names: PermName[] }[] {
   if ((channel.type as string) === CATEGORY_TYPE) {
     return [
-      { title: 'Canal', names: COMMON },
-      { title: 'Conversas', names: TEXT },
-      { title: 'Salas de voz', names: VOICE }
+      { title: t('permissions.groups.channel'), names: COMMON },
+      { title: t('permissions.groups.text'), names: TEXT },
+      { title: t('permissions.groups.voice'), names: VOICE }
     ]
   }
   const own =
     channel.type === 'voice'
-      ? { title: 'Salas de voz', names: VOICE }
+      ? { title: t('permissions.groups.voice'), names: VOICE }
       : channel.type === 'addon'
-        ? { title: 'Addons', names: [...(addonModule(channel.addon_key)?.permissions ?? ['SEND_MESSAGES']), 'MANAGE_ADDONS'] as PermName[] }
-        : { title: 'Conversas', names: TEXT }
-  return [{ title: 'Canal', names: COMMON }, own]
+        ? { title: t('permissions.groups.addons'), names: [...(addonModule(channel.addon_key)?.permissions ?? ['SEND_MESSAGES']), 'MANAGE_ADDONS'] as PermName[] }
+        : { title: t('permissions.groups.text'), names: TEXT }
+  return [{ title: t('permissions.groups.channel'), names: COMMON }, own]
 }
 
 function errorText(err: unknown): string {
-  return err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar.'
+  return err instanceof ApiError && err.status === 403 ? t('server.forbidden') : t('server.saveFailed')
 }
 
 type Tab = 'general' | 'addon' | 'permissions'
@@ -65,9 +74,9 @@ export function ChannelSettingsModal({
   const addon = channel.type === 'addon' ? addonModule(channel.addon_key) : undefined
   const tabs = (
     [
-      ['general', 'Geral', has(perms, Perm.MANAGE_CHANNELS)],
-      ['addon', 'Addon', !!(addon?.Settings || addon?.announces) && has(perms, Perm.MANAGE_ADDONS)],
-      ['permissions', 'Permissões', has(perms, Perm.MANAGE_ROLES)]
+      ['general', t('server.channel.tabs.general'), has(perms, Perm.MANAGE_CHANNELS)],
+      ['addon', t('server.channel.tabs.addon'), !!(addon?.Settings || addon?.announces) && has(perms, Perm.MANAGE_ADDONS)],
+      ['permissions', t('server.channel.tabs.permissions'), has(perms, Perm.MANAGE_ROLES)]
     ] as const
   ).filter(([, , allowed]) => allowed)
   const [tab, setTab] = useState<Tab>(tabs[0]?.[0] ?? 'general')
@@ -82,7 +91,7 @@ export function ChannelSettingsModal({
         {tab === 'permissions' && (
           <div className="space-y-4">
             <SyncNotice server={server} channel={channel} />
-            <PermissionsEditor server={server} channel={channel} meId={meId} path={`/channels/${channel.id}/overrides`} place="neste canal" />
+            <PermissionsEditor server={server} channel={channel} meId={meId} path={`/channels/${channel.id}/overrides`} place={t('server.channel.here')} />
           </div>
         )}
       </ModalBody>
@@ -117,11 +126,11 @@ function GeneralTab({ channel }: { channel: Channel }): ReactNode {
     >
       <div className="flex-1 space-y-3">
         <FormError message={error} />
-        <Field label="Nome do canal" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        <Field label={t('server.channel.name')} maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="w-32">
         <PrimaryButton type="submit" disabled={busy || !name.trim() || name.trim() === channel.name}>
-          Salvar
+          {t('common.save')}
         </PrimaryButton>
       </div>
     </form>
@@ -180,7 +189,7 @@ function AddonTab({ server, channel, addon }: { server: ServerDetail; channel: C
             }}
             className={inputClass}
           >
-            <option value="">Desligado</option>
+            <option value="">{t('server.channel.off')}</option>
             {textChannels.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.name}
@@ -196,19 +205,19 @@ function AddonTab({ server, channel, addon }: { server: ServerDetail; channel: C
             {announces.warning}{' '}
             {wider > 0 && (
               <span className="text-fg-muted">
-                ({wider} {wider === 1 ? 'pessoa vê' : 'pessoas veem'} o canal, mas não o addon.)
+                {t('server.channel.wider', { count: wider })}
               </span>
             )}
           </p>
           <div className="flex gap-2">
             <div className="w-44">
               <PrimaryButton type="button" disabled={busy} onClick={() => void save(true)}>
-                Usar mesmo assim
+                {t('server.channel.useAnyway')}
               </PrimaryButton>
             </div>
             <div className="w-32">
               <SecondaryButton type="button" disabled={busy} onClick={() => setWider(null)}>
-                Cancelar
+                {t('common.cancel')}
               </SecondaryButton>
             </div>
           </div>
@@ -216,7 +225,7 @@ function AddonTab({ server, channel, addon }: { server: ServerDetail; channel: C
       ) : (
         <div className="w-32">
           <PrimaryButton type="button" disabled={busy || !dirty} onClick={() => void save()}>
-            {busy ? 'Salvando…' : 'Salvar'}
+            {busy ? t('common.saving') : t('common.save')}
           </PrimaryButton>
         </div>
       )}
@@ -248,11 +257,11 @@ function SyncNotice({ server, channel }: { server: ServerDetail; channel: Channe
   return (
     <div className="flex items-center gap-3 rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">
       <span className="min-w-0 flex-1">
-        {channel.permissions_synced ? `Segue as permissões de ${category.name}. Mudar algo aqui dá a este canal permissões próprias.` : `Tem permissões próprias, diferentes de ${category.name}.`}
+        {channel.permissions_synced ? t('server.channel.synced', { category: category.name }) : t('server.channel.ownPerms', { category: category.name })}
       </span>
       {!channel.permissions_synced && (
         <button type="button" onClick={sync} className="shrink-0 rounded-control border border-line px-3 py-1.5 font-medium hover:bg-elevated hover:text-fg">
-          Sincronizar com a categoria
+          {t('server.channel.sync')}
         </button>
       )}
       <FormError message={error} />
@@ -374,7 +383,7 @@ function AddTarget({ candidates, onPick }: { candidates: Target[]; onPick(t: Tar
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-center gap-1.5 rounded-control border border-dashed border-line py-2 text-sm font-medium text-fg-muted hover:border-accent hover:text-fg disabled:opacity-50"
       >
-        <Plus size={16} /> Adicionar cargo ou membro
+        <Plus size={16} /> {t('server.channel.addTarget')}
       </button>
       {open && (
         <div className={`${menuClass} absolute left-0 right-0 top-11 max-h-64 overflow-y-auto`}>
@@ -453,17 +462,17 @@ function OverrideEditor({
     <div className="min-w-0 space-y-3">
       <p className="text-sm text-fg-muted">
         {target.id === server.id
-          ? `Vale para todo mundo ${place}. Negar "Ver canais" aqui deixa privado; depois libere para os cargos certos.`
-          : `Muda o que ${target.type === 'role' ? 'quem tem esse cargo' : 'essa pessoa'} pode fazer só ${place}.`}
+          ? t('server.channel.everyone', { place })
+          : t(target.type === 'role' ? 'server.channel.forRole' : 'server.channel.forMember', { place })}
       </p>
       {!editable && (
-        <p className="rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">Está no seu nível ou acima: só dá pra ver.</p>
+        <p className="rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">{t('server.channel.readOnly')}</p>
       )}
       <FormError message={error} />
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-subtle">
         {STATES.map(({ value, label, icon: Icon }) => (
           <span key={value} className="flex items-center gap-1">
-            <Icon size={12} /> {value === 'inherit' ? 'Herdar = usa a permissão do cargo no servidor' : label}
+            <Icon size={12} /> {value === 'inherit' ? t('server.channel.inheritHint') : label}
           </span>
         ))}
       </p>
@@ -479,7 +488,7 @@ function OverrideEditor({
               return (
                 <div key={name} className={`flex items-center justify-between gap-4 rounded-control border border-line bg-main px-3 py-2 ${allowed ? '' : 'opacity-60'}`}>
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">{name === 'MANAGE_ROLES' ? 'Gerenciar permissões' : info.label}</span>
+                    <span className="block text-sm font-medium">{name === 'MANAGE_ROLES' ? t('permissions.managePermissions') : info.label}</span>
                     {info.description && <span className="block text-xs text-fg-subtle">{info.description}</span>}
                   </span>
                   <TriState value={stateOf(bit)} disabled={!allowed} onChange={(s) => set(bit, s)} label={info.label} />
@@ -493,7 +502,7 @@ function OverrideEditor({
         <div className="sticky bottom-0 flex items-center gap-3 bg-panel py-3">
           <div className="w-36">
             <PrimaryButton type="button" disabled={!dirty || busy} onClick={() => void send(() => api(path, { method: 'PUT', body: { allow, deny } }))}>
-              {busy ? 'Salvando…' : 'Salvar'}
+              {busy ? t('common.saving') : t('common.save')}
             </PrimaryButton>
           </div>
           {override && (
@@ -503,7 +512,7 @@ function OverrideEditor({
               onClick={() => void send(() => api(path, { method: 'DELETE' }), onRemoved)}
               className="ml-auto text-sm font-medium text-danger hover:underline"
             >
-              Remover ajustes
+              {t('server.channel.removeOverrides')}
             </button>
           )}
         </div>
@@ -512,11 +521,15 @@ function OverrideEditor({
   )
 }
 
-const STATES: { value: State; label: string; icon: typeof Check; tone: string }[] = [
-  { value: 'deny', label: 'Negar', icon: X, tone: 'bg-danger text-on-danger' },
-  { value: 'inherit', label: 'Herdar', icon: Minus, tone: 'bg-elevated text-fg' },
-  { value: 'allow', label: 'Permitir', icon: Check, tone: 'bg-success/25 text-success' }
-]
+const state = (value: State, icon: typeof Check, tone: string): { value: State; readonly label: string; icon: typeof Check; tone: string } => ({
+  value,
+  get label() {
+    return t(`server.channel.states.${value}`)
+  },
+  icon,
+  tone
+})
+const STATES = [state('deny', X, 'bg-danger text-on-danger'), state('inherit', Minus, 'bg-elevated text-fg'), state('allow', Check, 'bg-success/25 text-success')]
 
 function TriState({ value, disabled, onChange, label }: { value: State; disabled: boolean; onChange(s: State): void; label: string }): ReactNode {
   return (

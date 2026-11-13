@@ -4,6 +4,7 @@
  */
 
 import type { Channel, Member, Role, ServerDetail } from './api'
+import { i18n, t } from './i18n'
 
 export const Perm = {
   ADMINISTRATOR: 1 << 0,
@@ -147,63 +148,34 @@ export function roleColor(server: ServerDetail, userId: string): string | null {
   )
 }
 
-/** Labels and descriptions for the settings screens, grouped as shown there. */
-export const PERMISSION_GROUPS: { title: string; items: { perm: PermName; label: string; description: string }[] }[] = [
-  {
-    title: 'Servidor',
-    items: [
-      { perm: 'ADMINISTRATOR', label: 'Administrador', description: 'Tem todas as permissões e ignora as dos canais. Cuidado ao dar.' },
-      { perm: 'MANAGE_SERVER', label: 'Gerenciar servidor', description: 'Mudar nome, ícone e banner.' },
-      { perm: 'MANAGE_ROLES', label: 'Gerenciar cargos', description: 'Criar e editar cargos abaixo do seu e as permissões dos canais.' },
-      { perm: 'MANAGE_CHANNELS', label: 'Gerenciar canais', description: 'Criar, renomear e excluir canais.' },
-      { perm: 'KICK_MEMBERS', label: 'Expulsar membros', description: 'Tirar do servidor quem está abaixo de você.' },
-      { perm: 'BAN_MEMBERS', label: 'Banir membros', description: 'Expulsar e impedir de voltar.' },
-      { perm: 'CREATE_INVITE', label: 'Criar convites', description: 'Convites também criam contas novas no Aureum.' },
-      { perm: 'CHANGE_NICKNAME', label: 'Mudar apelido', description: 'Escolher o próprio apelido neste servidor.' },
-      { perm: 'MANAGE_NICKNAMES', label: 'Gerenciar apelidos', description: 'Mudar o apelido de quem está abaixo de você.' }
-    ]
-  },
-  {
-    title: 'Conversas',
-    items: [
-      { perm: 'VIEW_CHANNEL', label: 'Ver canais', description: 'Sem isso o canal fica invisível.' },
-      { perm: 'SEND_MESSAGES', label: 'Enviar mensagens', description: '' },
-      { perm: 'READ_HISTORY', label: 'Ler histórico', description: 'Sem isso, só vê o que chegar enquanto está com o canal aberto.' },
-      { perm: 'MANAGE_MESSAGES', label: 'Gerenciar mensagens', description: 'Apagar mensagens dos outros.' },
-      { perm: 'ATTACH_FILES', label: 'Enviar arquivos', description: 'Imagens, vídeos, arquivos e mensagens de voz.' },
-      { perm: 'ADD_REACTIONS', label: 'Reagir', description: 'Criar reações novas. Somar numa reação que já existe não precisa.' },
-      { perm: 'USE_STICKERS', label: 'Usar figurinhas', description: 'Enviar figurinhas do Aureum e deste servidor.' },
-      { perm: 'MANAGE_EXPRESSIONS', label: 'Gerenciar figurinhas', description: 'Enviar, renomear e remover as figurinhas do servidor.' },
-      { perm: 'MENTION_EVERYONE', label: 'Mencionar @everyone', description: 'Reservado: menções a cargos chegam numa próxima versão.' }
-    ]
-  },
-  {
-    title: 'Salas de voz',
-    items: [
-      { perm: 'CONNECT', label: 'Conectar', description: 'Entrar na sala.' },
-      { perm: 'SPEAK', label: 'Falar', description: '' },
-      { perm: 'VIDEO', label: 'Câmera', description: '' },
-      { perm: 'STREAM', label: 'Transmitir tela', description: '' },
-      { perm: 'MUTE_MEMBERS', label: 'Silenciar membros', description: 'Desligar o microfone de quem está abaixo de você, até liberar.' },
-      { perm: 'DEAFEN_MEMBERS', label: 'Ensurdecer membros', description: 'Cortar o áudio (e o microfone) de quem está abaixo de você.' },
-      { perm: 'MOVE_MEMBERS', label: 'Mover membros', description: 'Levar quem está abaixo de você para outra sala.' },
-      { perm: 'USE_SOUNDBOARD', label: 'Usar o painel de sons', description: 'Tocar os sons do servidor na sala (precisa de Falar).' },
-      { perm: 'MANAGE_SOUNDBOARD', label: 'Gerenciar sons', description: 'Adicionar, editar e remover os sons do painel do servidor.' }
-    ]
-  },
-  {
-    title: 'Addons',
-    items: [
-      { perm: 'MANAGE_ADDONS', label: 'Gerenciar addons', description: 'Adicionar, configurar e excluir addons (com Gerenciar canais).' },
-      { perm: 'EDIT_WHITEBOARD', label: 'Editar quadro branco', description: 'Desenhar, escrever e criar quadros. Quem não tem só vê.' },
-      {
-        perm: 'MANAGE_EVENTS',
-        label: 'Gerenciar eventos',
-        description: 'Criar, editar e cancelar eventos. Quem gerencia addons também pode. Todos que veem o canal respondem.'
-      }
-    ]
+/** A permission's label and description, read in the app's language when used (getters). */
+function info(perm: PermName): { perm: PermName; readonly label: string; readonly description: string } {
+  return {
+    perm,
+    get label() {
+      return t(`permissions.perms.${perm}.label`)
+    },
+    get description() {
+      const key = `permissions.perms.${perm}.description` as const
+      return i18n.exists(key) ? t(key as never) : ''
+    }
   }
-]
+}
+
+/** Labels and descriptions for the settings screens, grouped as shown there. */
+export const PERMISSION_GROUPS: { readonly title: string; items: ReturnType<typeof info>[] }[] = (
+  [
+    ['server', ['ADMINISTRATOR', 'MANAGE_SERVER', 'MANAGE_ROLES', 'MANAGE_CHANNELS', 'KICK_MEMBERS', 'BAN_MEMBERS', 'CREATE_INVITE', 'CHANGE_NICKNAME', 'MANAGE_NICKNAMES']],
+    ['text', ['VIEW_CHANNEL', 'SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'USE_STICKERS', 'MANAGE_EXPRESSIONS', 'MENTION_EVERYONE']],
+    ['voice', ['CONNECT', 'SPEAK', 'VIDEO', 'STREAM', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS', 'MOVE_MEMBERS', 'USE_SOUNDBOARD', 'MANAGE_SOUNDBOARD']],
+    ['addons', ['MANAGE_ADDONS', 'EDIT_WHITEBOARD', 'MANAGE_EVENTS']]
+  ] as const
+).map(([key, perms]) => ({
+  get title() {
+    return t(`permissions.groups.${key}`)
+  },
+  items: perms.map(info)
+}))
 
 export type PermInfo = (typeof PERMISSION_GROUPS)[number]['items'][number]
 

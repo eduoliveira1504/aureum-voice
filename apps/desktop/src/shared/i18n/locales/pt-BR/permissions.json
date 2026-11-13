@@ -1,0 +1,138 @@
+{
+  "groups": {
+    "server": "Servidor",
+    "text": "Conversas",
+    "voice": "Salas de voz",
+    "addons": "Addons",
+    "channel": "Canal"
+  },
+  "perms": {
+    "ADMINISTRATOR": {
+      "label": "Administrador",
+      "description": "Tem todas as permissões e ignora as dos canais. Cuidado ao dar."
+    },
+    "MANAGE_SERVER": {
+      "label": "Gerenciar servidor",
+      "description": "Mudar nome, ícone e banner."
+    },
+    "MANAGE_ROLES": {
+      "label": "Gerenciar cargos",
+      "description": "Criar e editar cargos abaixo do seu e as permissões dos canais."
+    },
+    "MANAGE_CHANNELS": {
+      "label": "Gerenciar canais",
+      "description": "Criar, renomear e excluir canais."
+    },
+    "KICK_MEMBERS": {
+      "label": "Expulsar membros",
+      "description": "Tirar do servidor quem está abaixo de você."
+    },
+    "BAN_MEMBERS": {
+      "label": "Banir membros",
+      "description": "Expulsar e impedir de voltar."
+    },
+    "CREATE_INVITE": {
+      "label": "Criar convites",
+      "description": "Convites também criam contas novas no Aureum."
+    },
+    "CHANGE_NICKNAME": {
+      "label": "Mudar apelido",
+      "description": "Escolher o próprio apelido neste servidor."
+    },
+    "MANAGE_NICKNAMES": {
+      "label": "Gerenciar apelidos",
+      "description": "Mudar o apelido de quem está abaixo de você."
+    },
+    "VIEW_CHANNEL": {
+      "label": "Ver canais",
+      "description": "Sem isso o canal fica invisível."
+    },
+    "SEND_MESSAGES": {
+      "label": "Enviar mensagens"
+    },
+    "READ_HISTORY": {
+      "label": "Ler histórico",
+      "description": "Sem isso, só vê o que chegar enquanto está com o canal aberto."
+    },
+    "MANAGE_MESSAGES": {
+      "label": "Gerenciar mensagens",
+      "description": "Apagar mensagens dos outros."
+    },
+    "ATTACH_FILES": {
+      "label": "Enviar arquivos",
+      "description": "Imagens, vídeos, arquivos e mensagens de voz."
+    },
+    "ADD_REACTIONS": {
+      "label": "Reagir",
+      "description": "Criar reações novas. Somar numa reação que já existe não precisa."
+    },
+    "USE_STICKERS": {
+      "label": "Usar figurinhas",
+      "description": "Enviar figurinhas do Aureum e deste servidor."
+    },
+    "MANAGE_EXPRESSIONS": {
+      "label": "Gerenciar figurinhas",
+      "description": "Enviar, renomear e remover as figurinhas do servidor."
+    },
+    "MENTION_EVERYONE": {
+      "label": "Mencionar @everyone",
+      "description": "Reservado: menções a cargos chegam numa próxima versão."
+    },
+    "CONNECT": {
+      "label": "Conectar",
+      "description": "Entrar na sala."
+    },
+    "SPEAK": {
+      "label": "Falar"
+    },
+    "VIDEO": {
+      "label": "Câmera"
+    },
+    "STREAM": {
+      "label": "Transmitir tela"
+    },
+    "MUTE_MEMBERS": {
+      "label": "Silenciar membros",
+      "description": "Desligar o microfone de quem está abaixo de você, até liberar."
+    },
+    "DEAFEN_MEMBERS": {
+      "label": "Ensurdecer membros",
+      "description": "Cortar o áudio (e o microfone) de quem está abaixo de você."
+    },
+    "MOVE_MEMBERS": {
+      "label": "Mover membros",
+      "description": "Levar quem está abaixo de você para outra sala."
+    },
+    "USE_SOUNDBOARD": {
+      "label": "Usar o painel de sons",
+      "description": "Tocar os sons do servidor na sala (precisa de Falar)."
+    },
+    "MANAGE_SOUNDBOARD": {
+      "label": "Gerenciar sons",
+      "description": "Adicionar, editar e remover os sons do painel do servidor."
+    },
+    "MANAGE_ADDONS": {
+      "label": "Gerenciar addons",
+      "description": "Adicionar, configurar e excluir addons (com Gerenciar canais)."
+    },
+    "EDIT_WHITEBOARD": {
+      "label": "Editar quadro branco",
+      "description": "Desenhar, escrever e criar quadros. Quem não tem só vê."
+    },
+    "MANAGE_EVENTS": {
+      "label": "Gerenciar eventos",
+      "description": "Criar, editar e cancelar eventos. Quem gerencia addons também pode. Todos que veem o canal respondem."
+    }
+  },
+  "addon": {
+    "SEND_MESSAGES": {
+      "label": "Participar",
+      "description": "Mexer no conteúdo do addon (editar a página, mover cards...)."
+    },
+    "MANAGE_ADDONS": {
+      "label": "Gerenciar addon",
+      "description": "Mudar as configurações do addon e, com Gerenciar canais, excluí-lo."
+    }
+  },
+  "managePermissions": "Gerenciar permissões"
+}
