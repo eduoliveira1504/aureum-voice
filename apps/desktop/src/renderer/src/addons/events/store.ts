@@ -1,11 +1,23 @@
 import { create } from 'zustand'
 
 import { api } from '../../lib/api'
+import { t } from '../../lib/i18n'
 
 export type Repeat = 'none' | 'weekly'
 export type Answer = 'going' | 'maybe' | 'no'
 
-export const ANSWER_LABEL: Record<Answer, string> = { going: 'Vou', maybe: 'Talvez', no: 'Não vou' }
+/** Read in the app's language when shown (getters). */
+export const ANSWER_LABEL: Record<Answer, string> = {
+  get going() {
+    return t('addons.events.answers.going')
+  },
+  get maybe() {
+    return t('addons.events.answers.maybe')
+  },
+  get no() {
+    return t('addons.events.answers.no')
+  }
+}
 
 export interface EventItem {
   id: string

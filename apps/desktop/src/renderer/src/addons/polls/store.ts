@@ -1,17 +1,17 @@
 import { create } from 'zustand'
 
 import { api } from '../../lib/api'
+import { t } from '../../lib/i18n'
 
 export type Duration = '1h' | '8h' | '24h' | '3d' | '1w'
 
-export const DURATIONS: { value: Duration | ''; label: string }[] = [
-  { value: '', label: 'Sem prazo' },
-  { value: '1h', label: '1 hora' },
-  { value: '8h', label: '8 horas' },
-  { value: '24h', label: '24 horas' },
-  { value: '3d', label: '3 dias' },
-  { value: '1w', label: '1 semana' }
-]
+const duration = (value: Duration | ''): { value: Duration | ''; readonly label: string } => ({
+  value,
+  get label() {
+    return t(`addons.polls.durations.${value || 'none'}`)
+  }
+})
+export const DURATIONS = [duration(''), duration('1h'), duration('8h'), duration('24h'), duration('3d'), duration('1w')]
 
 export const MIN_OPTIONS = 2
 export const MAX_OPTIONS = 10

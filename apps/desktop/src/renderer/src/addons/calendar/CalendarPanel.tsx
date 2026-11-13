@@ -8,19 +8,16 @@ import { useNav } from '../../store/nav'
 import type { AddonViewProps } from '../types'
 import { addDays, colorStyle, dayItems, isOverdue, shift, sourceColors, startOfDay, viewDays, viewTitle, ymd, type View } from './dates'
 import { useCalendar, type AgendaSource } from './store'
+import { dateFormat } from '../../lib/format'
+import { t } from '../../lib/i18n'
 
-const VIEWS: { value: View; label: string }[] = [
-  { value: 'month', label: 'Mês' },
-  { value: 'week', label: 'Semana' },
-  { value: 'list', label: 'Lista' }
-]
-const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+const VIEWS: readonly View[] = ['month', 'week', 'list']
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const
 // A month cell shows this many items, then "+N".
 const CELL_ITEMS = 3
-const SOURCE_LABEL: Record<string, string> = { events: 'Eventos', kanban: 'Kanban' }
 
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const listDay = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
+const LIST_DAY = { weekday: 'long', day: 'numeric', month: 'long' } as const
 
 /** The events channel where the user can create events, for "Criar evento" on a day. */
 export function eventsChannelFor(server: ServerDetail, meId: string): string | null {
@@ -31,9 +28,9 @@ export function eventsChannelFor(server: ServerDetail, meId: string): string | n
 }
 
 function sourceName(source: AgendaSource, sources: AgendaSource[]): string {
-  const kind = SOURCE_LABEL[source.addon_key] ?? source.channel_name
+  const kind = source.addon_key === 'events' || source.addon_key === 'kanban' ? t(`addons.calendar.sources.${source.addon_key}`) : source.channel_name
   // With one channel of a kind, its kind names it; with several, each one's name does.
-  return sources.filter((s) => s.addon_key === source.addon_key).length > 1 ? `${kind}: ${source.channel_name}` : kind
+  return sources.filter((s) => s.addon_key === source.addon_key).length > 1 ? t('addons.calendar.sourceIn', { kind, channel: source.channel_name }) : kind
 }
 
 /** Month, week and list views of the server's dates (events, due dates), with filters. */
@@ -84,7 +81,7 @@ export function CalendarPanel({ server, channel, me }: AddonViewProps): ReactNod
               onToggle={() => toggle(source.channel_id)}
             />
           ))}
-          {!sources.length && data && <span className="text-fg-subtle">Adicione Eventos ou um Kanban a este servidor para ver datas aqui.</span>}
+          {!sources.length && data && <span className="text-fg-subtle">{t('addons.calendar.noSources')}</span>}
           <OnlyMine checked={onlyMine} onChange={setOnlyMine} />
         </>
       }
@@ -111,7 +108,7 @@ export function OnlyMine({ checked, onChange }: { checked: boolean; onChange(che
   return (
     <label className="ml-auto flex cursor-pointer items-center gap-1.5 font-medium text-fg-muted">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="accent-accent" />
-      Só meus
+      {t('addons.calendar.onlyMine')}
     </label>
   )
 }
@@ -158,23 +155,23 @@ export function CalendarBoard({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-main">
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm">
         <div className="w-56">
-          <Segmented<View> options={VIEWS} value={view} onChange={setView} />
+          <Segmented<View> options={VIEWS.map((value) => ({ value, label: t(`addons.calendar.views.${value}`) }))} value={view} onChange={setView} />
         </div>
         {view !== 'list' && (
           <div className="flex items-center gap-1">
-            <button type="button" aria-label="Anterior" onClick={() => setAnchor((a) => shift(view, a, -1))} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
+            <button type="button" aria-label={t('addons.calendar.previous')} onClick={() => setAnchor((a) => shift(view, a, -1))} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
               <ChevronLeft size={18} />
             </button>
             <button type="button" onClick={() => setAnchor(startOfDay(new Date()))} className="rounded-control border border-line px-2.5 py-1 font-medium hover:bg-elevated">
-              Hoje
+              {t('addons.calendar.today')}
             </button>
-            <button type="button" aria-label="Próximo" onClick={() => setAnchor((a) => shift(view, a, 1))} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
+            <button type="button" aria-label={t('addons.calendar.next')} onClick={() => setAnchor((a) => shift(view, a, 1))} className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg">
               <ChevronRight size={18} />
             </button>
           </div>
         )}
-        <h2 className="font-display text-base font-semibold first-letter:uppercase">{view === 'list' ? 'Próximos 30 dias' : viewTitle(view, anchor)}</h2>
-        {error && <span className="text-danger">Não foi possível carregar o calendário.</span>}
+        <h2 className="font-display text-base font-semibold first-letter:uppercase">{view === 'list' ? t('addons.calendar.next30') : viewTitle(view, anchor)}</h2>
+        {error && <span className="text-danger">{t('addons.calendar.loadFailed')}</span>}
       </header>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-xs">
@@ -188,7 +185,7 @@ export function CalendarBoard({
           <div className="grid min-h-full grid-cols-7 border-l border-line" style={{ gridAutoRows: view === 'month' ? 'minmax(96px, 1fr)' : 'minmax(320px, 1fr)' }}>
             {WEEKDAYS.map((d) => (
               <div key={d} className="sticky top-0 z-raised border-b border-r border-line bg-main px-2 py-1 text-xs font-semibold uppercase text-fg-subtle">
-                {d}
+                {t(`addons.calendar.weekdays.${d}`)}
               </div>
             ))}
             {days.map((day) => (
@@ -238,8 +235,8 @@ function DayCell({
         {onCreate && !items.length && (
           <button
             type="button"
-            aria-label={`Criar evento em ${ymd(day)}`}
-            title="Criar evento"
+            aria-label={t('addons.calendar.createOn', { day: ymd(day) })}
+            title={t('addons.calendar.create')}
             onClick={() => onCreate(day)}
             className="rounded-item p-0.5 text-fg-subtle opacity-0 hover:bg-elevated hover:text-fg focus:opacity-100 group-hover:opacity-100"
           >
@@ -272,10 +269,10 @@ function ListView({
   if (!withItems.length) {
     return (
       <div className="py-12 text-center text-sm text-fg-subtle">
-        <p>Nada marcado nos próximos 30 dias.</p>
+        <p>{t('addons.calendar.empty30')}</p>
         {onCreate && (
           <button type="button" onClick={() => onCreate(days[0])} className="mt-2 font-semibold text-accent-text hover:underline">
-            Criar evento
+            {t('addons.calendar.create')}
           </button>
         )}
       </div>
@@ -285,7 +282,7 @@ function ListView({
     <ul className="mx-auto max-w-[720px] space-y-4 p-4">
       {withItems.map(({ day, items: list }) => (
         <li key={ymd(day)}>
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{listDay.format(day)}</h3>
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{dateFormat(LIST_DAY).format(day)}</h3>
           <div className="space-y-1">{list.map((item) => chip(item, false))}</div>
         </li>
       ))}
@@ -310,7 +307,7 @@ function ItemChip({
   place: string
   leading?: ReactNode
 }): ReactNode {
-  const time = item.starts_at ? timeFmt.format(new Date(item.starts_at)) : null
+  const time = item.starts_at ? dateFormat(TIME).format(new Date(item.starts_at)) : null
   const struck = item.done || item.cancelled
   const label = [time, item.title].filter(Boolean).join(' ')
   const title = `${label}${item.cancelled ? ' (cancelado)' : ''}${item.done ? ' (feito)' : ''}${overdue ? ' (atrasado)' : ''} · ${place}`
@@ -327,7 +324,7 @@ function ItemChip({
       {leading}
       {time && <span className="shrink-0 tabular-nums">{time}</span>}
       <span className={`min-w-0 truncate ${struck ? 'line-through' : ''}`}>{item.title}</span>
-      {overdue && <span className="shrink-0 text-[10px] font-bold uppercase">atrasado</span>}
+      {overdue && <span className="shrink-0 text-[10px] font-bold uppercase">{t('addons.calendar.overdue')}</span>}
       {!compact && <span className="ml-auto shrink-0 text-xs opacity-75">{place}</span>}
     </button>
   )

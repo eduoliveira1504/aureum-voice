@@ -10,16 +10,17 @@ import type { AddonViewProps } from '../types'
 import { countLabel, Cover, DateBlock, isHappening, Place, whenLabel } from './bits'
 import { EventModal } from './EventModal'
 import { ANSWER_LABEL, myAnswer, splitEvents, useEvents, type Answer, type EventItem } from './store'
+import { t } from '../../lib/i18n'
 
 const ANSWERS: Answer[] = ['going', 'maybe', 'no']
 const FLASH_MS = 2000
 
 const failure = (err: unknown): string =>
   err instanceof ApiError && err.status === 403
-    ? 'Você não tem permissão para isso.'
+    ? t('addons.events.panel.forbidden')
     : err instanceof ApiError && err.status === 409
-      ? 'Esse evento já foi cancelado ou terminou.'
-      : 'Não foi possível salvar a mudança.'
+      ? t('addons.events.panel.over')
+      : t('addons.events.panel.saveFailed')
 
 /** The channel's events: coming up (with answers) and past ones. `openItem` is an event to show,
  * or "new" / "new:YYYY-MM-DD" to start creating one. */
@@ -59,8 +60,8 @@ export function EventsPanel({ server, channel, me, openItem, onItemOpened }: Add
     return () => clearTimeout(timer)
   }, [flash, showPast])
 
-  if (loadError) return <p className="p-6 text-center text-sm text-danger">Não foi possível carregar os eventos.</p>
-  if (!list) return <p className="p-6 text-center text-sm text-fg-subtle">Carregando…</p>
+  if (loadError) return <p className="p-6 text-center text-sm text-danger">{t('addons.events.panel.loadFailed')}</p>
+  if (!list) return <p className="p-6 text-center text-sm text-fg-subtle">{t('common.loading')}</p>
   const { upcoming, past } = splitEvents(list.events)
 
   const card = (event: EventItem): ReactNode => (
@@ -98,7 +99,7 @@ export function EventsPanel({ server, channel, me, openItem, onItemOpened }: Add
             }}
             className="ml-auto flex items-center gap-1.5 rounded-control bg-accent px-3 py-1.5 font-semibold text-on-accent hover:bg-accent-hover"
           >
-            <Plus size={16} /> Criar evento
+            <Plus size={16} /> {t('addons.events.panel.create')}
           </button>
         )}
       </header>
@@ -106,7 +107,7 @@ export function EventsPanel({ server, channel, me, openItem, onItemOpened }: Add
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {!upcoming.length && (
           <p className="py-10 text-center text-sm text-fg-subtle">
-            {list.can_manage ? 'Nenhum evento marcado. Crie um para juntar o grupo.' : 'Nenhum evento marcado.'}
+            {list.can_manage ? t('addons.events.panel.emptyManage') : t('addons.events.panel.empty')}
           </p>
         )}
         <ul className="mx-auto max-w-[720px] space-y-3">{upcoming.map(card)}</ul>
@@ -117,7 +118,7 @@ export function EventsPanel({ server, channel, me, openItem, onItemOpened }: Add
               onClick={() => setShowPast((s) => !s)}
               className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg"
             >
-              {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Anteriores ({past.length})
+              {showPast ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('addons.events.panel.past', { count: past.length })}
             </button>
             {showPast && <ul className="mt-3 space-y-3 opacity-80">{past.map(card)}</ul>}
           </section>
@@ -190,13 +191,13 @@ function EventCard({
             <h3 className={`min-w-0 flex-1 break-words font-display text-[17px] font-semibold ${cancelled ? 'text-fg-subtle line-through' : ''}`}>
               {event.title}
             </h3>
-            {cancelled && <span className="shrink-0 rounded-full bg-danger/15 px-2 py-0.5 text-xs font-semibold text-danger">Cancelado</span>}
-            {happening && <span className="shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">Agora</span>}
+            {cancelled && <span className="shrink-0 rounded-full bg-danger/15 px-2 py-0.5 text-xs font-semibold text-danger">{t('addons.events.panel.cancelled')}</span>}
+            {happening && <span className="shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">{t('addons.events.panel.now')}</span>}
             {canManage && (
               <div ref={ref} className="relative shrink-0">
                 <button
                   type="button"
-                  aria-label="Mais opções"
+                  aria-label={t('addons.events.panel.more')}
                   onClick={() => setMenu((m) => !m)}
                   className="rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg"
                 >
@@ -205,16 +206,16 @@ function EventCard({
                 {menu && (
                   <div className={`absolute right-0 top-full mt-1 w-48 ${menuClass}`}>
                     <MenuItem
-                      label="Editar"
+                      label={t('addons.events.panel.edit')}
                       onClick={() => {
                         setMenu(false)
                         onEdit()
                       }}
                     />
-                    {event.cover && <MenuItem label="Remover capa" onClick={() => run(() => store.removeCover(channelId, event.id))} />}
+                    {event.cover && <MenuItem label={t('addons.events.panel.removeCover')} onClick={() => run(() => store.removeCover(channelId, event.id))} />}
                     {!cancelled && !event.over && (
                       <MenuItem
-                        label="Cancelar evento"
+                        label={t('addons.events.panel.cancel')}
                         onClick={() => {
                           setMenu(false)
                           setConfirm('cancel')
@@ -222,7 +223,7 @@ function EventCard({
                       />
                     )}
                     <MenuItem
-                      label="Excluir"
+                      label={t('addons.events.panel.delete')}
                       danger
                       onClick={() => {
                         setMenu(false)
@@ -238,7 +239,7 @@ function EventCard({
             <span>{whenLabel(event.occurrence.starts_at, event.occurrence.ends_at)}</span>
             {event.repeat === 'weekly' && (
               <span className="flex items-center gap-1">
-                <Repeat size={14} /> Toda semana
+                <Repeat size={14} /> {t('addons.events.panel.weekly')}
               </span>
             )}
             <Place event={event} server={server} />
@@ -269,7 +270,7 @@ function EventCard({
                 onClick={() => void useVoice.getState().join(server.id, event.location_channel_id!)}
                 className="ml-auto flex items-center gap-1.5 rounded-control bg-accent px-3 py-1 text-sm font-semibold text-on-accent hover:bg-accent-hover"
               >
-                <Volume2 size={16} /> Entrar na sala
+                <Volume2 size={16} /> {t('addons.events.panel.joinRoom')}
               </button>
             )}
           </div>
@@ -279,13 +280,13 @@ function EventCard({
 
       {confirm && (
         <ConfirmModal
-          title={confirm === 'cancel' ? 'Cancelar evento' : 'Excluir evento'}
+          title={confirm === 'cancel' ? t('addons.events.panel.cancel') : t('addons.events.panel.deleteTitle')}
           message={
             confirm === 'cancel'
-              ? 'Quem marcou Vou ou Talvez recebe um aviso. O evento continua na lista, como cancelado.'
-              : 'O evento some da lista. Se ainda não aconteceu, quem marcou Vou ou Talvez recebe um aviso.'
+              ? t('addons.events.panel.cancelConfirm')
+              : t('addons.events.panel.deleteConfirm')
           }
-          confirmLabel={confirm === 'cancel' ? 'Cancelar evento' : 'Excluir'}
+          confirmLabel={confirm === 'cancel' ? t('addons.events.panel.cancel') : t('addons.events.panel.delete')}
           onConfirm={() => (confirm === 'cancel' ? store.cancel(channelId, event.id) : store.remove(channelId, event.id))}
           onClose={() => setConfirm(null)}
         />
@@ -305,7 +306,7 @@ function Attendees({ event, people }: { event: EventItem; people: Map<string, Us
           <ul className="space-y-1">
             {event.responses[answer].map((id) => {
               const user = people.get(id)
-              const name = user?.display_name ?? 'Alguém'
+              const name = user?.display_name ?? t('addons.events.panel.someone')
               return (
                 <li key={id} className="flex items-center gap-2 text-sm">
                   <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={20} />

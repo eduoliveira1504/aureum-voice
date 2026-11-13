@@ -4,6 +4,7 @@ import { FormError, Modal } from '../../components/Modal'
 import { cn, inputClass, labelClass, PrimaryButton, Segmented } from '../../components/ui'
 import { ApiError, type ServerDetail } from '../../lib/api'
 import { localZone, useEvents, type EventFields, type EventItem, type Repeat } from './store'
+import { t } from '../../lib/i18n'
 
 type PlaceKind = 'none' | 'room' | 'text'
 
@@ -29,13 +30,13 @@ const HOUR = 60 * 60 * 1000
 
 function failure(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 403) return 'Você não tem permissão para isso.'
-    if (err.status === 413) return 'A capa pode ter até 5 MB.'
-    if (err.status === 415) return 'Use uma imagem PNG, JPG, GIF ou WebP.'
-    if (err.detail === "The event can't start in the past") return 'O evento não pode começar no passado.'
-    if (String(err.detail ?? '').startsWith('This event is too long')) return 'Evento longo demais (até 14 dias; se repetir toda semana, até 7).'
+    if (err.status === 403) return t('addons.events.modal.forbidden')
+    if (err.status === 413) return t('addons.events.modal.coverSize')
+    if (err.status === 415) return t('addons.events.modal.coverFormat')
+    if (err.detail === "The event can't start in the past") return t('addons.events.modal.past')
+    if (String(err.detail ?? '').startsWith('This event is too long')) return t('addons.events.modal.tooLong')
   }
-  return 'Não foi possível salvar o evento.'
+  return t('addons.events.modal.saveFailed')
 }
 
 /** Create an event (optionally on a given day) or edit one. */
@@ -78,12 +79,12 @@ export function EventModal({
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (!title.trim()) return setError('Dê um nome ao evento.')
+    if (!title.trim()) return setError(t('addons.events.modal.nameIt'))
     const startsAt = new Date(start)
     const endsAt = new Date(end)
-    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return setError('Escolha o início e o fim.')
-    if (endsAt <= startsAt) return setError('O fim precisa ser depois do início.')
-    if (place === 'text' && !placeText.trim()) return setError('Escreva o lugar, ou escolha "Nenhum".')
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return setError(t('addons.events.modal.pickTimes'))
+    if (endsAt <= startsAt) return setError(t('addons.events.modal.endAfter'))
+    if (place === 'text' && !placeText.trim()) return setError(t('addons.events.modal.placeIt'))
     const fields: EventFields = {
       title: title.trim(),
       description: description.trim(),
@@ -109,43 +110,43 @@ export function EventModal({
   }
 
   return (
-    <Modal title={event ? 'Editar evento' : 'Criar evento'} onClose={onClose}>
+    <Modal title={event ? t('addons.events.modal.edit') : t('addons.events.modal.create')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
-          <span className={labelClass}>Nome</span>
-          <input autoFocus value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="Noite de jogos" className={inputClass} />
+          <span className={labelClass}>{t('addons.events.modal.name')}</span>
+          <input autoFocus value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder={t('addons.events.modal.namePlaceholder')} className={inputClass} />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className={labelClass}>Começa</span>
+            <span className={labelClass}>{t('addons.events.modal.starts')}</span>
             <input type="datetime-local" value={start} onChange={(e) => changeStart(e.target.value)} className={inputClass} />
           </label>
           <label className="block">
-            <span className={labelClass}>Termina</span>
+            <span className={labelClass}>{t('addons.events.modal.ends')}</span>
             <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={inputClass} />
           </label>
         </div>
         <label className="block">
-          <span className={labelClass}>Repetir</span>
+          <span className={labelClass}>{t('addons.events.modal.repeat')}</span>
           <select value={repeat} onChange={(e) => setRepeat(e.target.value as Repeat)} className={inputClass}>
-            <option value="none">Não repete</option>
-            <option value="weekly">Toda semana</option>
+            <option value="none">{t('addons.events.modal.noRepeat')}</option>
+            <option value="weekly">{t('addons.events.modal.weekly')}</option>
           </select>
         </label>
         <div>
-          <span className={labelClass}>Onde</span>
+          <span className={labelClass}>{t('addons.events.modal.where')}</span>
           <Segmented<PlaceKind>
             options={[
-              { value: 'none', label: 'Nenhum' },
-              { value: 'room', label: 'Sala de voz' },
-              { value: 'text', label: 'Outro lugar' }
+              { value: 'none', label: t('addons.events.modal.none') },
+              { value: 'room', label: t('addons.events.modal.room') },
+              { value: 'text', label: t('addons.events.modal.other') }
             ]}
             value={place}
             onChange={setPlace}
           />
           {place === 'room' &&
             (rooms.length ? (
-              <select aria-label="Sala de voz" value={roomId} onChange={(e) => setRoomId(e.target.value)} className={cn(inputClass, 'mt-2')}>
+              <select aria-label={t('addons.events.modal.room')} value={roomId} onChange={(e) => setRoomId(e.target.value)} className={cn(inputClass, 'mt-2')}>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -153,32 +154,32 @@ export function EventModal({
                 ))}
               </select>
             ) : (
-              <p className="mt-2 text-sm text-fg-subtle">Este servidor não tem salas de voz que você veja.</p>
+              <p className="mt-2 text-sm text-fg-subtle">{t('addons.events.modal.noRooms')}</p>
             ))}
           {place === 'text' && (
             <input
-              aria-label="Lugar"
+              aria-label={t('addons.events.modal.place')}
               value={placeText}
               maxLength={200}
               onChange={(e) => setPlaceText(e.target.value)}
-              placeholder="Casa da Ana, link, endereço…"
+              placeholder={t('addons.events.modal.placePlaceholder')}
               className={cn(inputClass, 'mt-2')}
             />
           )}
         </div>
         <label className="block">
-          <span className={labelClass}>Descrição</span>
+          <span className={labelClass}>{t('addons.events.modal.description')}</span>
           <textarea
             value={description}
             maxLength={4000}
             rows={3}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="O que vai rolar, o que levar…"
+            placeholder={t('addons.events.modal.descriptionPlaceholder')}
             className={cn(inputClass, 'resize-none')}
           />
         </label>
         <label className="block">
-          <span className={labelClass}>Capa (opcional)</span>
+          <span className={labelClass}>{t('addons.events.modal.cover')}</span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/gif,image/webp"
@@ -188,7 +189,7 @@ export function EventModal({
         </label>
         <FormError message={error} />
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Salvando…' : event ? 'Salvar' : 'Criar evento'}
+          {busy ? t('common.saving') : event ? t('common.save') : t('addons.events.modal.create')}
         </PrimaryButton>
       </form>
     </Modal>

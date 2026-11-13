@@ -4,18 +4,20 @@ import { api, type AgendaItem } from '../../lib/api'
 import type { AddonViewProps } from '../types'
 import { addDays, isOverdue, startOfDay } from './dates'
 import { calendarPath } from './store'
+import { dateFormat } from '../../lib/format'
+import { t } from '../../lib/i18n'
 
 const SHOWN = 3
-const dayFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric' })
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const DAY = { weekday: 'short', day: 'numeric' } as const
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
 
 function when(item: AgendaItem): string {
   if (item.all_day && item.day) {
     const [y, m, d] = item.day.split('-').map(Number)
-    return dayFmt.format(new Date(y, m - 1, d))
+    return dateFormat(DAY).format(new Date(y, m - 1, d))
   }
   const start = new Date(item.starts_at!)
-  return `${dayFmt.format(start)}, ${timeFmt.format(start)}`
+  return `${dateFormat(DAY).format(start)}, ${dateFormat(TIME).format(start)}`
 }
 
 /** The calendar's card on the server overview: what's coming in the next 7 days. */
@@ -29,8 +31,8 @@ export function CalendarSummary({ channel }: AddonViewProps): ReactNode {
     )
   }, [channel.id])
 
-  if (!items) return <span className="text-sm text-fg-subtle">Carregando…</span>
-  if (!items.length) return <span className="text-sm text-fg-subtle">Nada nos próximos 7 dias.</span>
+  if (!items) return <span className="text-sm text-fg-subtle">{t('common.loading')}</span>
+  if (!items.length) return <span className="text-sm text-fg-subtle">{t('addons.calendar.empty7')}</span>
   return (
     <span className="block space-y-1.5">
       {items.slice(0, SHOWN).map((item) => (
@@ -39,7 +41,7 @@ export function CalendarSummary({ channel }: AddonViewProps): ReactNode {
           <span className="truncate font-medium">{item.title}</span>
         </span>
       ))}
-      {items.length > SHOWN && <span className="block text-xs text-fg-subtle">e mais {items.length - SHOWN}</span>}
+      {items.length > SHOWN && <span className="block text-xs text-fg-subtle">{t('addons.calendar.andMore', { count: items.length - SHOWN })}</span>}
     </span>
   )
 }

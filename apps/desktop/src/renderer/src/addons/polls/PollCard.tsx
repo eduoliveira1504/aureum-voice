@@ -6,6 +6,7 @@ import { Modal } from '../../components/Modal'
 import { Avatar } from '../../components/ui'
 import type { ChatEmbedProps } from '../types'
 import { isClosed, leaders, nextVotes, percent, usePolls, type Poll } from './store'
+import { t } from '../../lib/i18n'
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -14,14 +15,14 @@ const DAY = 24 * HOUR
 /** "Encerra em 3 h" from now until the deadline. */
 export function timeLeft(closesAt: string, now = Date.now()): string {
   const ms = new Date(closesAt).getTime() - now
-  if (ms < MINUTE) return 'Encerra em instantes'
-  if (ms < HOUR) return `Encerra em ${Math.ceil(ms / MINUTE)} min`
-  if (ms < DAY) return `Encerra em ${Math.round(ms / HOUR)} h`
+  if (ms < MINUTE) return t('addons.polls.closesSoon')
+  if (ms < HOUR) return t('addons.polls.closesMinutes', { count: Math.ceil(ms / MINUTE) })
+  if (ms < DAY) return t('addons.polls.closesHours', { count: Math.round(ms / HOUR) })
   const days = Math.round(ms / DAY)
-  return `Encerra em ${days} ${days === 1 ? 'dia' : 'dias'}`
+  return t('addons.polls.closesDays', { count: days })
 }
 
-const votersLabel = (n: number): string => (n === 1 ? '1 voto' : `${n} votos`)
+const votersLabel = (n: number): string => t('addons.polls.votes', { count: n })
 
 /** Ticks so the deadline text and the closed state follow the clock. */
 function useNow(active: boolean): number {
@@ -47,7 +48,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
   if (!poll) {
     return (
       <div className="w-[min(420px,100%)] rounded-control border border-line bg-elevated px-4 py-3 text-sm text-fg-subtle">
-        Carregando enquete…
+        {t('addons.polls.loading')}
       </div>
     )
   }
@@ -61,7 +62,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
     try {
       await usePolls.getState().vote(poll!, nextVotes(poll!, optionId))
     } catch {
-      setError('Não foi possível registrar o voto.')
+      setError(t('addons.polls.voteFailed'))
     }
   }
 
@@ -70,7 +71,7 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
     try {
       await usePolls.getState().close(poll!)
     } catch {
-      setError('Não foi possível encerrar a enquete.')
+      setError(t('addons.polls.closeFailed'))
     }
   }
 
@@ -78,16 +79,16 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
     <div className="w-[min(420px,100%)] rounded-control border border-line bg-elevated p-4">
       <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
         <ChartBar size={14} />
-        Enquete
+        {t('addons.polls.poll')}
         {poll.anonymous && (
-          <span className="flex items-center gap-1 normal-case tracking-normal" title="Ninguém vê quem votou em quê">
-            · <EyeOff size={13} /> anônima
+          <span className="flex items-center gap-1 normal-case tracking-normal" title={t('addons.polls.anonymousTitle')}>
+            · <EyeOff size={13} /> {t('addons.polls.anonymousTag')}
           </span>
         )}
       </p>
       <p className="mt-1.5 wrap-anywhere font-display text-[17px] font-semibold leading-snug text-fg">{poll.question}</p>
       <p className="mt-0.5 text-xs text-fg-subtle">
-        {closed ? 'Resultado final' : poll.multiple ? 'Escolha uma ou mais opções' : 'Escolha uma opção'}
+        {closed ? t('addons.polls.final') : poll.multiple ? t('addons.polls.pickMany') : t('addons.polls.pickOne')}
       </p>
 
       <ul className="mt-3 space-y-1.5">
@@ -134,15 +135,15 @@ export function PollCard({ message, channel, me, canModerate, userOf, nameOf }: 
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-subtle">
         <span>{votersLabel(poll.total_voters)}</span>
-        <span>{closed ? 'Encerrada' : poll.closes_at ? timeLeft(poll.closes_at, now) : 'Sem prazo'}</span>
+        <span>{closed ? t('addons.polls.closed') : poll.closes_at ? timeLeft(poll.closes_at, now) : t('addons.polls.durations.none')}</span>
         {!poll.anonymous && poll.total_voters > 0 && (
           <button type="button" onClick={() => setVoters(true)} className="font-semibold text-accent-text hover:underline">
-            Ver votos
+            {t('addons.polls.seeVotes')}
           </button>
         )}
         {canClose && (
           <button type="button" onClick={() => void close()} className="ml-auto font-semibold text-fg-muted hover:text-fg hover:underline">
-            Encerrar enquete
+            {t('addons.polls.close')}
           </button>
         )}
       </div>
@@ -164,7 +165,7 @@ function VotersModal({
   onClose(): void
 }): ReactNode {
   return (
-    <Modal title="Votos" subtitle={poll.question} onClose={onClose}>
+    <Modal title={t('addons.polls.votesTitle')} subtitle={poll.question} onClose={onClose}>
       <div className="space-y-4">
         {poll.options.map((option) => (
           <section key={option.id}>
@@ -186,7 +187,7 @@ function VotersModal({
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-fg-subtle">Ninguém ainda.</p>
+              <p className="text-sm text-fg-subtle">{t('addons.polls.nobody')}</p>
             )}
           </section>
         ))}

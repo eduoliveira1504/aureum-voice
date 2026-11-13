@@ -3,10 +3,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { fetchMedia, type ServerDetail } from '../../lib/api'
 import { coverUrl, type EventItem } from './store'
+import { dateFormat } from '../../lib/format'
+import { t } from '../../lib/i18n'
 
-const dayFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const monthFmt = new Intl.DateTimeFormat('pt-BR', { month: 'short' })
+const DAY = { weekday: 'short', day: 'numeric', month: 'short' } as const
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
+const MONTH = { month: 'short' } as const
 
 const sameDay = (a: Date, b: Date): boolean => a.toDateString() === b.toDateString()
 
@@ -14,12 +16,12 @@ const sameDay = (a: Date, b: Date): boolean => a.toDateString() === b.toDateStri
 export function dayLabel(date: Date, now = new Date()): string {
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
-  if (sameDay(date, now)) return 'hoje'
-  if (sameDay(date, tomorrow)) return 'amanhã'
-  return dayFmt.format(date)
+  if (sameDay(date, now)) return t('addons.events.today')
+  if (sameDay(date, tomorrow)) return t('addons.events.tomorrow')
+  return dateFormat(DAY).format(date)
 }
 
-export const timeLabel = (date: Date): string => timeFmt.format(date)
+export const timeLabel = (date: Date): string => dateFormat(TIME).format(date)
 
 /** "hoje · 20:00–22:00", or with the end's day when it ends on another one. */
 export function whenLabel(startsAt: string, endsAt: string, now = new Date()): string {
@@ -40,7 +42,7 @@ export function DateBlock({ iso, muted = false }: { iso: string; muted?: boolean
     <span
       className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-item border border-line ${muted ? 'bg-elevated text-fg-subtle' : 'bg-accent/15 text-accent-text'}`}
     >
-      <span className="text-[10px] font-semibold uppercase leading-none">{monthFmt.format(date).replace('.', '')}</span>
+      <span className="text-[10px] font-semibold uppercase leading-none">{dateFormat(MONTH).format(date).replace('.', '')}</span>
       <span className="font-display text-lg font-bold leading-tight">{date.getDate()}</span>
     </span>
   )
@@ -53,7 +55,7 @@ export function Place({ event, server }: { event: EventItem; server: ServerDetai
     return (
       <span className="flex min-w-0 items-center gap-1">
         <Volume2 size={14} className="shrink-0" />
-        <span className="truncate">{room?.name ?? 'sala de voz'}</span>
+        <span className="truncate">{room?.name ?? t('addons.events.voiceRoom')}</span>
       </span>
     )
   }
@@ -101,7 +103,7 @@ export function Cover({ channelId, event, className = '' }: { channelId: string;
 export function countLabel(event: EventItem): string {
   const going = event.responses.going.length
   const maybe = event.responses.maybe.length
-  const parts = [going === 1 ? '1 vai' : `${going} vão`]
-  if (maybe) parts.push(`${maybe} talvez`)
+  const parts = [t('addons.events.going', { count: going })]
+  if (maybe) parts.push(t('addons.events.maybe', { count: maybe }))
   return parts.join(' · ')
 }

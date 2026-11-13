@@ -6,6 +6,7 @@ import { FormError, Modal } from '../../components/Modal'
 import { cn, inputClass, labelClass, PrimaryButton, ToggleRow } from '../../components/ui'
 import { ApiError, type Channel } from '../../lib/api'
 import { DURATIONS, MAX_OPTIONS, MIN_OPTIONS, usePolls, type Duration } from './store'
+import { t } from '../../lib/i18n'
 
 interface OptionRow {
   key: number
@@ -30,10 +31,10 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
   const filled = rows.filter((r) => r.text.trim())
 
   function check(): string | null {
-    if (!question.trim()) return 'Escreva a pergunta.'
-    if (filled.length < MIN_OPTIONS) return `Coloque pelo menos ${MIN_OPTIONS} opções.`
+    if (!question.trim()) return t('addons.polls.askQuestion')
+    if (filled.length < MIN_OPTIONS) return t('addons.polls.minOptions', { count: MIN_OPTIONS })
     const texts = filled.map((r) => r.text.trim().toLocaleLowerCase('pt-BR'))
-    if (new Set(texts).size !== texts.length) return 'As opções precisam ser diferentes.'
+    if (new Set(texts).size !== texts.length) return t('addons.polls.distinct')
     return null
   }
 
@@ -57,30 +58,30 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
       setError(
         err instanceof ApiError && err.status === 403
           ? channel.server_id
-            ? 'Você não tem permissão para enviar mensagens aqui.'
-            : 'Só amigos podem conversar por mensagem direta.'
-          : 'Não foi possível criar a enquete.'
+            ? t('chat.noSendHere')
+            : t('chat.friendsOnly')
+          : t('addons.polls.createFailed')
       )
     }
   }
 
   return (
-    <Modal title="Criar enquete" onClose={onClose}>
+    <Modal title={t('addons.polls.create')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
-          <span className={labelClass}>Pergunta</span>
+          <span className={labelClass}>{t('addons.polls.question')}</span>
           <input
             autoFocus
             value={question}
             maxLength={300}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="O que vocês acham?"
+            placeholder={t('addons.polls.questionPlaceholder')}
             className={inputClass}
           />
         </label>
 
         <div>
-          <span className={labelClass}>Opções</span>
+          <span className={labelClass}>{t('addons.polls.options')}</span>
           <ul className="space-y-2">
             {rows.map((row, i) => (
               <li key={row.key} className="flex items-center gap-2">
@@ -88,15 +89,15 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
                   value={row.text}
                   maxLength={80}
                   onChange={(e) => patch(row.key, { text: e.target.value })}
-                  aria-label={`Opção ${i + 1}`}
-                  placeholder={`Opção ${i + 1}`}
+                  aria-label={t('addons.polls.option', { n: i + 1 })}
+                  placeholder={t('addons.polls.option', { n: i + 1 })}
                   className={cn(inputClass, 'min-w-0 flex-1')}
                 />
                 {/* Opens the emoji picker: no text can end up here instead of in the option. */}
                 <button
                   type="button"
-                  aria-label={row.emoji ? `Emoji da opção ${i + 1}: ${row.emoji}` : `Escolher emoji da opção ${i + 1}`}
-                  title={row.emoji ? 'Trocar emoji (clique direito tira)' : 'Emoji (opcional)'}
+                  aria-label={row.emoji ? t('addons.polls.optionEmoji', { n: i + 1, emoji: row.emoji }) : t('addons.polls.pickOptionEmoji', { n: i + 1 })}
+                  title={row.emoji ? t('addons.polls.changeEmoji') : t('addons.polls.emojiOptional')}
                   onClick={(e) => pickEmoji(e.currentTarget, (emoji) => patch(row.key, { emoji }))}
                   onContextMenu={(e) => {
                     e.preventDefault()
@@ -108,7 +109,7 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
                 </button>
                 <button
                   type="button"
-                  aria-label={`Remover opção ${i + 1}`}
+                  aria-label={t('addons.polls.removeOption', { n: i + 1 })}
                   disabled={rows.length <= MIN_OPTIONS}
                   onClick={() => setRows((list) => list.filter((r) => r.key !== row.key))}
                   className="shrink-0 rounded-item p-1.5 text-fg-subtle hover:bg-elevated hover:text-danger disabled:invisible"
@@ -124,23 +125,23 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
               onClick={() => setRows((list) => [...list, emptyRow()])}
               className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-accent-text hover:underline"
             >
-              <Plus size={16} /> Adicionar opção
+              <Plus size={16} /> {t('addons.polls.addOption')}
             </button>
           )}
         </div>
 
         <div className="space-y-2">
-          <ToggleRow title="Várias respostas" description="Cada pessoa pode marcar mais de uma opção." checked={multiple} onChange={setMultiple} />
+          <ToggleRow title={t('addons.polls.multiple')} description={t('addons.polls.multipleHint')} checked={multiple} onChange={setMultiple} />
           <ToggleRow
-            title="Votos anônimos"
-            description="Todo mundo vê os totais, mas ninguém vê quem votou em quê. Não dá para mudar depois."
+            title={t('addons.polls.anonymous')}
+            description={t('addons.polls.anonymousHint')}
             checked={anonymous}
             onChange={setAnonymous}
           />
         </div>
 
         <label className="block">
-          <span className={labelClass}>Prazo</span>
+          <span className={labelClass}>{t('addons.polls.deadline')}</span>
           <select value={duration} onChange={(e) => setDuration(e.target.value as Duration | '')} className={inputClass}>
             {DURATIONS.map((d) => (
               <option key={d.value} value={d.value}>
@@ -152,7 +153,7 @@ export function CreatePollModal({ channel, onClose }: { channel: Channel; onClos
 
         <FormError message={error} />
         <PrimaryButton type="submit" disabled={busy}>
-          {busy ? 'Criando…' : 'Criar enquete'}
+          {busy ? t('addons.polls.creating') : t('addons.polls.create')}
         </PrimaryButton>
       </form>
     </Modal>

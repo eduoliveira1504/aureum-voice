@@ -1,4 +1,5 @@
 import type { AgendaItem } from '../../lib/api'
+import { dateFormat } from '../../lib/format'
 
 export type View = 'month' | 'week' | 'list'
 
@@ -40,13 +41,13 @@ export function shift(view: View, anchor: Date, step: -1 | 1): Date {
   return addDays(anchor, step * (view === 'week' ? 7 : LIST_DAYS))
 }
 
-const monthTitle = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
-const shortDay = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' })
+const MONTH_TITLE = { month: 'long', year: 'numeric' } as const
+const SHORT_DAY = { day: 'numeric', month: 'short' } as const
 
 export function viewTitle(view: View, anchor: Date): string {
-  if (view === 'month') return monthTitle.format(anchor)
+  if (view === 'month') return dateFormat(MONTH_TITLE).format(anchor)
   const days = viewDays(view, anchor)
-  return `${shortDay.format(days[0])} – ${shortDay.format(days[days.length - 1])}`
+  return `${dateFormat(SHORT_DAY).format(days[0])} – ${dateFormat(SHORT_DAY).format(days[days.length - 1])}`
 }
 
 /** Whether the item is on that local day: an all-day one on its date, a timed one when it

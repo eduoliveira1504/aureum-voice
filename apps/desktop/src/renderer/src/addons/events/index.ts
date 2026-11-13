@@ -4,22 +4,29 @@ import type { AddonModule } from '../types'
 import { EventsPanel } from './EventsPanel'
 import { useEvents } from './store'
 import { EventsSummary } from './Summary'
+import { t } from '../../lib/i18n'
 
 /** Events: meetups with a time, a place and who's going; @aureum reminds who said Vou or Talvez.
  * Talks only to its own API routes and keeps its own state. */
 const events: AddonModule = {
   key: 'events',
-  name: 'Eventos',
-  description: 'Encontros marcados, com quem vai e lembretes antes de começar.',
+  get name() {
+    return t('addons.events.name')
+  },
+  get description() {
+    return t('addons.events.description')
+  },
   icon: CalendarDays,
   // Creating and editing events; whoever can manage addons can too. Everyone who sees it answers.
   permissions: ['MANAGE_EVENTS'],
   Panel: EventsPanel,
   Summary: EventsSummary,
-  announces: {
-    label: 'Avisar novos eventos em',
-    hint: 'Quando alguém cria um evento, aparece uma linha nesse canal de texto.',
-    warning: 'Pessoas sem acesso a este canal vão ver os nomes dos eventos nesse canal.'
+  get announces() {
+    return {
+      label: t('addons.events.announces.label'),
+      hint: t('addons.events.announces.hint'),
+      warning: t('addons.events.announces.warning')
+    }
   },
   onEvent: ({ type, data }) => {
     const store = useEvents.getState()
