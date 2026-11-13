@@ -1,31 +1,15 @@
 import { Play } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { OTHERS_SOUNDS, OWN_SOUNDS, playSound, soundKey, type SoundName } from '../lib/sounds'
 import { useAppearance } from '../store/appearance'
 import { SoundboardPrefs } from './Soundboard'
 import { labelClass } from './ui'
 
-const LABELS: Record<SoundName, string> = {
-  'call-join': 'Entrar na chamada',
-  'call-leave': 'Sair da chamada',
-  'call-outgoing': 'Chamando (quando você liga)',
-  'call-ended': 'Chamada recusada ou encerrada',
-  mute: 'Mutar o microfone',
-  unmute: 'Desmutar o microfone',
-  deafen: 'Ensurdecer',
-  undeafen: 'Sair do ensurdecer',
-  'ptt-on': 'Apertar a tecla de falar',
-  'ptt-off': 'Soltar a tecla de falar',
-  message: 'Mensagem direta ou menção',
-  'call-ringing': 'Chamada recebida',
-  'user-join': 'Alguém entrou na chamada',
-  'user-leave': 'Alguém saiu da chamada',
-  'screen-share': 'Compartilhamento de tela iniciado'
-}
-
 /** Settings > Sounds: overall volume and an on/off switch per sound, each with a preview. */
 export function SoundSettings(): ReactNode {
+  const { t } = useTranslation()
   const sounds = useAppearance((s) => s.settings.sounds)
   const update = useAppearance((s) => s.update)
   const setVolume = (volume: number): void => update({ sounds: { ...sounds, volume } })
@@ -41,15 +25,15 @@ export function SoundSettings(): ReactNode {
           <li key={name} className="flex items-center gap-3 px-3 py-2">
             <button
               type="button"
-              aria-label={`Ouvir: ${LABELS[name]}`}
-              title="Ouvir"
+              aria-label={t('settings.sounds.listenTo', { sound: t(`settings.sounds.names.${name}`) })}
+              title={t('settings.sounds.listen')}
               onClick={() => playSound(name, { force: true })}
               className="rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
             >
               <Play size={14} />
             </button>
             <label className="flex flex-1 cursor-pointer items-center justify-between gap-4 text-sm">
-              {LABELS[name]}
+              {t(`settings.sounds.names.${name}`)}
               <input
                 type="checkbox"
                 checked={sounds.events[soundKey(name)] !== false}
@@ -67,7 +51,7 @@ export function SoundSettings(): ReactNode {
     <div className="max-w-[480px] space-y-6">
       <section>
         <label htmlFor="sound-volume" className={labelClass}>
-          Volume dos sons
+          {t('settings.sounds.volume')}
         </label>
         <div className="flex items-center gap-3">
           <input
@@ -86,15 +70,15 @@ export function SoundSettings(): ReactNode {
           <span className="w-10 text-right text-sm tabular-nums text-fg-muted">{sounds.volume}%</span>
         </div>
       </section>
-      {group('Suas ações', 'Confirmam o que você fez. Continuam tocando no Não perturbe.', OWN_SOUNDS)}
+      {group(t('settings.sounds.own'), t('settings.sounds.ownHint'), OWN_SOUNDS)}
       {group(
-        'Outras pessoas',
-        'Silenciados no Não perturbe; chamadas recebidas viram só um aviso de chamada perdida. Durante uma chamada, mensagens tocam mais baixo.',
+        t('settings.sounds.others'),
+        t('settings.sounds.othersHint'),
         OTHERS_SOUNDS
       )}
       <section>
-        <span className={labelClass}>Painel de sons</span>
-        <p className="-mt-1 mb-2 text-xs text-fg-subtle">Os sons que as pessoas tocam nas salas dos servidores.</p>
+        <span className={labelClass}>{t('settings.sounds.soundboard')}</span>
+        <p className="-mt-1 mb-2 text-xs text-fg-subtle">{t('settings.sounds.soundboardHint')}</p>
         <SoundboardPrefs />
       </section>
     </div>

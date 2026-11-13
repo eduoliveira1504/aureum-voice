@@ -1,38 +1,38 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { OfficialCategory } from '../lib/api'
 import { useAppearance } from '../store/appearance'
 import { labelClass, ToggleRow } from './ui'
 
-const CATEGORIES: { key: OfficialCategory; title: string; description: string }[] = [
-  {
-    key: 'seguranca',
-    title: 'Segurança',
-    description: 'Senha ou e-mail alterados e login num computador novo. Sempre ligado, e avisa mesmo com a conversa silenciada.'
-  },
-  { key: 'insignias', title: 'Insígnias', description: 'Quando você ganha uma insígnia.' },
-  { key: 'eventos', title: 'Eventos', description: 'Lembretes dos eventos em que você marcou Vou ou Talvez, e avisos de mudança.' },
-  { key: 'bugs', title: 'Bugs', description: 'Quando um problema que você reportou é resolvido.' },
-  { key: 'convites', title: 'Convites', description: 'Quando alguém entra com um convite seu.' },
-  { key: 'novidades', title: 'Novidades', description: 'O que mudou em cada versão nova do app.' },
-  { key: 'avisos', title: 'Avisos', description: 'Avisos gerais da equipe do Aureum.' }
+const CATEGORIES: { key: OfficialCategory }[] = [
+  { key: 'seguranca' },
+  { key: 'insignias' },
+  { key: 'eventos' },
+  { key: 'bugs' },
+  { key: 'convites' },
+  { key: 'novidades' },
+  { key: 'avisos' }
 ]
 
 /** Settings > Notificações: what the official Aureum conversation sends. Synced to the account. */
 export function NotificationSettings(): ReactNode {
+  const { t } = useTranslation()
   const prefs = useAppearance((s) => s.settings.official_dm ?? {})
   const updateEntry = useAppearance((s) => s.updateEntry)
 
   return (
     <div className="max-w-[480px] space-y-3">
       <div>
-        <span className={labelClass}>Conversa oficial do Aureum</span>
+        <span className={labelClass}>{t('settings.notifications.official')}</span>
         <p className="text-sm text-fg-muted">
-          A @aureum manda avisos numa conversa só de leitura, fixada no topo das suas mensagens. Escolha o que quer receber.
+          {t('settings.notifications.officialHint')}
         </p>
       </div>
-      {CATEGORIES.map(({ key, title, description }) =>
-        key === 'seguranca' ? (
+      {CATEGORIES.map(({ key }) => {
+        const title = t(`settings.notifications.categories.${key}.title`)
+        const description = t(`settings.notifications.categories.${key}.description`)
+        return key === 'seguranca' ? (
           <ToggleRow key={key} title={title} description={description} checked onChange={() => {}} disabled />
         ) : (
           <ToggleRow
@@ -44,8 +44,8 @@ export function NotificationSettings(): ReactNode {
             onChange={(on) => updateEntry('official_dm', key, on ? null : false)}
           />
         )
-      )}
-      <p className="text-xs text-fg-subtle">Pra só tirar o som, silencie a conversa: as mensagens continuam chegando.</p>
+      })}
+      <p className="text-xs text-fg-subtle">{t('settings.notifications.muteHint')}</p>
     </div>
   )
 }

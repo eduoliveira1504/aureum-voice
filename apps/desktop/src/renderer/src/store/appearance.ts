@@ -3,12 +3,13 @@ import { create } from 'zustand'
 import { api, type PanelLayout, type Theme, type UserSettings } from '../lib/api'
 import { inkOn, readableOn, retint } from '../lib/color'
 
+/** The name shown is common.colors.<id>. */
 export const ACCENT_PRESETS = [
-  { name: 'Dourado', hex: '#E8B531' },
-  { name: 'Ametista', hex: '#8B5CF6' },
-  { name: 'Esmeralda', hex: '#3FBF7F' },
-  { name: 'Brasa', hex: '#E06A4E' },
-  { name: 'Safira', hex: '#4F8CC9' }
+  { id: 'gold', hex: '#E8B531' },
+  { id: 'amethyst', hex: '#8B5CF6' },
+  { id: 'emerald', hex: '#3FBF7F' },
+  { id: 'ember', hex: '#E06A4E' },
+  { id: 'sapphire', hex: '#4F8CC9' }
 ] as const
 
 export const DEFAULT_SETTINGS: UserSettings = {

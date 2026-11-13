@@ -1,29 +1,27 @@
+import type { ParseKeys } from 'i18next'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { labelClass } from './ui'
 
 /** Open-source pieces the app is built on, as their packages declare them. */
-const CREDITS: { name: string; what: string; license: string; url: string }[] = [
-  { name: 'Excalidraw', what: 'O quadro branco', license: 'MIT', url: 'https://github.com/excalidraw/excalidraw' },
-  { name: 'Electron', what: 'O app no Windows', license: 'MIT', url: 'https://github.com/electron/electron' },
-  { name: 'React', what: 'A interface', license: 'MIT', url: 'https://github.com/facebook/react' },
-  { name: 'LiveKit', what: 'Voz, câmera e tela', license: 'Apache-2.0', url: 'https://github.com/livekit/client-sdk-js' },
-  { name: 'RNNoise (web-noise-suppressor)', what: 'Supressão de ruído', license: 'MIT', url: 'https://github.com/sapphi-red/web-noise-suppressor' },
-  { name: 'Lucide', what: 'Ícones', license: 'ISC', url: 'https://github.com/lucide-icons/lucide' },
-  {
-    name: 'Twemoji',
-    what: 'Desenhos dos emojis (Copyright Twitter, Inc. e colaboradores)',
-    license: 'CC-BY 4.0',
-    url: 'https://github.com/jdecked/twemoji'
-  },
-  { name: 'Emojibase', what: 'Nomes dos emojis em português', license: 'MIT', url: 'https://github.com/milesj/emojibase' },
-  { name: 'KLIPY', what: 'GIFs (busca e conteúdo, Powered by KLIPY)', license: 'Termos do KLIPY', url: 'https://klipy.com/developers' },
-  { name: 'tailwind-merge', what: 'Estilos', license: 'MIT', url: 'https://github.com/dcastil/tailwind-merge' },
-  { name: 'Zustand', what: 'Estado do app', license: 'MIT', url: 'https://github.com/pmndrs/zustand' },
-  { name: 'Tailwind CSS', what: 'Estilos', license: 'MIT', url: 'https://github.com/tailwindlabs/tailwindcss' },
-  { name: 'koffi', what: 'Detecção de jogos', license: 'MIT', url: 'https://github.com/Koromix/koffi' },
-  { name: 'electron-updater', what: 'Atualizações', license: 'MIT', url: 'https://github.com/electron-userland/electron-builder' },
-  { name: 'Sora e Figtree', what: 'Fontes', license: 'OFL-1.1', url: 'https://fontsource.org' }
+const CREDITS: { name: string; what: ParseKeys; license: string; licenseKey?: ParseKeys; url: string }[] = [
+  { name: 'Excalidraw', what: 'settings.about.what.whiteboard', license: 'MIT', url: 'https://github.com/excalidraw/excalidraw' },
+  { name: 'Electron', what: 'settings.about.what.electron', license: 'MIT', url: 'https://github.com/electron/electron' },
+  { name: 'React', what: 'settings.about.what.react', license: 'MIT', url: 'https://github.com/facebook/react' },
+  { name: 'LiveKit', what: 'settings.about.what.livekit', license: 'Apache-2.0', url: 'https://github.com/livekit/client-sdk-js' },
+  { name: 'RNNoise (web-noise-suppressor)', what: 'settings.about.what.rnnoise', license: 'MIT', url: 'https://github.com/sapphi-red/web-noise-suppressor' },
+  { name: 'Lucide', what: 'settings.about.what.lucide', license: 'ISC', url: 'https://github.com/lucide-icons/lucide' },
+  { name: 'Twemoji', what: 'settings.about.what.twemoji', license: 'CC-BY 4.0', url: 'https://github.com/jdecked/twemoji' },
+  { name: 'Emojibase', what: 'settings.about.what.emojibase', license: 'MIT', url: 'https://github.com/milesj/emojibase' },
+  { name: 'KLIPY', what: 'settings.about.what.klipy', license: '', licenseKey: 'settings.about.klipyTerms', url: 'https://klipy.com/developers' },
+  { name: 'i18next', what: 'settings.about.what.i18next', license: 'MIT', url: 'https://github.com/i18next/i18next' },
+  { name: 'tailwind-merge', what: 'settings.about.what.styles', license: 'MIT', url: 'https://github.com/dcastil/tailwind-merge' },
+  { name: 'Zustand', what: 'settings.about.what.zustand', license: 'MIT', url: 'https://github.com/pmndrs/zustand' },
+  { name: 'Tailwind CSS', what: 'settings.about.what.styles', license: 'MIT', url: 'https://github.com/tailwindlabs/tailwindcss' },
+  { name: 'koffi', what: 'settings.about.what.koffi', license: 'MIT', url: 'https://github.com/Koromix/koffi' },
+  { name: 'electron-updater', what: 'settings.about.what.updater', license: 'MIT', url: 'https://github.com/electron-userland/electron-builder' },
+  { name: 'Sora & Figtree', what: 'settings.about.what.fonts', license: 'OFL-1.1', url: 'https://fontsource.org' }
 ]
 
 // From https://github.com/excalidraw/excalidraw/blob/master/LICENSE
@@ -51,6 +49,7 @@ SOFTWARE.`
 
 /** Configurações › Sobre: the app's version and the credits and licenses of what it uses. */
 export function AboutSettings(): ReactNode {
+  const { t } = useTranslation()
   const [version, setVersion] = useState<string | null>(null)
   useEffect(() => {
     window.aureum.app.info().then((info) => setVersion(info.version), () => {})
@@ -60,12 +59,12 @@ export function AboutSettings(): ReactNode {
     <div className="space-y-6">
       <section>
         <h3 className="font-display text-lg font-semibold">Aureum Voice</h3>
-        <p className="text-sm text-fg-muted">{version ? `Versão ${version}` : ' '}</p>
+        <p className="text-sm text-fg-muted">{version ? t('settings.about.version', { version }) : ' '}</p>
       </section>
 
       <section>
-        <h3 className={labelClass}>Créditos</h3>
-        <p className="mb-3 text-sm text-fg-muted">O Aureum é feito sobre projetos de código aberto. Obrigado a quem os mantém.</p>
+        <h3 className={labelClass}>{t('settings.about.credits')}</h3>
+        <p className="mb-3 text-sm text-fg-muted">{t('settings.about.creditsHint')}</p>
         <ul className="divide-y divide-line rounded-control border border-line bg-main">
           {CREDITS.map((c) => (
             <li key={c.name} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
@@ -73,19 +72,19 @@ export function AboutSettings(): ReactNode {
                 <a href={c.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
                   {c.name}
                 </a>
-                <span className="block text-xs text-fg-subtle">{c.what}</span>
+                <span className="block text-xs text-fg-subtle">{t(c.what)}</span>
               </span>
-              <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-muted">{c.license}</span>
+              <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-muted">{c.licenseKey ? t(c.licenseKey) : c.license}</span>
             </li>
           ))}
         </ul>
       </section>
 
       <section>
-        <h3 className={labelClass}>Licenças</h3>
+        <h3 className={labelClass}>{t('settings.about.licenses')}</h3>
         <details className="rounded-control border border-line bg-main px-3 py-2 text-sm">
           <summary className="cursor-pointer font-medium">Excalidraw (MIT)</summary>
-          <p className="mt-2 text-xs text-fg-subtle">As fontes do quadro branco vêm com o Excalidraw, cada uma sob a licença dos seus autores.</p>
+          <p className="mt-2 text-xs text-fg-subtle">{t('settings.about.excalidrawFonts')}</p>
           <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-fg-muted">{EXCALIDRAW_LICENSE}</pre>
         </details>
       </section>

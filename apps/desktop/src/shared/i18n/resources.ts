@@ -9,12 +9,14 @@ import enAccount from './locales/en/account.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enErrors from './locales/en/errors.json'
+import enProfile from './locales/en/profile.json'
 import enSettings from './locales/en/settings.json'
 import enSystem from './locales/en/system.json'
 import ptAccount from './locales/pt-BR/account.json'
 import ptAuth from './locales/pt-BR/auth.json'
 import ptCommon from './locales/pt-BR/common.json'
 import ptErrors from './locales/pt-BR/errors.json'
+import ptProfile from './locales/pt-BR/profile.json'
 import ptSettings from './locales/pt-BR/settings.json'
 import ptSystem from './locales/pt-BR/system.json'
 
@@ -24,7 +26,8 @@ export const ptBR = {
   system: ptSystem,
   errors: ptErrors,
   auth: ptAuth,
-  account: ptAccount
+  account: ptAccount,
+  profile: ptProfile
 }
 
 export const en: typeof ptBR = {
@@ -33,7 +36,8 @@ export const en: typeof ptBR = {
   system: enSystem,
   errors: enErrors,
   auth: enAuth,
-  account: enAccount
+  account: enAccount,
+  profile: enProfile
 }
 
 export const resources = {

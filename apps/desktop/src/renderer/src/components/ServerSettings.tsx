@@ -1,5 +1,6 @@
 import { Crown, GripVertical, Pipette, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { api, ApiError, serverAllows, type Ban, type Member, type Role, type ServerDetail } from '../lib/api'
 import { basePermissions, has, outranks, Perm, PERMISSION_GROUPS, rankOf } from '../lib/permissions'
@@ -204,6 +205,7 @@ function RolesTab({ server, meId }: { server: ServerDetail; meId: string }): Rea
 }
 
 function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; role: Role; meId: string; onDeleted(): void }): ReactNode {
+  const { t } = useTranslation()
   const everyone = role.id === server.id
   const myPerms = basePermissions(server, meId)
   const editable = everyone ? has(myPerms, Perm.MANAGE_ROLES) : outranks(server, meId, role.position)
@@ -240,12 +242,12 @@ function RoleEditor({ server, role, meId, onDeleted }: { server: ServerDetail; r
           <div>
             <span className={labelClass}>Cor</span>
             <div className="flex flex-wrap items-center gap-2">
-              {ACCENT_PRESETS.map(({ name, hex }) => (
+              {ACCENT_PRESETS.map(({ id, hex }) => (
                 <button
                   key={hex}
                   type="button"
-                  title={name}
-                  aria-label={name}
+                  title={t(`common.colors.${id}`)}
+                  aria-label={t(`common.colors.${id}`)}
                   disabled={!editable}
                   onClick={() => setForm({ ...form, color: hex })}
                   className={`h-7 w-7 rounded-full ring-offset-2 ring-offset-panel ${form.color?.toUpperCase() === hex ? 'ring-2 ring-fg' : ''}`}

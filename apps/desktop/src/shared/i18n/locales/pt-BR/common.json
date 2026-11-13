@@ -19,5 +19,13 @@
     "pt-BR": "Português (Brasil)",
     "en": "English"
   },
-  "saveFailed": "Não foi possível salvar."
+  "saveFailed": "Não foi possível salvar.",
+  "colors": {
+    "gold": "Dourado",
+    "amethyst": "Ametista",
+    "emerald": "Esmeralda",
+    "ember": "Brasa",
+    "sapphire": "Safira"
+  },
+  "loadFailed": "Não foi possível carregar as configurações."
 }

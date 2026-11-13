@@ -1,5 +1,7 @@
 import { Pipette, Plus, Trash2 } from 'lucide-react'
+import type { ParseKeys } from 'i18next'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useAuth } from '../auth/AuthProvider'
 import { api, type AvatarFrame, type CustomStatus, type Me } from '../lib/api'
@@ -16,10 +18,10 @@ import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
 
 const MAX_LINKS = 5
 
-const FRAME_OPTIONS: { key: AvatarFrame; name: string; color: string | null }[] = [
-  { key: 'none', name: 'Nenhuma', color: null },
-  { key: 'accent', name: 'Cor do perfil', color: null },
-  ...FRAME_PRESETS.map((p) => ({ key: p.key, name: p.name, color: p.hex }))
+const FRAME_OPTIONS: { key: AvatarFrame; name: ParseKeys; color: string | null }[] = [
+  { key: 'none', name: 'profile.frame.none', color: null },
+  { key: 'accent', name: 'profile.frame.accent', color: null },
+  ...FRAME_PRESETS.map((p) => ({ key: p.key, name: `common.colors.${p.id}` as const, color: p.hex }))
 ]
 
 interface LinkDraft {
@@ -103,6 +105,7 @@ function bodyOf(form: Form, previous: CustomStatus | null): Partial<Me> {
  * closing with changes that weren't saved.
  */
 export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange?: (dirty: boolean) => void }): ReactNode {
+  const { t } = useTranslation()
   const { setUser } = useAuth()
   const [form, setForm] = useState(() => formOf(user))
   const [error, setError] = useState<string | null>(null)
@@ -190,12 +193,12 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
         <div>
           <span className={labelClass}>Cor do perfil</span>
           <div className="flex flex-wrap items-center gap-2">
-            {ACCENT_PRESETS.map(({ name, hex }) => (
+            {ACCENT_PRESETS.map(({ id, hex }) => (
               <button
                 key={hex}
                 type="button"
-                title={name}
-                aria-label={name}
+                title={t(`common.colors.${id}`)}
+                aria-label={t(`common.colors.${id}`)}
                 onClick={() => patch({ accent_color: hex })}
                 className={`h-8 w-8 rounded-full ring-offset-2 ring-offset-panel ${form.accent_color?.toUpperCase() === hex ? 'ring-2 ring-fg' : ''}`}
                 style={{ background: hex }}
@@ -233,7 +236,7 @@ export function ProfileEditor({ user, onDirtyChange }: { user: Me; onDirtyChange
                   className={`h-4 w-4 rounded-full border-2 ${key === 'none' ? 'border-dashed border-line' : ''}`}
                   style={key === 'none' ? undefined : { borderColor: color ?? form.accent_color ?? 'var(--accent)' }}
                 />
-                {name}
+                {t(name)}
               </button>
             ))}
           </div>

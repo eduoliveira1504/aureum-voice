@@ -21,5 +21,147 @@
     "label": "App language",
     "systemNow": "Use system language ({{language}})",
     "hint": "Only on this computer. Messages from the server and emails stay in Portuguese for now."
+  },
+  "windows": {
+    "onClose": "When closing the window",
+    "keepOpen": "Keep running",
+    "quit": "Quit",
+    "macOpenHint": "While running, Aureum stays connected: calls, messages and notifications keep coming. It stays in the Dock and in the menu bar icon. To quit for good, use <b>Cmd+Q</b>.",
+    "macLogin": "Open when the Mac starts",
+    "macLoginHint": "Opens Aureum when you sign in to your Mac account.",
+    "toTray": "Minimize to the tray",
+    "trayHint": "In the tray, Aureum stays connected: calls, messages and notifications keep coming. To quit for good, use <b>Quit Aureum</b> in the tray icon.",
+    "login": "Start with Windows",
+    "loginHint": "Opens Aureum when you turn on the PC (installed app only).",
+    "onStartup": "When the PC starts",
+    "openWindow": "Open the window",
+    "startInTray": "Start in the tray",
+    "windowHint": "Aureum opens with the loading screen and checks for updates right away.",
+    "trayStartHint": "Aureum stays only in the tray icon, connected, until you open it."
+  },
+  "appearance": {
+    "saveError": "Couldn't save to the server. The change applies only on this PC for now.",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System",
+    "systemHint": "Follows the system's light/dark mode.",
+    "accent": "Accent color",
+    "other": "Other",
+    "hex": "Hex code",
+    "contrastHint": "Text over the color and links adjust their contrast on their own to stay readable.",
+    "preview": "Preview",
+    "pickOther": "Pick another color",
+    "sample": {
+      "general": "general",
+      "games": "games",
+      "message": "Call later? <link>link</link>",
+      "join": "Join",
+      "later": "Later",
+      "composer": "Message #general"
+    }
+  },
+  "notifications": {
+    "official": "Official Aureum conversation",
+    "officialHint": "@aureum sends notices in a read-only conversation, pinned at the top of your messages. Choose what you want to get.",
+    "muteHint": "To only turn off the sound, mute the conversation: messages keep coming.",
+    "categories": {
+      "seguranca": {
+        "title": "Security",
+        "description": "Password or email changed and sign-ins on a new computer. Always on, and notifies even with the conversation muted."
+      },
+      "insignias": {
+        "title": "Badges",
+        "description": "When you get a badge."
+      },
+      "eventos": {
+        "title": "Events",
+        "description": "Reminders for events you answered Going or Maybe to, and notices when they change."
+      },
+      "bugs": {
+        "title": "Bugs",
+        "description": "When a problem you reported is fixed."
+      },
+      "convites": {
+        "title": "Invites",
+        "description": "When someone joins with one of your invites."
+      },
+      "novidades": {
+        "title": "What's new",
+        "description": "What changed in each new version of the app."
+      },
+      "avisos": {
+        "title": "Notices",
+        "description": "General notices from the Aureum team."
+      }
+    }
+  },
+  "privacy": {
+    "dms": "Direct messages",
+    "receipts": "Read receipts",
+    "receiptsHint": "In one-on-one conversations, shows when the other person saw your messages. Off, they don't see when you read, and you don't see when they read either."
+  },
+  "sounds": {
+    "listen": "Play",
+    "listenTo": "Play: {{sound}}",
+    "volume": "Sound volume",
+    "own": "Your actions",
+    "ownHint": "They confirm what you did. They keep playing in Do not disturb.",
+    "others": "Other people",
+    "othersHint": "Muted in Do not disturb; incoming calls become just a missed call notice. During a call, messages play quieter.",
+    "soundboard": "Soundboard",
+    "soundboardHint": "The sounds people play in the servers' rooms.",
+    "names": {
+      "call-join": "Join a call",
+      "call-leave": "Leave a call",
+      "call-outgoing": "Calling (when you call)",
+      "call-ended": "Call declined or ended",
+      "mute": "Mute the microphone",
+      "unmute": "Unmute the microphone",
+      "deafen": "Deafen",
+      "undeafen": "Undeafen",
+      "ptt-on": "Press the push-to-talk key",
+      "ptt-off": "Release the push-to-talk key",
+      "message": "Direct message or mention",
+      "call-ringing": "Incoming call",
+      "user-join": "Someone joined the call",
+      "user-leave": "Someone left the call",
+      "screen-share": "Screen share started"
+    }
+  },
+  "tips": {
+    "title": "Tour and tips",
+    "tour": "Aureum tour",
+    "tourHint": "A quick look at the tabs, Home, the panels and your profile.",
+    "replay": "Replay tour",
+    "firstTime": "First-time tips",
+    "resetDone": "Done: the tips show up again when you use each thing.",
+    "firstTimeHint": "The bubbles that show up when you use something for the first time.",
+    "showAgain": "Show tips again"
+  },
+  "about": {
+    "version": "Version {{version}}",
+    "credits": "Credits",
+    "creditsHint": "Aureum is built on open source projects. Thanks to the people who maintain them.",
+    "licenses": "Licenses",
+    "excalidrawFonts": "The whiteboard's fonts come with Excalidraw, each under its authors' license.",
+    "what": {
+      "react": "The interface",
+      "livekit": "Voice, camera and screen",
+      "rnnoise": "Noise suppression",
+      "lucide": "Icons",
+      "twemoji": "Emoji drawings (Copyright Twitter, Inc. and contributors)",
+      "emojibase": "Emoji names in Portuguese",
+      "klipy": "GIFs (search and content, Powered by KLIPY)",
+      "styles": "Styles",
+      "zustand": "App state",
+      "koffi": "Game detection",
+      "updater": "Updates",
+      "fonts": "Fonts",
+      "i18next": "App translation",
+      "whiteboard": "The whiteboard",
+      "electron": "The app on Windows and Mac"
+    },
+    "klipyTerms": "KLIPY terms"
   }
 }

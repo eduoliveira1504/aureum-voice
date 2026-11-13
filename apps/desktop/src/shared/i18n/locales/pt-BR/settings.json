@@ -21,5 +21,147 @@
     "label": "Idioma do app",
     "systemNow": "Seguir o sistema ({{language}})",
     "hint": "Vale só neste computador. Mensagens vindas do servidor e e-mails continuam em português por enquanto."
+  },
+  "windows": {
+    "onClose": "Ao fechar a janela",
+    "keepOpen": "Continuar aberto",
+    "quit": "Sair",
+    "macOpenHint": "Aberto, o Aureum continua conectado: chamadas, mensagens e notificações seguem chegando. Ele fica no Dock e no ícone da barra de menus. Para fechar de vez, use <b>Cmd+Q</b>.",
+    "macLogin": "Abrir ao iniciar o Mac",
+    "macLoginHint": "Abre o Aureum quando você entra na sua conta do Mac.",
+    "toTray": "Minimizar para a bandeja",
+    "trayHint": "Na bandeja, o Aureum continua conectado: chamadas, mensagens e notificações seguem chegando. Para fechar de vez, use <b>Sair do Aureum</b> no ícone da bandeja.",
+    "login": "Iniciar com o Windows",
+    "loginHint": "Abre o Aureum quando você liga o PC (só no app instalado).",
+    "onStartup": "Ao ligar o PC",
+    "openWindow": "Abrir a janela",
+    "startInTray": "Iniciar na bandeja",
+    "windowHint": "O Aureum abre com a tela de carregamento e já procura atualizações.",
+    "trayStartHint": "O Aureum fica só no ícone da bandeja, conectado, até você abrir."
+  },
+  "appearance": {
+    "saveError": "Não foi possível salvar no servidor. A mudança vale só neste PC por enquanto.",
+    "theme": "Tema",
+    "dark": "Escuro",
+    "light": "Claro",
+    "system": "Sistema",
+    "systemHint": "Segue o modo claro/escuro do sistema.",
+    "accent": "Cor de destaque",
+    "other": "Outra",
+    "hex": "Código hex",
+    "contrastHint": "O texto sobre a cor e os links ajustam o contraste sozinhos para continuarem legíveis.",
+    "preview": "Prévia",
+    "pickOther": "Escolher outra cor",
+    "sample": {
+      "general": "geral",
+      "games": "jogos",
+      "message": "Bora de call? <link>link</link>",
+      "join": "Entrar",
+      "later": "Depois",
+      "composer": "Conversar em #geral"
+    }
+  },
+  "notifications": {
+    "official": "Conversa oficial do Aureum",
+    "officialHint": "A @aureum manda avisos numa conversa só de leitura, fixada no topo das suas mensagens. Escolha o que quer receber.",
+    "muteHint": "Pra só tirar o som, silencie a conversa: as mensagens continuam chegando.",
+    "categories": {
+      "seguranca": {
+        "title": "Segurança",
+        "description": "Senha ou e-mail alterados e login num computador novo. Sempre ligado, e avisa mesmo com a conversa silenciada."
+      },
+      "insignias": {
+        "title": "Insígnias",
+        "description": "Quando você ganha uma insígnia."
+      },
+      "eventos": {
+        "title": "Eventos",
+        "description": "Lembretes dos eventos em que você marcou Vou ou Talvez, e avisos de mudança."
+      },
+      "bugs": {
+        "title": "Bugs",
+        "description": "Quando um problema que você reportou é resolvido."
+      },
+      "convites": {
+        "title": "Convites",
+        "description": "Quando alguém entra com um convite seu."
+      },
+      "novidades": {
+        "title": "Novidades",
+        "description": "O que mudou em cada versão nova do app."
+      },
+      "avisos": {
+        "title": "Avisos",
+        "description": "Avisos gerais da equipe do Aureum."
+      }
+    }
+  },
+  "privacy": {
+    "dms": "Mensagens privadas",
+    "receipts": "Confirmação de leitura",
+    "receiptsHint": "Nas conversas a dois, mostra quando a outra pessoa viu suas mensagens. Desligada, ela não vê quando você leu, e você também não vê quando ela leu."
+  },
+  "sounds": {
+    "listen": "Ouvir",
+    "listenTo": "Ouvir: {{sound}}",
+    "volume": "Volume dos sons",
+    "own": "Suas ações",
+    "ownHint": "Confirmam o que você fez. Continuam tocando no Não perturbe.",
+    "others": "Outras pessoas",
+    "othersHint": "Silenciados no Não perturbe; chamadas recebidas viram só um aviso de chamada perdida. Durante uma chamada, mensagens tocam mais baixo.",
+    "soundboard": "Painel de sons",
+    "soundboardHint": "Os sons que as pessoas tocam nas salas dos servidores.",
+    "names": {
+      "call-join": "Entrar na chamada",
+      "call-leave": "Sair da chamada",
+      "call-outgoing": "Chamando (quando você liga)",
+      "call-ended": "Chamada recusada ou encerrada",
+      "mute": "Mutar o microfone",
+      "unmute": "Desmutar o microfone",
+      "deafen": "Ensurdecer",
+      "undeafen": "Sair do ensurdecer",
+      "ptt-on": "Apertar a tecla de falar",
+      "ptt-off": "Soltar a tecla de falar",
+      "message": "Mensagem direta ou menção",
+      "call-ringing": "Chamada recebida",
+      "user-join": "Alguém entrou na chamada",
+      "user-leave": "Alguém saiu da chamada",
+      "screen-share": "Compartilhamento de tela iniciado"
+    }
+  },
+  "tips": {
+    "title": "Tour e dicas",
+    "tour": "Tour pelo Aureum",
+    "tourHint": "Uma volta rápida pelas abas, o Início, os painéis e o seu perfil.",
+    "replay": "Rever tour",
+    "firstTime": "Dicas de primeira vez",
+    "resetDone": "Pronto: as dicas voltam a aparecer quando você usar cada coisa.",
+    "firstTimeHint": "Os balões que aparecem quando você usa algo pela primeira vez.",
+    "showAgain": "Mostrar dicas de novo"
+  },
+  "about": {
+    "version": "Versão {{version}}",
+    "credits": "Créditos",
+    "creditsHint": "O Aureum é feito sobre projetos de código aberto. Obrigado a quem os mantém.",
+    "licenses": "Licenças",
+    "excalidrawFonts": "As fontes do quadro branco vêm com o Excalidraw, cada uma sob a licença dos seus autores.",
+    "what": {
+      "react": "A interface",
+      "livekit": "Voz, câmera e tela",
+      "rnnoise": "Supressão de ruído",
+      "lucide": "Ícones",
+      "twemoji": "Desenhos dos emojis (Copyright Twitter, Inc. e colaboradores)",
+      "emojibase": "Nomes dos emojis em português",
+      "klipy": "GIFs (busca e conteúdo, Powered by KLIPY)",
+      "styles": "Estilos",
+      "zustand": "Estado do app",
+      "koffi": "Detecção de jogos",
+      "updater": "Atualizações",
+      "fonts": "Fontes",
+      "i18next": "Tradução do app",
+      "whiteboard": "O quadro branco",
+      "electron": "O app no Windows e no Mac"
+    },
+    "klipyTerms": "Termos do KLIPY"
   }
 }

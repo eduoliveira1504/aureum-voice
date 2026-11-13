@@ -19,5 +19,13 @@
     "pt-BR": "Português (Brasil)",
     "en": "English"
   },
-  "saveFailed": "Could not save."
+  "saveFailed": "Could not save.",
+  "colors": {
+    "gold": "Gold",
+    "amethyst": "Amethyst",
+    "emerald": "Emerald",
+    "ember": "Ember",
+    "sapphire": "Sapphire"
+  },
+  "loadFailed": "Could not load the settings."
 }
