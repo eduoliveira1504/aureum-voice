@@ -12,7 +12,11 @@ Regras do CLAUDE.md: sem IA no produto, custo R$ 0 (exceções já aprovadas con
 
 # Fase 4.2
 
-Ordem: 4.2.1 a 4.2.6. A revisão de usabilidade (4.2.7) roda junto, o tempo todo.
+Ordem (mudada em 13/11): 4.2.1 → 4.2.6 → 4.2.3 (camadas 1 e 2) → 4.2.4 → 4.2.5 → 4.2.2.
+O 4.2.2 fica por último porque depende de e-mail (o Outlook do Eduardo está fora do ar); o código
+dele já está commitado, falta o teste manual e a ida para produção.
+A partir do 4.2.6, toda tela nova usa as chaves de tradução desde o primeiro commit.
+A revisão de usabilidade (4.2.7) roda junto, o tempo todo.
 
 ## 4.2.1 Tipo de servidor ✅ concluído (testado pelo Eduardo no dev)
 
@@ -50,7 +54,7 @@ Enquetes em DM e grupo não mudam: não dependem de tipo de servidor.
 ### Testes
 Criar servidor de cada tipo; addon fora da lista recusado pela API e escondido na interface; tentativa de trocar o tipo recusada; servidores antigos viram Misto; placeholder correto.
 
-## 4.2.2 Desativar e excluir conta ✅ concluído (teste manual pendente)
+## 4.2.2 Desativar e excluir conta ✅ código concluído (teste manual e produção no fim da 4.2)
 
 Ver docs/decisions/0049-account-deletion.md (inclui a tabela do que é apagado e do que fica).
 Decidido com o Eduardo: e-mail liberado na hora da exclusão; @ preso por 90 dias (só HMAC);
@@ -150,7 +154,10 @@ Addon só aparece em Jogo e Misto; fixar plano persiste e aparece no overlay; at
 - Extrair todos os textos do app para arquivos de tradução. Biblioteca de i18n nova: perguntar antes, licença permissiva.
 - Datas, horas e números no formato do idioma.
 - Fora do escopo agora: textos que vêm da API e e-mails continuam em português.
-- Por último na fase: só começa com 4.2.1 a 4.2.5 prontos, para não traduzir texto que ainda vai mudar.
+- Feito logo depois do 4.2.1 (ordem mudada em 13/11). Telas que vierem depois (TFT, busca, atividade)
+  já nascem com as chaves de tradução, nos dois idiomas.
+- Antes de codar: plano para o Eduardo aprovar (biblioteca e licença, estrutura dos arquivos,
+  detecção do idioma do sistema, extração dos textos atuais).
 - Testes: trocar o idioma atualiza na hora, sem reiniciar; nenhum texto fixo restante nas telas principais.
 
 ## 4.2.7 Revisão de usabilidade (transversal)

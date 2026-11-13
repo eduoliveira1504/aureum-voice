@@ -3,6 +3,8 @@
 > Idioma: converse comigo SEMPRE em português do Brasil. Inglês só em código, commits e docs técnicos.
 
 > Fase atual: 4.2. Spec em docs/decisions/PHASE4.md (um bloco por vez, na ordem).
+> Ordem da 4.2: 4.2.1 → 4.2.6 (idioma) → 4.2.3 (camadas 1 e 2) → 4.2.4 → 4.2.5 → 4.2.2 (teste manual, depende de e-mail).
+> Toda tela nova usa as chaves de tradução (i18n) desde o primeiro commit.
 > Fases 1 a 3 e 4.1 concluídas; PHASE2.md e PHASE3.md são referência histórica.
 > Onde este arquivo e o PHASE4.md divergirem, vale o PHASE4.md.
 
