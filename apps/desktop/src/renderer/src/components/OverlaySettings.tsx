@@ -8,12 +8,13 @@ import { setOverlayPrefs, useOverlay } from '../store/overlay'
 import { CameraControls, CamerasPreview } from './OverlayCameras'
 import { NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 import { labelClass, Segmented, ToggleRow } from './ui'
+import { t } from '../lib/i18n'
 
-const CORNERS: { value: OverlayCorner; label: string; icon: typeof ArrowUpLeft }[] = [
-  { value: 'top-left', label: 'Superior esquerdo', icon: ArrowUpLeft },
-  { value: 'top-right', label: 'Superior direito', icon: ArrowUpRight },
-  { value: 'bottom-left', label: 'Inferior esquerdo', icon: ArrowDownLeft },
-  { value: 'bottom-right', label: 'Inferior direito', icon: ArrowDownRight }
+const CORNERS: { value: OverlayCorner; icon: typeof ArrowUpLeft }[] = [
+  { value: 'top-left', icon: ArrowUpLeft },
+  { value: 'top-right', icon: ArrowUpRight },
+  { value: 'bottom-left', icon: ArrowDownLeft },
+  { value: 'bottom-right', icon: ArrowDownRight }
 ]
 
 /** "Control+Shift+F9" -> "Ctrl + Shift + F9" */
@@ -79,12 +80,12 @@ function ShortcutRow({ title, field, prefs }: { title: string; field: 'toggleSho
             recording ? 'border-accent text-accent-text' : 'border-line bg-elevated hover:border-fg-subtle'
           }`}
         >
-          {recording ? 'Pressione as teclas…' : shortcutLabel(prefs[field])}
+          {recording ? t('overlay.shortcut.pressKeys') : shortcutLabel(prefs[field])}
         </button>
       </div>
-      {recording && <p className="mt-1.5 text-xs text-fg-subtle">Ex.: Ctrl + Shift + F9. Esc cancela.</p>}
+      {recording && <p className="mt-1.5 text-xs text-fg-subtle">{t('overlay.shortcut.example')}</p>}
       {(error || failed) && (
-        <p className="mt-1.5 text-xs text-danger">{error ?? 'Outro programa já usa esse atalho, então ele não funciona. Escolha outro.'}</p>
+        <p className="mt-1.5 text-xs text-danger">{error ?? t('overlay.shortcut.taken')}</p>
       )}
     </div>
   )
@@ -101,7 +102,7 @@ function AppChips({ apps, label, removeLabel, onRemove }: { apps: string[]; labe
           <button
             type="button"
             aria-label={removeLabel(label(app))}
-            title="Remover"
+            title={t('overlay.remove')}
             onClick={() => onRemove(app)}
             className="rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg"
           >
@@ -133,7 +134,7 @@ function OpenAppPicker({ label, empty, skip, onPick }: { label: string; empty: s
       onChange={(e) => e.target.value && onPick(e.target.value)}
       className="w-full max-w-72 rounded-control border border-line bg-main px-3 py-2 text-sm"
     >
-      <option value="">{running === null ? `${label}…` : choices.length ? 'Escolha um programa aberto…' : empty}</option>
+      <option value="">{running === null ? `${label}…` : choices.length ? t('overlay.pickOpen') : empty}</option>
       {choices.map((app) => (
         <option key={app} value={app}>
           {app}.exe
@@ -150,11 +151,11 @@ function KnownGames({ known, hidden, onHide }: { known: KnownGame[]; hidden: str
   const shown = known.filter((g) => g.name.toLowerCase().includes(q))
   return (
     <details className="mt-2 text-sm">
-      <summary className="cursor-pointer text-fg-muted hover:text-fg">Ver jogos conhecidos ({known.length})</summary>
+      <summary className="cursor-pointer text-fg-muted hover:text-fg">{t('overlay.knownGames', { count: known.length })}</summary>
       <input
         type="search"
-        aria-label="Buscar jogo"
-        placeholder="Buscar jogo…"
+        aria-label={t('overlay.searchGame')}
+        placeholder={t('overlay.searchGamePlaceholder')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="mt-2 w-full rounded-control border border-line bg-main px-3 py-2"
@@ -170,7 +171,7 @@ function KnownGames({ known, hidden, onHide }: { known: KnownGame[]; hidden: str
                 onClick={() => onHide(game, !off)}
                 className="shrink-0 rounded-item px-2 py-0.5 text-xs font-medium text-fg-muted hover:bg-elevated hover:text-fg"
               >
-                {off ? 'Mostrar overlay' : 'Ocultar overlay'}
+                {off ? t('overlay.showOverlay') : t('overlay.hideOverlay')}
               </button>
             </li>
           )
@@ -198,23 +199,20 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: OverlayP
   return (
     <>
       <section>
-        <span className={labelClass}>Jogos com overlay</span>
+        <span className={labelClass}>{t('overlay.games')}</span>
         <p className="mb-2 text-xs text-fg-subtle">
-          O overlay só aparece sobre jogos: os conhecidos pelo Aureum, os que você adicionou em Atividade e os que você
-          adicionar aqui. Launchers e clients (Steam, Riot Client, Epic etc.) nunca contam. Para isso o Aureum confere só o
-          nome do programa em primeiro plano e o monitor em que ele está, uma vez por segundo durante a chamada ou enquanto
-          uma notificação está na tela; nada disso sai do seu PC.
+          {t('overlay.gamesHint')}
         </p>
         <AppChips
           apps={prefs.games}
           label={label}
-          removeLabel={(name) => `Remover ${name} dos jogos com overlay`}
+          removeLabel={(name) => t('overlay.removeGame', { name })}
           // Removed by hand: the overlay won't ask "Isso é um jogo?" about it again.
           onRemove={(app) => set({ games: prefs.games.filter((g) => g !== app), notGames: [...new Set([...prefs.notGames, app])] })}
         />
         <OpenAppPicker
-          label="Adicionar jogo"
-          empty="Nenhum outro programa aberto"
+          label={t('overlay.addGame')}
+          empty={t('overlay.noOtherApp')}
           skip={(app) => isGame(app) || OVERLAY_EXCEPTIONS.has(app)}
           onPick={(app) => set({ games: [...prefs.games, app] })}
         />
@@ -222,17 +220,17 @@ function OverlayGames({ prefs, set }: { prefs: OverlayPrefs; set(patch: OverlayP
       </section>
 
       <section>
-        <span className={labelClass}>Ocultar overlay neste jogo</span>
-        <p className="mb-2 text-xs text-fg-subtle">O overlay não aparece sobre estes jogos.</p>
+        <span className={labelClass}>{t('overlay.hideIn')}</span>
+        <p className="mb-2 text-xs text-fg-subtle">{t('overlay.hideInHint')}</p>
         <AppChips
           apps={prefs.hiddenApps}
           label={label}
-          removeLabel={(name) => `Mostrar overlay de novo em ${name}`}
+          removeLabel={(name) => t('overlay.showAgainIn', { name })}
           onRemove={(app) => set({ hiddenApps: prefs.hiddenApps.filter((h) => h !== app) })}
         />
         <OpenAppPicker
-          label="Ocultar jogo aberto"
-          empty="Nenhum outro jogo aberto"
+          label={t('overlay.hideOpen')}
+          empty={t('overlay.noOtherGame')}
           skip={(app) => !isGame(app) || prefs.hiddenApps.includes(app)}
           onPick={(app) => set({ hiddenApps: [...prefs.hiddenApps, app] })}
         />
@@ -279,13 +277,9 @@ function WidgetCard({
           </div>
           {!ownSize && (
             <div>
-              <span className={labelClass}>Tamanho</span>
+              <span className={labelClass}>{t('overlay.size')}</span>
               <Segmented
-                options={[
-                  { value: 'small', label: 'Pequeno' },
-                  { value: 'medium', label: 'Médio' },
-                  { value: 'large', label: 'Grande' }
-                ]}
+                options={(['small', 'medium', 'large'] as const).map((value) => ({ value, label: t(`overlay.sizes.${value}`) }))}
                 value={prefs.size}
                 onChange={(size) => set({ size })}
               />
@@ -293,7 +287,7 @@ function WidgetCard({
           )}
           <div>
             <label htmlFor={`overlay-opacity-${widget}`} className={labelClass}>
-              Opacidade
+              {t('overlay.opacity')}
             </label>
             <div className="flex items-center gap-3">
               <input
@@ -311,14 +305,14 @@ function WidgetCard({
           </div>
           {children}
           <div>
-            <span className={labelClass}>Canto da tela</span>
+            <span className={labelClass}>{t('overlay.corner')}</span>
             <div className="flex flex-wrap items-center gap-2">
-              {CORNERS.map(({ value, label, icon: Icon }) => (
+              {CORNERS.map(({ value, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
-                  title={label}
-                  aria-label={`${title}: ${label}`}
+                  title={t(`overlay.corners.${value}`)}
+                  aria-label={t('overlay.cornerOf', { widget: title, corner: t(`overlay.corners.${value}`) })}
                   onClick={() => void window.aureum.overlay.snap(widget, value)}
                   className="rounded-control border border-line bg-main p-2 text-fg-muted hover:border-fg-subtle hover:text-fg"
                 >
@@ -345,12 +339,12 @@ export function OverlaySettings(): ReactNode {
     <div className="max-w-[480px] space-y-4">
       {!state.captureExclusion && (
         <p role="note" className="rounded-control border border-accent/60 bg-accent/10 px-3 py-2 text-xs">
-          Seu Windows mostra o overlay como quadrado preto em transmissões; ele será escondido enquanto você transmite.
+          {t('overlay.blackBox')}
         </p>
       )}
       <ToggleRow
-        title="Mostrar overlay em jogos"
-        description="Durante uma chamada, mostra quem está nela por cima do jogo. Aparece só quando um jogo está em primeiro plano; nunca em navegadores, launchers ou outros apps."
+        title={t('overlay.enable')}
+        description={t('overlay.enableHint')}
         checked={prefs.enabled}
         onChange={(enabled) => set({ enabled })}
       />
@@ -358,17 +352,16 @@ export function OverlaySettings(): ReactNode {
       <OverlayGames prefs={prefs} set={set} />
 
       <section className="space-y-2">
-        <span className={labelClass}>Atalhos (funcionam com o Aureum em segundo plano)</span>
-        <ShortcutRow title="Esconder / mostrar durante a chamada" field="toggleShortcut" prefs={prefs} />
-        <ShortcutRow title="Editar posição" field="editShortcut" prefs={prefs} />
+        <span className={labelClass}>{t('overlay.shortcuts')}</span>
+        <ShortcutRow title={t('overlay.toggleShortcut')} field="toggleShortcut" prefs={prefs} />
+        <ShortcutRow title={t('overlay.editShortcut')} field="editShortcut" prefs={prefs} />
         <p className="text-xs text-fg-subtle">
-          Alguns jogos bloqueiam atalhos do Windows. Para funcionar neles, durante uma chamada com o overlay ligado o
-          Aureum confere só as teclas desses dois atalhos. Nenhuma outra tecla é lida e nada é gravado.
+          {t('overlay.shortcutsHint')}
         </p>
       </section>
 
       <section>
-        <span className={labelClass}>Widgets</span>
+        <span className={labelClass}>{t('overlay.widgetsTitle')}</span>
         <button
           type="button"
           disabled={!anyWidgetOn(prefs.widgets) || state.hiddenWhileSharing}
@@ -376,22 +369,20 @@ export function OverlaySettings(): ReactNode {
           className="flex items-center gap-2 rounded-control border border-line bg-main px-3 py-2 text-sm font-medium hover:border-fg-subtle disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Move size={16} />
-          Editar posição e tamanho
+          {t('overlay.edit')}
         </button>
         {state.hiddenWhileSharing && (
-          <p className="mt-1.5 text-xs text-fg-subtle">O overlay fica escondido enquanto você transmite a tela.</p>
+          <p className="mt-1.5 text-xs text-fg-subtle">{t('overlay.hiddenWhileSharing')}</p>
         )}
         <p className="mt-1.5 text-xs text-fg-subtle">
-          Cada widget tem sua posição e seu tamanho, e o overlay aparece no monitor do jogo. No modo edição, arraste cada
-          widget para mover e puxe o canto para redimensionar (nas câmeras, o canto muda o tamanho de cada câmera, e a barra
-          de cima troca o formato e a quantidade); a posição fica salva para aquele monitor. Esc ou Concluir termina.
+          {t('overlay.editHint')}
         </p>
       </section>
 
       <WidgetCard
         widget="voice"
-        title="Voz"
-        description="Quem está na chamada, com anel em quem fala e ícones de mudo e ensurdecido."
+        title={t('overlay.widgets.voice')}
+        description={t('overlay.voiceHint')}
         prefs={voice}
         set={(patch) => set({ widgets: { voice: patch } })}
         preview={
@@ -403,8 +394,8 @@ export function OverlaySettings(): ReactNode {
         }
       >
         <ToggleRow
-          title="Mostrar só quem está falando"
-          description="Esconde quem está em silêncio; a pessoa some pouco depois de parar de falar."
+          title={t('overlay.onlySpeaking')}
+          description={t('overlay.onlySpeakingHint')}
           checked={voice.onlySpeaking}
           onChange={(onlySpeaking) => set({ widgets: { voice: { onlySpeaking } } })}
         />
@@ -412,8 +403,8 @@ export function OverlaySettings(): ReactNode {
 
       <WidgetCard
         widget="cameras"
-        title="Câmeras"
-        description="Só aparece quando alguém está com a câmera ligada, incluindo você. Quem tem câmera sai da lista de voz e vem pra cá."
+        title={t('overlay.widgets.cameras')}
+        description={t('overlay.camerasHint')}
         ownSize
         prefs={cameras}
         set={(patch) => set({ widgets: { cameras: patch } })}
@@ -424,30 +415,28 @@ export function OverlaySettings(): ReactNode {
 
       <WidgetCard
         widget="notifications"
-        title="Notificações"
-        description="Mensagens privadas, menções, chamada recebendo e quem entra ou sai da call, por cerca de 5 segundos. Fora de chamada também, sobre jogos. Nada aparece em Não perturbe."
+        title={t('overlay.widgets.notifications')}
+        description={t('overlay.notificationsHint')}
         prefs={notifications}
         set={(patch) => set({ widgets: { notifications: patch } })}
         preview={
           <NotificationCard
-            notification={{ kind: 'dm', name: 'Ana', username: 'ana', text: 'Bora mais uma partida?' }}
+            notification={{ kind: 'dm', name: 'Ana', username: 'ana', text: t('overlay.sampleMessage') }}
             hideContent={notifications.hideContent}
             scale={SCALE[notifications.size]}
           />
         }
       >
         <ToggleRow
-          title="Esconder o conteúdo da mensagem"
-          description="Mostra só quem mandou, como “@fulano te mandou mensagem”."
+          title={t('overlay.hideContent')}
+          description={t('overlay.hideContentHint')}
           checked={notifications.hideContent}
           onChange={(hideContent) => set({ widgets: { notifications: { hideContent } } })}
         />
       </WidgetCard>
 
       <p className="text-xs text-fg-subtle">
-        Funciona com jogos em modo janela ou janela sem borda. Em tela cheia exclusiva o Windows não deixa outras janelas
-        aparecerem por cima. O Aureum não mexe no jogo (nada de injeção), e o overlay não aparece em capturas. Enquanto você
-        transmite a tela inteira ou o jogo, ele fica escondido.
+        {t('overlay.windowedOnly')}
       </p>
     </div>
   )

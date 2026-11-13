@@ -24,7 +24,11 @@ i18n.on('languageChanged', (locale) => {
   document.documentElement.lang = locale
 })
 
-/** For code outside React (stores, helpers). Components use useTranslation(), which re-renders. */
+/**
+ * The current language's t(). App subscribes to the language (useTranslation), so the whole tree
+ * re-renders when it changes: calling this while rendering is always current. Never call it at a
+ * module's top level (that text would stay in the first language).
+ */
 export const t = i18n.t.bind(i18n) as typeof i18n.t
 
 export const currentLocale = (): Locale => i18n.language as Locale

@@ -10,6 +10,7 @@ import enAuth from './locales/en/auth.json'
 import enBugs from './locales/en/bugs.json'
 import enCommon from './locales/en/common.json'
 import enErrors from './locales/en/errors.json'
+import enOverlay from './locales/en/overlay.json'
 import enProfile from './locales/en/profile.json'
 import enSettings from './locales/en/settings.json'
 import enSystem from './locales/en/system.json'
@@ -18,6 +19,7 @@ import ptAuth from './locales/pt-BR/auth.json'
 import ptBugs from './locales/pt-BR/bugs.json'
 import ptCommon from './locales/pt-BR/common.json'
 import ptErrors from './locales/pt-BR/errors.json'
+import ptOverlay from './locales/pt-BR/overlay.json'
 import ptProfile from './locales/pt-BR/profile.json'
 import ptSettings from './locales/pt-BR/settings.json'
 import ptSystem from './locales/pt-BR/system.json'
@@ -30,7 +32,8 @@ export const ptBR = {
   auth: ptAuth,
   account: ptAccount,
   profile: ptProfile,
-  bugs: ptBugs
+  bugs: ptBugs,
+  overlay: ptOverlay
 }
 
 export const en: typeof ptBR = {
@@ -41,7 +44,8 @@ export const en: typeof ptBR = {
   auth: enAuth,
   account: enAccount,
   profile: enProfile,
-  bugs: enBugs
+  bugs: enBugs,
+  overlay: enOverlay
 }
 
 export const resources = {

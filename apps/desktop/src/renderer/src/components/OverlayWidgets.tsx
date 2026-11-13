@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import type { OverlaySize } from '../../../shared/types'
 import type { OverlayNotification } from '../store/overlay'
 import { Avatar, TileRing } from './ui'
+import { t } from '../lib/i18n'
 
 export const SCALE: Record<OverlaySize, number> = { small: 0.8, medium: 1, large: 1.3 }
 
@@ -20,8 +21,8 @@ export interface Person {
 function StateIcons({ person }: { person: Person }): ReactNode {
   return (
     <>
-      {person.muted && <MicOff size="1.1em" className="shrink-0 text-danger" aria-label="Microfone desligado" />}
-      {person.deafened && <HeadphoneOff size="1.1em" className="shrink-0 text-danger" aria-label="Áudio desligado" />}
+      {person.muted && <MicOff size="1.1em" className="shrink-0 text-danger" aria-label={t('overlay.micOff')} />}
+      {person.deafened && <HeadphoneOff size="1.1em" className="shrink-0 text-danger" aria-label={t('overlay.audioOff')} />}
     </>
   )
 }
@@ -45,15 +46,17 @@ export function notificationText(n: Omit<OverlayNotification, 'id'>, hideContent
   const handle = n.username ? `@${n.username}` : n.name
   switch (n.kind) {
     case 'dm':
-      return hideContent ? { title: `${handle} te mandou mensagem` } : { title: n.name, body: n.text }
+      return hideContent ? { title: t('overlay.notification.dmHidden', { handle }) } : { title: n.name, body: n.text }
     case 'mention':
-      return hideContent ? { title: `${handle} te mencionou` } : { title: `${n.name} te mencionou`, body: n.text }
+      return hideContent
+        ? { title: t('overlay.notification.mentionHidden', { handle }) }
+        : { title: t('overlay.notification.mention', { name: n.name }), body: n.text }
     case 'call':
-      return { title: n.name, body: 'está te ligando' }
+      return { title: n.name, body: t('overlay.notification.calling') }
     case 'joined':
-      return { title: `${n.name} entrou na call` }
+      return { title: t('overlay.notification.joined', { name: n.name }) }
     case 'left':
-      return { title: `${n.name} saiu da call` }
+      return { title: t('overlay.notification.left', { name: n.name }) }
   }
 }
 
@@ -134,7 +137,7 @@ export function CameraCard({
       </span>
       {more > 0 && (
         <span
-          aria-label={`Mais ${more} ${more === 1 ? 'câmera' : 'câmeras'}`}
+          aria-label={t('overlay.cameras.moreCameras', { count: more })}
           className="absolute right-1 top-1 rounded-item bg-scrim/80 px-1.5 text-[0.85em] font-semibold tabular-nums text-on-scrim"
         >
           +{more}

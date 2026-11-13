@@ -6,18 +6,15 @@ import { CAMERA_LIMITS, CAMERA_SIZES, cameraLayout } from '../../../shared/overl
 import type { OverlayCameraLayout, OverlayCameraPrefs, OverlaySize } from '../../../shared/types'
 import { CameraCard, CameraTiles, type Person } from './OverlayWidgets'
 import { labelClass, Segmented, ToggleRow } from './ui'
+import { t } from '../lib/i18n'
 
 export const CAMERA_LAYOUTS = [
-  { value: 'vertical', label: 'Vertical', icon: Rows3 },
-  { value: 'horizontal', label: 'Horizontal', icon: Columns3 },
-  { value: 'grid', label: 'Grade', icon: Grid2x2 }
-] as const satisfies readonly { value: OverlayCameraLayout; label: string; icon: unknown }[]
+  { value: 'vertical', icon: Rows3 },
+  { value: 'horizontal', icon: Columns3 },
+  { value: 'grid', icon: Grid2x2 }
+] as const satisfies readonly { value: OverlayCameraLayout; icon: unknown }[]
 
-const SIZE_OPTIONS: { value: OverlaySize; label: string }[] = [
-  { value: 'small', label: 'Pequeno' },
-  { value: 'medium', label: 'Médio' },
-  { value: 'large', label: 'Grande' }
-]
+const SIZES: readonly OverlaySize[] = ['small', 'medium', 'large']
 
 /** A labeled slider with its value next to it. */
 function RangeRow({
@@ -63,24 +60,28 @@ function RangeRow({
 /** Format, size, how many show, and spacing. `set` gets only what changed. */
 export function CameraControls({ prefs, set }: { prefs: OverlayCameraPrefs; set(patch: Partial<OverlayCameraPrefs & { size: OverlaySize }>): void }): ReactNode {
   // A width that isn't one of the shortcuts selects none of them.
-  const shortcut = SIZE_OPTIONS.find((o) => CAMERA_SIZES[o.value] === prefs.tileWidth)?.value ?? 'custom'
+  const shortcut = SIZES.find((size) => CAMERA_SIZES[size] === prefs.tileWidth) ?? 'custom'
   return (
     <>
       <div>
-        <span className={labelClass}>Formato</span>
-        <Segmented options={CAMERA_LAYOUTS} value={prefs.layout} onChange={(layout) => set({ layout })} />
+        <span className={labelClass}>{t('overlay.cameras.layout')}</span>
+        <Segmented
+          options={CAMERA_LAYOUTS.map((option) => ({ ...option, label: t(`overlay.layouts.${option.value}`) }))}
+          value={prefs.layout}
+          onChange={(layout) => set({ layout })}
+        />
       </div>
       <div>
-        <span className={labelClass}>Tamanho das câmeras</span>
+        <span className={labelClass}>{t('overlay.cameras.size')}</span>
         <Segmented<OverlaySize | 'custom'>
-          options={SIZE_OPTIONS}
+          options={SIZES.map((value) => ({ value, label: t(`overlay.sizes.${value}`) }))}
           value={shortcut}
           onChange={(size) => size !== 'custom' && set({ size })}
         />
         <div className="mt-2">
           <RangeRow
             id="overlay-camera-width"
-            label="Largura de cada câmera"
+            label={t('overlay.cameras.width')}
             value={prefs.tileWidth}
             limits={CAMERA_LIMITS.tileWidth}
             unit=" px"
@@ -90,7 +91,7 @@ export function CameraControls({ prefs, set }: { prefs: OverlayCameraPrefs; set(
       </div>
       <RangeRow
         id="overlay-camera-count"
-        label="Câmeras visíveis no máximo"
+        label={t('overlay.cameras.max')}
         value={prefs.maxVisible}
         limits={CAMERA_LIMITS.maxVisible}
         onChange={(maxVisible) => set({ maxVisible })}
@@ -98,27 +99,26 @@ export function CameraControls({ prefs, set }: { prefs: OverlayCameraPrefs; set(
       {prefs.layout === 'grid' && (
         <RangeRow
           id="overlay-camera-per-row"
-          label="Câmeras por linha"
+          label={t('overlay.cameras.perRow')}
           value={prefs.perRow}
           limits={CAMERA_LIMITS.perRow}
           onChange={(perRow) => set({ perRow })}
         />
       )}
       <p className="text-xs text-fg-subtle">
-        Passou do máximo, a última câmera mostra “+N”. Quem está falando sempre aparece. A caixa do widget cresce e
-        encolhe com as câmeras, a partir do canto da tela em que ela está.
+        {t('overlay.cameras.overflowHint')}
       </p>
       <RangeRow
         id="overlay-camera-gap"
-        label="Espaço entre as câmeras"
+        label={t('overlay.cameras.gap')}
         value={prefs.gap}
         limits={CAMERA_LIMITS.gap}
         unit=" px"
         onChange={(gap) => set({ gap })}
       />
       <ToggleRow
-        title="Cantos arredondados"
-        description="Desligado, as câmeras ficam retas."
+        title={t('overlay.cameras.rounded')}
+        description={t('overlay.cameras.roundedHint')}
         checked={prefs.rounded}
         onChange={(rounded) => set({ rounded })}
       />
@@ -156,8 +156,8 @@ export function CamerasPreview({ prefs }: { prefs: OverlayCameraPrefs }): ReactN
         </div>
       </div>
       <p className="mt-2 text-xs text-on-scrim/80">
-        {people.length === 1 ? '1 câmera' : `${people.length} câmeras`} · {layout.width} × {layout.height} px
-        {scale < 1 && ` · prévia em ${Math.round(scale * 100)}%`}
+        {t('overlay.cameras.count', { count: people.length })} · {layout.width} × {layout.height} px
+        {scale < 1 && t('overlay.cameras.previewAt', { percent: Math.round(scale * 100) })}
       </p>
     </div>
   )
@@ -178,11 +178,11 @@ function Stepper({
   const button = 'rounded-item p-0.5 text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent'
   return (
     <span role="group" aria-label={label} title={label} className="flex items-center">
-      <button type="button" aria-label={`${label}: menos`} disabled={value <= limits.min} onClick={() => onChange(value - 1)} className={button}>
+      <button type="button" aria-label={t('overlay.cameras.less', { label })} disabled={value <= limits.min} onClick={() => onChange(value - 1)} className={button}>
         <Minus size={13} />
       </button>
       <span className="w-4 text-center font-semibold tabular-nums">{value}</span>
-      <button type="button" aria-label={`${label}: mais`} disabled={value >= limits.max} onClick={() => onChange(value + 1)} className={button}>
+      <button type="button" aria-label={t('overlay.cameras.more', { label })} disabled={value >= limits.max} onClick={() => onChange(value + 1)} className={button}>
         <Plus size={13} />
       </button>
     </span>
@@ -193,12 +193,12 @@ function Stepper({
 export function CameraEditBar({ prefs, set }: { prefs: OverlayCameraPrefs; set(patch: Partial<OverlayCameraPrefs>): void }): ReactNode {
   return (
     <span className="flex shrink-0 items-center gap-1">
-      {CAMERA_LAYOUTS.map(({ value, label, icon: Icon }) => (
+      {CAMERA_LAYOUTS.map(({ value, icon: Icon }) => (
         <button
           key={value}
           type="button"
-          title={label}
-          aria-label={`Formato: ${label}`}
+          title={t(`overlay.layouts.${value}`)}
+          aria-label={t('overlay.cameras.layoutNamed', { layout: t(`overlay.layouts.${value}`) })}
           aria-pressed={prefs.layout === value}
           onClick={() => set({ layout: value })}
           className={`rounded-item p-1 ${prefs.layout === value ? 'bg-elevated text-fg' : 'text-fg-muted hover:text-fg'}`}
@@ -207,9 +207,9 @@ export function CameraEditBar({ prefs, set }: { prefs: OverlayCameraPrefs; set(p
         </button>
       ))}
       <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />
-      <Stepper label="Câmeras visíveis" value={prefs.maxVisible} limits={CAMERA_LIMITS.maxVisible} onChange={(maxVisible) => set({ maxVisible })} />
+      <Stepper label={t('overlay.cameras.visible')} value={prefs.maxVisible} limits={CAMERA_LIMITS.maxVisible} onChange={(maxVisible) => set({ maxVisible })} />
       {prefs.layout === 'grid' && (
-        <Stepper label="Por linha" value={prefs.perRow} limits={CAMERA_LIMITS.perRow} onChange={(perRow) => set({ perRow })} />
+        <Stepper label={t('overlay.cameras.perRowShort')} value={prefs.perRow} limits={CAMERA_LIMITS.perRow} onChange={(perRow) => set({ perRow })} />
       )}
     </span>
   )

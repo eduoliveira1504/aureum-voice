@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useAuth } from './auth/AuthProvider'
 import { DeletionScheduledScreen, ForcePasswordScreen, VerifyEmailScreen, VerifyReminder } from './components/AccountScreens'
@@ -11,6 +12,9 @@ function WindowDragStrip(): ReactNode {
 }
 
 export function App(): ReactNode {
+  // Changing the language re-renders the whole app from here, so t() called while rendering
+  // (lib/i18n) is always in the current language, in any component.
+  useTranslation()
   const { state } = useAuth()
   // "Agora não" on the confirmation screen: into the app, with a reminder to come back.
   const [verifyLater, setVerifyLater] = useState(false)

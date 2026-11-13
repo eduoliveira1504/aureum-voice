@@ -14,6 +14,7 @@ import { useCallContext } from './CallCard'
 import { CameraEditBar, tileWidthAfterDrag } from './OverlayCameras'
 import { CameraCard, CameraTiles, NotificationCard, PersonRow, SCALE, type Person } from './OverlayWidgets'
 import { PopupVideo } from './PopupVideo'
+import { t } from '../lib/i18n'
 
 /** Prefix of a widget window's name; the main process lets only `aureum-overlay-<widget>-<n>` through (widgetOfFrame). */
 const FRAME_NAME = 'aureum-overlay'
@@ -135,7 +136,7 @@ function useCallNotifications(me: Me): void {
     const { joined, left } = callChanges(before.ids, ids, me.id)
     const say = (id: string, kind: OverlayNotification['kind']): void => {
       const user = people.current?.get(id)
-      notifyOverlay({ kind, name: user?.display_name ?? 'Alguém', avatarUrl: user?.avatar_url })
+      notifyOverlay({ kind, name: user?.display_name ?? t('overlay.someone'), avatarUrl: user?.avatar_url })
     }
     joined.forEach((id) => say(id, 'joined'))
     left.forEach((id) => say(id, 'left'))
@@ -145,7 +146,7 @@ function useCallNotifications(me: Me): void {
     if (!ringingCall) return
     const dm = useSocial.getState().dms[ringingCall.channel_id]
     const caller = dm?.members.find((m) => m.user.id === ringingCall.started_by)?.user
-    notifyOverlay({ kind: 'call', name: caller?.display_name ?? 'Alguém', avatarUrl: caller?.avatar_url })
+    notifyOverlay({ kind: 'call', name: caller?.display_name ?? t('overlay.someone'), avatarUrl: caller?.avatar_url })
     // Once per call, however many times it's updated while ringing.
   }, [ringingCall?.id])
 }
@@ -213,7 +214,7 @@ function usePeople(me: Me, editing: boolean, widgets: OverlayWidgets): { voice: 
     const user = isMe ? me : info.people.get(id)
     return {
       id,
-      name: user?.display_name ?? 'Alguém',
+      name: user?.display_name ?? t('overlay.someone'),
       avatarUrl: user?.avatar_url,
       speaking: speaking.includes(id),
       spokeRecently: recentlySpoke(id),
@@ -238,8 +239,6 @@ function anchorOf(popup: Window): { right: boolean; bottom: boolean } {
     bottom: popup.screenY + popup.outerHeight / 2 > s.availTop + s.availHeight / 2
   }
 }
-
-const WIDGET_NAME: Record<OverlayWidget, string> = { voice: 'Voz', cameras: 'Câmeras', notifications: 'Notificações' }
 
 /**
  * A widget's box: content hugs the nearest screen corner, and edit mode moves and resizes it.
@@ -342,14 +341,14 @@ function WidgetBox({
     >
       {editing && (
         <div className="pointer-events-auto absolute inset-x-2 top-2 z-raised flex items-center gap-2 rounded-control bg-panel/95 px-2.5 py-1.5 text-xs text-fg shadow-lg">
-          <span className="min-w-0 flex-1 truncate font-semibold">{WIDGET_NAME[widget]}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">{t(`overlay.widgets.${widget}`)}</span>
           {bar}
           <button
             type="button"
             onClick={() => void window.aureum.overlay.setEditing(false)}
             className="shrink-0 rounded-item bg-accent px-2 py-0.5 font-semibold text-on-accent"
           >
-            Concluir
+            {t('overlay.done')}
           </button>
         </div>
       )}
@@ -400,7 +399,7 @@ function VoiceWidget({
       editing={editing}
       outside={
         <>
-          {preview && editing && <span className="rounded-item bg-panel/95 px-2 text-xs text-fg-muted">Prévia · Esc para concluir</span>}
+          {preview && editing && <span className="rounded-item bg-panel/95 px-2 text-xs text-fg-muted">{t('overlay.previewHint')}</span>}
           {notice && !editing && (
             <div role="status" className="max-w-full rounded-control bg-panel/95 px-3 py-1.5 text-[0.85em] font-medium text-fg shadow-lg">
               {notice}
@@ -461,7 +460,7 @@ function CamerasWidget({ popup, editing, people, meId }: { popup: Window; editin
   )
 }
 
-const SAMPLE_NOTIFICATION: OverlayNotification = { id: 0, kind: 'dm', name: 'Exemplo', username: 'exemplo', text: 'Assim aparece uma mensagem' }
+const sampleNotification = (): OverlayNotification => ({ id: 0, kind: 'dm', name: t('overlay.sampleName'), username: 'aureum', text: t('overlay.sampleText') })
 
 function NotificationsWidget({
   popup,
@@ -473,7 +472,7 @@ function NotificationsWidget({
   notifications: OverlayNotification[]
 }): ReactNode {
   const { size, hideContent } = useOverlay((s) => s.state!.prefs.widgets.notifications)
-  const shown = editing && !notifications.length ? [SAMPLE_NOTIFICATION] : notifications
+  const shown = editing && !notifications.length ? [sampleNotification()] : notifications
   return (
     <WidgetBox widget="notifications" popup={popup} editing={editing}>
       <div className="flex w-[calc(100vw-1.5rem)] max-w-full flex-col gap-1.5">
@@ -495,27 +494,27 @@ function AskIfGame({ app }: { app: string }): ReactNode {
   return (
     <div
       role="alertdialog"
-      aria-label="Isso é um jogo?"
+      aria-label={t('overlay.askGame')}
       onMouseEnter={hover(true)}
       onMouseLeave={hover(false)}
       className="max-w-full rounded-control bg-panel/95 px-3 py-2 text-[0.85em] text-fg shadow-lg"
     >
-      <p className="font-semibold">Isso é um jogo?</p>
-      <p className="truncate text-fg-muted">Mostrar o overlay em {app}.exe</p>
+      <p className="font-semibold">{t('overlay.askGame')}</p>
+      <p className="truncate text-fg-muted">{t('overlay.askGameHint', { app })}</p>
       <div className="mt-2 flex gap-2">
         <button
           type="button"
           onClick={() => void window.aureum.overlay.answer(true)}
           className="rounded-item bg-accent px-2.5 py-0.5 font-semibold text-on-accent"
         >
-          Mostrar
+          {t('overlay.show')}
         </button>
         <button
           type="button"
           onClick={() => void window.aureum.overlay.answer(false)}
           className="rounded-item border border-line px-2.5 py-0.5 font-medium text-fg-muted hover:text-fg"
         >
-          Não é jogo
+          {t('overlay.notGame')}
         </button>
       </div>
     </div>
