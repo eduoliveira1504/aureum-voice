@@ -9,6 +9,7 @@ import { ConfirmModal, errorText } from './modals'
 import { toggleMuted, useMuted } from './PlaceMenus'
 import { RenameGroupModal } from './socialModals'
 import { UserContextMenu } from './UserMenu'
+import { t } from '../lib/i18n'
 
 const IMAGE_TYPES = 'image/png,image/jpeg,image/gif,image/webp'
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -21,11 +22,11 @@ function pickGroupIcon(id: string): void {
   input.onchange = () => {
     const file = input.files?.[0]
     if (!file) return
-    if (file.size > MAX_IMAGE_BYTES) return toast('A imagem pode ter até 8 MB.')
+    if (file.size > MAX_IMAGE_BYTES) return toast(t('chat.conversation.imageSize'))
     useSocial
       .getState()
       .setGroupIcon(id, file)
-      .catch((err) => toast(errorText(err, 'Não foi possível trocar o ícone.')))
+      .catch((err) => toast(errorText(err, t('chat.conversation.iconFailed'))))
   }
   input.click()
 }
@@ -39,33 +40,33 @@ function ConversationItems({ dm, meId }: { dm: Dm; meId: string }): ReactNode {
   const title = dmTitle(dm, meId)
   return (
     <>
-      {read?.unread_count ? <Item icon={CheckCheck} label="Marcar como lida" onClick={() => useChat.getState().markRead(dm.id, true)} /> : null}
-      <CheckItem label="Silenciar conversa" checked={muted} onChange={() => toggleMuted(dm.id)} />
+      {read?.unread_count ? <Item icon={CheckCheck} label={t('chat.conversation.markRead')} onClick={() => useChat.getState().markRead(dm.id, true)} /> : null}
+      <CheckItem label={t('chat.conversation.mute')} checked={muted} onChange={() => toggleMuted(dm.id)} />
       {group ? (
         <>
           <Item
             icon={Pencil}
-            label="Renomear grupo"
+            label={t('chat.dm.rename')}
             onClick={() => showDialog((close) => <RenameGroupModal id={dm.id} current={dm.name} onClose={close} />)}
           />
-          <Item icon={ImagePlus} label="Alterar ícone" onClick={() => pickGroupIcon(dm.id)} />
+          <Item icon={ImagePlus} label={t('chat.conversation.changeIcon')} onClick={() => pickGroupIcon(dm.id)} />
           {dm.icon_url && (
             <Item
               icon={ImageMinus}
-              label="Remover ícone"
-              onClick={() => social.setGroupIcon(dm.id, null).catch((err) => toast(errorText(err, 'Não deu certo. Tente de novo.')))}
+              label={t('chat.conversation.removeIcon')}
+              onClick={() => social.setGroupIcon(dm.id, null).catch((err) => toast(errorText(err, t('common.tryAgainError'))))}
             />
           )}
           <Item
             icon={LogOut}
-            label="Sair do grupo"
+            label={t('chat.dm.leave')}
             danger
             onClick={() =>
               showDialog((close) => (
                 <ConfirmModal
-                  title={`Sair de ${title}`}
-                  message="Você só volta se alguém do grupo te adicionar de novo."
-                  confirmLabel="Sair do grupo"
+                  title={t('chat.dm.leaveTitle', { name: title })}
+                  message={t('chat.dm.leaveConfirm')}
+                  confirmLabel={t('chat.dm.leave')}
                   onConfirm={() => social.closeDm(dm.id)}
                   onClose={close}
                 />
@@ -75,7 +76,7 @@ function ConversationItems({ dm, meId }: { dm: Dm; meId: string }): ReactNode {
         </>
       ) : (
         // It comes back with the next message.
-        <Item icon={X} label="Fechar DM" onClick={() => social.closeDm(dm.id).catch(() => {})} />
+        <Item icon={X} label={t('chat.conversation.close')} onClick={() => social.closeDm(dm.id).catch(() => {})} />
       )}
     </>
   )
@@ -91,7 +92,7 @@ export function ConversationMenu({ dm, meId }: { dm: Dm; meId: string }): ReactN
       <Label>{dmTitle(dm, meId)}</Label>
       <ConversationItems dm={dm} meId={meId} />
       <Separator />
-      <Item icon={Copy} label="Copiar ID" onClick={() => copy(dm.id, 'ID copiado')} />
+      <Item icon={Copy} label={t('chat.conversation.copyId')} onClick={() => copy(dm.id, t('chat.conversation.idCopied'))} />
     </>
   )
 }

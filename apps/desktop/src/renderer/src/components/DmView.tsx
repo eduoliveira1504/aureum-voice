@@ -17,11 +17,9 @@ import { Avatar, GroupAvatar, PRESENCE_LABEL, PresenceAvatar } from './ui'
 import { userContextMenu } from './UserMenu'
 import { CallView } from './VoiceView'
 import { Tip } from './Tour'
+import { t } from '../lib/i18n'
 
 type Dialog = 'add' | 'rename' | 'leave'
-
-const OFFICIAL_READ_ONLY =
-  'Esta é uma conversa oficial do Aureum. Pra falar com a gente, use o botão de bug ou o servidor do beta.'
 
 /** A DM or group: header with call and people buttons, the call when you're in it, and the chat. */
 export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
@@ -52,7 +50,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
     try {
       await startCall(dm.id)
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 ? 'Só amigos podem ligar.' : 'Não foi possível começar a chamada.')
+      setError(err instanceof ApiError && err.status === 403 ? t('chat.dm.friendsCall') : t('chat.dm.callFailed'))
     }
   }
 
@@ -78,10 +76,10 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
       canModerate={false}
       canSend={!official}
       canReact={official || !peer || isFriend}
-      readOnlyNote={OFFICIAL_READ_ONLY}
+      readOnlyNote={t('chat.dm.officialReadOnly')}
       peerRead={receipts ? dm.peer_read_message_id : null}
       intro={<DmIntro dm={dm} meId={me.id} isFriend={isFriend} />}
-      placeholder={peer ? `Mensagem para @${peer.username}` : `Mensagem para ${title}`}
+      placeholder={t('chat.dm.messageTo', { name: peer ? `@${peer.username}` : title })}
     />
   )
 
@@ -95,7 +93,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
           // The person: click for their profile, right click for their menu.
           <button
             type="button"
-            aria-label={`Perfil de ${peer.display_name}`}
+            aria-label={t('chat.profileOf', { name: peer.display_name })}
             onClick={(e) => profile.open(peer, e.currentTarget)}
             onContextMenu={contextMenu(() => <ConversationMenu dm={dm} meId={me.id} />)}
             className="flex min-w-0 items-center gap-2.5 rounded-item py-1 pr-2 text-left hover:bg-elevated/60"
@@ -111,7 +109,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             <GroupAvatar url={dm.icon_url} size={28} />
             <div className="min-w-0">
               <h2 className="truncate font-semibold leading-tight">{title}</h2>
-              <p className="truncate text-xs text-fg-subtle">{dm.members.length} pessoas</p>
+              <p className="truncate text-xs text-fg-subtle">{t('chat.dm.people', { count: dm.members.length })}</p>
             </div>
           </div>
         )}
@@ -123,14 +121,14 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
             className="flex items-center gap-2 rounded-control bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent hover:bg-accent-hover"
           >
             <Phone size={16} />
-            Entrar na chamada
+            {t('chat.dm.joinCall')}
           </button>
         )}
         {!official && !call && (
           <button
             type="button"
-            title={isFriend ? 'Ligar' : 'Só amigos podem ligar'}
-            aria-label="Ligar"
+            title={isFriend ? t('chat.dm.call') : t('chat.dm.friendsCallTitle')}
+            aria-label={t('chat.dm.call')}
             disabled={!isFriend}
             onClick={() => void placeCall()}
             className={headerButton}
@@ -141,8 +139,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         {inCall && call && (
           <button
             type="button"
-            title={chatOpen ? 'Esconder conversa' : 'Mostrar conversa'}
-            aria-label={chatOpen ? 'Esconder conversa' : 'Mostrar conversa'}
+            title={chatOpen ? t('chat.dm.hideChat') : t('chat.dm.showChat')}
+            aria-label={chatOpen ? t('chat.dm.hideChat') : t('chat.dm.showChat')}
             aria-pressed={chatOpen}
             onClick={() => setChatOpen(!chatOpen)}
             className={`${headerButton} ${chatOpen ? 'text-fg' : ''}`}
@@ -153,8 +151,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
         {!official && (
           <button
             type="button"
-            title={inCall ? 'Adicionar pessoas à chamada' : group ? 'Adicionar pessoas' : 'Criar grupo com mais pessoas'}
-            aria-label="Adicionar pessoas"
+            title={inCall ? t('chat.dm.addToCall') : group ? t('chat.dm.addPeople') : t('chat.dm.createGroup')}
+            aria-label={t('chat.dm.addPeople')}
             onClick={() => setDialog('add')}
             className={headerButton}
           >
@@ -165,18 +163,18 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
           <>
             <button
               type="button"
-              title={membersOpen ? 'Esconder membros' : 'Mostrar membros'}
-              aria-label="Membros"
+              title={membersOpen ? t('chat.dm.hideMembers') : t('chat.dm.showMembers')}
+              aria-label={t('chat.dm.members')}
               aria-pressed={membersOpen}
               onClick={() => setMembersOpen(!membersOpen)}
               className={`${headerButton} ${membersOpen ? 'text-fg' : ''}`}
             >
               <Users size={20} />
             </button>
-            <button type="button" title="Renomear grupo" aria-label="Renomear grupo" onClick={() => setDialog('rename')} className={headerButton}>
+            <button type="button" title={t('chat.dm.rename')} aria-label={t('chat.dm.rename')} onClick={() => setDialog('rename')} className={headerButton}>
               <Pencil size={18} />
             </button>
-            <button type="button" title="Sair do grupo" aria-label="Sair do grupo" onClick={() => setDialog('leave')} className={headerButton}>
+            <button type="button" title={t('chat.dm.leave')} aria-label={t('chat.dm.leave')} onClick={() => setDialog('leave')} className={headerButton}>
               <LogOut size={18} />
             </button>
           </>
@@ -199,7 +197,7 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
               channelId={dm.id}
               people={people}
               present={dm.voice_states}
-              joinLabel="Entrar na chamada"
+              joinLabel={t('chat.dm.joinCall')}
               onJoin={() => void join(null, dm.id)}
               meId={me.id}
               footer={<RingingLine dm={dm} meId={me.id} />}
@@ -218,20 +216,20 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
       </div>
       {official && (
         <p className="shrink-0 border-t border-line px-4 py-2 text-center text-xs text-fg-subtle">
-          O Aureum nunca pede sua senha ou código.
+          {t('chat.dm.neverAsks')}
         </p>
       )}
       {profile.popover}
 
       {dialog === 'add' && (
         <PickFriendsModal
-          title={inCall ? 'Chamar mais pessoas' : group ? 'Adicionar ao grupo' : 'Criar um grupo'}
+          title={inCall ? t('chat.dm.callMore') : group ? t('chat.dm.addToGroup') : t('chat.dm.newGroup')}
           subtitle={
             inCall && !group
-              ? 'Vira um grupo novo com vocês e a chamada continua lá. A conversa de vocês dois fica só entre vocês.'
+              ? t('chat.dm.callMoreHint')
               : undefined
           }
-          confirmLabel={inCall ? 'Chamar' : group ? 'Adicionar' : 'Criar grupo'}
+          confirmLabel={inCall ? t('chat.dm.callConfirm') : group ? t('chat.dm.addConfirm') : t('chat.dm.createConfirm')}
           taken={dm.members.map((m) => m.user.id)}
           onConfirm={addPeople}
           onClose={() => setDialog(null)}
@@ -240,9 +238,9 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
       {dialog === 'rename' && <RenameGroupModal id={dm.id} current={dm.name} onClose={() => setDialog(null)} />}
       {dialog === 'leave' && (
         <ConfirmModal
-          title={`Sair de ${title}`}
-          message="Você só volta se alguém do grupo te adicionar de novo."
-          confirmLabel="Sair do grupo"
+          title={t('chat.dm.leaveTitle', { name: title })}
+          message={t('chat.dm.leaveConfirm')}
+          confirmLabel={t('chat.dm.leave')}
           onConfirm={() => useSocial.getState().closeDm(dm.id)}
           onClose={() => setDialog(null)}
         />
@@ -255,8 +253,8 @@ export function DmView({ dm, me }: { dm: Dm; me: Me }): ReactNode {
 function GroupMembers({ dm, meId, onOpen }: { dm: Dm; meId: string; onOpen(user: User, target: Element): void }): ReactNode {
   const presence = useSocial((s) => s.presence)
   return (
-    <aside aria-label="Membros do grupo" className="w-60 shrink-0 overflow-y-auto border-l border-line p-3">
-      <h3 className="mb-2 px-2 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">Membros · {dm.members.length}</h3>
+    <aside aria-label={t('chat.dm.groupMembers')} className="w-60 shrink-0 overflow-y-auto border-l border-line p-3">
+      <h3 className="mb-2 px-2 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">{t('chat.dm.membersCount', { count: dm.members.length })}</h3>
       {dm.members.map(({ user, status }) => (
         <button
           key={user.id}
@@ -285,7 +283,7 @@ function DmIntro({ dm, meId, isFriend }: { dm: Dm; meId: string; isFriend: boole
       {peer ? (
         <button
           type="button"
-          aria-label={`Perfil de ${peer.display_name}`}
+          aria-label={t('chat.profileOf', { name: peer.display_name })}
           onClick={(e) => profile.open(peer, e.currentTarget)}
           onContextMenu={userContextMenu(peer, meId)}
           className="rounded-full"
@@ -299,13 +297,13 @@ function DmIntro({ dm, meId, isFriend }: { dm: Dm; meId: string; isFriend: boole
       <h3 className="mt-3 text-3xl font-bold">{title}</h3>
       <p className="mt-1 text-fg-muted">
         {dm.official
-          ? 'A conversa oficial do Aureum: avisos de segurança, insígnias, bugs resolvidos e novidades chegam aqui.'
+          ? t('chat.dm.officialIntro')
           : peer
-            ? `Este é o começo da sua conversa com @${peer.username}.`
-            : `Este é o começo do grupo ${title}.`}
+            ? t('chat.dm.dmIntro', { username: peer.username })
+            : t('chat.dm.groupIntro', { name: title })}
       </p>
       {!isFriend && !dm.official && (
-        <p className="mt-2 text-sm text-fg-subtle">Vocês não são amigos agora: dá pra ler a conversa, mas não mandar mensagens nem ligar.</p>
+        <p className="mt-2 text-sm text-fg-subtle">{t('chat.dm.notFriends')}</p>
       )}
     </>
   )
@@ -320,7 +318,7 @@ function RingingLine({ dm, meId }: { dm: Dm; meId: string }): ReactNode {
   }, [])
   const call = dm.call
   if (!call) return null
-  const name = (id: string): string => dm.members.find((m) => m.user.id === id)?.user.display_name ?? 'alguém'
+  const name = (id: string): string => dm.members.find((m) => m.user.id === id)?.user.display_name ?? t('chat.dm.someone')
   const waiting = call.participants.filter(
     (p) => p.user_id !== meId && p.rung_at && !p.joined_at && !p.declined_at && now - new Date(p.rung_at).getTime() < RING_MS
   )
@@ -328,7 +326,7 @@ function RingingLine({ dm, meId }: { dm: Dm; meId: string }): ReactNode {
   if (!waiting.length && !declined.length) return null
   return (
     <p className="shrink-0 px-4 pb-2 text-center text-sm text-fg-muted">
-      {waiting.length > 0 && <span className="animate-pulse">Chamando {waiting.map((p) => name(p.user_id)).join(', ')}…</span>}
+      {waiting.length > 0 && <span className="animate-pulse">{t('chat.dm.calling', { names: waiting.map((p) => name(p.user_id)).join(', ') })}</span>}
       {waiting.length > 0 && declined.length > 0 && ' · '}
       {declined.length > 0 && `${declined.map((p) => name(p.user_id)).join(', ')} recusou`}
     </p>

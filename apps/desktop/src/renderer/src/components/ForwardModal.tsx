@@ -8,6 +8,7 @@ import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { toast } from './ContextMenu'
 import { FormError, Modal, ModalBody } from './Modal'
 import { Avatar, cn, GroupAvatar, inputClass, PrimaryButton, ServerIcon } from './ui'
+import { t } from '../lib/i18n'
 
 /** At most this many conversations per forward (the API says the same). */
 export const MAX_FORWARD_TARGETS = 5
@@ -38,7 +39,7 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
     // A server's sticker only goes in that server; any sticker needs USE_STICKERS in servers.
     const sticker = message.sticker ?? message.forwarded_from?.sticker
     const stickerServer = sticker?.server_id ?? null
-    const onlyIn = stickerServer ? `Figurinha só do servidor ${servers[stickerServer]?.name ?? 'de origem'}` : undefined
+    const onlyIn = stickerServer ? t('chat.forward.stickerOnly', { server: servers[stickerServer]?.name ?? t('chat.forward.origin') }) : undefined
     const out: ForwardTarget[] = []
     for (const dm of Object.values(dms).sort((a, b) => b.last_message_id - a.last_message_id)) {
       if (dm.official) continue // read-only
@@ -47,7 +48,7 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
       out.push({
         channelId: dm.id,
         name: dmTitle(dm, meId),
-        where: dm.type === 'group_dm' ? 'Grupo' : 'Mensagem direta',
+        where: dm.type === 'group_dm' ? t('call.group') : t('call.dm'),
         icon: peer ? <Avatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} size={28} /> : <GroupAvatar url={dm.icon_url} size={28} />,
         blocked: onlyIn
       })
@@ -60,7 +61,7 @@ export function useForwardTargets(message: Message, meId: string): ForwardTarget
         const perms = channelPermissions(server, channel, meId)
         if ((perms & needed) !== needed) continue
         const blocked =
-          stickerServer && stickerServer !== server.id ? onlyIn : sticker && !(perms & Perm.USE_STICKERS) ? 'Sem permissão para figurinhas' : undefined
+          stickerServer && stickerServer !== server.id ? onlyIn : sticker && !(perms & Perm.USE_STICKERS) ? t('chat.forward.noStickers') : undefined
         out.push({ channelId: channel.id, name: `#${channel.name}`, where: server.name, icon: <ServerIcon name={server.name} url={server.icon_url} size={28} />, blocked })
       }
     }
@@ -83,35 +84,35 @@ export function ForwardModal({ message, meId, onClose }: { message: Message; meI
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (!picked.length) return setError('Escolha pelo menos uma conversa.')
+    if (!picked.length) return setError(t('chat.forward.pickOne'))
     setBusy(true)
     setError(null)
     try {
       await useChat.getState().forwardMessage(message.id, picked, comment.trim())
-      toast(picked.length === 1 ? 'Mensagem encaminhada!' : `Encaminhada para ${picked.length} conversas!`)
+      toast(t('chat.forward.done', { count: picked.length }))
       onClose()
     } catch (err) {
       setBusy(false)
       setError(
         err instanceof ApiError && err.status === 429
-          ? 'Muitos encaminhamentos seguidos. Espere um pouco.'
+          ? t('chat.forward.tooMany')
           : err instanceof ApiError && err.status === 403
-            ? 'Você não pode enviar em uma das conversas escolhidas.'
-            : 'Não foi possível encaminhar.'
+            ? t('chat.forward.forbidden')
+            : t('chat.forward.failed')
       )
     }
   }
 
   return (
-    <Modal title="Encaminhar mensagem" subtitle={`Até ${MAX_FORWARD_TARGETS} conversas de uma vez.`} onClose={onClose} tall>
+    <Modal title={t('chat.forward.title')} subtitle={t('chat.forward.subtitle', { count: MAX_FORWARD_TARGETS })} onClose={onClose} tall>
       <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar conversa ou canal" aria-label="Buscar" className={cn(inputClass, 'pl-9')} />
+          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('chat.forward.search')} aria-label={t('common.search')} className={cn(inputClass, 'pl-9')} />
         </div>
         <ModalBody>
           {shown.length === 0 ? (
-            <p className="py-6 text-center text-sm text-fg-subtle">{targets.length ? 'Nada encontrado.' : 'Nenhuma conversa onde você possa enviar.'}</p>
+            <p className="py-6 text-center text-sm text-fg-subtle">{targets.length ? t('chat.forward.nothingFound') : t('chat.forward.noTargets')}</p>
           ) : (
             <ul className="space-y-0.5">
               {shown.map((t) => {
@@ -144,10 +145,10 @@ export function ForwardModal({ message, meId, onClose }: { message: Message; meI
             </ul>
           )}
         </ModalBody>
-        <input value={comment} maxLength={4000} onChange={(e) => setComment(e.target.value)} placeholder="Comentário (opcional)" aria-label="Comentário" className={inputClass} />
+        <input value={comment} maxLength={4000} onChange={(e) => setComment(e.target.value)} placeholder={t('chat.forward.comment')} aria-label={t('chat.forward.commentAria')} className={inputClass} />
         <FormError message={error} />
         <PrimaryButton type="submit" disabled={busy || !picked.length}>
-          {busy ? 'Encaminhando…' : picked.length > 1 ? `Encaminhar para ${picked.length}` : 'Encaminhar'}
+          {busy ? t('chat.forward.forwarding') : picked.length > 1 ? t('chat.forward.forwardTo', { count: picked.length }) : t('chat.forward.forward')}
         </PrimaryButton>
       </form>
     </Modal>

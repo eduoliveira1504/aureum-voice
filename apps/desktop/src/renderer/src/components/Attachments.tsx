@@ -6,6 +6,7 @@ import { downloadAttachment, formatSize, useAttachmentUrl } from '../lib/attachm
 import { openImages, type ViewableImage } from '../lib/chatImages'
 import { useImageMenu, type ImageGallery } from './ImageMenu'
 import { VoicePlayer } from './VoicePlayer'
+import { t } from '../lib/i18n'
 
 /** A message's files: images and videos inline, anything else as a card with a download button. */
 export function MessageAttachments({ attachments, own }: { attachments: Attachment[]; own: boolean }): ReactNode {
@@ -133,12 +134,12 @@ export function FileCard({ attachment }: { attachment: Attachment }): ReactNode 
         <p className="truncate text-sm font-medium" title={attachment.filename}>
           {attachment.filename}
         </p>
-        <p className={`text-xs ${failed ? 'text-danger' : 'text-fg-subtle'}`}>{failed ? 'Não foi possível baixar' : formatSize(attachment.size)}</p>
+        <p className={`text-xs ${failed ? 'text-danger' : 'text-fg-subtle'}`}>{failed ? t('chat.attachments.downloadFailed') : formatSize(attachment.size)}</p>
       </div>
       <button
         type="button"
-        title="Baixar"
-        aria-label={`Baixar ${attachment.filename}`}
+        title={t('chat.attachments.download')}
+        aria-label={t('chat.attachments.downloadNamed', { name: attachment.filename })}
         disabled={busy}
         onClick={download}
         className="shrink-0 rounded-item p-2 text-fg-muted hover:bg-panel hover:text-fg disabled:opacity-50"
@@ -152,7 +153,7 @@ export function FileCard({ attachment }: { attachment: Attachment }): ReactNode 
 function Unavailable({ attachment }: { attachment: Attachment }): ReactNode {
   return (
     <div className="flex items-center gap-2 rounded-control border border-line bg-elevated px-3 py-2 text-sm text-fg-subtle">
-      <ImageOff size={16} /> {attachment.filename} não está disponível
+      <ImageOff size={16} /> {t('chat.attachments.unavailable', { name: attachment.filename })}
     </div>
   )
 }
@@ -196,8 +197,8 @@ export function PendingFiles({ files, onRemove }: { files: PendingFile[]; onRemo
             )}
             <button
               type="button"
-              title="Remover"
-              aria-label={`Remover ${f.name}`}
+              title={t('common.remove')}
+              aria-label={t('chat.attachments.removeNamed', { name: f.name })}
               onClick={() => onRemove(f.key)}
               className="absolute right-1 top-1 rounded-full bg-panel/90 p-1 text-fg-muted hover:text-danger"
             >

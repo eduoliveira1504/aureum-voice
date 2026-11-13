@@ -8,6 +8,8 @@
 import { useEffect, useState } from 'react'
 
 import { fetchMedia, type Attachment } from './api'
+import { numberFormat } from './format'
+import { t } from './i18n'
 
 const MEMORY_BYTES = 150 * 1024 * 1024
 
@@ -119,7 +121,7 @@ export function formatSize(bytes: number): string {
     value /= 1024
     unit++
   }
-  return `${value.toLocaleString('pt-BR', { maximumFractionDigits: unit === 0 ? 0 : 1 })} ${SIZE_UNITS[unit]}`
+  return `${numberFormat({ maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${SIZE_UNITS[unit]}`
 }
 
 /** A message's text, or what it sent when it's only files ("enviou uma imagem"). */
@@ -127,7 +129,13 @@ export function messagePreview(message: { content: string; attachments: Attachme
   if (message.content) return message.content
   const files = message.attachments
   if (files.length === 1) {
-    return files[0].kind === 'image' ? 'enviou uma imagem' : files[0].kind === 'video' ? 'enviou um vídeo' : `enviou ${files[0].filename}`
+    return files[0].kind === 'image'
+      ? t('chat.attachments.sentImage')
+      : files[0].kind === 'video'
+        ? t('chat.attachments.sentVideo')
+        : t('chat.attachments.sentFile', { name: files[0].filename })
   }
-  return files.every((f) => f.kind === 'image') ? `enviou ${files.length} imagens` : `enviou ${files.length} arquivos`
+  return files.every((f) => f.kind === 'image')
+    ? t('chat.attachments.sentImages', { count: files.length })
+    : t('chat.attachments.sentFiles', { count: files.length })
 }

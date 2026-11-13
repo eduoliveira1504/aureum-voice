@@ -7,6 +7,7 @@ import { channelTab, useNav } from '../store/nav'
 import { useSocial } from '../store/social'
 import { copy, Item, openMenuAt, Separator, toast } from './ContextMenu'
 import { QuickReactions } from './MessageReactions'
+import { t } from '../lib/i18n'
 
 /**
  * What can be done to a message, in three places that offer the same things: the bar that shows
@@ -33,7 +34,7 @@ export function openMessageLink(channelId: string, messageId: number): void {
   const server = Object.values(useChat.getState().servers).find((s) => s.channels.some((c) => c.id === channelId))
   if (server) useNav.getState().openTab(server.id, channelTab(channelId))
   else if (useSocial.getState().dms[channelId]) useNav.getState().openHome(channelId)
-  else return toast('Você não tem acesso a essa mensagem.')
+  else return toast(t('chat.actions.noAccess'))
   useChat.getState().focusMessage(channelId, messageId)
 }
 
@@ -48,21 +49,21 @@ export function MessageMenu({ message, actions }: { message: Message; actions: M
           <Separator />
         </>
       )}
-      {onReply && <Item icon={Reply} label="Responder" hint="R" onClick={onReply} />}
-      {onForward && <Item icon={Forward} label="Encaminhar" onClick={onForward} />}
-      {onEdit && <Item icon={Pencil} label="Editar" hint="E" onClick={onEdit} />}
+      {onReply && <Item icon={Reply} label={t('chat.actions.reply')} hint="R" onClick={onReply} />}
+      {onForward && <Item icon={Forward} label={t('chat.actions.forward')} onClick={onForward} />}
+      {onEdit && <Item icon={Pencil} label={t('chat.actions.edit')} hint="E" onClick={onEdit} />}
       {(onReply || onForward || onEdit) && <Separator />}
-      {message.content && <Item icon={Copy} label="Copiar texto" onClick={() => copy(message.content, 'Texto copiado')} />}
-      <Item icon={Link} label="Copiar link da mensagem" onClick={() => copy(messageLink(message), 'Link copiado')} />
+      {message.content && <Item icon={Copy} label={t('chat.actions.copyText')} onClick={() => copy(message.content, t('chat.actions.textCopied'))} />}
+      <Item icon={Link} label={t('chat.actions.copyLink')} onClick={() => copy(messageLink(message), t('chat.actions.linkCopied'))} />
       <Item
         icon={EyeOff}
-        label="Marcar como não lida"
-        onClick={() => useChat.getState().markUnread(message.channel_id, message.id).catch(() => toast('Não foi possível marcar como não lida.'))}
+        label={t('chat.actions.markUnread')}
+        onClick={() => useChat.getState().markUnread(message.channel_id, message.id).catch(() => toast(t('chat.actions.markUnreadFailed')))}
       />
       {onDelete && (
         <>
           <Separator />
-          <Item icon={Trash2} label="Apagar" hint="Del" danger onClick={onDelete} />
+          <Item icon={Trash2} label={t('chat.actions.delete')} hint="Del" danger onClick={onDelete} />
         </>
       )}
     </>
@@ -84,13 +85,13 @@ export function MessageActionBar({ message, actions }: { message: Message; actio
   return (
     <div
       role="toolbar"
-      aria-label="Ações da mensagem"
+      aria-label={t('chat.actions.bar')}
       className="absolute -top-4 right-4 z-raised hidden overflow-hidden rounded-item border border-line bg-panel text-fg-muted shadow group-focus-within:flex group-hover:flex"
     >
-      {onReact && <BarButton icon={SmilePlus} label="Reagir" onClick={(target) => openMenuAt(target, () => <QuickReactions onPick={onReact} />)} />}
-      {onReply && <BarButton icon={Reply} label="Responder" onClick={onReply} />}
-      {onForward && <BarButton icon={Forward} label="Encaminhar" onClick={onForward} />}
-      <BarButton icon={EllipsisVertical} label="Mais opções" onClick={(target) => openMenuAt(target, () => <MessageMenu message={message} actions={actions} />)} />
+      {onReact && <BarButton icon={SmilePlus} label={t('chat.actions.react')} onClick={(target) => openMenuAt(target, () => <QuickReactions onPick={onReact} />)} />}
+      {onReply && <BarButton icon={Reply} label={t('chat.actions.reply')} onClick={onReply} />}
+      {onForward && <BarButton icon={Forward} label={t('chat.actions.forward')} onClick={onForward} />}
+      <BarButton icon={EllipsisVertical} label={t('chat.actions.more')} onClick={(target) => openMenuAt(target, () => <MessageMenu message={message} actions={actions} />)} />
     </div>
   )
 }

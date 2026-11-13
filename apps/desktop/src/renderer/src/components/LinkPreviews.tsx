@@ -4,6 +4,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { mediaUrl, type LinkPreview, type Message } from '../lib/api'
 import { useChat } from '../store/chat'
 import { useImageMenu } from './ImageMenu'
+import { t } from '../lib/i18n'
 
 const IMAGE_MAX_W = 400
 const IMAGE_MAX_H = 225
@@ -39,8 +40,8 @@ function RemoveButton({ onRemove }: { onRemove?: () => void }): ReactNode {
     <button
       type="button"
       onClick={onRemove}
-      aria-label="Remover prévia"
-      title="Remover prévia"
+      aria-label={t('chat.links.removePreview')}
+      title={t('chat.links.removePreview')}
       className="absolute right-1.5 top-1.5 rounded-item p-1 text-fg-subtle opacity-0 hover:bg-main hover:text-fg focus-visible:opacity-100 group-hover/card:opacity-100"
     >
       <X size={14} />
@@ -103,7 +104,7 @@ function YouTubeCard({ card, onRemove }: { card: LinkPreview; onRemove?: () => v
         href={card.url}
         target="_blank"
         rel="noreferrer"
-        aria-label={`Assistir ${card.title ?? 'vídeo'} no navegador`}
+        aria-label={t('chat.links.watchIn', { title: card.title ?? t('chat.links.video') })}
         className="group/play relative mt-2 block aspect-video w-full overflow-hidden rounded-item bg-main"
       >
         {image && <img src={image} alt="" loading="lazy" onContextMenu={onImageMenu} className="h-full w-full object-cover" />}

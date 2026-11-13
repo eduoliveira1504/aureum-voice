@@ -5,6 +5,7 @@ import type { Message, Reaction } from '../lib/api'
 import { closeContextMenu, contextMenu, Item, Label } from './ContextMenu'
 import { Emoji, pickEmoji } from './Emoji'
 import { Tip } from './Tour'
+import { currentLocale, t } from '../lib/i18n'
 
 // Different emojis a message can have (the API says the same).
 export const MAX_REACTIONS = 20
@@ -16,12 +17,12 @@ export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'
  * the message's menu. */
 export function QuickReactions({ onPick }: { onPick(emoji: string): void }): ReactNode {
   return (
-    <div role="group" aria-label="Reagir" className="flex items-center gap-0.5 px-1 py-0.5">
+    <div role="group" aria-label={t('chat.actions.react')} className="flex items-center gap-0.5 px-1 py-0.5">
       {QUICK_REACTIONS.map((emoji) => (
         <button
           key={emoji}
           type="button"
-          aria-label={`Reagir com ${emoji}`}
+          aria-label={t('chat.reactions.reactWith', { emoji })}
           onClick={() => {
             onPick(emoji)
             closeContextMenu()
@@ -33,8 +34,8 @@ export function QuickReactions({ onPick }: { onPick(emoji: string): void }): Rea
       ))}
       <button
         type="button"
-        aria-label="Mais reações"
-        title="Mais reações"
+        aria-label={t('chat.reactions.more')}
+        title={t('chat.reactions.more')}
         onClick={(e) => {
           pickEmoji(e.currentTarget, onPick)
           closeContextMenu()
@@ -49,11 +50,16 @@ export function QuickReactions({ onPick }: { onPick(emoji: string): void }): Rea
 
 /** "Ana, Bia e mais 2" for a chip's tooltip. */
 export function whoReacted(reaction: Reaction, nameOf: (userId: string) => string, meId: string): string {
-  const names = reaction.user_ids.map((id) => (id === meId ? 'você' : nameOf(id)))
+  const names = reaction.user_ids.map((id) => (id === meId ? t('chat.reactions.you') : nameOf(id)))
   const shown = names.slice(0, 3)
   const more = names.length - shown.length
-  const list = more > 0 ? `${shown.join(', ')} e mais ${more}` : shown.length > 1 ? `${shown.slice(0, -1).join(', ')} e ${shown.at(-1)}` : shown[0]
-  return `${list[0].toLocaleUpperCase('pt-BR')}${list.slice(1)} ${reaction.count > 1 ? 'reagiram' : 'reagiu'}`
+  const list =
+    more > 0
+      ? t('chat.reactions.andMore', { list: shown.join(', '), count: more })
+      : shown.length > 1
+        ? t('chat.reactions.and', { list: shown.slice(0, -1).join(', '), last: shown.at(-1) })
+        : shown[0]
+  return t('chat.reactions.reacted', { who: `${list[0].toLocaleUpperCase(currentLocale())}${list.slice(1)}`, count: reaction.count })
 }
 
 /**
@@ -85,7 +91,7 @@ export function ReactionChips({
     if (!onRemove || !others.length) return undefined
     return contextMenu(() => (
       <>
-        <Label>Remover reação</Label>
+        <Label>{t('chat.reactions.remove')}</Label>
         {others.map((id) => (
           <Item key={id} icon={X} label={nameOf(id)} danger onClick={() => onRemove(reaction.emoji, id)} />
         ))}
@@ -119,8 +125,8 @@ export function ReactionChips({
       {canAdd && reactions.length < MAX_REACTIONS && (
         <button
           type="button"
-          aria-label="Adicionar reação"
-          title="Adicionar reação"
+          aria-label={t('chat.reactions.add')}
+          title={t('chat.reactions.add')}
           onClick={(e) => pickEmoji(e.currentTarget, (emoji) => onReact(emoji, true))}
           className="flex h-7 items-center rounded-full border border-line px-2 text-fg-subtle hover:border-fg-subtle hover:text-fg"
         >
