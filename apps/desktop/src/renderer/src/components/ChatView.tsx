@@ -47,6 +47,9 @@ import { useVoiceMessage } from './VoiceMessage'
 import { useProfilePopover } from './ProfileCard'
 import { Avatar } from './ui'
 import { userContextMenu } from './UserMenu'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
+import { Trans } from 'react-i18next'
 
 const MAX_LENGTH = 4000
 const MAX_FILES = 10
@@ -55,9 +58,9 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000
 const MAX_FOCUS_PAGES = 5
 const FLASH_MS = 2000
 
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
-const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
+const DAY = { day: 'numeric', month: 'long', year: 'numeric' } as const
+const DATE = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString()
@@ -67,9 +70,9 @@ function formatTimestamp(iso: string): string {
   const date = new Date(iso)
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  if (sameDay(date, new Date())) return `Hoje às ${timeFmt.format(date)}`
-  if (sameDay(date, yesterday)) return `Ontem às ${timeFmt.format(date)}`
-  return `${dateFmt.format(date)} ${timeFmt.format(date)}`
+  if (sameDay(date, new Date())) return t('chat.today', { time: dateFormat(TIME).format(date) })
+  if (sameDay(date, yesterday)) return t('chat.yesterday', { time: dateFormat(TIME).format(date) })
+  return `${dateFormat(DATE).format(date)} ${dateFormat(TIME).format(date)}`
 }
 
 /** Renders text with http(s) links made clickable (they open in the system browser). */
@@ -99,7 +102,7 @@ function ChannelMention({ id }: { id: string }): ReactNode {
   const serverId = useChat((s) => Object.values(s.servers).find((server) => server.channels.some((c) => c.id === id))?.id ?? null)
   const name = useChat((s) => (serverId ? s.servers[serverId]?.channels.find((c) => c.id === id)?.name : undefined))
   const openTab = useNav((s) => s.openTab)
-  if (!serverId || !name) return <span className="font-medium">#canal</span>
+  if (!serverId || !name) return <span className="font-medium">{t('chat.channelPlaceholder')}</span>
   return (
     <button
       type="button"
@@ -127,7 +130,7 @@ function MessageLinkMention({ channelId, messageId }: { channelId: string; messa
       onClick={() => openMessageLink(channelId, messageId)}
       className="rounded-sm bg-accent/15 px-0.5 font-medium text-accent-text hover:underline"
     >
-      {name ? `${name} › mensagem` : inDm ? 'Mensagem da conversa' : 'Mensagem'}
+      {name ? t('chat.messageIn', { name }) : inDm ? t('chat.dmMessage') : t('chat.message')}
     </button>
   )
 }
@@ -201,28 +204,28 @@ export function OfficialBadge({ badgeKey, me }: { badgeKey: string; me: Me }): R
     const keys = withFeatured(all, badgeKey)
     // Three featured already: the editor, to pick which one gives way.
     if (!keys) return useNav.getState().setProfileEditor(true)
-    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, 'Não foi possível destacar.')))
+    saveFeatured(keys).then(setUser, (err) => toast(errorText(err, t('chat.featureFailed'))))
   }
   return (
     <div className="mt-2 flex items-center gap-3 rounded-control border border-line bg-elevated px-3 py-2">
       <BadgeIcon shown={shown} size={72} shine="always" />
       <span className="min-w-0 flex-1 font-display text-lg font-semibold">{badgeTitle(shown)}</span>
       {featured ? (
-        <span className="text-xs font-medium text-fg-muted">Em destaque no perfil</span>
+        <span className="text-xs font-medium text-fg-muted">{t('chat.featured')}</span>
       ) : (
         <button
           type="button"
           onClick={feature}
           className="shrink-0 rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover"
         >
-          Destacar no perfil
+          {t('chat.feature')}
         </button>
       )}
     </div>
   )
 }
 
-const eventTimeFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const EVENT_TIME = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } as const
 // "Entrar na sala" stays while the event can still be going on.
 const EVENT_JOIN_HOURS = 12
 
@@ -235,14 +238,14 @@ function OfficialEvent({ event }: { event: OfficialEventRef }): ReactNode {
   const joinable = !!room && Date.now() < start.getTime() + EVENT_JOIN_HOURS * 60 * 60 * 1000
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-control border border-line bg-elevated px-3 py-2 text-sm">
-      <span className="text-fg-muted">{eventTimeFmt.format(start)}</span>
+      <span className="text-fg-muted">{dateFormat(EVENT_TIME).format(start)}</span>
       {joinable && !inRoom && (
         <button
           type="button"
           onClick={() => void useVoice.getState().join(event.server_id, room.id)}
           className="rounded-control bg-accent px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
         >
-          Entrar na sala
+          {t('chat.joinRoom')}
         </button>
       )}
       {canSeeEvents && (
@@ -251,7 +254,7 @@ function OfficialEvent({ event }: { event: OfficialEventRef }): ReactNode {
           onClick={() => useNav.getState().openAddonItem(event.server_id!, event.channel_id, event.id)}
           className="text-xs font-semibold text-accent-text hover:underline"
         >
-          Ver evento
+          {t('chat.seeEvent')}
         </button>
       )}
     </div>
@@ -336,7 +339,7 @@ export function ChatView({
     [serverMembers, dmMembers]
   )
   const userOf = (id: string): User | undefined => byId.get(id)
-  const displayName = (id: string): string => nameOf?.(id) ?? byId.get(id)?.display_name ?? 'Alguém'
+  const displayName = (id: string): string => nameOf?.(id) ?? byId.get(id)?.display_name ?? t('call.someone')
   const mentionFor =
     (own: boolean) =>
     (username: string): ReactNode => {
@@ -376,7 +379,7 @@ export function ChatView({
     useChat
       .getState()
       .react(message, emoji, on)
-      .catch((err) => toast(err instanceof ApiError && err.status === 422 ? 'Essa mensagem já tem reações demais.' : 'Não foi possível reagir.'))
+      .catch((err) => toast(err instanceof ApiError && err.status === 422 ? t('chat.tooManyReactions') : t('chat.reactFailed')))
   }
   const acceptsFiles = canSend && canAttach
   // Only files brought in from outside the app: dragging its own pictures, tabs or channels over
@@ -476,8 +479,8 @@ export function ChatView({
       {dropping && (
         <div className="pointer-events-none absolute inset-3 z-drawer flex flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-accent bg-main/90 text-center">
           <Paperclip size={28} className="text-accent-text" />
-          <p className="font-semibold">Solte para anexar</p>
-          <p className="text-sm text-fg-muted">Até {MAX_FILES} arquivos por mensagem</p>
+          <p className="font-semibold">{t('chat.dropToAttach')}</p>
+          <p className="text-sm text-fg-muted">{t('chat.maxFiles', { count: MAX_FILES })}</p>
         </div>
       )}
       {/* Never scrolls sideways (3.24 D): long words and links wrap (wrap-anywhere, which unlike
@@ -491,18 +494,18 @@ export function ChatView({
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-fg-muted">
                   <Hash size={36} />
                 </div>
-                <h3 className="mt-3 text-3xl font-bold">Boas-vindas a #{channel.name}!</h3>
-                <p className="mt-1 text-fg-muted">Este é o começo do canal #{channel.name}.</p>
+                <h3 className="mt-3 text-3xl font-bold">{t('chat.welcome', { channel: channel.name })}</h3>
+                <p className="mt-1 text-fg-muted">{t('chat.beginning', { channel: channel.name })}</p>
               </>
             )}
           </div>
         )}
-        {entry?.loading && <p className="py-3 text-center text-sm text-fg-subtle">Carregando mensagens…</p>}
+        {entry?.loading && <p className="py-3 text-center text-sm text-fg-subtle">{t('chat.loadingMessages')}</p>}
         {loadError && (
           <p className="py-3 text-center text-sm text-danger">
-            Não foi possível carregar as mensagens.{' '}
+            {t('chat.loadFailed')}{' '}
             <button type="button" className="underline" onClick={() => loadMessages(channel.id).then(() => setLoadError(false), () => {})}>
-              Tentar de novo
+              {t('common.retry')}
             </button>
           </p>
         )}
@@ -528,7 +531,7 @@ export function ChatView({
               {newDay && (
                 <div className="mx-4 mb-1 mt-5 flex items-center gap-2 text-xs font-semibold text-fg-subtle">
                   <div className="h-px flex-1 bg-line" />
-                  {dayFmt.format(date)}
+                  {dateFormat(DAY).format(date)}
                   <div className="h-px flex-1 bg-line" />
                 </div>
               )}
@@ -539,7 +542,7 @@ export function ChatView({
                   message={message}
                   channelId={channel.id}
                   serverId={channel.server_id}
-                  authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : 'Usuário excluído'}
+                  authorName={message.author ? (nameOf?.(message.author.id) ?? message.author.display_name) : t('chat.deletedUser')}
                   onDelete={message.author?.id === me.id || canModerate ? () => setDeleting(message) : undefined}
                 />
               ) : (
@@ -567,7 +570,7 @@ export function ChatView({
                       onReact={(emoji, on) => react(message, emoji, on)}
                       onRemove={
                         canModerate
-                          ? (emoji, userId) => void useChat.getState().removeReaction(message, emoji, userId).catch(() => toast('Não foi possível remover.'))
+                          ? (emoji, userId) => void useChat.getState().removeReaction(message, emoji, userId).catch(() => toast(t('chat.removeFailed')))
                           : undefined
                       }
                     />
@@ -611,20 +614,20 @@ export function ChatView({
           canAttach={canAttach}
           canStickers={canStickers}
           addFilesRef={addFiles}
-          placeholder={placeholder ?? `Conversar em #${channel.name}`}
+          placeholder={placeholder ?? t('chat.composerPlaceholder', { channel: channel.name })}
         />
       ) : (
         <p className="mx-4 mb-6 shrink-0 rounded-control border border-line bg-elevated px-4 py-2.5 text-sm text-fg-subtle">
-          {readOnlyNote ?? 'Você não tem permissão para enviar mensagens neste canal.'}
+          {readOnlyNote ?? t('chat.readOnly')}
         </p>
       )}
       {profile.popover}
 
       {deleting && (
         <ConfirmModal
-          title="Excluir mensagem"
-          message="Tem certeza? Isso não pode ser desfeito."
-          confirmLabel="Excluir"
+          title={t('chat.deleteTitle')}
+          message={t('chat.deleteConfirm')}
+          confirmLabel={t('common.delete')}
           onConfirm={() => deleteMessage(deleting.id)}
           onClose={() => setDeleting(null)}
         />
@@ -645,17 +648,18 @@ function CallLine({ message, meId }: { message: Message; meId: string }): ReactN
   const call = message.call!
   const join = useVoice((s) => s.join)
   const inIt = useVoice((s) => s.phase !== 'idle' && s.channelId === call.channel_id)
-  const caller = message.author?.id === meId ? 'Você' : (message.author?.display_name ?? 'Alguém')
+  const mine = message.author?.id === meId
+  const caller = mine ? t('call.you') : (message.author?.display_name ?? t('call.someone'))
   const me = call.participants.find((p) => p.user_id === meId)
   const anyoneJoined = call.participants.some((p) => p.user_id !== call.started_by && p.joined_at)
   const missed = !!call.ended_at && !!me?.rung_at && !me.joined_at && !me.declined_at
 
   let text: string
-  if (!call.ended_at) text = `${caller} começou uma chamada`
-  else if (missed) text = `Chamada perdida de ${caller}`
-  else if (me?.declined_at && !me.joined_at) text = `Você recusou uma chamada de ${caller}`
-  else if (!anyoneJoined) text = caller === 'Você' ? 'Você ligou, mas ninguém atendeu' : `${caller} ligou`
-  else text = `${caller} começou uma chamada · ${callDuration(call.started_at, call.ended_at)}`
+  if (!call.ended_at) text = t('chat.callLine.started', { caller })
+  else if (missed) text = t('chat.callLine.missed', { caller })
+  else if (me?.declined_at && !me.joined_at) text = t('chat.callLine.declined', { caller })
+  else if (!anyoneJoined) text = mine ? t('chat.callLine.noAnswerMine') : t('chat.callLine.called', { caller })
+  else text = t('chat.callLine.lasted', { caller, duration: callDuration(call.started_at, call.ended_at) })
 
   const Icon = missed ? PhoneMissed : Phone
   return (
@@ -673,7 +677,7 @@ function CallLine({ message, meId }: { message: Message; meId: string }): ReactN
           onClick={() => void join(null, call.channel_id)}
           className="rounded-control bg-accent px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-hover"
         >
-          Entrar
+          {t('chat.callLine.join')}
         </button>
       )}
     </div>
@@ -732,7 +736,7 @@ function SystemLine({
               onClick={() => focusMessage(channelId, system.message_id!)}
               className="ml-2 font-medium text-accent-text hover:underline"
             >
-              Ver
+              {t('chat.see')}
             </button>
           )}
           <span className="ml-2 text-xs text-fg-subtle">{formatTimestamp(message.created_at)}</span>
@@ -748,7 +752,7 @@ function SystemLine({
       {onDelete && (
         <button
           type="button"
-          aria-label="Excluir"
+          aria-label={t('common.delete')}
           onClick={onDelete}
           className="mt-1.5 rounded-item p-1.5 text-fg-subtle opacity-0 hover:bg-elevated hover:text-danger focus:opacity-100 group-hover:opacity-100"
         >
@@ -803,7 +807,7 @@ function MessageRow({
   authorName?: string | null
 }): ReactNode {
   const author = message.author
-  const name = authorName || (author?.display_name ?? 'Usuário excluído')
+  const name = authorName || (author?.display_name ?? t('chat.deletedUser'))
   const nameColor = useReadableColor(roleNameColor ?? author?.accent_color)
   const openProfile = (e: { currentTarget: Element }): void => {
     if (author) onOpenProfile(author, e.currentTarget)
@@ -824,7 +828,7 @@ function MessageRow({
         {/* Own messages too: the row is mirrored, so the avatar ends up on the right. */}
         <div className="w-9 shrink-0">
           {!grouped && (
-            <button type="button" aria-label={`Perfil de ${name}`} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
+            <button type="button" aria-label={t('chat.profileOf', { name })} disabled={!author} onClick={openProfile} onContextMenu={onAuthorMenu}>
               <Avatar name={name} url={author?.avatar_url} gif={author?.avatar_gif} size={36} shape="rounded" />
             </button>
           )}
@@ -861,7 +865,7 @@ function MessageRow({
               // Just 1 to 3 emojis: big, without the bubble.
               <p title={grouped ? formatTimestamp(message.created_at) : undefined} className="select-text py-0.5 leading-none">
                 <EmojiText text={message.content.trim()} size={44} />
-                {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+                {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">{t('chat.edited')}</span>}
               </p>
             ) : (
               <div
@@ -870,7 +874,7 @@ function MessageRow({
               >
                 <p className="select-text whitespace-pre-wrap wrap-anywhere leading-relaxed text-fg">
                   <Linkified text={message.content} own={own} rich={isOfficialMessage(message)} mention={mention} />
-                  {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">(editada)</span>}
+                  {message.edited_at && <span className="ml-1 text-[11px] text-fg-subtle">{t('chat.edited')}</span>}
                 </p>
               </div>
             ))
@@ -907,11 +911,11 @@ export function receiptMarks(items: Message[], meId: string, peerRead: number | 
 function ReceiptMark({ receipt }: { receipt: Receipt }): ReactNode {
   return receipt === 'seen' ? (
     <span className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-accent">
-      <CheckCheck size={13} aria-hidden /> Vista
+      <CheckCheck size={13} aria-hidden /> {t('chat.seen')}
     </span>
   ) : (
     <span className="mt-0.5 flex items-center gap-1 text-[11px] text-fg-subtle">
-      <Check size={13} aria-hidden /> Enviada
+      <Check size={13} aria-hidden /> {t('chat.sent')}
     </span>
   )
 }
@@ -926,7 +930,7 @@ function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['for
   return (
     <div className={`mt-1 max-w-full border-l-2 border-line pl-3 ${own ? 'self-end' : ''}`}>
       <p className="mb-0.5 flex items-center gap-1 text-xs italic text-fg-subtle">
-        <Forward size={13} /> Encaminhada
+        <Forward size={13} /> {t('chat.forwarded')}
       </p>
       {forwarded.content && (
         <p className="select-text whitespace-pre-wrap wrap-anywhere leading-relaxed text-fg">
@@ -940,7 +944,7 @@ function ForwardedCard({ forwarded, own }: { forwarded: NonNullable<Message['for
           'de uma conversa privada'
         ) : visible ? (
           <button type="button" onClick={() => openMessageLink(source.channel_id, source.message_id)} className="hover:text-fg hover:underline">
-            de #{source.channel_name} · {source.server_name}
+            {t('chat.forwardedFrom', { channel: source.channel_name, server: source.server_name })}
           </button>
         ) : (
           `de #${source.channel_name} · ${source.server_name}`
@@ -980,9 +984,14 @@ function EditBox({ message, onDone }: { message: Message; onDone(): void }): Rea
     <div className="w-full">
       <AutoTextarea autoFocus value={value} onChange={setValue} onKeyDown={onKeyDown} />
       <p className="mt-1 text-xs text-fg-subtle">
-        {error ? <span className="text-danger">Falha ao salvar. </span> : null}
-        Esc para <button type="button" className="text-accent-text hover:underline" onClick={onDone}>cancelar</button> • Enter
-        para <button type="button" className="text-accent-text hover:underline" onClick={save}>salvar</button>
+        <Trans
+          i18nKey="chat.editHint"
+          components={{
+            error: error ? <span className="text-danger" /> : <></>,
+            cancel: <button type="button" className="text-accent-text hover:underline" onClick={onDone} />,
+            save: <button type="button" className="text-accent-text hover:underline" onClick={save} />
+          }}
+        />
       </p>
     </div>
   )
@@ -992,11 +1001,11 @@ let pendingKeys = 0
 
 function uploadError(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 413) return 'Grande demais'
-    if (err.status === 403) return 'Sem permissão'
-    if (err.status === 429) return 'Arquivos demais esperando'
+    if (err.status === 413) return t('chat.upload.tooBig')
+    if (err.status === 403) return t('chat.upload.forbidden')
+    if (err.status === 429) return t('chat.upload.tooMany')
   }
-  return 'Falhou o envio'
+  return t('chat.upload.failed')
 }
 
 /** Pasted screenshots come named "image.png": give them a readable, distinct name. */
@@ -1067,8 +1076,8 @@ function Composer({
   function addFiles(list: File[], named: (f: File) => string = (f) => f.name): void {
     if (!canAttach || !list.length) return
     const room = MAX_FILES - filesRef.current.length
-    if (room <= 0) return setError(`Até ${MAX_FILES} arquivos por mensagem.`)
-    setError(list.length > room ? `Até ${MAX_FILES} arquivos por mensagem.` : null)
+    if (room <= 0) return setError(t('chat.maxFilesError', { count: MAX_FILES }))
+    setError(list.length > room ? t('chat.maxFilesError', { count: MAX_FILES }) : null)
     const added = list.slice(0, room).map((file): PendingFile => {
       const key = `f${++pendingKeys}`
       const name = named(file)
@@ -1109,9 +1118,9 @@ function Composer({
     const content = value.trim()
     const pending = filesRef.current
     if (!content && !pending.length) return
-    if (content.length > MAX_LENGTH) return setError(`Máximo de ${MAX_LENGTH} caracteres.`)
-    if (pending.some((f) => f.status === 'uploading')) return setError('Espere os arquivos terminarem de subir.')
-    if (pending.some((f) => f.status === 'error')) return setError('Remova os arquivos que falharam para enviar.')
+    if (content.length > MAX_LENGTH) return setError(t('chat.maxLength', { count: MAX_LENGTH }))
+    if (pending.some((f) => f.status === 'uploading')) return setError(t('chat.waitUploads'))
+    if (pending.some((f) => f.status === 'error')) return setError(t('chat.removeFailedFiles'))
     setValue('')
     setFiles([])
     setError(null)
@@ -1133,9 +1142,9 @@ function Composer({
       setError(
         err instanceof ApiError && err.status === 403
           ? channel.server_id
-            ? 'Você não tem permissão para enviar mensagens aqui.'
-            : 'Só amigos podem conversar por mensagem direta.'
-          : 'Não foi possível enviar a mensagem.'
+            ? t('chat.noSendHere')
+            : t('chat.friendsOnly')
+          : t('chat.sendFailed')
       )
     }
   }
@@ -1156,8 +1165,8 @@ function Composer({
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 403
-          ? 'Você não tem permissão para enviar mensagens de voz aqui.'
-          : 'Não foi possível enviar a mensagem de voz.'
+          ? t('chat.noVoiceHere')
+          : t('chat.voiceFailed')
       )
     }
   }
@@ -1181,7 +1190,7 @@ function Composer({
       )
       onReplied()
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para enviar GIFs aqui.' : 'Não foi possível enviar o GIF.')
+      setError(err instanceof ApiError && err.status === 403 ? t('chat.noGifHere') : t('chat.gifFailed'))
     }
   }
   const pickerOptions = {
@@ -1196,7 +1205,7 @@ function Composer({
       await useStickers.getState().send(channel.id, sticker, replyTo ?? undefined)
       onReplied()
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 ? 'Você não pode enviar essa figurinha aqui.' : 'Não foi possível enviar a figurinha.')
+      setError(err instanceof ApiError && err.status === 403 ? t('chat.noStickerHere') : t('chat.stickerFailed'))
     }
   }
 
@@ -1230,13 +1239,13 @@ function Composer({
             <button
               type="button"
               data-tour="chat-mais"
-              title={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
-              aria-label={extras.length ? 'Anexar ou criar' : 'Anexar arquivos'}
+              title={extras.length ? t('chat.attachOrCreate') : t('chat.attach')}
+              aria-label={extras.length ? t('chat.attachOrCreate') : t('chat.attach')}
               onClick={(e) => {
                 if (!extras.length) return picker.current?.click()
                 openMenuAt(e.currentTarget, () => (
                   <>
-                    {canAttach && <Item icon={Paperclip} label="Anexar arquivos" onClick={() => picker.current?.click()} />}
+                    {canAttach && <Item icon={Paperclip} label={t('chat.attach')} onClick={() => picker.current?.click()} />}
                     {extras.map(({ key, composer: { icon, label, Dialog } }) => (
                       <Item key={key} icon={icon} label={label} onClick={() => showDialog((close) => <Dialog channel={channel} onClose={close} />)} />
                     ))}
@@ -1278,8 +1287,8 @@ function Composer({
           />
           <button
             type="button"
-            title={canStickers ? 'Emojis e figurinhas' : 'Emojis'}
-            aria-label={canStickers ? 'Emojis e figurinhas' : 'Emojis'}
+            title={canStickers ? t('chat.emojisAndStickers') : t('chat.emojis')}
+            aria-label={canStickers ? t('chat.emojisAndStickers') : t('chat.emojis')}
             onClick={(e) => {
               const el = input.current
               const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
@@ -1292,8 +1301,8 @@ function Composer({
           {gifsOn && (
             <button
               type="button"
-              title="GIFs"
-              aria-label="GIFs"
+              title={t('chat.gifs')}
+              aria-label={t('chat.gifs')}
               onClick={(e) => {
                 const el = input.current
                 const [start, end] = el ? [el.selectionStart, el.selectionEnd] : [value.length, value.length]
@@ -1301,7 +1310,7 @@ function Composer({
               }}
               className="absolute bottom-2.5 right-11 rounded-item border border-current px-1 text-[10px] font-bold leading-4 text-fg-subtle hover:text-fg"
             >
-              GIF
+              {t('chat.gif')}
             </button>
           )}
           {voice.bar}
