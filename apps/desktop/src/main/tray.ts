@@ -16,13 +16,9 @@ import trayTemplate from '../../resources/trayTemplate.png?asset'
 import trayTemplate2x from '../../resources/trayTemplate@2x.png?asset'
 
 import type { TrayCommand, TrayState, TrayStatus } from '../shared/types'
+import { t } from './i18n'
 
-const STATUSES: { value: TrayStatus; label: string }[] = [
-  { value: 'online', label: 'Online' },
-  { value: 'idle', label: 'Ausente' },
-  { value: 'dnd', label: 'Não perturbe' },
-  { value: 'invisible', label: 'Invisível' }
-]
+const STATUSES: readonly TrayStatus[] = ['online', 'idle', 'dnd', 'invisible']
 
 let tray: Tray | null = null
 let state: TrayState = { signedIn: false, muted: false, deafened: false, status: 'online' }
@@ -46,16 +42,16 @@ function icon(): NativeImage {
 }
 
 function menu(): Menu {
-  const items: MenuItemConstructorOptions[] = [{ label: 'Abrir Aureum', click: () => handlers?.open() }]
+  const items: MenuItemConstructorOptions[] = [{ label: t('system.tray.open'), click: () => handlers?.open() }]
   if (state.signedIn) {
     items.push(
       { type: 'separator' },
-      { label: 'Silenciar microfone', type: 'checkbox', checked: state.muted, click: () => handlers?.command({ type: 'mute' }) },
-      { label: 'Ensurdecer', type: 'checkbox', checked: state.deafened, click: () => handlers?.command({ type: 'deafen' }) },
+      { label: t('system.tray.mute'), type: 'checkbox', checked: state.muted, click: () => handlers?.command({ type: 'mute' }) },
+      { label: t('system.tray.deafen'), type: 'checkbox', checked: state.deafened, click: () => handlers?.command({ type: 'deafen' }) },
       {
-        label: 'Status',
-        submenu: STATUSES.map(({ value, label }) => ({
-          label,
+        label: t('system.tray.status'),
+        submenu: STATUSES.map((value) => ({
+          label: t(`system.status.${value}`),
           type: 'radio' as const,
           checked: state.status === value,
           click: () => handlers?.command({ type: 'status', status: value })
@@ -63,14 +59,14 @@ function menu(): Menu {
       }
     )
   }
-  items.push({ type: 'separator' }, { label: 'Sair do Aureum', click: () => handlers?.quit() })
+  items.push({ type: 'separator' }, { label: t('system.tray.quit'), click: () => handlers?.quit() })
   return Menu.buildFromTemplate(items)
 }
 
 export function createTray(h: NonNullable<typeof handlers>): void {
   handlers = h
   tray = new Tray(icon())
-  tray.setToolTip('Aureum Voice')
+  tray.setToolTip(t('system.tray.tooltip'))
   tray.setContextMenu(menu())
   tray.on('click', () => handlers?.open())
 }
@@ -87,7 +83,7 @@ export function setTrayState(next: unknown): void {
     signedIn: s.signedIn === true,
     muted: s.muted === true,
     deafened: s.deafened === true,
-    status: STATUSES.some((x) => x.value === s.status) ? (s.status as TrayStatus) : 'online'
+    status: STATUSES.includes(s.status as TrayStatus) ? (s.status as TrayStatus) : 'online'
   }
   tray?.setContextMenu(menu())
 }

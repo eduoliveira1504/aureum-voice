@@ -18,6 +18,8 @@
  *   in the tray.
  */
 
+import { t } from './i18n'
+
 export const MIN_MS = 1200
 export const MAX_MS = 15_000
 export const CHECK_LIMIT_MS = 10_000
@@ -28,13 +30,14 @@ export const DOWNLOAD_MAX_MS = 5 * 60_000
 export const WAIT_ONLINE_MS = 30_000
 export const RETRY_ONLINE_MS = 3000
 
+/** What the loading screen says, in the app's language at the moment it's said. */
 export const TEXT = {
-  checking: 'Procurando atualizações…',
-  downloading: (percent: number) => `Baixando atualização (${Math.floor(percent)}%)…`,
-  connecting: 'Conectando…',
-  waitingOnline: 'Esperando a conexão…',
-  opening: 'Abrindo o Aureum…',
-  offline: 'Sem conexão, abrindo mesmo assim…'
+  checking: () => t('system.startup.checking'),
+  downloading: (percent: number) => t('system.startup.downloading', { percent: Math.floor(percent) }),
+  connecting: () => t('system.startup.connecting'),
+  waitingOnline: () => t('system.startup.waitingOnline'),
+  opening: () => t('system.startup.opening'),
+  offline: () => t('system.startup.offline')
 } as const
 
 export type UpdatePhase =
@@ -125,7 +128,7 @@ export function createStartup(
   }
   const open = (): void =>
     finish(() => {
-      if (!offline) hooks.status(TEXT.opening)
+      if (!offline) hooks.status(TEXT.opening())
       hooks.open()
     })
   /** Opens once the app is ready and the update question is settled, never before MIN_MS. */
@@ -146,7 +149,7 @@ export function createStartup(
     updateSettled = true
     downloading = false
     waitingOnline = false
-    if (!offline) say(TEXT.connecting)
+    if (!offline) say(TEXT.connecting())
     tryOpen()
   }
   /** A check that doesn't answer in time lets the app open (the updater carries on). */
@@ -156,7 +159,7 @@ export function createStartup(
     })
   }
 
-  say(checkUpdates ? TEXT.checking : TEXT.connecting)
+  say(checkUpdates ? TEXT.checking() : TEXT.connecting())
   setDeadline(MAX_MS)
   if (checkUpdates) limitCheck()
 
@@ -195,12 +198,12 @@ export function createStartup(
           if (phase.offline && !downloading && hooks.retry && Date.now() - start + RETRY_ONLINE_MS < WAIT_ONLINE_MS) {
             // The network may still be coming up (just after the PC started): wait and ask again.
             waitingOnline = true
-            say(TEXT.waitingOnline)
+            say(TEXT.waitingOnline())
             setDeadline(WAIT_ONLINE_MS + CHECK_LIMIT_MS)
             later(RETRY_ONLINE_MS, () => {
               if (done || updateSettled) return
               waitingOnline = false
-              say(TEXT.checking)
+              say(TEXT.checking())
               limitCheck()
               hooks.retry?.()
             })
@@ -208,7 +211,7 @@ export function createStartup(
           }
           if (phase.offline) {
             offline = true
-            say(TEXT.offline)
+            say(TEXT.offline())
           }
           return settleUpdate()
       }
@@ -218,7 +221,7 @@ export function createStartup(
       ready = true
       if (!online && !waitingOnline) {
         offline = true
-        say(TEXT.offline)
+        say(TEXT.offline())
       }
       tryOpen()
     }

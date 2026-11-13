@@ -7,17 +7,21 @@
 
 import enCommon from './locales/en/common.json'
 import enSettings from './locales/en/settings.json'
+import enSystem from './locales/en/system.json'
 import ptCommon from './locales/pt-BR/common.json'
 import ptSettings from './locales/pt-BR/settings.json'
+import ptSystem from './locales/pt-BR/system.json'
 
 export const ptBR = {
   common: ptCommon,
-  settings: ptSettings
+  settings: ptSettings,
+  system: ptSystem
 }
 
 export const en: typeof ptBR = {
   common: enCommon,
-  settings: enSettings
+  settings: enSettings,
+  system: enSystem
 }
 
 export const resources = {

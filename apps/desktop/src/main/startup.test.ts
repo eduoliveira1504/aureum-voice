@@ -28,7 +28,7 @@ describe('loading screen', () => {
 
   it('opens by itself once the app is ready, never before the minimum time', () => {
     const { hooks, startup, texts } = setup(false)
-    expect(texts()).toEqual([TEXT.connecting])
+    expect(texts()).toEqual([TEXT.connecting()])
     vi.advanceTimersByTime(300)
     startup.appReady(true)
     expect(hooks.open).not.toHaveBeenCalled()
@@ -36,7 +36,7 @@ describe('loading screen', () => {
     expect(hooks.open).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(hooks.open).toHaveBeenCalledOnce()
-    expect(texts().at(-1)).toBe(TEXT.opening)
+    expect(texts().at(-1)).toBe(TEXT.opening())
     expect(startup.done).toBe(true)
   })
 
@@ -60,18 +60,18 @@ describe('loading screen', () => {
     startup.appReady(false)
     vi.advanceTimersByTime(MIN_MS)
     expect(hooks.open).toHaveBeenCalledOnce()
-    expect(texts()).toEqual([TEXT.connecting, TEXT.offline])
+    expect(texts()).toEqual([TEXT.connecting(), TEXT.offline()])
   })
 
   it('waits for the update check before opening', () => {
     const { hooks, startup, texts } = setup(true)
-    expect(texts()).toEqual([TEXT.checking])
+    expect(texts()).toEqual([TEXT.checking()])
     startup.appReady(true)
     vi.advanceTimersByTime(2000)
     expect(hooks.open).not.toHaveBeenCalled()
     startup.update({ kind: 'none' })
     expect(hooks.open).toHaveBeenCalledOnce()
-    expect(texts()).toEqual([TEXT.checking, TEXT.connecting, TEXT.opening])
+    expect(texts()).toEqual([TEXT.checking(), TEXT.connecting(), TEXT.opening()])
   })
 
   it('a check past its limit lets the app open', () => {
@@ -100,7 +100,7 @@ describe('loading screen', () => {
     const { hooks, startup, texts } = setup(true)
     startup.update({ kind: 'failed', offline: true })
     startup.appReady(false)
-    expect(texts().at(-1)).toBe(TEXT.waitingOnline)
+    expect(texts().at(-1)).toBe(TEXT.waitingOnline())
     vi.advanceTimersByTime(RETRY_ONLINE_MS)
     expect(hooks.retry).toHaveBeenCalledOnce()
     expect(hooks.open).not.toHaveBeenCalled()
@@ -122,7 +122,7 @@ describe('loading screen', () => {
     vi.advanceTimersByTime(MIN_MS)
     expect(hooks.open).toHaveBeenCalledOnce()
     expect(Date.now() - t0).toBeLessThanOrEqual(WAIT_ONLINE_MS + CHECK_LIMIT_MS + MIN_MS)
-    expect(texts()).toContain(TEXT.offline)
+    expect(texts()).toContain(TEXT.offline())
   })
 
   it('shows the download percentage and restarts into the new version', () => {
@@ -138,7 +138,7 @@ describe('loading screen', () => {
     startup.update({ kind: 'downloaded' })
     expect(hooks.install).toHaveBeenCalledOnce()
     expect(hooks.open).not.toHaveBeenCalled()
-    expect(texts()).toEqual([TEXT.checking, TEXT.downloading(5), TEXT.downloading(40), TEXT.downloading(99)])
+    expect(texts()).toEqual([TEXT.checking(), TEXT.downloading(5), TEXT.downloading(40), TEXT.downloading(99)])
   })
 
   it('a stalled download lets the app open', () => {

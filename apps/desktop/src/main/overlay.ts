@@ -32,6 +32,7 @@ import {
 } from '../shared/overlayWidgets'
 import type { KnownGame, OverlayBounds, OverlayCorner, OverlayPrefs, OverlayPrefsPatch, OverlayState, OverlayWidget } from '../shared/types'
 import { foregroundApp, foregroundBounds, foregroundFillsMonitor, windowApp } from './foregroundApp'
+import { t } from './i18n'
 import { watchCombos } from './keyWatch'
 
 /** The app opens each widget as window.open(url, 'aureum-overlay-<widget>-<n>'), unique so a window
@@ -233,11 +234,11 @@ export async function setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState> 
   if (!patch || typeof patch !== 'object') throw new Error('Invalid preferences')
   for (const key of ['toggleShortcut', 'editShortcut'] as const) {
     if (patch[key] !== undefined && (typeof patch[key] !== 'string' || !isSafeShortcut(patch[key]))) {
-      throw new Error('Esse atalho atrapalharia a digitação ou os jogos. Use Ctrl, Alt ou Shift com uma tecla F (ex.: Ctrl + Shift + F9), ou Ctrl/Alt com uma letra. Insert, Delete, Home, End e Page Up/Down precisam de dois modificadores (Ctrl + Insert é copiar).')
+      throw new Error(t('system.overlay.unsafeShortcut'))
     }
   }
   const next = cleanPrefs(patch, prefs)
-  if (next.toggleShortcut === next.editShortcut) throw new Error('Os dois atalhos precisam ser diferentes.')
+  if (next.toggleShortcut === next.editShortcut) throw new Error(t('system.overlay.sameShortcuts'))
 
   const shortcutsChanged = next.toggleShortcut !== prefs.toggleShortcut || next.editShortcut !== prefs.editShortcut
   if (shortcutsChanged && !shortcutsPaused) {
@@ -248,7 +249,7 @@ export async function setPrefs(patch: OverlayPrefsPatch): Promise<OverlayState> 
     globalShortcut.unregisterAll()
     if (taken.length) {
       registerShortcuts()
-      throw new Error('Esse atalho já está sendo usado por outro programa. Escolha outro.')
+      throw new Error(t('system.overlay.shortcutTaken'))
     }
   }
   prefs = next
@@ -449,14 +450,14 @@ function toggleFromShortcut(): void {
   const key = prefs.toggleShortcut.replace('Control', 'Ctrl')
   if (!prefs.enabled) {
     void setPrefs({ enabled: true }).then(() =>
-      flash(active ? 'Overlay ligado' : 'Overlay ligado · aparece quando você estiver numa chamada')
+      flash(active ? t('system.overlay.on') : t('system.overlay.onOutsideCall'))
     )
   } else if (!active) {
-    flash('O overlay aparece quando você estiver numa chamada')
+    flash(t('system.overlay.onlyInCall'))
   } else {
     hidden = !hidden
     if (hidden && editing) setEditing(false)
-    flash(hidden ? `Overlay escondido · ${key} mostra de novo` : 'Overlay visível')
+    flash(hidden ? t('system.overlay.hidden', { key }) : t('system.overlay.visible'))
   }
 }
 
@@ -580,7 +581,7 @@ export function setEditing(next: boolean): void {
   // Hidden while streaming: edit mode would have nothing to show (Settings says why).
   if (next && sharingHides()) return
   if (next && !anyWidgetOn(prefs.widgets)) {
-    flash('Ligue um widget em Configurações › Overlay')
+    flash(t('system.overlay.noWidget'))
     return
   }
   editing = next

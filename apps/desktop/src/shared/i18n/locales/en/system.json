@@ -1,0 +1,63 @@
+{
+  "tray": {
+    "tooltip": "Aureum Voice",
+    "open": "Open Aureum",
+    "mute": "Mute microphone",
+    "deafen": "Deafen",
+    "status": "Status",
+    "quit": "Quit Aureum"
+  },
+  "status": {
+    "online": "Online",
+    "idle": "Away",
+    "dnd": "Do not disturb",
+    "invisible": "Invisible"
+  },
+  "closeHint": {
+    "macTitle": "Aureum is still open",
+    "macBody": "To quit for good, use Cmd+Q or Quit Aureum in the menu bar icon.",
+    "title": "Aureum is still running in the tray",
+    "body": "To quit for good, use Quit Aureum in the tray icon."
+  },
+  "macMenu": {
+    "about": "About Aureum Voice",
+    "reportProblem": "Report a problem…",
+    "hide": "Hide Aureum Voice",
+    "hideOthers": "Hide Others",
+    "unhide": "Show All",
+    "quit": "Quit Aureum Voice",
+    "edit": "Edit",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "pasteAndMatchStyle": "Paste and Match Style",
+    "selectAll": "Select All",
+    "window": "Window",
+    "minimize": "Minimize",
+    "zoom": "Zoom",
+    "close": "Close Window",
+    "fullScreen": "Full Screen",
+    "front": "Bring All to Front"
+  },
+  "startup": {
+    "checking": "Checking for updates…",
+    "downloading": "Downloading update ({{percent}}%)…",
+    "connecting": "Connecting…",
+    "waitingOnline": "Waiting for the connection…",
+    "opening": "Opening Aureum…",
+    "offline": "No connection, opening anyway…"
+  },
+  "overlay": {
+    "unsafeShortcut": "That shortcut would get in the way of typing or games. Use Ctrl, Alt or Shift with an F key (e.g. Ctrl + Shift + F9), or Ctrl/Alt with a letter. Insert, Delete, Home, End and Page Up/Down need two modifiers (Ctrl + Insert is copy).",
+    "sameShortcuts": "The two shortcuts must be different.",
+    "shortcutTaken": "Another program is already using that shortcut. Pick another one.",
+    "on": "Overlay on",
+    "onOutsideCall": "Overlay on · shows up when you're in a call",
+    "onlyInCall": "The overlay shows up when you're in a call",
+    "hidden": "Overlay hidden · {{key}} shows it again",
+    "visible": "Overlay visible",
+    "noWidget": "Turn on a widget in Settings › Overlay"
+  }
+}

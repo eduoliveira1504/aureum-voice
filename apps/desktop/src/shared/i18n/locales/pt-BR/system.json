@@ -1,0 +1,63 @@
+{
+  "tray": {
+    "tooltip": "Aureum Voice",
+    "open": "Abrir Aureum",
+    "mute": "Silenciar microfone",
+    "deafen": "Ensurdecer",
+    "status": "Status",
+    "quit": "Sair do Aureum"
+  },
+  "status": {
+    "online": "Online",
+    "idle": "Ausente",
+    "dnd": "Não perturbe",
+    "invisible": "Invisível"
+  },
+  "closeHint": {
+    "macTitle": "O Aureum continua aberto",
+    "macBody": "Para fechar de vez, use Cmd+Q ou Sair do Aureum no ícone da barra de menus.",
+    "title": "O Aureum continua rodando na bandeja",
+    "body": "Para fechar de vez, use Sair do Aureum no ícone da bandeja."
+  },
+  "macMenu": {
+    "about": "Sobre o Aureum Voice",
+    "reportProblem": "Reportar problema…",
+    "hide": "Ocultar Aureum Voice",
+    "hideOthers": "Ocultar outros",
+    "unhide": "Mostrar tudo",
+    "quit": "Sair do Aureum Voice",
+    "edit": "Editar",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "cut": "Recortar",
+    "copy": "Copiar",
+    "paste": "Colar",
+    "pasteAndMatchStyle": "Colar sem formatação",
+    "selectAll": "Selecionar tudo",
+    "window": "Janela",
+    "minimize": "Minimizar",
+    "zoom": "Zoom",
+    "close": "Fechar janela",
+    "fullScreen": "Tela cheia",
+    "front": "Trazer tudo para a frente"
+  },
+  "startup": {
+    "checking": "Procurando atualizações…",
+    "downloading": "Baixando atualização ({{percent}}%)…",
+    "connecting": "Conectando…",
+    "waitingOnline": "Esperando a conexão…",
+    "opening": "Abrindo o Aureum…",
+    "offline": "Sem conexão, abrindo mesmo assim…"
+  },
+  "overlay": {
+    "unsafeShortcut": "Esse atalho atrapalharia a digitação ou os jogos. Use Ctrl, Alt ou Shift com uma tecla F (ex.: Ctrl + Shift + F9), ou Ctrl/Alt com uma letra. Insert, Delete, Home, End e Page Up/Down precisam de dois modificadores (Ctrl + Insert é copiar).",
+    "sameShortcuts": "Os dois atalhos precisam ser diferentes.",
+    "shortcutTaken": "Esse atalho já está sendo usado por outro programa. Escolha outro.",
+    "on": "Overlay ligado",
+    "onOutsideCall": "Overlay ligado · aparece quando você estiver numa chamada",
+    "onlyInCall": "O overlay aparece quando você estiver numa chamada",
+    "hidden": "Overlay escondido · {{key}} mostra de novo",
+    "visible": "Overlay visível",
+    "noWidget": "Ligue um widget em Configurações › Overlay"
+  }
+}

@@ -18,7 +18,7 @@ import {
 import appIcon from '../../build/icon.ico?asset'
 import { isCallFrame } from '../shared/callWindow'
 import { isOverlayWidget } from '../shared/overlayWidgets'
-import { isLanguagePreference } from '../shared/i18n/locales'
+import { isLanguagePreference, systemLocale, type Locale } from '../shared/i18n/locales'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefsPatch, OverlayWidget, ShareSource, TrayCommand } from '../shared/types'
 import { currentApiUrl } from './apiUrl'
 import { adoptPopup, protectFromCapture } from './appWindows'
@@ -27,7 +27,7 @@ import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as images from './images'
-import { applyLanguage, systemLanguage } from './i18n'
+import { applyLanguage, t } from './i18n'
 import { installMacMenu } from './macMenu'
 import { openAccessSettings, requestAccess } from './mediaAccess'
 import { macSupportsSystemAudio } from '../shared/mediaAccess'
@@ -119,8 +119,16 @@ async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> 
   await writeFile(settingsPath(), JSON.stringify(next, null, 2))
   cachedSettings = next
   if (patch.openAtLogin !== undefined) applyLoginItem(next.openAtLogin)
-  if (patch.language !== undefined && applyLanguage(next.language)) refreshMenus()
+  if (patch.language !== undefined && applyLanguage(next.language, systemLanguage())) refreshMenus()
   return next
+}
+
+let system: Locale | null = null
+
+/** The OS's language, read once (Electron gives the user's preferred languages in order). */
+function systemLanguage(): Locale {
+  system ??= systemLocale(app.getPreferredSystemLanguages())
+  return system
 }
 
 /** The tray and the Mac menu are built once: rebuilt when the language changes. */
@@ -387,9 +395,9 @@ function createWindow(): void {
     mainWindow?.hide()
     if (!cachedSettings.trayHintShown) {
       if (IS_MAC) {
-        notify('O Aureum continua aberto', 'Para fechar de vez, use Cmd+Q ou Sair do Aureum no ícone da barra de menus.')
+        notify(t('system.closeHint.macTitle'), t('system.closeHint.macBody'))
       } else {
-        notify('O Aureum continua rodando na bandeja', 'Para fechar de vez, use Sair do Aureum no ícone da bandeja.')
+        notify(t('system.closeHint.title'), t('system.closeHint.body'))
       }
       void writeSettings({ trayHintShown: true })
     }
@@ -590,7 +598,7 @@ if (!app.requestSingleInstanceLock()) {
     )
     installDisplayMediaHandler(isAppWindow)
     const settings = await readSettings()
-    applyLanguage(settings.language)
+    applyLanguage(settings.language, systemLanguage())
     if (IS_MAC) installMacMenu({ reportProblem, quit: quitApp })
     applyLoginItem(settings.openAtLogin)
     initUpdaterLog(join(app.getPath('userData'), 'logs'))
