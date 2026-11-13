@@ -1,5 +1,6 @@
 /** Types shared by the main process, the preload script and the renderer. */
 
+import type { LanguagePreference, Locale } from './i18n/locales'
 import type { MediaAccess, MediaKind } from './mediaAccess'
 
 export interface AppSettings {
@@ -13,6 +14,8 @@ export interface AppSettings {
   loginStart: LoginStart
   /** The "still running in the tray" hint was shown once already. */
   trayHintShown: boolean
+  /** The app's language on this computer (block 4.2.6). */
+  language: LanguagePreference
 }
 
 export type LoginStart = 'window' | 'tray'
@@ -178,6 +181,8 @@ export interface AppInfo {
 export interface AureumBridge {
   /** The OS the app runs on ('win32', 'darwin'...), known synchronously (block 3.21). */
   platform: string
+  /** The language chosen on this computer and the OS's one, known before the first render. */
+  i18n: { preference: LanguagePreference; system: Locale }
   session: {
     /** Refresh token, decrypted from OS-protected storage. */
     getRefreshToken(): Promise<string | null>

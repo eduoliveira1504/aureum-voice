@@ -1,4 +1,5 @@
 import './main.css'
+import './lib/i18n' // the language, before anything renders text
 import './store/appearance' // applies the cached theme before the first render
 
 import { LucideProvider } from 'lucide-react'

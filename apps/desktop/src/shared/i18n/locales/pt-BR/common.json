@@ -1,0 +1,22 @@
+{
+  "appName": "Aureum Voice",
+  "cancel": "Cancelar",
+  "close": "Fechar",
+  "save": "Salvar",
+  "saving": "Salvando…",
+  "loading": "Carregando…",
+  "confirm": "Confirmar",
+  "delete": "Excluir",
+  "remove": "Remover",
+  "edit": "Editar",
+  "back": "Voltar",
+  "retry": "Tentar de novo",
+  "copy": "Copiar",
+  "copied": "Copiado",
+  "search": "Buscar",
+  "language": {
+    "system": "Seguir o sistema",
+    "pt-BR": "Português (Brasil)",
+    "en": "English"
+  }
+}

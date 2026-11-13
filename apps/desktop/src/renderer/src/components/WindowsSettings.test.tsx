@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AppSettings } from '../../../shared/types'
 import { WindowsSettings } from './WindowsSettings'
 
-const base: AppSettings = { apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true }
+const base: AppSettings = { apiUrl: 'http://test', closeToTray: true, openAtLogin: true, loginStart: 'window', trayHintShown: true, language: 'pt-BR' }
 
 function mockSettings(initial: AppSettings) {
   let current = initial

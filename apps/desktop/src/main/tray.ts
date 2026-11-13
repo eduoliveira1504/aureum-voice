@@ -75,6 +75,11 @@ export function createTray(h: NonNullable<typeof handlers>): void {
   tray.on('click', () => handlers?.open())
 }
 
+/** Rebuilds the menu (its texts follow the app's language). */
+export function refreshTray(): void {
+  tray?.setContextMenu(menu())
+}
+
 export function setTrayState(next: unknown): void {
   if (!next || typeof next !== 'object') throw new Error('Invalid tray state')
   const s = next as Partial<TrayState>

@@ -4,6 +4,8 @@ import type { AureumBridge, OverlayState, TrayCommand, UpdateState } from '../sh
 
 const bridge: AureumBridge = {
   platform: process.platform,
+  // Synchronous on purpose: the first render already needs the language.
+  i18n: ipcRenderer.sendSync('i18n:get'),
   session: {
     getRefreshToken: () => ipcRenderer.invoke('session:get-refresh-token'),
     setRefreshToken: (token) => ipcRenderer.invoke('session:set-refresh-token', token),

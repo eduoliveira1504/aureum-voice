@@ -18,6 +18,7 @@ import {
 import appIcon from '../../build/icon.ico?asset'
 import { isCallFrame } from '../shared/callWindow'
 import { isOverlayWidget } from '../shared/overlayWidgets'
+import { isLanguagePreference } from '../shared/i18n/locales'
 import type { AppInfo, AppSettings, GamePrefs, OverlayCorner, OverlayPrefsPatch, OverlayWidget, ShareSource, TrayCommand } from '../shared/types'
 import { currentApiUrl } from './apiUrl'
 import { adoptPopup, protectFromCapture } from './appWindows'
@@ -26,13 +27,14 @@ import * as callWindow from './callWindow'
 import { currentGame, getPrefs, knownGames, runningApps, setPrefs, startGameDetection } from './games'
 import { captureMainConsole, captureWindowConsole, recentLogs } from './logs'
 import * as images from './images'
+import { applyLanguage, systemLanguage } from './i18n'
 import { installMacMenu } from './macMenu'
 import { openAccessSettings, requestAccess } from './mediaAccess'
 import { macSupportsSystemAudio } from '../shared/mediaAccess'
 import * as overlay from './overlay'
 import { watchPushToTalk } from './pushToTalk'
 import { createStartup, startsInTray, type Startup } from './startup'
-import { createTray, destroyTray, notify, setTrayState } from './tray'
+import { createTray, destroyTray, notify, refreshTray, setTrayState } from './tray'
 import { checkForUpdatesNow, getUpdateState, installUpdate, startUpdater } from './updater'
 import { initUpdaterLog, updaterLogTail } from './updaterLog'
 
@@ -49,7 +51,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   closeToTray: true,
   openAtLogin: true,
   loginStart: 'window',
-  trayHintShown: false
+  trayHintShown: false,
+  language: 'system'
 }
 
 // AUREUM_PROFILE=<name> runs the app with separate data (session, settings), so two
@@ -111,11 +114,19 @@ async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> 
     if (patch[key] !== undefined) next[key] = patch[key] === true
   }
   if (patch.loginStart !== undefined) next.loginStart = patch.loginStart === 'tray' ? 'tray' : 'window'
+  if (patch.language !== undefined && isLanguagePreference(patch.language)) next.language = patch.language
   await mkdir(app.getPath('userData'), { recursive: true })
   await writeFile(settingsPath(), JSON.stringify(next, null, 2))
   cachedSettings = next
   if (patch.openAtLogin !== undefined) applyLoginItem(next.openAtLogin)
+  if (patch.language !== undefined && applyLanguage(next.language)) refreshMenus()
   return next
+}
+
+/** The tray and the Mac menu are built once: rebuilt when the language changes. */
+function refreshMenus(): void {
+  refreshTray()
+  if (IS_MAC) installMacMenu({ reportProblem, quit: quitApp })
 }
 
 /** Registers (or not) the app to start with Windows. --login marks those launches; whether they
@@ -167,6 +178,13 @@ handle('session:get-refresh-token', getRefreshToken)
 handle('session:set-refresh-token', setRefreshToken)
 handle('session:is-persistent', () => safeStorage.isEncryptionAvailable())
 handle('settings:get', readSettings)
+// The preload asks this synchronously, before the window's first render (block 4.2.6).
+ipcMain.on('i18n:get', (event) => {
+  event.returnValue =
+    mainWindow && event.sender === mainWindow.webContents
+      ? { preference: cachedSettings.language, system: systemLanguage() }
+      : { preference: 'system', system: 'pt-BR' }
+})
 handle('settings:set', writeSettings)
 handle('attachments:get', attachmentCache.get)
 handle('attachments:put', attachmentCache.put)
@@ -562,7 +580,6 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     // Same as electron-builder's appId, so the taskbar groups the window with the shortcut's icon.
     if (!IS_MAC) app.setAppUserModelId('com.aureum.voice')
-    if (IS_MAC) installMacMenu({ reportProblem, quit: quitApp })
     const isAppWindow = (contents: Electron.WebContents | null): boolean =>
       !!contents && contents === mainWindow?.webContents
     session.defaultSession.setPermissionRequestHandler((contents, permission, callback) =>
@@ -573,6 +590,8 @@ if (!app.requestSingleInstanceLock()) {
     )
     installDisplayMediaHandler(isAppWindow)
     const settings = await readSettings()
+    applyLanguage(settings.language)
+    if (IS_MAC) installMacMenu({ reportProblem, quit: quitApp })
     applyLoginItem(settings.openAtLogin)
     initUpdaterLog(join(app.getPath('userData'), 'logs'))
     startWithSplash(startsInTray(process.argv, settings.loginStart) || (await takeTrayFlag()))
