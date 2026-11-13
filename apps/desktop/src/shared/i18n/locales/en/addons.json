@@ -277,5 +277,81 @@
     "close": "Close poll",
     "votesTitle": "Votes",
     "nobody": "Nobody yet."
+  },
+  "whiteboard": {
+    "name": "Whiteboard",
+    "description": "Freehand drawing, shapes, notes and images, together and live.",
+    "announces": {
+      "label": "Announce new boards in",
+      "hint": "When someone creates a board, a line shows up in that text channel.",
+      "warning": "People without access to this channel will see the boards' names in that channel."
+    },
+    "someone": "Someone",
+    "someoneLower": "someone",
+    "status": {
+      "saved": "Saved",
+      "saving": "Saving…",
+      "offline": "No connection, trying again…",
+      "full": "Board full (5 MB): delete something to save",
+      "image-failed": "An image wasn't uploaded (up to 10 MB, PNG, JPG, GIF or WebP)"
+    },
+    "editor": {
+      "copyFailed": "Couldn't copy the image.",
+      "backgroundFailed": "Couldn't change the background.",
+      "copyImage": "Copy as image",
+      "plain": "Plain background",
+      "grid": "Grid background",
+      "versions": "Versions"
+    },
+    "summary": {
+      "empty": "No boards yet."
+    },
+    "versions": {
+      "loadFailed": "Couldn't load the versions.",
+      "showFailed": "Couldn't show that version.",
+      "forbidden": "You don't have permission to edit this board.",
+      "restoreFailed": "Couldn't restore.",
+      "title": "Versions",
+      "subtitle": "One per editing session, the 50 most recent.",
+      "none": "No versions yet. They show up after a few minutes of editing.",
+      "preview": "Version preview",
+      "emptyBoard": "Empty board in this version.",
+      "restoring": "Restoring…",
+      "restore": "Restore this version"
+    },
+    "panel": {
+      "forbidden": "You don't have permission for that.",
+      "saveFailed": "Couldn't save the change.",
+      "loadFailed": "Couldn't load the boards.",
+      "deleted": "That board was deleted.",
+      "loading": "Loading the boards…",
+      "readOnly": "Read only",
+      "new": "New board",
+      "name": "Board name",
+      "create": "Create",
+      "emptyEdit": "No boards yet. Create one to draw together with the group.",
+      "empty": "No boards yet.",
+      "archived": "Archived ({{count}})",
+      "options": "Board options",
+      "rename": "Rename",
+      "duplicate": "Duplicate",
+      "unarchive": "Unarchive",
+      "archive": "Archive",
+      "delete": "Delete",
+      "deleteTitle": "Delete board",
+      "deleteConfirm": "“{{name}}” and its versions disappear for everyone. This can't be undone. To just take it off the list, use Archive.",
+      "openFailed": "Couldn't open the board.",
+      "boards": "Boards",
+      "archivedTag": "Archived",
+      "opening": "Opening the board…"
+    },
+    "edited": {
+      "justNow": "just now",
+      "minutes": "{{count}} min ago",
+      "hours": "{{count}} h ago",
+      "yesterday": "yesterday",
+      "on": "on {{date}}",
+      "by": "edited by {{who}} {{when}}"
+    }
   }
 }

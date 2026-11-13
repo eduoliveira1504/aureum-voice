@@ -6,6 +6,8 @@ import { FormError, Modal, SecondaryButton } from '../../components/Modal'
 import { PrimaryButton } from '../../components/ui'
 import { api, ApiError, type User } from '../../lib/api'
 import { whiteboardPath, type BoardScene, type SceneElement } from './store'
+import { dateFormat } from '../../lib/format'
+import { t } from '../../lib/i18n'
 
 interface Version {
   id: number
@@ -13,7 +15,7 @@ interface Version {
   created_at: string
 }
 
-const when = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const WHEN = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } as const
 
 /** The board's saved versions (one per stretch of editing): look at one, then bring it back. */
 export function VersionsModal({
@@ -42,7 +44,7 @@ export function VersionsModal({
         setVersions(list)
         setPicked(list[0]?.id ?? null)
       })
-      .catch(() => setError('Não foi possível carregar as versões.'))
+      .catch(() => setError(t('addons.whiteboard.versions.loadFailed')))
   }, [path])
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export function VersionsModal({
       .then((blob) => {
         if (alive) setPreview(blob ? (url = URL.createObjectURL(blob)) : '')
       })
-      .catch(() => alive && setError('Não foi possível mostrar essa versão.'))
+      .catch(() => alive && setError(t('addons.whiteboard.versions.showFailed')))
     return () => {
       alive = false
       if (url) URL.revokeObjectURL(url)
@@ -81,16 +83,16 @@ export function VersionsModal({
       onRestored(restored.elements)
       onClose()
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para editar este quadro.' : 'Não foi possível restaurar.')
+      setError(err instanceof ApiError && err.status === 403 ? t('addons.whiteboard.versions.forbidden') : t('addons.whiteboard.versions.restoreFailed'))
       setBusy(false)
     }
   }
 
   return (
-    <Modal title="Versões" subtitle="Uma por trecho de edição, as 50 mais recentes." wide onClose={onClose}>
+    <Modal title={t('addons.whiteboard.versions.title')} subtitle={t('addons.whiteboard.versions.subtitle')} wide onClose={onClose}>
       <FormError message={error} />
       {versions && !versions.length && (
-        <p className="py-8 text-center text-sm text-fg-subtle">Ainda não há versões. Elas aparecem depois de uns minutos de edição.</p>
+        <p className="py-8 text-center text-sm text-fg-subtle">{t('addons.whiteboard.versions.none')}</p>
       )}
       {!!versions?.length && (
         <div className="flex min-h-0 gap-4">
@@ -102,19 +104,19 @@ export function VersionsModal({
                   onClick={() => setPicked(v.id)}
                   className={`w-full rounded-item px-2.5 py-1.5 text-left text-sm ${picked === v.id ? 'bg-accent text-on-accent' : 'text-fg-muted hover:bg-elevated'}`}
                 >
-                  <span className="block font-medium">{when.format(new Date(v.created_at))}</span>
-                  <span className="block truncate text-xs opacity-80">{(v.author_id && people.get(v.author_id)?.display_name) ?? 'Alguém'}</span>
+                  <span className="block font-medium">{dateFormat(WHEN).format(new Date(v.created_at))}</span>
+                  <span className="block truncate text-xs opacity-80">{(v.author_id && people.get(v.author_id)?.display_name) ?? t('addons.whiteboard.someone')}</span>
                 </button>
               </li>
             ))}
           </ul>
           <div className="flex min-h-64 min-w-0 flex-1 items-center justify-center rounded-control border border-line bg-main p-2">
             {preview === null ? (
-              <span className="text-sm text-fg-subtle">Carregando…</span>
+              <span className="text-sm text-fg-subtle">{t('common.loading')}</span>
             ) : preview ? (
-              <img src={preview} alt="Prévia da versão" className="wb-picture max-h-96 max-w-full object-contain" />
+              <img src={preview} alt={t('addons.whiteboard.versions.preview')} className="wb-picture max-h-96 max-w-full object-contain" />
             ) : (
-              <span className="text-sm text-fg-subtle">Quadro vazio nessa versão.</span>
+              <span className="text-sm text-fg-subtle">{t('addons.whiteboard.versions.emptyBoard')}</span>
             )}
           </div>
         </div>
@@ -122,13 +124,13 @@ export function VersionsModal({
       <div className="mt-5 flex justify-end gap-3">
         <div className="w-32">
           <SecondaryButton type="button" onClick={onClose}>
-            Fechar
+            {t('common.close')}
           </SecondaryButton>
         </div>
         {board.can_edit && !!versions?.length && (
           <div className="w-56">
             <PrimaryButton type="button" disabled={busy || picked === null} onClick={() => void restore()}>
-              {busy ? 'Restaurando…' : 'Restaurar esta versão'}
+              {busy ? t('addons.whiteboard.versions.restoring') : t('addons.whiteboard.versions.restore')}
             </PrimaryButton>
           </div>
         )}

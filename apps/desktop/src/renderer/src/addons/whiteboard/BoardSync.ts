@@ -15,6 +15,7 @@ import { api, ApiError, fetchMedia, mediaUrl, uploadFile, type User } from '../.
 import { sendRealtime, type ServerEvent } from '../../lib/realtime'
 import { whiteboardPath, type BoardScene, type SceneElement } from './store'
 import { blobToDataUrl, dataUrlToBlob, followView, markKnown, takeChanged, type Viewport } from './sync'
+import { t } from '../../lib/i18n'
 
 /** Saving: after a pause this long, and at least this often while drawing nonstop. */
 const SAVE_DELAY = 1000
@@ -356,7 +357,7 @@ export class BoardSync {
     const collaborator: Collaborator = {
       id: data.user_id,
       socketId: origin as SocketId,
-      username: user?.display_name ?? 'Alguém',
+      username: user?.display_name ?? t('addons.whiteboard.someone'),
       avatarUrl: mediaUrl(user?.avatar_url),
       color: { background: color, stroke: color },
       pointer: { x: data.x, y: data.y, tool: data.tool },

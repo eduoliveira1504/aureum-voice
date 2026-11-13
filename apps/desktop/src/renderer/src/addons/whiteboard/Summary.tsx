@@ -4,6 +4,7 @@ import { serverPeople } from '../../lib/members'
 import type { AddonViewProps } from '../types'
 import { BoardThumbnail, editedLabel } from './bits'
 import { useWhiteboard } from './store'
+import { t } from '../../lib/i18n'
 
 /** The channel's card on the server overview: the board edited last, with its picture. */
 export function WhiteboardSummary({ server, channel }: AddonViewProps): ReactNode {
@@ -13,10 +14,10 @@ export function WhiteboardSummary({ server, channel }: AddonViewProps): ReactNod
     if (!useWhiteboard.getState().lists[channel.id]) void useWhiteboard.getState().load(channel.id).catch(() => {})
   }, [channel.id])
 
-  if (!list) return <span className="text-sm text-fg-subtle">Carregando…</span>
+  if (!list) return <span className="text-sm text-fg-subtle">{t('common.loading')}</span>
   // Newest first already.
   const last = list.boards.find((b) => !b.archived_at)
-  if (!last) return <span className="text-sm text-fg-subtle">Nenhum quadro ainda.</span>
+  if (!last) return <span className="text-sm text-fg-subtle">{t('addons.whiteboard.summary.empty')}</span>
   return (
     <span className="flex items-center gap-3">
       <BoardThumbnail channelId={channel.id} board={last} className="h-16 w-24 shrink-0 rounded-item border border-line" />

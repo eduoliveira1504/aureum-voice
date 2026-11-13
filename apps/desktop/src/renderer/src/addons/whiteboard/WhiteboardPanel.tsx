@@ -10,20 +10,14 @@ import type { AddonViewProps } from '../types'
 import { BoardThumbnail, editedLabel } from './bits'
 import type { SyncStatus } from './BoardSync'
 import { useWhiteboard, whiteboardPath, type BoardScene, type BoardSummary } from './store'
+import { t } from '../../lib/i18n'
 
 // Excalidraw is most of the addon's weight: loaded when a board opens.
 const Editor = lazy(() => import('./Editor'))
 
-const STATUS_LABEL: Record<SyncStatus, string> = {
-  saved: 'Salvo',
-  saving: 'Salvando…',
-  offline: 'Sem conexão, tentando de novo…',
-  full: 'Quadro cheio (5 MB): apague algo para salvar',
-  'image-failed': 'Uma imagem não foi enviada (até 10 MB, PNG, JPG, GIF ou WebP)'
-}
 
 const failure = (err: unknown): string =>
-  err instanceof ApiError && err.status === 403 ? 'Você não tem permissão para isso.' : 'Não foi possível salvar a mudança.'
+  err instanceof ApiError && err.status === 403 ? t('addons.whiteboard.panel.forbidden') : t('addons.whiteboard.panel.saveFailed')
 
 /** Several boards per channel: the list, and the board open in place of it. */
 export function WhiteboardPanel({ server, channel, me, perms, openItem, onItemOpened }: AddonViewProps): ReactNode {
@@ -37,7 +31,7 @@ export function WhiteboardPanel({ server, channel, me, perms, openItem, onItemOp
     void useWhiteboard
       .getState()
       .load(channel.id)
-      .catch(() => setError('Não foi possível carregar os quadros.'))
+      .catch(() => setError(t('addons.whiteboard.panel.loadFailed')))
   }, [channel.id])
 
   // A board picked outside (the overview's card).
@@ -52,14 +46,14 @@ export function WhiteboardPanel({ server, channel, me, perms, openItem, onItemOp
   useEffect(() => {
     if (!gone) return
     setOpen(null)
-    setError('Esse quadro foi excluído.')
+    setError(t('addons.whiteboard.panel.deleted'))
   }, [gone])
   // Deleting is for whoever created the board, or who can manage addons; the others archive.
   const canDelete = (board: BoardSummary): boolean => board.created_by === me.id || has(perms, Perm.MANAGE_ADDONS)
 
   if (open && !gone) return <BoardView key={open} channelId={channel.id} boardId={open} people={people} onBack={() => setOpen(null)} />
   if (!list) {
-    return <div className="flex flex-1 items-center justify-center bg-main text-sm text-fg-subtle">{error ?? 'Carregando os quadros…'}</div>
+    return <div className="flex flex-1 items-center justify-center bg-main text-sm text-fg-subtle">{error ?? t('addons.whiteboard.panel.loading')}</div>
   }
   return (
     <BoardList
@@ -115,7 +109,7 @@ function BoardList({
         <span className="text-fg-muted">
           {active.length} {active.length === 1 ? 'quadro' : 'quadros'}
         </span>
-        {!canEdit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">Somente leitura</span>}
+        {!canEdit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">{t('addons.whiteboard.panel.readOnly')}</span>}
         {error && (
           <span role="alert" className="text-danger">
             {error}
@@ -127,16 +121,16 @@ function BoardList({
             onClick={() => setCreating(true)}
             className="ml-auto flex items-center gap-1.5 rounded-control bg-accent px-3 py-1.5 font-semibold text-on-accent hover:bg-accent-hover"
           >
-            <Plus size={16} /> Novo quadro
+            <Plus size={16} /> {t('addons.whiteboard.panel.new')}
           </button>
         )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {creating && <NameForm initial="" placeholder="Nome do quadro" action="Criar" onSubmit={create} onCancel={() => setCreating(false)} />}
+        {creating && <NameForm initial="" placeholder={t('addons.whiteboard.panel.name')} action={t('addons.whiteboard.panel.create')} onSubmit={create} onCancel={() => setCreating(false)} />}
         {!active.length && !creating && (
           <p className="py-10 text-center text-sm text-fg-subtle">
-            {canEdit ? 'Nenhum quadro ainda. Crie um para desenhar junto com o grupo.' : 'Nenhum quadro ainda.'}
+            {canEdit ? t('addons.whiteboard.panel.emptyEdit') : t('addons.whiteboard.panel.empty')}
           </p>
         )}
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
@@ -160,7 +154,7 @@ function BoardList({
               onClick={() => setShowArchived((s) => !s)}
               className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg"
             >
-              {showArchived ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Arquivados ({archived.length})
+              {showArchived ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('addons.whiteboard.panel.archived', { count: archived.length })}
             </button>
             {showArchived && (
               <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 opacity-80">
@@ -221,8 +215,8 @@ function BoardCard({
       <li>
         <NameForm
           initial={board.name}
-          placeholder="Nome do quadro"
-          action="Salvar"
+          placeholder={t('addons.whiteboard.panel.name')}
+          action={t('common.save')}
           onSubmit={async (name) => {
             setRenaming(false)
             if (name !== board.name) run(() => store.update(channelId, board.id, { name }))
@@ -246,7 +240,7 @@ function BoardCard({
         <div ref={ref} className="absolute right-2 top-2">
           <button
             type="button"
-            aria-label="Opções do quadro"
+            aria-label={t('addons.whiteboard.panel.options')}
             onClick={() => setMenu((m) => !m)}
             className="rounded-item bg-panel/90 p-1 text-fg-muted opacity-0 shadow hover:text-fg focus:opacity-100 group-hover:opacity-100"
           >
@@ -256,22 +250,22 @@ function BoardCard({
             <div className={`${menuClass} absolute right-0 top-full mt-1 w-48`}>
               <MenuItem
                 icon={Pencil}
-                label="Renomear"
+                label={t('addons.whiteboard.panel.rename')}
                 onClick={() => {
                   setMenu(false)
                   setRenaming(true)
                 }}
               />
-              <MenuItem icon={Copy} label="Duplicar" onClick={() => run(() => store.duplicate(channelId, board.id))} />
+              <MenuItem icon={Copy} label={t('addons.whiteboard.panel.duplicate')} onClick={() => run(() => store.duplicate(channelId, board.id))} />
               {board.archived_at ? (
-                <MenuItem icon={ArchiveRestore} label="Desarquivar" onClick={() => run(() => store.update(channelId, board.id, { archived: false }))} />
+                <MenuItem icon={ArchiveRestore} label={t('addons.whiteboard.panel.unarchive')} onClick={() => run(() => store.update(channelId, board.id, { archived: false }))} />
               ) : (
-                <MenuItem icon={Archive} label="Arquivar" onClick={() => run(() => store.update(channelId, board.id, { archived: true }))} />
+                <MenuItem icon={Archive} label={t('addons.whiteboard.panel.archive')} onClick={() => run(() => store.update(channelId, board.id, { archived: true }))} />
               )}
               {canDelete && (
                 <MenuItem
                   icon={Trash2}
-                  label="Excluir"
+                  label={t('addons.whiteboard.panel.delete')}
                   danger
                   onClick={() => {
                     setMenu(false)
@@ -285,9 +279,9 @@ function BoardCard({
       )}
       {deleting && (
         <ConfirmModal
-          title="Excluir quadro"
-          message={`“${board.name}” e as versões dele somem para todo mundo. Isso não pode ser desfeito. Para só tirar da lista, use Arquivar.`}
-          confirmLabel="Excluir"
+          title={t('addons.whiteboard.panel.deleteTitle')}
+          message={t('addons.whiteboard.panel.deleteConfirm', { name: board.name })}
+          confirmLabel={t('addons.whiteboard.panel.delete')}
           onConfirm={() => store.remove(channelId, board.id)}
           onClose={() => setDeleting(false)}
         />
@@ -333,7 +327,7 @@ function NameForm({
         {action}
       </button>
       <button type="button" onClick={onCancel} className="rounded-control px-2 text-sm text-fg-muted hover:bg-elevated">
-        Cancelar
+        {t('common.cancel')}
       </button>
     </form>
   )
@@ -359,7 +353,7 @@ function BoardView({
   useEffect(() => {
     api<BoardScene>(whiteboardPath(channelId, `/boards/${boardId}`))
       .then(setBoard)
-      .catch(() => setError('Não foi possível abrir o quadro.'))
+      .catch(() => setError(t('addons.whiteboard.panel.openFailed')))
   }, [channelId, boardId])
 
   const problem = status === 'offline' || status === 'full' || status === 'image-failed'
@@ -371,21 +365,21 @@ function BoardView({
           onClick={onBack}
           className="flex items-center gap-1.5 rounded-control px-2 py-1 font-medium text-fg-muted hover:bg-elevated hover:text-fg"
         >
-          <ArrowLeft size={16} /> Quadros
+          <ArrowLeft size={16} /> {t('addons.whiteboard.panel.boards')}
         </button>
         <span className="min-w-0 truncate font-semibold">{summary?.name ?? board?.name}</span>
-        {board && !board.can_edit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">Somente leitura</span>}
-        {summary?.archived_at && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">Arquivado</span>}
+        {board && !board.can_edit && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">{t('addons.whiteboard.panel.readOnly')}</span>}
+        {summary?.archived_at && <span className="rounded-full bg-elevated px-2.5 py-0.5 text-xs text-fg-subtle">{t('addons.whiteboard.panel.archivedTag')}</span>}
         <span role={problem ? 'alert' : undefined} className={`ml-auto shrink-0 text-xs ${problem ? 'text-danger' : 'text-fg-subtle'}`}>
-          {error ?? (status && STATUS_LABEL[status])}
+          {error ?? (status && t(`addons.whiteboard.status.${status}`))}
         </span>
       </header>
       {board ? (
-        <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-fg-subtle">Abrindo o quadro…</div>}>
+        <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-fg-subtle">{t('addons.whiteboard.panel.opening')}</div>}>
           <Editor channelId={channelId} board={board} people={people} onStatus={setStatus} onError={setError} />
         </Suspense>
       ) : (
-        !error && <div className="flex flex-1 items-center justify-center text-sm text-fg-subtle">Abrindo o quadro…</div>
+        !error && <div className="flex flex-1 items-center justify-center text-sm text-fg-subtle">{t('addons.whiteboard.panel.opening')}</div>
       )}
     </div>
   )

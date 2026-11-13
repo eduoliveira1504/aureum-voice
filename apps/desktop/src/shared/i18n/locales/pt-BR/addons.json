@@ -277,5 +277,81 @@
     "close": "Encerrar enquete",
     "votesTitle": "Votos",
     "nobody": "Ninguém ainda."
+  },
+  "whiteboard": {
+    "name": "Quadro branco",
+    "description": "Desenho livre, formas, notas e imagens, juntos e ao vivo.",
+    "announces": {
+      "label": "Avisar novos quadros em",
+      "hint": "Quando alguém cria um quadro, aparece uma linha nesse canal de texto.",
+      "warning": "Pessoas sem acesso a este canal vão ver os nomes dos quadros nesse canal."
+    },
+    "someone": "Alguém",
+    "someoneLower": "alguém",
+    "status": {
+      "saved": "Salvo",
+      "saving": "Salvando…",
+      "offline": "Sem conexão, tentando de novo…",
+      "full": "Quadro cheio (5 MB): apague algo para salvar",
+      "image-failed": "Uma imagem não foi enviada (até 10 MB, PNG, JPG, GIF ou WebP)"
+    },
+    "editor": {
+      "copyFailed": "Não foi possível copiar a imagem.",
+      "backgroundFailed": "Não foi possível mudar o fundo.",
+      "copyImage": "Copiar como imagem",
+      "plain": "Fundo liso",
+      "grid": "Fundo quadriculado",
+      "versions": "Versões"
+    },
+    "summary": {
+      "empty": "Nenhum quadro ainda."
+    },
+    "versions": {
+      "loadFailed": "Não foi possível carregar as versões.",
+      "showFailed": "Não foi possível mostrar essa versão.",
+      "forbidden": "Você não tem permissão para editar este quadro.",
+      "restoreFailed": "Não foi possível restaurar.",
+      "title": "Versões",
+      "subtitle": "Uma por trecho de edição, as 50 mais recentes.",
+      "none": "Ainda não há versões. Elas aparecem depois de uns minutos de edição.",
+      "preview": "Prévia da versão",
+      "emptyBoard": "Quadro vazio nessa versão.",
+      "restoring": "Restaurando…",
+      "restore": "Restaurar esta versão"
+    },
+    "panel": {
+      "forbidden": "Você não tem permissão para isso.",
+      "saveFailed": "Não foi possível salvar a mudança.",
+      "loadFailed": "Não foi possível carregar os quadros.",
+      "deleted": "Esse quadro foi excluído.",
+      "loading": "Carregando os quadros…",
+      "readOnly": "Somente leitura",
+      "new": "Novo quadro",
+      "name": "Nome do quadro",
+      "create": "Criar",
+      "emptyEdit": "Nenhum quadro ainda. Crie um para desenhar junto com o grupo.",
+      "empty": "Nenhum quadro ainda.",
+      "archived": "Arquivados ({{count}})",
+      "options": "Opções do quadro",
+      "rename": "Renomear",
+      "duplicate": "Duplicar",
+      "unarchive": "Desarquivar",
+      "archive": "Arquivar",
+      "delete": "Excluir",
+      "deleteTitle": "Excluir quadro",
+      "deleteConfirm": "“{{name}}” e as versões dele somem para todo mundo. Isso não pode ser desfeito. Para só tirar da lista, use Arquivar.",
+      "openFailed": "Não foi possível abrir o quadro.",
+      "boards": "Quadros",
+      "archivedTag": "Arquivado",
+      "opening": "Abrindo o quadro…"
+    },
+    "edited": {
+      "justNow": "agora há pouco",
+      "minutes": "há {{count}} min",
+      "hours": "há {{count}} h",
+      "yesterday": "ontem",
+      "on": "em {{date}}",
+      "by": "editado por {{who}} {{when}}"
+    }
   }
 }

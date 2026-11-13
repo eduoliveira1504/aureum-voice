@@ -13,6 +13,7 @@ import { useAppearance } from '../../store/appearance'
 import { BoardSync, type SyncStatus } from './BoardSync'
 import { onLive, useWhiteboard, type BoardScene } from './store'
 import { VersionsModal } from './VersionsModal'
+import { currentLocale, t } from '../../lib/i18n'
 
 // The fonts come with the app (see electron.vite.config.ts), never from Excalidraw's CDN.
 window.EXCALIDRAW_ASSET_PATH = new URL('./excalidraw/', document.baseURI).href
@@ -79,7 +80,7 @@ export default function Editor({ channelId, board, people, onStatus, onError }: 
       })
       excalidraw.setToast({ message: `Imagem copiada. Cole no chat com ${shortcut('Ctrl+V')}.`, duration: 3000 })
     } catch {
-      onError('Não foi possível copiar a imagem.')
+      onError(t('addons.whiteboard.editor.copyFailed'))
     }
   }
 
@@ -87,7 +88,7 @@ export default function Editor({ channelId, board, people, onStatus, onError }: 
     void useWhiteboard
       .getState()
       .update(channelId, board.id, { background: background === 'grid' ? 'plain' : 'grid' })
-      .catch(() => onError('Não foi possível mudar o fundo.'))
+      .catch(() => onError(t('addons.whiteboard.editor.backgroundFailed')))
   }
 
   return (
@@ -106,7 +107,7 @@ export default function Editor({ channelId, board, people, onStatus, onError }: 
         viewModeEnabled={!board.can_edit}
         gridModeEnabled={background === 'grid'}
         theme={theme}
-        langCode="pt-BR"
+        langCode={currentLocale() === 'en' ? 'en' : 'pt-BR'}
         name={board.name}
         aiEnabled={false}
         validateEmbeddable={false}
@@ -127,15 +128,15 @@ export default function Editor({ channelId, board, people, onStatus, onError }: 
         <MainMenu>
           <MainMenu.DefaultItems.SaveAsImage />
           <MainMenu.Item icon={<Copy size={16} />} onSelect={() => void copyImage()}>
-            Copiar como imagem
+            {t('addons.whiteboard.editor.copyImage')}
           </MainMenu.Item>
           {board.can_edit && (
             <MainMenu.Item icon={background === 'grid' ? <Square size={16} /> : <Grid3x3 size={16} />} onSelect={toggleBackground}>
-              {background === 'grid' ? 'Fundo liso' : 'Fundo quadriculado'}
+              {background === 'grid' ? t('addons.whiteboard.editor.plain') : t('addons.whiteboard.editor.grid')}
             </MainMenu.Item>
           )}
           <MainMenu.Item icon={<History size={16} />} onSelect={() => setVersions(true)}>
-            Versões
+            {t('addons.whiteboard.editor.versions')}
           </MainMenu.Item>
           <MainMenu.Separator />
           <MainMenu.DefaultItems.SearchMenu />

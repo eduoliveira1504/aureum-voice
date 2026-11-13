@@ -4,21 +4,28 @@ import type { AddonModule } from '../types'
 import { dispatchLive, useWhiteboard } from './store'
 import { WhiteboardSummary } from './Summary'
 import { WhiteboardPanel } from './WhiteboardPanel'
+import { t } from '../../lib/i18n'
 
 /** Whiteboard: several boards per channel, drawn together with Excalidraw (loaded when a board
  * opens). Talks only to its own API routes and keeps its own state. */
 const whiteboard: AddonModule = {
   key: 'whiteboard',
-  name: 'Quadro branco',
-  description: 'Desenho livre, formas, notas e imagens, juntos e ao vivo.',
+  get name() {
+    return t('addons.whiteboard.name')
+  },
+  get description() {
+    return t('addons.whiteboard.description')
+  },
   icon: Presentation,
   permissions: ['EDIT_WHITEBOARD'],
   Panel: WhiteboardPanel,
   Summary: WhiteboardSummary,
-  announces: {
-    label: 'Avisar novos quadros em',
-    hint: 'Quando alguém cria um quadro, aparece uma linha nesse canal de texto.',
-    warning: 'Pessoas sem acesso a este canal vão ver os nomes dos quadros nesse canal.'
+  get announces() {
+    return {
+      label: t('addons.whiteboard.announces.label'),
+      hint: t('addons.whiteboard.announces.hint'),
+      warning: t('addons.whiteboard.announces.warning')
+    }
   },
   onEvent: (event) => {
     const store = useWhiteboard.getState()
