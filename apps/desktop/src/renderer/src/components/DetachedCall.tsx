@@ -13,6 +13,7 @@ import { useSubject } from './CallPip'
 import { PopupVideo } from './PopupVideo'
 import { Avatar, TileRing } from './ui'
 import { SoundboardControl } from './VoiceView'
+import { t } from '../lib/i18n'
 
 type Layout = 'focus' | 'grid'
 
@@ -29,7 +30,7 @@ function useCallPopup(wanted: boolean): Window | null {
       useNav.getState().setCallDetached(false)
       return
     }
-    const stopSync = preparePopup(child.document, { title: 'Aureum Voice — chamada', transparent: false })
+    const stopSync = preparePopup(child.document, { title: t('call.detachedWindow.title'), transparent: false })
     setPopup(child)
     const onGone = (): void => {
       stopSync()
@@ -135,7 +136,7 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
   return (
     <div
       role="dialog"
-      aria-label={`Chamada destacada em ${info.room}`}
+      aria-label={t('call.detachedWindow.aria', { room: info.room })}
       onPointerDown={onPointerDown}
       onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
@@ -160,8 +161,8 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
         {tiles.length > 1 && (
           <button
             type="button"
-            title={grid ? 'Foco' : 'Grade'}
-            aria-label={grid ? 'Mostrar em foco' : 'Mostrar em grade'}
+            title={grid ? t('call.detachedWindow.focus') : t('call.detachedWindow.grid')}
+            aria-label={grid ? t('call.detachedWindow.showFocus') : t('call.detachedWindow.showGrid')}
             onClick={() => setLayout(grid ? 'focus' : 'grid')}
             className={iconButton}
           >
@@ -170,18 +171,18 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
         )}
         <button
           type="button"
-          title={pinned ? 'Deixar de fixar por cima' : 'Fixar por cima'}
-          aria-label={pinned ? 'Deixar de fixar por cima' : 'Fixar por cima'}
+          title={pinned ? t('call.detachedWindow.unpin') : t('call.detachedWindow.pin')}
+          aria-label={pinned ? t('call.detachedWindow.unpin') : t('call.detachedWindow.pin')}
           aria-pressed={pinned}
           onClick={togglePin}
           className={iconButton}
         >
           {pinned ? <Pin size={16} /> : <PinOff size={16} />}
         </button>
-        <button type="button" title="Voltar ao app" aria-label="Voltar ao app" onClick={backToApp} className={iconButton}>
+        <button type="button" title={t('call.detachedWindow.back')} aria-label={t('call.detachedWindow.back')} onClick={backToApp} className={iconButton}>
           <AppWindow size={16} />
         </button>
-        <button type="button" title="Fechar janela destacada" aria-label="Fechar janela destacada" onClick={close} className={iconButton}>
+        <button type="button" title={t('call.detachedWindow.close')} aria-label={t('call.detachedWindow.close')} onClick={close} className={iconButton}>
           <X size={16} />
         </button>
       </div>
@@ -224,7 +225,7 @@ function CallTile({
 }): ReactNode {
   const speaking = useVoice((s) => s.speaking.includes(tile.identity))
   const track: Track | undefined = tile.kind === 'screen' ? screenTrackOf(tile.identity) : cameraTrackOf(tile.identity)
-  const name = tile.identity === meId ? 'Você' : (user?.display_name ?? 'Alguém')
+  const name = tile.identity === meId ? t('call.you') : (user?.display_name ?? t('call.someone'))
   return (
     <div
       data-tile={tile.key}
@@ -236,10 +237,10 @@ function CallTile({
         <Avatar name={user?.display_name ?? name} url={user?.avatar_url} gif={user?.avatar_gif} size={avatarSize} />
       )}
       {tile.kind === 'screen' && (
-        <span className="absolute left-1.5 top-1.5 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+        <span className="absolute left-1.5 top-1.5 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('call.live')}</span>
       )}
       <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-0.75rem)] truncate rounded-item bg-scrim/60 px-1.5 py-0.5 text-[11px] text-on-scrim">
-        {tile.kind === 'screen' ? `Tela de ${name}` : name}
+        {tile.kind === 'screen' ? t('call.screenOf', { name }) : name}
       </span>
       <TileRing on={tile.kind === 'person' && speaking} />
     </div>

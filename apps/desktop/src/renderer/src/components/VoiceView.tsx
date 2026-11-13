@@ -43,6 +43,7 @@ import { Tip } from './Tour'
 import { SoundboardGrid, SoundboardPrefs } from './Soundboard'
 import { Avatar, TileRing } from './ui'
 import { LocallyMuted, userContextMenu } from './UserMenu'
+import { t } from '../lib/i18n'
 
 type Layout = 'grid' | 'focus'
 
@@ -87,7 +88,7 @@ export function VoiceView({
       channelId={channel.id}
       people={people}
       present={server.voice_states.filter((v) => v.channel_id === channel.id)}
-      joinLabel="Entrar no canal de voz"
+      joinLabel={t('call.room.join')}
       onJoin={() => join(server.id, channel.id)}
       meId={meId}
       fullscreen={fullscreen}
@@ -150,7 +151,7 @@ export function CallView({
       <header className={`flex h-12 shrink-0 items-center gap-2 pl-4 ${fullscreen ? 'pr-window-controls' : 'pr-4'}`}>
         <Volume2 size={20} className="text-fg-subtle" />
         <h2 className="truncate font-semibold">{title}</h2>
-        {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">Reconectando…</span>}
+        {phase === 'reconnecting' && inThisChannel && <span className="text-sm text-accent-text">{t('call.phase.reconnecting')}</span>}
         {tiles.length > 1 && (
           <button
             type="button"
@@ -158,14 +159,14 @@ export function CallView({
             className="ml-auto flex items-center gap-2 rounded-control border border-line bg-panel px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg"
           >
             {layout === 'focus' ? <LayoutGrid size={16} /> : <Presentation size={16} />}
-            {layout === 'focus' ? 'Grade' : 'Foco'}
+            {layout === 'focus' ? t('call.detachedWindow.grid') : t('call.detachedWindow.focus')}
           </button>
         )}
         {inThisChannel && (
           <button
             type="button"
-            title={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
-            aria-label={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            title={fullscreen ? t('call.exitFullscreen') : t('call.fullscreen')}
+            aria-label={fullscreen ? t('call.exitFullscreen') : t('call.fullscreen')}
             onClick={() => setCallFullscreen(!fullscreen)}
             className={`${tiles.length > 1 ? '' : 'ml-auto'} rounded-control border border-line bg-panel p-1.5 text-fg-muted hover:bg-elevated hover:text-fg`}
           >
@@ -185,8 +186,10 @@ export function CallView({
           <h3 className="text-2xl font-bold">{title}</h3>
           <p className="text-fg-muted">
             {present.length === 0
-              ? 'Ninguém está aqui ainda.'
-              : `${present.map((v) => people.get(v.user_id)?.display_name ?? '…').join(', ')} ${present.length === 1 ? 'está' : 'estão'} aqui.`}
+              ? t('call.room.nobody')
+              : t(present.length === 1 ? 'call.room.hereOne' : 'call.room.hereMany', {
+                  names: present.map((v) => people.get(v.user_id)?.display_name ?? '…').join(', ')
+                })}
           </p>
           <button
             type="button"
@@ -299,7 +302,7 @@ function TileFrame({
     <div
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={onClick ? `Colocar ${label} em foco` : label}
+      aria-label={onClick ? t('call.room.focusOn', { name: label }) : label}
       onClick={onClick}
       onContextMenu={onContextMenu}
       onKeyDown={(e) => onClick && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick())}
@@ -315,7 +318,7 @@ function TileFrame({
 
 function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meId }: TileProps & { speaking: boolean; meId: string }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
-  const name = user?.display_name ?? participant?.name ?? 'Alguém'
+  const name = user?.display_name ?? participant?.name ?? t('call.someone')
   const micMuted = !micEnabled(identity)
   const camera = cameraTrackOf(identity)
 
@@ -356,7 +359,7 @@ function ScreenTile(props: TileProps): ReactNode {
 }
 
 function LiveBadge(): ReactNode {
-  return <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+  return <span className="shrink-0 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('call.live')}</span>
 }
 
 /**
@@ -366,10 +369,10 @@ function LiveBadge(): ReactNode {
 function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
   const watchScreen = useVoice((s) => s.watchScreen)
   const preview = useVoice((s) => s.screenPreviews[identity])
-  const name = user?.display_name ?? 'Alguém'
+  const name = user?.display_name ?? t('call.someone')
   const small = size === 'strip'
   return (
-    <TileFrame size={size} label={`Tela de ${name}`} onClick={onClick} dark>
+    <TileFrame size={size} label={t('call.screenOf', { name })} onClick={onClick} dark>
       {preview && (
         <img src={preview} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-md" />
       )}
@@ -377,7 +380,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
         <LiveBadge />
       </div>
       <div className="relative flex max-w-full flex-col items-center gap-2 px-3 text-center text-on-scrim">
-        <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{name} está transmitindo</p>
+        <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{t('call.room.streaming', { name })}</p>
         <button
           type="button"
           data-tour="assistir"
@@ -392,7 +395,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
           }`}
         >
           <Eye size={small ? 14 : 18} />
-          Assistir
+          {t('call.room.watch')}
         </button>
       </div>
       <Tip id="screen.watch" />
@@ -411,7 +414,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
   const volume = screenAudio.muted ? 0 : screenAudio.volume / 100
   const stopWatching = useVoice((s) => s.stopWatching)
   const watchers = useVoice((s) => (isLocal ? s.watchers.length : 0))
-  const name = isLocal ? 'Sua tela' : `Tela de ${user?.display_name ?? 'alguém'}`
+  const name = isLocal ? t('call.room.yourScreen') : t('call.screenOf', { name: user?.display_name ?? t('call.someone') })
 
   const fullscreen = useFullscreen(ref)
   const idle = useIdle(fullscreen, CONTROLS_IDLE_MS)
@@ -420,7 +423,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
   if (!track) {
     return (
       <TileFrame size={size} label={name} onClick={onClick} dark>
-        <span className="text-sm text-on-scrim">Abrindo transmissão…</span>
+        <span className="text-sm text-on-scrim">{t('call.room.opening')}</span>
       </TileFrame>
     )
   }
@@ -455,19 +458,19 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
           <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
           {isLocal && (
             <span
-              title="Quem clicou em Assistir"
+              title={t('call.room.watchers')}
               className={`flex shrink-0 items-center gap-1 rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}
             >
               <Eye size={14} />
-              {watchers} assistindo
+              {t('call.room.watching', { count: watchers })}
             </span>
           )}
         </div>
         {fullscreen && (
           <button
             type="button"
-            aria-label="Sair da tela cheia"
-            title="Sair da tela cheia (Esc)"
+            aria-label={t('call.exitFullscreen')}
+            title={t('call.exitFullscreenEsc')}
             onClick={(e) => {
               stop(e)
               void document.exitFullscreen()
@@ -489,8 +492,8 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
               <>
                 <button
                   type="button"
-                  title={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
-                  aria-label={volume === 0 ? 'Ativar som da transmissão' : 'Silenciar transmissão'}
+                  title={volume === 0 ? t('call.room.unmuteStream') : t('call.room.muteStream')}
+                  aria-label={volume === 0 ? t('call.room.unmuteStream') : t('call.room.muteStream')}
                   // A volume left at 0 comes back at the default instead of staying silent.
                   onClick={() =>
                     setScreenVolume(identity, screenAudio.muted ? { muted: false } : screenAudio.volume === 0 ? { volume: 50 } : { muted: true })
@@ -500,7 +503,7 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
                 </button>
                 <input
                   type="range"
-                  aria-label="Volume da transmissão"
+                  aria-label={t('call.room.streamVolume')}
                   min={0}
                   max={1}
                   step={0.05}
@@ -511,15 +514,15 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
               </>
             )}
             {!fullscreen && (
-              <button type="button" aria-label="Tela cheia" title="Tela cheia" onClick={toggleFullscreen}>
+              <button type="button" aria-label={t('call.fullscreen')} title={t('call.fullscreen')} onClick={toggleFullscreen}>
                 <Maximize2 size={18} />
               </button>
             )}
             {!isLocal && (
               <button
                 type="button"
-                aria-label="Parar de assistir"
-                title="Parar de assistir"
+                aria-label={t('call.room.stopWatching')}
+                title={t('call.room.stopWatching')}
                 onClick={() => {
                   if (fullscreen) void document.exitFullscreen()
                   stopWatching(identity)
@@ -639,7 +642,7 @@ function PushToTalkHint(): ReactNode {
   if (inputMode !== 'ptt' || !pttKey) return null
   return (
     <p className={`pb-2 text-center text-xs font-medium ${held && !muted ? 'text-accent-text' : 'text-fg-subtle'}`}>
-      {muted ? 'Microfone silenciado' : held ? 'Falando…' : `Segure ${pttKeyLabel(pttKey)} para falar`}
+      {muted ? t('call.room.micMuted') : held ? t('call.room.talking') : t('call.room.holdToTalk', { key: pttKeyLabel(pttKey) })}
     </p>
   )
 }
@@ -677,12 +680,12 @@ export function SoundboardControl({
   const perms = channel ? channelPermissions(server, channel, me) : 0
   const allowed = has(perms, Perm.SPEAK) && has(perms, Perm.USE_SOUNDBOARD)
   const label = !allowed
-    ? 'Sem permissão para o painel de sons aqui'
+    ? t('call.room.noSoundboard')
     : deafened
-      ? 'Painel de sons desligado com o áudio desativado'
+      ? t('call.room.soundboardDeafened')
       : serverMuted
-        ? 'Você foi silenciado neste servidor'
-        : 'Painel de sons'
+        ? t('call.room.serverMutedHere')
+        : t('call.room.soundboard')
   return (
     <span ref={anchor} data-tour={small ? undefined : 'painel-sons'} className="flex">
       {!small && connected && allowed && !blocked && <Tip id="call.soundboard" />}
@@ -704,7 +707,7 @@ export function SoundboardControl({
         </ControlButton>
       )}
       {open && (
-        <CallPopover anchor={anchor} label="Painel de sons" width={320} onClose={() => toggle(false)}>
+        <CallPopover anchor={anchor} label={t('call.room.soundboard')} width={320} onClose={() => toggle(false)}>
           <SoundboardGrid serverId={serverId} canManage={has(perms, Perm.MANAGE_SOUNDBOARD)} />
           <SoundboardPrefs compact />
         </CallPopover>
@@ -735,12 +738,12 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
   return (
     <div className={`shrink-0 transition-opacity ${hidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
       <PushToTalkHint />
-      <div role="toolbar" aria-label="Controles da chamada" data-tour="call-controles" className="flex items-center justify-center gap-3 pb-6">
+      <div role="toolbar" aria-label={t('call.room.controls')} data-tour="call-controles" className="flex items-center justify-center gap-3 pb-6">
         {phase === 'connected' && <Tip id="call.controls" />}
         {phase === 'connected' && overlayOn && <Tip id="call.overlay" />}
         <div className="flex">
           <ControlButton
-            label={!allowed.mic ? 'Sem permissão para falar aqui' : muted ? 'Ativar microfone' : 'Silenciar microfone'}
+            label={!allowed.mic ? t('call.noSpeak') : muted ? t('call.unmute') : t('call.muteMic')}
             active={!muted && allowed.mic}
             disabled={!allowed.mic}
             onClick={toggleMute}
@@ -750,14 +753,14 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
           <DeviceArrow kind="mic" onOpenChange={menuOpen} />
         </div>
         <div className="flex">
-          <ControlButton label={deafened ? 'Ativar áudio' : 'Desativar áudio'} active={!deafened} onClick={toggleDeafen}>
+          <ControlButton label={deafened ? t('call.undeafen') : t('call.deafen')} active={!deafened} onClick={toggleDeafen}>
             {deafened ? <HeadphoneOff size={22} /> : <Headphones size={22} />}
           </ControlButton>
           <DeviceArrow kind="output" onOpenChange={menuOpen} />
         </div>
         <div className="flex">
           <ControlButton
-            label={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
+            label={!allowed.camera ? t('call.noCamera') : camera ? t('call.cameraOff') : t('call.cameraOn')}
             active={!camera}
             disabled={connecting || (!camera && !allowed.camera)}
             onClick={toggleCamera}
@@ -767,21 +770,21 @@ export function CallControls({ fullscreen = false }: { fullscreen?: boolean }): 
           <DeviceArrow kind="camera" onOpenChange={menuOpen} />
         </div>
         <ControlButton
-          label={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
+          label={!allowed.screen ? t('call.noScreen') : screen ? t('call.stopShare') : t('call.share')}
           active={!screen}
           disabled={phase !== 'connected' || (!screen && !allowed.screen)}
           onClick={() => (screen ? void stopScreenShare() : setPicking(true))}
         >
           {screen ? <MonitorOff size={22} /> : <MonitorUp size={22} />}
         </ControlButton>
-        <ControlButton label={fullscreen ? 'Sair da tela cheia (Esc)' : 'Tela cheia'} onClick={() => setCallFullscreen(!fullscreen)}>
+        <ControlButton label={fullscreen ? t('call.exitFullscreenEsc') : t('call.fullscreen')} onClick={() => setCallFullscreen(!fullscreen)}>
           {fullscreen ? <Shrink size={22} /> : <Expand size={22} />}
         </ControlButton>
-        <ControlButton label={detached ? 'Chamada destacada' : 'Destacar chamada'} active={!detached} onClick={() => setCallDetached(!detached)}>
+        <ControlButton label={detached ? t('call.detached') : t('call.detach')} active={!detached} onClick={() => setCallDetached(!detached)}>
           <SquareArrowOutUpRight size={22} />
         </ControlButton>
         <SoundboardControl onOpenChange={menuOpen} />
-        <ControlButton label="Sair da chamada" danger onClick={() => void leave()}>
+        <ControlButton label={t('call.leave')} danger onClick={() => void leave()}>
           <PhoneOff size={22} />
         </ControlButton>
         {picking && <ScreenShareModal onClose={() => setPicking(false)} />}

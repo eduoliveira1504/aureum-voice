@@ -1,0 +1,165 @@
+{
+  "phase": {
+    "connecting": "Connecting…",
+    "reconnecting": "Reconnecting…",
+    "connected": "In the call"
+  },
+  "speakingNone": "Nobody speaking",
+  "speakingOne": "{{name}} is speaking",
+  "speakingMany": "{{names}} are speaking",
+  "dm": "Direct message",
+  "group": "Group",
+  "serverMuted": "Muted by the server",
+  "noSpeak": "No permission to speak here",
+  "unmute": "Unmute microphone",
+  "mute": "Mute",
+  "muteMic": "Mute microphone",
+  "serverDeafened": "Audio turned off by the server",
+  "undeafen": "Turn audio on",
+  "deafen": "Turn audio off",
+  "noCamera": "No permission for the camera here",
+  "cameraOff": "Turn camera off",
+  "cameraOn": "Turn camera on",
+  "noScreen": "No permission to stream here",
+  "stopShare": "Stop sharing",
+  "share": "Share screen",
+  "leave": "Leave the call",
+  "showPip": "Show mini window",
+  "hidePip": "Hide mini window",
+  "current": "Current call",
+  "open": "Open the call",
+  "elsewhereTitle": "In the call on another device · {{room}}",
+  "elsewhere": "Call on another device",
+  "elsewhereHint": "You're in this call on the other device. Others still see you in the room.",
+  "joinHere": "Join from here",
+  "you": "You",
+  "someone": "Someone",
+  "callIn": "Call in {{room}}",
+  "live": "LIVE",
+  "screenOf": "{{name}}'s screen",
+  "detach": "Pop out call",
+  "detached": "Call popped out",
+  "expand": "Expand",
+  "fullscreen": "Full screen",
+  "exitFullscreen": "Exit full screen",
+  "exitFullscreenEsc": "Exit full screen (Esc)",
+  "ringing": {
+    "callingYou": "{{name}} is calling you",
+    "callingGroup": "is calling · {{place}}",
+    "callingYouShort": "is calling you",
+    "decline": "Decline",
+    "answer": "Answer",
+    "missed": "Missed call",
+    "declined": "The call was declined.",
+    "noAnswer": "Nobody answered."
+  },
+  "detachedWindow": {
+    "title": "Aureum Voice — call",
+    "aria": "Call popped out in {{room}}",
+    "focus": "Focus",
+    "grid": "Grid",
+    "showFocus": "Show in focus",
+    "showGrid": "Show in grid",
+    "unpin": "Stop keeping on top",
+    "pin": "Keep on top",
+    "back": "Back to the app",
+    "close": "Close popped-out window"
+  },
+  "screen": {
+    "title": "Share screen",
+    "screens": "Screens",
+    "windows": "Windows",
+    "nothing": "Nothing to show here.",
+    "quality": "Quality",
+    "audio": "Share audio",
+    "audioHint": "{{device}} sound (games, videos), without the call's voices.",
+    "oldMac": "On this macOS the screen goes without sound. To stream the Mac's sound, update to macOS 14.2 or newer.",
+    "starting": "Starting…",
+    "start": "Share",
+    "modes": {
+      "detail": {
+        "label": "Sharp text",
+        "description": "Favors resolution: code, documents, spreadsheets."
+      },
+      "motion": {
+        "label": "Motion",
+        "description": "Favors smoothness: games and videos."
+      }
+    }
+  },
+  "access": {
+    "openSettings": "Open Settings",
+    "microphone": {
+      "title": "Aureum doesn't have access to the microphone",
+      "body": "To speak in rooms and calls, allow Aureum Voice in System Settings › Privacy & Security › Microphone."
+    },
+    "camera": {
+      "title": "Aureum doesn't have access to the camera",
+      "body": "To turn on video, allow Aureum Voice in System Settings › Privacy & Security › Camera."
+    },
+    "screen": {
+      "title": "Aureum can't record the screen",
+      "body": "To stream your screen, allow Aureum Voice in System Settings › Privacy & Security › Screen & System Audio Recording. Then quit Aureum (Cmd+Q) and open it again: macOS only applies this permission when the app reopens."
+    },
+    "noSystemAudio": "The screen is going without the Mac's sound. To send the sound, allow Aureum Voice in System Settings › Privacy & Security › Screen & System Audio Recording and open the app again."
+  },
+  "devices": {
+    "mic": "Microphone options",
+    "output": "Audio options",
+    "camera": "Camera options",
+    "settings": "Voice and video settings",
+    "windowsDefault": "Windows default",
+    "disconnected": "Disconnected",
+    "micVolume": "Microphone volume",
+    "pickKey": "Pick the key in Voice and video settings.",
+    "callVolume": "Call volume",
+    "cameraUnavailable": "Camera unavailable",
+    "names": {
+      "audioinput": "Microphone",
+      "audiooutput": "Audio output",
+      "videoinput": "Camera"
+    },
+    "lost": "{{device}} disconnected. Using the Windows default.",
+    "back": "Using {{device}} again."
+  },
+  "errors": {
+    "disconnected": "You were disconnected from voice.",
+    "mic": "Couldn't access the microphone.",
+    "join": "Couldn't join the voice channel.",
+    "micSettings": "Couldn't access the microphone. Check the Settings.",
+    "movedAway": "The call continued on your other device.",
+    "camera": "Couldn't turn on the camera. Check the Settings.",
+    "share": "Couldn't share the screen.",
+    "stream": "Couldn't stream the screen.",
+    "useMic": "Couldn't use that microphone.",
+    "useCamera": "Couldn't use that camera.",
+    "useOutput": "Couldn't use that audio output.",
+    "soundForbidden": "You can't play sounds right now.",
+    "sound": "Couldn't play the sound."
+  },
+  "room": {
+    "join": "Join the voice channel",
+    "nobody": "Nobody is here yet.",
+    "hereOne": "{{names}} is here.",
+    "hereMany": "{{names}} are here.",
+    "focusOn": "Put {{name}} in focus",
+    "streaming": "{{name}} is streaming",
+    "watch": "Watch",
+    "yourScreen": "Your screen",
+    "opening": "Opening stream…",
+    "watchers": "Who clicked Watch",
+    "watching": "{{count}} watching",
+    "unmuteStream": "Unmute stream",
+    "muteStream": "Mute stream",
+    "streamVolume": "Stream volume",
+    "stopWatching": "Stop watching",
+    "micMuted": "Microphone muted",
+    "talking": "Talking…",
+    "holdToTalk": "Hold {{key}} to talk",
+    "noSoundboard": "No permission for the soundboard here",
+    "soundboardDeafened": "Soundboard off while audio is off",
+    "serverMutedHere": "You were muted on this server",
+    "soundboard": "Soundboard",
+    "controls": "Call controls"
+  }
+}

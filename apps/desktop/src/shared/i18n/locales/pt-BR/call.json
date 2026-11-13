@@ -1,0 +1,165 @@
+{
+  "phase": {
+    "connecting": "Conectando…",
+    "reconnecting": "Reconectando…",
+    "connected": "Na chamada"
+  },
+  "speakingNone": "Ninguém falando",
+  "speakingOne": "{{name}} está falando",
+  "speakingMany": "{{names}} estão falando",
+  "dm": "Mensagem direta",
+  "group": "Grupo",
+  "serverMuted": "Silenciado pelo servidor",
+  "noSpeak": "Sem permissão para falar aqui",
+  "unmute": "Ativar microfone",
+  "mute": "Silenciar",
+  "muteMic": "Silenciar microfone",
+  "serverDeafened": "Áudio desativado pelo servidor",
+  "undeafen": "Ativar áudio",
+  "deafen": "Desativar áudio",
+  "noCamera": "Sem permissão para câmera aqui",
+  "cameraOff": "Desligar câmera",
+  "cameraOn": "Ligar câmera",
+  "noScreen": "Sem permissão para transmitir aqui",
+  "stopShare": "Parar de compartilhar",
+  "share": "Compartilhar tela",
+  "leave": "Sair da chamada",
+  "showPip": "Mostrar janelinha",
+  "hidePip": "Esconder janelinha",
+  "current": "Chamada atual",
+  "open": "Abrir a chamada",
+  "elsewhereTitle": "Na chamada em outro dispositivo · {{room}}",
+  "elsewhere": "Chamada em outro dispositivo",
+  "elsewhereHint": "Você está nesta chamada pelo outro dispositivo. Os outros continuam vendo você na sala.",
+  "joinHere": "Entrar por aqui",
+  "you": "Você",
+  "someone": "Alguém",
+  "callIn": "Chamada em {{room}}",
+  "live": "AO VIVO",
+  "screenOf": "Tela de {{name}}",
+  "detach": "Destacar chamada",
+  "detached": "Chamada destacada",
+  "expand": "Expandir",
+  "fullscreen": "Tela cheia",
+  "exitFullscreen": "Sair da tela cheia",
+  "exitFullscreenEsc": "Sair da tela cheia (Esc)",
+  "ringing": {
+    "callingYou": "{{name}} está te ligando",
+    "callingGroup": "está chamando · {{place}}",
+    "callingYouShort": "está te ligando",
+    "decline": "Recusar",
+    "answer": "Atender",
+    "missed": "Chamada perdida",
+    "declined": "A chamada foi recusada.",
+    "noAnswer": "Ninguém atendeu."
+  },
+  "detachedWindow": {
+    "title": "Aureum Voice — chamada",
+    "aria": "Chamada destacada em {{room}}",
+    "focus": "Foco",
+    "grid": "Grade",
+    "showFocus": "Mostrar em foco",
+    "showGrid": "Mostrar em grade",
+    "unpin": "Deixar de fixar por cima",
+    "pin": "Fixar por cima",
+    "back": "Voltar ao app",
+    "close": "Fechar janela destacada"
+  },
+  "screen": {
+    "title": "Compartilhar tela",
+    "screens": "Telas",
+    "windows": "Janelas",
+    "nothing": "Nada para mostrar aqui.",
+    "quality": "Qualidade",
+    "audio": "Compartilhar áudio",
+    "audioHint": "Som do {{device}} (jogos, vídeos), sem as vozes da chamada.",
+    "oldMac": "Neste macOS a tela vai sem som. Para transmitir o som do Mac, atualize para o macOS 14.2 ou mais novo.",
+    "starting": "Iniciando…",
+    "start": "Compartilhar",
+    "modes": {
+      "detail": {
+        "label": "Texto nítido",
+        "description": "Prioriza a resolução: código, documentos, planilhas."
+      },
+      "motion": {
+        "label": "Movimento",
+        "description": "Prioriza a fluidez: jogos e vídeos."
+      }
+    }
+  },
+  "access": {
+    "openSettings": "Abrir Ajustes",
+    "microphone": {
+      "title": "O Aureum não tem acesso ao microfone",
+      "body": "Para falar nas salas e chamadas, libere o Aureum Voice em Ajustes do Sistema › Privacidade e Segurança › Microfone."
+    },
+    "camera": {
+      "title": "O Aureum não tem acesso à câmera",
+      "body": "Para ligar o vídeo, libere o Aureum Voice em Ajustes do Sistema › Privacidade e Segurança › Câmera."
+    },
+    "screen": {
+      "title": "O Aureum não pode gravar a tela",
+      "body": "Para transmitir sua tela, libere o Aureum Voice em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema. Depois feche o Aureum (Cmd+Q) e abra de novo: o macOS só aplica essa permissão quando o app reabre."
+    },
+    "noSystemAudio": "A tela está indo sem o som do Mac. Para mandar o som, libere o Aureum Voice em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema e abra o app de novo."
+  },
+  "devices": {
+    "mic": "Opções do microfone",
+    "output": "Opções do áudio",
+    "camera": "Opções da câmera",
+    "settings": "Configurações de voz e vídeo",
+    "windowsDefault": "Padrão do Windows",
+    "disconnected": "Desconectado",
+    "micVolume": "Volume do microfone",
+    "pickKey": "Escolha a tecla em Configurações de voz e vídeo.",
+    "callVolume": "Volume da chamada",
+    "cameraUnavailable": "Câmera indisponível",
+    "names": {
+      "audioinput": "Microfone",
+      "audiooutput": "Saída de áudio",
+      "videoinput": "Câmera"
+    },
+    "lost": "{{device}} desconectado. Usando o padrão do Windows.",
+    "back": "Usando {{device}} de novo."
+  },
+  "errors": {
+    "disconnected": "Você foi desconectado da voz.",
+    "mic": "Não foi possível acessar o microfone.",
+    "join": "Não foi possível entrar no canal de voz.",
+    "micSettings": "Não foi possível acessar o microfone. Confira as Configurações.",
+    "movedAway": "A chamada continuou no seu outro dispositivo.",
+    "camera": "Não foi possível ligar a câmera. Confira as Configurações.",
+    "share": "Não foi possível compartilhar a tela.",
+    "stream": "Não foi possível transmitir a tela.",
+    "useMic": "Não foi possível usar esse microfone.",
+    "useCamera": "Não foi possível usar essa câmera.",
+    "useOutput": "Não foi possível usar essa saída de áudio.",
+    "soundForbidden": "Você não pode tocar sons agora.",
+    "sound": "Não foi possível tocar o som."
+  },
+  "room": {
+    "join": "Entrar no canal de voz",
+    "nobody": "Ninguém está aqui ainda.",
+    "hereOne": "{{names}} está aqui.",
+    "hereMany": "{{names}} estão aqui.",
+    "focusOn": "Colocar {{name}} em foco",
+    "streaming": "{{name}} está transmitindo",
+    "watch": "Assistir",
+    "yourScreen": "Sua tela",
+    "opening": "Abrindo transmissão…",
+    "watchers": "Quem clicou em Assistir",
+    "watching": "{{count}} assistindo",
+    "unmuteStream": "Ativar som da transmissão",
+    "muteStream": "Silenciar transmissão",
+    "streamVolume": "Volume da transmissão",
+    "stopWatching": "Parar de assistir",
+    "micMuted": "Microfone silenciado",
+    "talking": "Falando…",
+    "holdToTalk": "Segure {{key}} para falar",
+    "noSoundboard": "Sem permissão para o painel de sons aqui",
+    "soundboardDeafened": "Painel de sons desligado com o áudio desativado",
+    "serverMutedHere": "Você foi silenciado neste servidor",
+    "soundboard": "Painel de sons",
+    "controls": "Controles da chamada"
+  }
+}

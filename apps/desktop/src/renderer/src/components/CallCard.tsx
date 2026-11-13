@@ -25,8 +25,8 @@ import { toast } from './ContextMenu'
 import { ScreenShareModal } from './ScreenShareModal'
 import { Avatar } from './ui'
 import { userContextMenu } from './UserMenu'
+import { t } from '../lib/i18n'
 
-const PHASE_LABEL = { connecting: 'Conectando…', reconnecting: 'Reconectando…', connected: 'Na chamada' }
 
 export interface CallContext {
   /** The room's name, or the conversation's for a private call. */
@@ -57,7 +57,11 @@ export function useCallContext(meId: string | null): CallContext | null {
   if (phase === 'idle' || !channelId || (!server && !dm)) return null
   const names = speaking.map((id) => people.get(id)?.display_name).filter(Boolean)
   const speakingText =
-    names.length === 0 ? 'Ninguém falando' : names.length === 1 ? `${names[0]} está falando` : `${names.join(', ')} estão falando`
+    names.length === 0
+      ? t('call.speakingNone')
+      : names.length === 1
+        ? t('call.speakingOne', { name: names[0] })
+        : t('call.speakingMany', { names: names.join(', ') })
   if (server) {
     return {
       room: server.channels.find((c) => c.id === channelId)?.name ?? '',
@@ -70,7 +74,7 @@ export function useCallContext(meId: string | null): CallContext | null {
   }
   return {
     room: dmTitle(dm!, meId),
-    place: dm!.type === 'dm' ? 'Mensagem direta' : 'Grupo',
+    place: dm!.type === 'dm' ? t('call.dm') : t('call.group'),
     people,
     present: dm!.voice_states,
     speakingText,
@@ -108,13 +112,13 @@ export function CallButtons({
   }
   const micLabel =
     serverMuted || serverDeafened
-      ? 'Silenciado pelo servidor'
+      ? t('call.serverMuted')
       : !allowed.mic
-        ? 'Sem permissão para falar aqui'
+        ? t('call.noSpeak')
         : micOff
-          ? 'Ativar microfone'
-          : 'Silenciar'
-  const deafLabel = serverDeafened ? 'Áudio desativado pelo servidor' : deafened ? 'Ativar áudio' : 'Desativar áudio'
+          ? t('call.unmute')
+          : t('call.mute')
+  const deafLabel = serverDeafened ? t('call.serverDeafened') : deafened ? t('call.undeafen') : t('call.deafen')
   const button = 'rounded-item p-1.5 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40'
   const tone = (off: boolean): string => (off ? 'text-danger' : 'text-fg-muted hover:text-fg')
   return (
@@ -139,8 +143,8 @@ export function CallButtons({
       {!compact && (
         <button
           type="button"
-          title={!allowed.camera ? 'Sem permissão para câmera aqui' : camera ? 'Desligar câmera' : 'Ligar câmera'}
-          aria-label={camera ? 'Desligar câmera' : 'Ligar câmera'}
+          title={!allowed.camera ? t('call.noCamera') : camera ? t('call.cameraOff') : t('call.cameraOn')}
+          aria-label={camera ? t('call.cameraOff') : t('call.cameraOn')}
           disabled={phase === 'connecting' || (!camera && !allowed.camera)}
           onClick={() => void toggleCamera()}
           className={`${button} ${camera ? 'text-accent-text' : 'text-fg-muted hover:text-fg'}`}
@@ -152,8 +156,8 @@ export function CallButtons({
       {!compact && (
         <button
           type="button"
-          title={!allowed.screen ? 'Sem permissão para transmitir aqui' : screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
-          aria-label={screen ? 'Parar de compartilhar' : 'Compartilhar tela'}
+          title={!allowed.screen ? t('call.noScreen') : screen ? t('call.stopShare') : t('call.share')}
+          aria-label={screen ? t('call.stopShare') : t('call.share')}
           disabled={phase !== 'connected' || (!screen && !allowed.screen)}
           onClick={() => (screen ? void stopScreenShare() : pickScreen())}
           className={`${button} ${screen ? 'text-accent-text' : 'text-fg-muted hover:text-fg'}`}
@@ -164,8 +168,8 @@ export function CallButtons({
       {beforeLeave}
       <button
         type="button"
-        title="Sair da chamada"
-        aria-label="Sair da chamada"
+        title={t('call.leave')}
+        aria-label={t('call.leave')}
         onClick={() => void leave()}
         className={`${button} text-danger hover:bg-danger hover:text-on-danger`}
       >
@@ -204,8 +208,8 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
   const pipButton = !onScreen && (
     <button
       type="button"
-      title={minimized ? 'Mostrar janelinha' : 'Esconder janelinha'}
-      aria-label={minimized ? 'Mostrar janelinha' : 'Esconder janelinha'}
+      title={minimized ? t('call.showPip') : t('call.hidePip')}
+      aria-label={minimized ? t('call.showPip') : t('call.hidePip')}
       aria-pressed={!minimized}
       onClick={() => setMinimized(!minimized)}
       className={`rounded-item p-1.5 hover:bg-elevated ${minimized ? 'text-fg-muted hover:text-fg' : 'text-accent-text'}`}
@@ -229,11 +233,11 @@ export function CallCard({ collapsed, meId }: { collapsed: boolean; meId: string
 
   const faces = info.present.slice(0, MAX_FACES)
   return (
-    <section aria-label="Chamada atual" className="border-t border-line bg-rail/40 px-2.5 py-2.5">
+    <section aria-label={t('call.current')} className="border-t border-line bg-rail/40 px-2.5 py-2.5">
       <div className="flex items-start gap-1">
-        <button type="button" title="Abrir a chamada" onClick={info.open} className="min-w-0 flex-1 rounded-item px-1 text-left hover:bg-elevated/60">
+        <button type="button" title={t('call.open')} onClick={info.open} className="min-w-0 flex-1 rounded-item px-1 text-left hover:bg-elevated/60">
           <span className={`block truncate text-sm font-semibold ${status}`}>
-            {PHASE_LABEL[phase]} · {info.room}
+            {t(`call.phase.${phase}`)} · {info.room}
           </span>
           <span className="block truncate text-xs text-fg-subtle">{info.place}</span>
         </button>
@@ -281,7 +285,7 @@ export function useCallElsewhere(meId: string): { serverId: string | null; chann
     }
     for (const dm of Object.values(dms)) {
       if (dm.call && dm.voice_states?.some((v) => v.user_id === meId)) {
-        return { serverId: null, channelId: dm.id, room: dmTitle(dm, meId), place: dm.type === 'dm' ? 'Mensagem direta' : 'Grupo' }
+        return { serverId: null, channelId: dm.id, room: dmTitle(dm, meId), place: dm.type === 'dm' ? t('call.dm') : t('call.group') }
       }
     }
     return null
@@ -293,7 +297,7 @@ function ElsewhereCard({ collapsed, meId }: { collapsed: boolean; meId: string }
   const call = useCallElsewhere(meId)
   if (!call) return null
   const bringHere = (): void => void useVoice.getState().join(call.serverId, call.channelId)
-  const title = `Na chamada em outro dispositivo · ${call.room}`
+  const title = t('call.elsewhereTitle', { room: call.room })
   if (collapsed) {
     return (
       <div className="flex justify-center border-t border-line bg-rail/40 py-2">
@@ -304,18 +308,18 @@ function ElsewhereCard({ collapsed, meId }: { collapsed: boolean; meId: string }
     )
   }
   return (
-    <section aria-label="Chamada em outro dispositivo" className="border-t border-line bg-rail/40 px-3 py-2.5">
+    <section aria-label={t('call.elsewhere')} className="border-t border-line bg-rail/40 px-3 py-2.5">
       <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-accent-text">
         <MonitorSmartphone size={15} className="shrink-0" />
         <span className="truncate">{call.room}</span>
       </p>
-      <p className="mt-0.5 text-xs text-fg-subtle">Você está nesta chamada pelo outro dispositivo. Os outros continuam vendo você na sala.</p>
+      <p className="mt-0.5 text-xs text-fg-subtle">{t('call.elsewhereHint')}</p>
       <button
         type="button"
         onClick={bringHere}
         className="mt-2 w-full rounded-control bg-accent px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-hover"
       >
-        Entrar por aqui
+        {t('call.joinHere')}
       </button>
     </section>
   )

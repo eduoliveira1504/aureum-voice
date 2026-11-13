@@ -4,11 +4,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { ShareSource } from '../../../shared/types'
 import { ensureAccess } from '../lib/mediaAccess'
 import { isMac } from '../lib/platform'
-import { describeScreen, SCREEN_MODES, type ScreenMode } from '../lib/mediaTier'
+import { describeScreen, type ScreenMode } from '../lib/mediaTier'
 import { useVoice } from '../store/voice'
 import { Modal } from './Modal'
 import { Tip } from './Tour'
 import { PrimaryButton, Segmented, ToggleRow } from './ui'
+import { t } from '../lib/i18n'
 
 /** The app's own picker for what to share (Electron has no built-in one on Windows). */
 export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
@@ -51,12 +52,12 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
   }
 
   return (
-    <Modal title="Compartilhar tela" wide onClose={onClose}>
+    <Modal title={t('call.screen.title')} wide onClose={onClose}>
       <div className="mb-4">
         <Segmented<ShareSource['kind']>
           options={[
-            { value: 'screen', label: 'Telas', icon: Monitor },
-            { value: 'window', label: 'Janelas', icon: AppWindow }
+            { value: 'screen', label: t('call.screen.screens'), icon: Monitor },
+            { value: 'window', label: t('call.screen.windows'), icon: AppWindow }
           ]}
           value={tab}
           onChange={setTab}
@@ -64,9 +65,9 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
       </div>
 
       <div className="grid max-h-[340px] grid-cols-3 gap-3 overflow-y-auto pr-1">
-        {sources === null && <p className="col-span-3 py-8 text-center text-fg-subtle">Carregando…</p>}
+        {sources === null && <p className="col-span-3 py-8 text-center text-fg-subtle">{t('common.loading')}</p>}
         {sources !== null && visible.length === 0 && (
-          <p className="col-span-3 py-8 text-center text-fg-subtle">Nada para mostrar aqui.</p>
+          <p className="col-span-3 py-8 text-center text-fg-subtle">{t('call.screen.nothing')}</p>
         )}
         {visible.map((source) => (
           <button
@@ -88,7 +89,7 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
         ))}
       </div>
 
-      <div role="radiogroup" aria-label="Qualidade" data-tour="modo-tela" className="mt-4 grid grid-cols-2 gap-3">
+      <div role="radiogroup" aria-label={t('call.screen.quality')} data-tour="modo-tela" className="mt-4 grid grid-cols-2 gap-3">
         <Tip id="screen.share" />
         {(['detail', 'motion'] as const).map((mode) => (
           <label
@@ -98,10 +99,10 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
             <input type="radio" name="mode" checked={hint === mode} onChange={() => setHint(mode)} className="mt-1 accent-accent" />
             <span className="min-w-0">
               <span className="flex items-baseline justify-between gap-2">
-                <span className="font-medium">{SCREEN_MODES[mode].label}</span>
+                <span className="font-medium">{t(`call.screen.modes.${mode}.label`)}</span>
                 <span className="shrink-0 text-xs tabular-nums text-fg-subtle">{describeScreen(tier, mode)}</span>
               </span>
-              <span className="block text-xs text-fg-subtle">{SCREEN_MODES[mode].description}</span>
+              <span className="block text-xs text-fg-subtle">{t(`call.screen.modes.${mode}.description`)}</span>
             </span>
           </label>
         ))}
@@ -109,21 +110,21 @@ export function ScreenShareModal({ onClose }: { onClose(): void }): ReactNode {
       <div className="mt-3">
         {systemAudio ? (
           <ToggleRow
-            title="Compartilhar áudio"
-            description={`Som do ${isMac() ? 'Mac' : 'PC'} (jogos, vídeos), sem as vozes da chamada.`}
+            title={t('call.screen.audio')}
+            description={t('call.screen.audioHint', { device: isMac() ? 'Mac' : 'PC' })}
             checked={audio}
             onChange={setAudio}
           />
         ) : (
           <p className="text-sm text-fg-subtle">
-            Neste macOS a tela vai sem som. Para transmitir o som do Mac, atualize para o macOS 14.2 ou mais novo.
+            {t('call.screen.oldMac')}
           </p>
         )}
       </div>
 
       <div className="mt-4">
         <PrimaryButton type="button" disabled={!selected || busy} onClick={share}>
-          {busy ? 'Iniciando…' : 'Compartilhar'}
+          {busy ? t('call.screen.starting') : t('call.screen.start')}
         </PrimaryButton>
       </div>
     </Modal>

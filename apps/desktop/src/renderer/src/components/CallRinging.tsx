@@ -7,6 +7,7 @@ import { useNav } from '../store/nav'
 import { dmTitle, RING_MS, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
 import { Avatar } from './ui'
+import { t } from '../lib/i18n'
 
 /** "X is calling you" with answer/decline. Rings for 30 s. (In Do not disturb calls don't ring:
  * see MissedCallNotice.) */
@@ -32,13 +33,13 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
 
   if (!ringing || !dm) return null
   const caller = dm.members.find((m) => m.user.id === ringing.call.started_by)?.user
-  const name = caller?.display_name ?? 'Alguém'
+  const name = caller?.display_name ?? t('call.someone')
   const group = dm.type === 'group_dm'
 
   return (
     <div
       role="alertdialog"
-      aria-label={`${name} está te ligando`}
+      aria-label={t('call.ringing.callingYou', { name })}
       className="fixed left-1/2 top-16 z-dialog w-[340px] -translate-x-1/2 rounded-panel border border-line bg-panel p-4 shadow-2xl"
     >
       <div className="flex items-center gap-3">
@@ -51,7 +52,7 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
         <div className="min-w-0 flex-1">
           <div className="truncate font-display text-[17px] font-semibold">{name}</div>
           <div className="truncate text-sm text-fg-muted">
-            {group ? `está chamando · ${dmTitle(dm, meId)}` : 'está te ligando'}
+            {group ? t('call.ringing.callingGroup', { place: dmTitle(dm, meId) }) : t('call.ringing.callingYouShort')}
           </div>
         </div>
       </div>
@@ -62,7 +63,7 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
           className="flex items-center justify-center gap-2 rounded-control bg-danger py-2.5 font-semibold text-on-danger hover:bg-danger/85"
         >
           <PhoneOff size={18} />
-          Recusar
+          {t('call.ringing.decline')}
         </button>
         <button
           type="button"
@@ -71,7 +72,7 @@ export function IncomingCall({ meId }: { meId: string }): ReactNode {
           className="flex items-center justify-center gap-2 rounded-control bg-accent py-2.5 font-semibold text-on-accent hover:bg-accent-hover"
         >
           <Phone size={18} />
-          Atender
+          {t('call.ringing.answer')}
         </button>
       </div>
     </div>
@@ -104,13 +105,13 @@ export function MissedCallNotice({ meId }: { meId: string }): ReactNode {
         <PhoneMissed size={18} />
       </span>
       <button type="button" onClick={open} className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-sm font-semibold">Chamada perdida</span>
+        <span className="block truncate text-sm font-semibold">{t('call.ringing.missed')}</span>
         <span className="block truncate text-xs text-fg-muted">
-          {caller?.display_name ?? 'Alguém'}
+          {caller?.display_name ?? t('call.someone')}
           {dm.type === 'group_dm' ? ` · ${dmTitle(dm, meId)}` : ''}
         </span>
       </button>
-      <button type="button" aria-label="Fechar" onClick={dismiss} className="rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg">
+      <button type="button" aria-label={t('common.close')} onClick={dismiss} className="rounded-item p-1 text-fg-subtle hover:bg-elevated hover:text-fg">
         <X size={16} />
       </button>
     </div>
@@ -150,7 +151,7 @@ export function useOutgoingCall(meId: string): void {
       if (state !== 'declined' && state !== 'unanswered') return
       void useVoice.getState().leave(true)
       playSound('call-ended')
-      useVoice.setState({ error: state === 'declined' ? 'A chamada foi recusada.' : 'Ninguém atendeu.' })
+      useVoice.setState({ error: state === 'declined' ? t('call.ringing.declined') : t('call.ringing.noAnswer') })
     }
     check()
     const timer = setInterval(check, 1000)

@@ -8,14 +8,10 @@ import { useDevices, watchDevices } from '../store/devices'
 import { cameraTrackOf, getRoom, useVoice, type DeviceKind } from '../store/voice'
 import { SettingsModal } from './SettingsModal'
 import { labelClass, menuClass, Segmented } from './ui'
+import { t } from '../lib/i18n'
 
 export type DeviceMenuKind = 'mic' | 'output' | 'camera'
 
-const TITLE: Record<DeviceMenuKind, string> = {
-  mic: 'Opções do microfone',
-  output: 'Opções do áudio',
-  camera: 'Opções da câmera'
-}
 
 const WIDTH = 288 // w-72
 const GAP = 8
@@ -50,8 +46,8 @@ export function DeviceArrow({
       <button
         ref={button}
         type="button"
-        title={TITLE[kind]}
-        aria-label={TITLE[kind]}
+        title={t(`call.devices.${kind}`)}
+        aria-label={t(`call.devices.${kind}`)}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => toggle(!open)}
@@ -66,7 +62,7 @@ export function DeviceArrow({
       {open && (
         <CallPopover
           anchor={button}
-          label={TITLE[kind]}
+          label={t(`call.devices.${kind}`)}
           onClose={() => toggle(false)}
           onSettings={() => {
             toggle(false)
@@ -184,7 +180,7 @@ export function CallPopover({
             className="flex w-full items-center gap-2 rounded-item px-1 py-1 text-xs font-medium text-fg-muted hover:text-fg"
           >
             <Settings size={14} />
-            Configurações de voz e vídeo
+            {t('call.devices.settings')}
           </button>
         )}
       </div>
@@ -206,12 +202,12 @@ function DeviceSelect({ kind, label }: { kind: DeviceKind; label: string }): Rea
         onChange={(e) => void useVoice.getState().switchDevice(kind, e.target.value)}
         className="w-full rounded-control border border-line bg-panel px-2.5 py-1.5 text-sm"
       >
-        <option value="">Padrão do Windows</option>
+        <option value="">{t('call.devices.windowsDefault')}</option>
         {/* The chosen device while it's unplugged: still the preference, shown as missing. */}
-        {value && list && !list.some((d) => d.deviceId === value) && <option value={value}>Desconectado</option>}
+        {value && list && !list.some((d) => d.deviceId === value) && <option value={value}>{t('call.devices.disconnected')}</option>}
         {list?.map((d, i) => (
           <option key={d.deviceId} value={d.deviceId}>
-            {d.label || `Dispositivo ${i + 1}`}
+            {d.label || t('settings.voice.device', { number: i + 1 })}
           </option>
         ))}
       </select>
@@ -254,32 +250,32 @@ function MicOptions(): ReactNode {
 
   return (
     <>
-      <DeviceSelect kind="audioinput" label="Microfone" />
-      <VolumeSlider which="inputVolume" label="Volume do microfone" />
+      <DeviceSelect kind="audioinput" label={t('settings.voice.microphone')} />
+      <VolumeSlider which="inputVolume" label={t('call.devices.micVolume')} />
       {/* No push-to-talk on the Mac (block 3.21). */}
       {!isMac() && (
         <div>
-          <span className={labelClass}>Modo de entrada</span>
+          <span className={labelClass}>{t('settings.inputMode.title')}</span>
           <Segmented<'voice' | 'ptt'>
             options={[
-              { value: 'voice', label: 'Detecção de voz', icon: AudioLines },
-              { value: 'ptt', label: 'Pressionar para falar', icon: Keyboard }
+              { value: 'voice', label: t('settings.inputMode.voice'), icon: AudioLines },
+              { value: 'ptt', label: t('settings.inputMode.ptt'), icon: Keyboard }
             ]}
             value={prefs.inputMode}
             onChange={(inputMode) => update({ inputMode })}
           />
           {ptt && !prefs.pttKey && (
-            <p className="mt-1.5 text-xs text-fg-subtle">Escolha a tecla em Configurações de voz e vídeo.</p>
+            <p className="mt-1.5 text-xs text-fg-subtle">{t('call.devices.pickKey')}</p>
           )}
         </div>
       )}
       {!ptt && (
         <div>
-          <span className={labelClass}>Sensibilidade</span>
+          <span className={labelClass}>{t('settings.voice.sensitivity')}</span>
           <Segmented<'auto' | 'manual'>
             options={[
-              { value: 'auto', label: 'Automática' },
-              { value: 'manual', label: 'Manual' }
+              { value: 'auto', label: t('settings.voice.auto') },
+              { value: 'manual', label: t('settings.voice.manual') }
             ]}
             value={prefs.sensitivity}
             onChange={(sensitivity) => update({ sensitivity })}
@@ -287,7 +283,7 @@ function MicOptions(): ReactNode {
           {prefs.sensitivity === 'manual' && (
             <input
               type="range"
-              aria-label="Sensibilidade do microfone"
+              aria-label={t('settings.voice.sensitivityAria')}
               min={GATE_RANGE.min}
               max={GATE_RANGE.max}
               step={1}
@@ -305,8 +301,8 @@ function MicOptions(): ReactNode {
 function OutputOptions(): ReactNode {
   return (
     <>
-      <DeviceSelect kind="audiooutput" label="Saída de áudio" />
-      <VolumeSlider which="outputVolume" label="Volume da chamada" />
+      <DeviceSelect kind="audiooutput" label={t('settings.voice.output')} />
+      <VolumeSlider which="outputVolume" label={t('call.devices.callVolume')} />
     </>
   )
 }
@@ -314,7 +310,7 @@ function OutputOptions(): ReactNode {
 function CameraOptions(): ReactNode {
   return (
     <>
-      <DeviceSelect kind="videoinput" label="Câmera" />
+      <DeviceSelect kind="videoinput" label={t('settings.voice.camera')} />
       <CameraPreview />
     </>
   )
@@ -361,7 +357,7 @@ function CameraPreview(): ReactNode {
   return (
     <div className="relative aspect-video overflow-hidden rounded-control bg-scrim">
       <video ref={ref} autoPlay playsInline muted className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
-      {error && <p className="absolute inset-0 flex items-center justify-center text-xs text-on-scrim">Câmera indisponível</p>}
+      {error && <p className="absolute inset-0 flex items-center justify-center text-xs text-on-scrim">{t('call.devices.cameraUnavailable')}</p>}
     </div>
   )
 }

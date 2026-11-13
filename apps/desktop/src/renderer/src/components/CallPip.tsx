@@ -7,6 +7,7 @@ import { CallButtons, useCallContext } from './CallCard'
 import { Avatar, TileRing } from './ui'
 import { userContextMenu } from './UserMenu'
 import { VideoTrackView } from './VoiceView'
+import { t } from '../lib/i18n'
 
 const CORNER_CLASS: Record<Corner, string> = {
   'top-left': 'left-4 top-16',
@@ -84,7 +85,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
   }
 
   const person = subject ? info.people.get(subject.identity) : undefined
-  const name = subject?.identity === meId ? 'Você' : (person?.display_name ?? 'Alguém')
+  const name = subject?.identity === meId ? t('call.you') : (person?.display_name ?? t('call.someone'))
   // The window is small, so adaptiveStream subscribes to the lowest video layer.
   const track = subject ? (subject.kind === 'screen' ? screenTrackOf(subject.identity) : cameraTrackOf(subject.identity)) : undefined
   const iconButton = 'rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg'
@@ -93,7 +94,7 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
     <div
       ref={ref}
       role="dialog"
-      aria-label={`Chamada em ${info.room}`}
+      aria-label={t('call.callIn', { room: info.room })}
       onPointerDown={onPointerDown}
       onDragStart={(e) => e.preventDefault()}
       style={drag ? { left: drag.x, top: drag.y } : undefined}
@@ -112,11 +113,11 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
           )
         )}
         {subject?.kind === 'screen' && (
-          <span className="absolute left-2 top-2 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
+          <span className="absolute left-2 top-2 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('call.live')}</span>
         )}
         {subject && (
           <span className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-item bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">
-            {subject.kind === 'screen' ? `Tela de ${name}` : name}
+            {subject.kind === 'screen' ? t('call.screenOf', { name }) : name}
           </span>
         )}
         <TileRing on={subject?.kind === 'person' && speaking.includes(subject.identity)} />
@@ -127,16 +128,16 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
         <div className="mt-1.5 flex items-center gap-0.5">
           <CallButtons size={16} />
           <span className="flex-1" />
-          <button type="button" title="Destacar chamada" aria-label="Destacar chamada" onClick={() => setCallDetached(true)} className={iconButton}>
+          <button type="button" title={t('call.detach')} aria-label={t('call.detach')} onClick={() => setCallDetached(true)} className={iconButton}>
             <SquareArrowOutUpRight size={18} />
           </button>
-          <button type="button" title="Expandir" aria-label="Expandir" onClick={info.open} className={iconButton}>
+          <button type="button" title={t('call.expand')} aria-label={t('call.expand')} onClick={info.open} className={iconButton}>
             <Maximize2 size={18} />
           </button>
-          <button type="button" title="Tela cheia" aria-label="Tela cheia" onClick={() => setCallFullscreen(true)} className={iconButton}>
+          <button type="button" title={t('call.fullscreen')} aria-label={t('call.fullscreen')} onClick={() => setCallFullscreen(true)} className={iconButton}>
             <Expand size={18} />
           </button>
-          <button type="button" title="Esconder janelinha" aria-label="Esconder janelinha" onClick={() => setPipMinimized(true)} className={iconButton}>
+          <button type="button" title={t('call.hidePip')} aria-label={t('call.hidePip')} onClick={() => setPipMinimized(true)} className={iconButton}>
             <Minimize2 size={18} />
           </button>
         </div>

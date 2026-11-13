@@ -20,10 +20,10 @@ export const FREE_TIER: MediaTier = { plan: 'free', max_screen: '720p', max_came
 
 export type ScreenMode = 'detail' | 'motion'
 
-/** The two ways to share a screen: what the picker offers and what each one sends. */
-export const SCREEN_MODES: Record<ScreenMode, { label: string; fps: number; description: string }> = {
-  detail: { label: 'Texto nítido', fps: 15, description: 'Prioriza a resolução: código, documentos, planilhas.' },
-  motion: { label: 'Movimento', fps: 30, description: 'Prioriza a fluidez: jogos e vídeos.' }
+/** The two ways to share a screen and what each one sends (names: call.screen.modes.<mode>). */
+export const SCREEN_MODES: Record<ScreenMode, { fps: number }> = {
+  detail: { fps: 15 },
+  motion: { fps: 30 }
 }
 
 const SIZES: Record<Resolution, { width: number; height: number }> = {

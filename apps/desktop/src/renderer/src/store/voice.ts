@@ -32,7 +32,6 @@ import { deviceLabel, useDevices, watchDevices, type Devices } from './devices'
 import { MIC_PROCESSOR, MicProcessor, PROCESSING_RATE } from '../lib/micProcessor'
 import { ensureAccess } from '../lib/mediaAccess'
 import { isMac } from '../lib/platform'
-import { NO_SYSTEM_AUDIO } from '../../../shared/mediaAccess'
 import { sendRealtime } from '../lib/realtime'
 import {
   COOLDOWN_MS,
@@ -48,6 +47,7 @@ import {
 import { playSound } from '../lib/sounds'
 import { soundUrl } from './soundboard'
 import { startThumbnails } from '../lib/thumbnail'
+import { t } from '../lib/i18n'
 
 type Phase = 'idle' | 'connecting' | 'connected' | 'reconnecting'
 
@@ -167,7 +167,6 @@ const DEVICE_PREF: Record<DeviceKind, 'audioInput' | 'audioOutput' | 'videoInput
 }
 
 const DEVICE_KINDS = Object.keys(DEVICE_PREF) as DeviceKind[]
-const DEVICE_NAME: Record<DeviceKind, string> = { audioinput: 'Microfone', audiooutput: 'Saída de áudio', videoinput: 'Câmera' }
 
 function savePref(patch: Partial<MediaPrefs>): void {
   saveMediaPrefs({ ...loadMediaPrefs(), ...patch })
@@ -467,11 +466,11 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       try {
         if (!present && !onDefault.has(kind)) {
           onDefault.add(kind)
-          notify(`${deviceLabel(before?.[kind], chosen) ?? DEVICE_NAME[kind]} desconectado. Usando o padrão do Windows.`)
+          notify(t('call.devices.lost', { device: deviceLabel(before?.[kind], chosen) ?? t(`call.devices.names.${kind}`) }))
           if (live) await moveToDevice(r, kind, '')
         } else if (present && onDefault.has(kind)) {
           onDefault.delete(kind)
-          notify(`Usando ${deviceLabel(devices[kind], chosen)} de novo.`)
+          notify(t('call.devices.back', { device: deviceLabel(devices[kind], chosen) }))
           if (live) await moveToDevice(r, kind, chosen)
         }
       } catch {
@@ -575,7 +574,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         // The same account joined this room from another device: the call is there now.
         if (reason === DisconnectReason.DUPLICATE_IDENTITY) return get().handOff()
         playSound('call-leave')
-        reset('Você foi desconectado da voz.')
+        reset(t('call.errors.disconnected'))
         announce()
       })
     for (const event of [
@@ -651,7 +650,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         return
       }
       await r.localParticipant.setMicrophoneEnabled(micOpen()).catch(() => {
-        set({ muted: true, error: 'Não foi possível acessar o microfone.' })
+        set({ muted: true, error: t('call.errors.mic') })
       })
       await syncMicProcessor(r)
     }
@@ -721,7 +720,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       } catch {
         if (room === r) {
           await r.disconnect()
-          reset('Não foi possível entrar no canal de voz.')
+          reset(t('call.errors.join'))
         }
         return
       }
@@ -752,7 +751,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         if (!micOpen()) await r.localParticipant.setMicrophoneEnabled(false)
         await syncMicProcessor(r)
       } catch {
-        set({ muted: true, error: 'Não foi possível acessar o microfone. Confira as Configurações.' })
+        set({ muted: true, error: t('call.errors.micSettings') })
         announce()
       }
     },
@@ -761,7 +760,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       const r = room
       if (!r) return
       reset()
-      notify('A chamada continuou no seu outro dispositivo.')
+      notify(t('call.errors.movedAway'))
       void r.disconnect()
     },
 
@@ -811,7 +810,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         )
         set({ camera: next })
       } catch {
-        set({ camera: false, error: 'Não foi possível ligar a câmera. Confira as Configurações.' })
+        set({ camera: false, error: t('call.errors.camera') })
       }
       announce()
       bump()
@@ -848,7 +847,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
       } catch {
         // The main process may have hidden the overlay for this source already.
         void window.aureum.overlay.stopSharing()
-        set({ error: 'Não foi possível compartilhar a tela.' })
+        set({ error: t('call.errors.share') })
         return
       }
       if (room !== r) {
@@ -889,10 +888,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         }
       } catch {
         await get().stopScreenShare()
-        set({ error: 'Não foi possível transmitir a tela.' })
+        set({ error: t('call.errors.stream') })
         return
       }
-      set({ screen: true, ...(audioMissing ? { error: NO_SYSTEM_AUDIO } : {}) })
+      set({ screen: true, ...(audioMissing ? { error: t('call.access.noSystemAudio') } : {}) })
       playSound('screen-share')
       announce()
       // After announce(): the server only takes thumbnails from someone marked as sharing.
@@ -960,7 +959,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         await r.localParticipant.setMicrophoneEnabled(false)
         await r.localParticipant
           .setMicrophoneEnabled(true, micCapture(prefs))
-          .catch(() => set({ error: 'Não foi possível usar esse microfone.' }))
+          .catch(() => set({ error: t('call.errors.useMic') }))
       }
       await syncMicProcessor(r)
       bump()
@@ -979,10 +978,10 @@ export const useVoice = create<VoiceStore>()((set, get) => {
           set({
             error:
               kind === 'audioinput'
-                ? 'Não foi possível usar esse microfone.'
+                ? t('call.errors.useMic')
                 : kind === 'videoinput'
-                  ? 'Não foi possível usar essa câmera.'
-                  : 'Não foi possível usar essa saída de áudio.'
+                  ? t('call.errors.useCamera')
+                  : t('call.errors.useOutput')
           })
         }
       }
@@ -1061,7 +1060,7 @@ export const useVoice = create<VoiceStore>()((set, get) => {
         set({
           boardSound: null,
           ...(busy && { boardUntil: Date.now() + COOLDOWN_MS }),
-          error: busy ? null : err instanceof ApiError && err.status === 403 ? 'Você não pode tocar sons agora.' : 'Não foi possível tocar o som.'
+          error: busy ? null : err instanceof ApiError && err.status === 403 ? t('call.errors.soundForbidden') : t('call.errors.sound')
         })
       }
     },
