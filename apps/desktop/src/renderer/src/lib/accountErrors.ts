@@ -1,22 +1,25 @@
+import type { ParseKeys } from 'i18next'
+
 import { ApiError, getApiBaseUrl } from './api'
+import { t } from './i18n'
 
 /** The API's details for account flows, in the app's words. */
-const MESSAGES: Record<string, string> = {
-  'An invite code is required to sign up': 'Você precisa de um código de convite.',
-  'Invalid invite code': 'Esse código de convite não existe.',
-  'This invite was already used': 'Esse convite já foi usado.',
-  'This invite has no spots left': 'As vagas desse convite acabaram.',
-  'This invite has expired': 'Esse convite venceu.',
-  'Wrong code': 'Código errado. Confira o e-mail e tente de novo.',
-  'This code has expired; ask for a new one': 'Esse código venceu. Peça um novo.',
-  'Too many wrong tries; ask for a new code': 'Muitas tentativas erradas. Peça um código novo.',
-  'Wait a moment before asking for another code': 'Espere um pouquinho antes de pedir outro código.',
-  'This e-mail is already confirmed': 'Esse e-mail já está confirmado.',
-  'This email is already taken': 'Já existe uma conta com esse e-mail.',
-  'That is already your e-mail': 'Esse já é o seu e-mail.',
-  'Wrong password': 'Senha atual incorreta.',
-  'The new password must be different': 'A senha nova precisa ser diferente da atual.',
-  'Confirm your e-mail to create servers': 'Confirme seu e-mail para criar servidores.'
+const MESSAGES: Record<string, ParseKeys> = {
+  'An invite code is required to sign up': 'errors.api.inviteRequired',
+  'Invalid invite code': 'errors.api.inviteInvalid',
+  'This invite was already used': 'errors.api.inviteUsed',
+  'This invite has no spots left': 'errors.api.inviteFull',
+  'This invite has expired': 'errors.api.inviteExpired',
+  'Wrong code': 'errors.api.wrongCode',
+  'This code has expired; ask for a new one': 'errors.api.codeExpired',
+  'Too many wrong tries; ask for a new code': 'errors.api.codeTooManyTries',
+  'Wait a moment before asking for another code': 'errors.api.codeWait',
+  'This e-mail is already confirmed': 'errors.api.emailConfirmed',
+  'This email is already taken': 'errors.api.emailTaken',
+  'That is already your e-mail': 'errors.api.sameEmail',
+  'Wrong password': 'errors.api.wrongPassword',
+  'The new password must be different': 'errors.api.samePassword',
+  'Confirm your e-mail to create servers': 'errors.api.confirmToCreateServers'
 }
 
 /** The server's own message when it's out of service on purpose (503 with a detail written for
@@ -31,12 +34,12 @@ export function accountMessage(err: unknown): string {
   const notice = serverNotice(err)
   if (notice) return notice
   if (err instanceof ApiError) {
-    if (err.status === 429 && !MESSAGES[String(err.detail)]) return 'Muitas tentativas seguidas. Espere um pouco e tente de novo.'
-    if (typeof err.detail === 'string' && MESSAGES[err.detail]) return MESSAGES[err.detail]
-    if (err.status === 422) return 'Confira os campos: algum valor não é válido.'
-    return `Erro inesperado do servidor (${err.status}).`
+    if (err.status === 429 && !MESSAGES[String(err.detail)]) return t('errors.tooManyTries')
+    if (typeof err.detail === 'string' && MESSAGES[err.detail]) return t(MESSAGES[err.detail])
+    if (err.status === 422) return t('errors.invalidFields')
+    return t('errors.unexpected', { status: err.status })
   }
-  return `Não foi possível conectar ao servidor em ${getApiBaseUrl()}.`
+  return t('errors.unreachable', { url: getApiBaseUrl() })
 }
 
 /** Accepts the 6 digits with spaces or dashes, as people paste them. */

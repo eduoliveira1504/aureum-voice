@@ -1,0 +1,23 @@
+{
+  "unexpected": "Unexpected server error ({{status}}).",
+  "unreachable": "Could not connect to the server at {{url}}.",
+  "tooManyTries": "Too many tries in a row. Wait a bit and try again.",
+  "invalidFields": "Check the fields: some value is not valid.",
+  "api": {
+    "inviteRequired": "You need an invite code.",
+    "inviteInvalid": "That invite code doesn't exist.",
+    "inviteUsed": "That invite was already used.",
+    "inviteFull": "That invite has no spots left.",
+    "inviteExpired": "That invite has expired.",
+    "wrongCode": "Wrong code. Check the email and try again.",
+    "codeExpired": "That code has expired. Ask for a new one.",
+    "codeTooManyTries": "Too many wrong tries. Ask for a new code.",
+    "codeWait": "Wait a moment before asking for another code.",
+    "emailConfirmed": "That email is already confirmed.",
+    "emailTaken": "There is already an account with that email.",
+    "sameEmail": "That is already your email.",
+    "wrongPassword": "Current password is incorrect.",
+    "samePassword": "The new password must be different from the current one.",
+    "confirmToCreateServers": "Confirm your email to create servers."
+  }
+}

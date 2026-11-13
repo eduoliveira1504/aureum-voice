@@ -1,0 +1,23 @@
+{
+  "unexpected": "Erro inesperado do servidor ({{status}}).",
+  "unreachable": "Não foi possível conectar ao servidor em {{url}}.",
+  "tooManyTries": "Muitas tentativas seguidas. Espere um pouco e tente de novo.",
+  "invalidFields": "Confira os campos: algum valor não é válido.",
+  "api": {
+    "inviteRequired": "Você precisa de um código de convite.",
+    "inviteInvalid": "Esse código de convite não existe.",
+    "inviteUsed": "Esse convite já foi usado.",
+    "inviteFull": "As vagas desse convite acabaram.",
+    "inviteExpired": "Esse convite venceu.",
+    "wrongCode": "Código errado. Confira o e-mail e tente de novo.",
+    "codeExpired": "Esse código venceu. Peça um novo.",
+    "codeTooManyTries": "Muitas tentativas erradas. Peça um código novo.",
+    "codeWait": "Espere um pouquinho antes de pedir outro código.",
+    "emailConfirmed": "Esse e-mail já está confirmado.",
+    "emailTaken": "Já existe uma conta com esse e-mail.",
+    "sameEmail": "Esse já é o seu e-mail.",
+    "wrongPassword": "Senha atual incorreta.",
+    "samePassword": "A senha nova precisa ser diferente da atual.",
+    "confirmToCreateServers": "Confirme seu e-mail para criar servidores."
+  }
+}

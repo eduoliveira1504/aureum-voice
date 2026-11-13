@@ -1,9 +1,11 @@
 import { MailCheck } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 
 import { useAuth } from '../auth/AuthProvider'
 import { accountMessage, codeDigits } from '../lib/accountErrors'
 import { api, ApiError, changePassword, changePendingEmail, resendCode, verifyEmail, type Confirmation, type Me } from '../lib/api'
+import { dateFormat } from '../lib/format'
 import { BadgeIcon, useShownBadges } from './Badge'
 import { FormError, SecondaryButton } from './Modal'
 import { cn, Field, inputClass, labelClass, PrimaryButton } from './ui'
@@ -25,9 +27,10 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: ReactNo
 
 /** The 6-digit code field: digits only, pasting "482 913" works, one-time-code autofill. */
 export function CodeInput({ value, onChange, autoFocus }: { value: string; onChange(value: string): void; autoFocus?: boolean }): ReactNode {
+  const { t } = useTranslation()
   return (
     <label className="block">
-      <span className={labelClass}>Código do e-mail</span>
+      <span className={labelClass}>{t('account.code.label')}</span>
       <input
         value={value}
         onChange={(e) => onChange(codeDigits(e.target.value))}
@@ -35,7 +38,7 @@ export function CodeInput({ value, onChange, autoFocus }: { value: string; onCha
         autoComplete="one-time-code"
         autoFocus={autoFocus}
         placeholder="000000"
-        aria-label="Código de 6 dígitos"
+        aria-label={t('account.code.aria')}
         className={cn(inputClass, 'text-center font-display text-2xl tracking-[0.4em]')}
       />
     </label>
@@ -60,6 +63,7 @@ function retryAfter(err: unknown): number | null {
 
 /** Shown after sign-up (and from the reminder) until the e-mail is confirmed. */
 export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void }): ReactNode {
+  const { t } = useTranslation()
   const { setUser, logout } = useAuth()
   const [code, setCode] = useState('')
   const [email, setEmail] = useState(user.email)
@@ -74,7 +78,7 @@ export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void
 
   async function confirm(e?: FormEvent): Promise<void> {
     e?.preventDefault()
-    if (code.length !== 6) return setError('Digite os 6 números do código.')
+    if (code.length !== 6) return setError(t('account.verify.codeDigits'))
     setBusy(true)
     setError(null)
     try {
@@ -92,7 +96,7 @@ export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void
     try {
       await resendCode()
       restart()
-      setInfo('Mandamos um código novo.')
+      setInfo(t('account.verify.resent'))
     } catch (err) {
       const wait = retryAfter(err)
       if (wait) restart(wait)
@@ -111,7 +115,7 @@ export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void
       setEditing(false)
       setCode('')
       restart()
-      setInfo('Mandamos o código pro e-mail novo.')
+      setInfo(t('account.verify.sentToNew'))
     } catch (err) {
       setError(accountMessage(err))
     } finally {
@@ -123,41 +127,44 @@ export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void
 
   if (editing) {
     return (
-      <Card title="Trocar e-mail" subtitle="O código vai pro endereço novo.">
+      <Card title={t('account.verify.changeTitle')} subtitle={t('account.verify.changeSubtitle')}>
         <form className="space-y-4" onSubmit={saveEmail} noValidate>
           <FormError message={error} />
-          <Field label="E-mail certo" type="email" autoFocus value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-          <PrimaryButton type="submit" disabled={busy}>{busy ? 'Aguarde…' : 'Mandar o código'}</PrimaryButton>
-          <SecondaryButton type="button" onClick={() => setEditing(false)}>Voltar</SecondaryButton>
+          <Field label={t('account.verify.rightEmail')} type="email" autoFocus value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+          <PrimaryButton type="submit" disabled={busy}>{busy ? t('auth.wait') : t('account.verify.sendCode')}</PrimaryButton>
+          <SecondaryButton type="button" onClick={() => setEditing(false)}>{t('common.back')}</SecondaryButton>
         </form>
       </Card>
     )
   }
 
   return (
-    <Card title="Confira seu e-mail" subtitle={<>Mandamos um código de 6 dígitos para <b className="break-all text-fg">{email}</b>.</>}>
+    <Card
+      title={t('account.verify.title')}
+      subtitle={<Trans i18nKey="account.verify.subtitle" values={{ email }} components={{ b: <b className="break-all text-fg" /> }} />}
+    >
       <form className="space-y-4" onSubmit={confirm} noValidate>
         <FormError message={error} />
         {info && !error && <p className="text-sm text-success">{info}</p>}
         <CodeInput value={code} onChange={setCode} autoFocus />
         <p className="text-center text-sm text-fg-muted">
-          Vale por 15 minutos ·{' '}
+          {t('account.verify.valid')}{' '}
           <button type="button" disabled={left > 0} onClick={() => void resend()} className="font-medium text-accent-text hover:underline disabled:text-fg-subtle disabled:no-underline">
-            {left > 0 ? `reenviar em 0:${String(left).padStart(2, '0')}` : 'reenviar código'}
+            {left > 0 ? t('account.verify.resendIn', { seconds: String(left).padStart(2, '0') }) : t('account.verify.resend')}
           </button>
         </p>
         <p className="rounded-control border border-line bg-main px-3 py-2.5 text-sm text-fg-muted">
-          Não chegou? Olhe o spam ou a aba Promoções. O remetente é <b className="text-fg">Aureum</b>.
+          <Trans i18nKey="account.verify.spam" components={{ b: <b className="text-fg" /> }} />
         </p>
-        <PrimaryButton type="submit" disabled={busy}>{busy ? 'Confirmando…' : 'Confirmar'}</PrimaryButton>
+        <PrimaryButton type="submit" disabled={busy}>{busy ? t('account.verify.confirming') : t('account.verify.confirm')}</PrimaryButton>
       </form>
       <div className="mt-4 flex justify-between text-sm">
         <button type="button" className="font-medium text-accent-text hover:underline" onClick={() => { setEditing(true); setError(null) }}>
-          Trocar e-mail
+          {t('account.verify.changeEmail')}
         </button>
         <span className="flex gap-4">
-          <button type="button" className="text-fg-muted hover:text-fg" onClick={onLater}>Agora não</button>
-          <button type="button" className="text-fg-muted hover:text-fg" onClick={() => void logout()}>Sair</button>
+          <button type="button" className="text-fg-muted hover:text-fg" onClick={onLater}>{t('account.verify.later')}</button>
+          <button type="button" className="text-fg-muted hover:text-fg" onClick={() => void logout()}>{t('account.verify.signOut')}</button>
         </span>
       </div>
     </Card>
@@ -166,29 +173,34 @@ export function VerifyEmailScreen({ user, onLater }: { user: Me; onLater(): void
 
 /** What confirming brought: the Pioneiro number (during the beta) and the invites. */
 function Confirmed({ result, onContinue }: { result: Confirmation; onContinue(): void }): ReactNode {
+  const { t } = useTranslation()
   const pioneer = useShownBadges(result.user.badges.filter((b) => b.key === 'pioneer'))[0]
   return (
-    <Card title={`Tudo pronto, @${result.user.username}.`} subtitle="Seu e-mail está confirmado.">
+    <Card title={t('account.confirmed.title', { username: result.user.username })} subtitle={t('account.confirmed.subtitle')}>
       <div className="space-y-4">
         {result.pioneer_number != null && (
           <div className="flex flex-col items-center rounded-panel border border-accent/40 bg-main p-5 text-center">
             {pioneer && <BadgeIcon shown={pioneer} size={96} shine="always" />}
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-accent-text">Insígnia mítica</p>
+            <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-accent-text">{t('account.confirmed.mythic')}</p>
             <p className="font-display text-2xl font-semibold">
-              Pioneiro <span className="text-accent-text">nº {String(result.pioneer_number).padStart(2, '0')}</span>
+              <Trans
+                i18nKey="account.confirmed.pioneer"
+                values={{ number: String(result.pioneer_number).padStart(2, '0') }}
+                components={{ n: <span className="text-accent-text" /> }}
+              />
             </p>
-            <p className="mt-1 text-sm text-fg-muted">Já está no seu perfil, pra sempre.</p>
+            <p className="mt-1 text-sm text-fg-muted">{t('account.confirmed.forever')}</p>
           </div>
         )}
         <ul className="space-y-2 text-sm text-fg-muted">
-          {result.joined_official && <li>Você já está no servidor do beta.</li>}
+          {result.joined_official && <li>{t('account.confirmed.joinedBeta')}</li>}
           {result.invites > 0 && (
             <li>
-              Você ganhou <b className="text-fg">{result.invites} convites</b>: estão em Configurações › Convites.
+              <Trans i18nKey="account.confirmed.invites" count={result.invites} components={{ b: <b className="text-fg" /> }} />
             </li>
           )}
         </ul>
-        <PrimaryButton type="button" onClick={onContinue}>Entrar no Aureum</PrimaryButton>
+        <PrimaryButton type="button" onClick={onContinue}>{t('account.confirmed.enter')}</PrimaryButton>
       </div>
     </Card>
   )
@@ -196,6 +208,7 @@ function Confirmed({ result, onContinue }: { result: Confirmation; onContinue():
 
 /** Accounts made by the admin with a temporary password replace it before anything else. */
 export function ForcePasswordScreen(): ReactNode {
+  const { t } = useTranslation()
   const { reload, logout } = useAuth()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -204,8 +217,8 @@ export function ForcePasswordScreen(): ReactNode {
 
   async function submit(e: FormEvent): Promise<void> {
     e.preventDefault()
-    if (password.length < 8) return setError('A senha precisa de pelo menos 8 caracteres.')
-    if (password !== confirm) return setError('As senhas não coincidem.')
+    if (password.length < 8) return setError(t('account.forcePassword.short'))
+    if (password !== confirm) return setError(t('auth.forgot.mismatch'))
     setBusy(true)
     setError(null)
     try {
@@ -218,15 +231,15 @@ export function ForcePasswordScreen(): ReactNode {
   }
 
   return (
-    <Card title="Crie sua senha" subtitle="Sua conta foi criada com uma senha temporária. Escolha a sua pra continuar.">
+    <Card title={t('account.forcePassword.title')} subtitle={t('account.forcePassword.subtitle')}>
       <form className="space-y-4" onSubmit={submit} noValidate>
         <FormError message={error} />
-        <Field label="Senha nova" type="password" autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} hint="Pelo menos 8 caracteres." />
-        <Field label="Repita a senha" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        <PrimaryButton type="submit" disabled={busy}>{busy ? 'Salvando…' : 'Salvar e continuar'}</PrimaryButton>
+        <Field label={t('auth.forgot.newPassword')} type="password" autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} hint={t('account.forcePassword.hint')} />
+        <Field label={t('auth.forgot.repeat')} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <PrimaryButton type="submit" disabled={busy}>{busy ? t('common.saving') : t('account.forcePassword.submit')}</PrimaryButton>
       </form>
       <button type="button" className="mt-4 text-sm text-fg-muted hover:text-fg" onClick={() => void logout()}>
-        Sair
+        {t('account.verify.signOut')}
       </button>
     </Card>
   )
@@ -234,6 +247,7 @@ export function ForcePasswordScreen(): ReactNode {
 
 /** Signed in during the 30 days before the account is deleted: cancel it, or sign out. */
 export function DeletionScheduledScreen({ dueAt }: { dueAt: string }): ReactNode {
+  const { t } = useTranslation()
   const { reload, logout } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -254,20 +268,22 @@ export function DeletionScheduledScreen({ dueAt }: { dueAt: string }): ReactNode
 
   return (
     <Card
-      title="Sua conta vai ser excluída"
+      title={t('account.deletion.title')}
       subtitle={
-        <>
-          A exclusão está marcada para <b>{due.toLocaleDateString('pt-BR')}</b>
-          {days > 0 ? ` (daqui a ${days} ${days === 1 ? 'dia' : 'dias'})` : ''}. Quer continuar com a conta?
-        </>
+        <Trans
+          i18nKey={days > 0 ? 'account.deletion.subtitleDays' : 'account.deletion.subtitle'}
+          values={{ date: dateFormat({ dateStyle: 'short' }).format(due) }}
+          count={days > 0 ? days : undefined}
+          components={{ b: <b /> }}
+        />
       }
     >
       <FormError message={error} />
       <PrimaryButton type="button" disabled={busy} onClick={() => void cancel()}>
-        {busy ? 'Aguarde…' : 'Cancelar exclusão'}
+        {busy ? t('auth.wait') : t('account.deletion.cancel')}
       </PrimaryButton>
       <button type="button" className="mt-4 text-sm text-fg-muted hover:text-fg" onClick={() => void logout()}>
-        Sair e manter a exclusão
+        {t('account.deletion.keep')}
       </button>
     </Card>
   )
@@ -275,12 +291,13 @@ export function DeletionScheduledScreen({ dueAt }: { dueAt: string }): ReactNode
 
 /** A small reminder over the app while the e-mail isn't confirmed. */
 export function VerifyReminder({ onOpen }: { onOpen(): void }): ReactNode {
+  const { t } = useTranslation()
   return (
     <div role="status" className="app-no-drag fixed bottom-4 left-1/2 z-shell flex -translate-x-1/2 items-center gap-3 rounded-control border border-line bg-panel px-4 py-2.5 text-sm shadow-xl">
       <MailCheck size={16} className="shrink-0 text-accent-text" />
-      <span className="text-fg-muted">Confirme seu e-mail pra criar servidores e ganhar seus convites.</span>
+      <span className="text-fg-muted">{t('account.reminder.text')}</span>
       <button type="button" onClick={onOpen} className="font-medium text-accent-text hover:underline">
-        Confirmar agora
+        {t('account.reminder.action')}
       </button>
     </div>
   )

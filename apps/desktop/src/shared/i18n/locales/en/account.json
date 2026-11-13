@@ -1,0 +1,56 @@
+{
+  "code": {
+    "label": "Email code",
+    "aria": "6-digit code"
+  },
+  "verify": {
+    "title": "Check your email",
+    "subtitle": "We sent a 6-digit code to <b>{{email}}</b>.",
+    "codeDigits": "Type the 6 digits of the code.",
+    "resent": "We sent a new code.",
+    "sentToNew": "We sent the code to the new email.",
+    "valid": "It lasts 15 minutes ·",
+    "resendIn": "resend in 0:{{seconds}}",
+    "resend": "resend code",
+    "spam": "Didn't get it? Check spam or the Promotions tab. The sender is <b>Aureum</b>.",
+    "confirming": "Confirming…",
+    "confirm": "Confirm",
+    "changeEmail": "Change email",
+    "later": "Not now",
+    "signOut": "Sign out",
+    "changeTitle": "Change email",
+    "changeSubtitle": "The code goes to the new address.",
+    "rightEmail": "Correct email",
+    "sendCode": "Send the code"
+  },
+  "confirmed": {
+    "title": "You're all set, @{{username}}.",
+    "subtitle": "Your email is confirmed.",
+    "mythic": "Mythic badge",
+    "pioneer": "Pioneer <n>#{{number}}</n>",
+    "forever": "It's on your profile, forever.",
+    "joinedBeta": "You're already in the beta server.",
+    "invites_one": "You got <b>{{count}} invite</b>: it is in Settings › Invites.",
+    "invites_other": "You got <b>{{count}} invites</b>: they are in Settings › Invites.",
+    "enter": "Enter Aureum"
+  },
+  "forcePassword": {
+    "title": "Create your password",
+    "subtitle": "Your account was created with a temporary password. Pick your own to continue.",
+    "short": "The password needs at least 8 characters.",
+    "hint": "At least 8 characters.",
+    "submit": "Save and continue"
+  },
+  "deletion": {
+    "title": "Your account will be deleted",
+    "subtitle": "The deletion is set for <b>{{date}}</b>. Do you want to keep the account?",
+    "subtitleDays_one": "The deletion is set for <b>{{date}}</b> (in {{count}} day). Do you want to keep the account?",
+    "subtitleDays_other": "The deletion is set for <b>{{date}}</b> (in {{count}} days). Do you want to keep the account?",
+    "cancel": "Cancel deletion",
+    "keep": "Sign out and keep the deletion"
+  },
+  "reminder": {
+    "text": "Confirm your email to create servers and get your invites.",
+    "action": "Confirm now"
+  }
+}

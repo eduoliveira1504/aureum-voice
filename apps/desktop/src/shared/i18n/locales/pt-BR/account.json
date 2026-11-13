@@ -1,0 +1,56 @@
+{
+  "code": {
+    "label": "Código do e-mail",
+    "aria": "Código de 6 dígitos"
+  },
+  "verify": {
+    "title": "Confira seu e-mail",
+    "subtitle": "Mandamos um código de 6 dígitos para <b>{{email}}</b>.",
+    "codeDigits": "Digite os 6 números do código.",
+    "resent": "Mandamos um código novo.",
+    "sentToNew": "Mandamos o código pro e-mail novo.",
+    "valid": "Vale por 15 minutos ·",
+    "resendIn": "reenviar em 0:{{seconds}}",
+    "resend": "reenviar código",
+    "spam": "Não chegou? Olhe o spam ou a aba Promoções. O remetente é <b>Aureum</b>.",
+    "confirming": "Confirmando…",
+    "confirm": "Confirmar",
+    "changeEmail": "Trocar e-mail",
+    "later": "Agora não",
+    "signOut": "Sair",
+    "changeTitle": "Trocar e-mail",
+    "changeSubtitle": "O código vai pro endereço novo.",
+    "rightEmail": "E-mail certo",
+    "sendCode": "Mandar o código"
+  },
+  "confirmed": {
+    "title": "Tudo pronto, @{{username}}.",
+    "subtitle": "Seu e-mail está confirmado.",
+    "mythic": "Insígnia mítica",
+    "pioneer": "Pioneiro <n>nº {{number}}</n>",
+    "forever": "Já está no seu perfil, pra sempre.",
+    "joinedBeta": "Você já está no servidor do beta.",
+    "invites_one": "Você ganhou <b>{{count}} convite</b>: está em Configurações › Convites.",
+    "invites_other": "Você ganhou <b>{{count}} convites</b>: estão em Configurações › Convites.",
+    "enter": "Entrar no Aureum"
+  },
+  "forcePassword": {
+    "title": "Crie sua senha",
+    "subtitle": "Sua conta foi criada com uma senha temporária. Escolha a sua pra continuar.",
+    "short": "A senha precisa de pelo menos 8 caracteres.",
+    "hint": "Pelo menos 8 caracteres.",
+    "submit": "Salvar e continuar"
+  },
+  "deletion": {
+    "title": "Sua conta vai ser excluída",
+    "subtitle": "A exclusão está marcada para <b>{{date}}</b>. Quer continuar com a conta?",
+    "subtitleDays_one": "A exclusão está marcada para <b>{{date}}</b> (daqui a {{count}} dia). Quer continuar com a conta?",
+    "subtitleDays_other": "A exclusão está marcada para <b>{{date}}</b> (daqui a {{count}} dias). Quer continuar com a conta?",
+    "cancel": "Cancelar exclusão",
+    "keep": "Sair e manter a exclusão"
+  },
+  "reminder": {
+    "text": "Confirme seu e-mail pra criar servidores e ganhar seus convites.",
+    "action": "Confirmar agora"
+  }
+}
