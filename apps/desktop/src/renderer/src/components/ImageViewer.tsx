@@ -6,6 +6,7 @@ import { formatSize, useAttachmentUrl } from '../lib/attachments'
 import { closeImages, saveImage, useImageViewer, type ViewableImage } from '../lib/chatImages'
 import { toast } from './ContextMenu'
 import { useImageMenu } from './ImageMenu'
+import { t } from '../lib/i18n'
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 
@@ -113,12 +114,12 @@ function ImageViewer({ images, start, onClose }: { images: ViewableImage[]; star
             {images.length > 1 && `${index + 1} de ${images.length}`}
           </p>
         </div>
-        <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" className={tool} disabled={zoom <= ZOOM_STEPS[0]} onClick={() => zoomBy(-1)}>
+        <button type="button" title={t('media.image.zoomOut')} aria-label={t('media.image.zoomOut')} className={tool} disabled={zoom <= ZOOM_STEPS[0]} onClick={() => zoomBy(-1)}>
           <Minus size={18} />
         </button>
         <button
           type="button"
-          title="Tamanho original"
+          title={t('media.image.original')}
           onClick={() => {
             setZoom(1)
             setOffset({ x: 0, y: 0 })
@@ -127,19 +128,19 @@ function ImageViewer({ images, start, onClose }: { images: ViewableImage[]; star
         >
           {Math.round(zoom * 100)}%
         </button>
-        <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" className={tool} disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => zoomBy(1)}>
+        <button type="button" title={t('media.image.zoomIn')} aria-label={t('media.image.zoomIn')} className={tool} disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => zoomBy(1)}>
           <Plus size={18} />
         </button>
         <button
           type="button"
-          title="Salvar imagem como…"
-          aria-label="Salvar imagem como…"
+          title={t('media.image.saveAs')}
+          aria-label={t('media.image.saveAs')}
           className={tool}
-          onClick={() => void saveImage(image).catch(() => toast('Não foi possível salvar a imagem.'))}
+          onClick={() => void saveImage(image).catch(() => toast(t('media.image.saveFailed')))}
         >
           <Download size={18} />
         </button>
-        <button type="button" title="Fechar (Esc)" aria-label="Fechar" className={tool} onClick={onClose}>
+        <button type="button" title={t('media.image.closeEsc')} aria-label={t('common.close')} className={tool} onClick={onClose}>
           <X size={18} />
         </button>
       </div>
@@ -155,10 +156,10 @@ function ImageViewer({ images, start, onClose }: { images: ViewableImage[]; star
         )}
         {images.length > 1 && (
           <>
-            <button type="button" aria-label="Anterior" onClick={() => go(-1)} className="absolute left-4 rounded-full bg-panel/80 p-2 text-fg hover:bg-panel">
+            <button type="button" aria-label={t('media.image.previous')} onClick={() => go(-1)} className="absolute left-4 rounded-full bg-panel/80 p-2 text-fg hover:bg-panel">
               <ChevronLeft size={22} />
             </button>
-            <button type="button" aria-label="Próxima" onClick={() => go(1)} className="absolute right-4 rounded-full bg-panel/80 p-2 text-fg hover:bg-panel">
+            <button type="button" aria-label={t('media.image.next')} onClick={() => go(1)} className="absolute right-4 rounded-full bg-panel/80 p-2 text-fg hover:bg-panel">
               <ChevronRight size={22} />
             </button>
           </>

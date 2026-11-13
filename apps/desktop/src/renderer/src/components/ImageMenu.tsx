@@ -3,6 +3,7 @@ import { createContext, useContext, type MouseEvent, type ReactNode } from 'reac
 
 import { copyImage, openImages, saveImage, type ChatImage, type ViewableImage } from '../lib/chatImages'
 import { contextMenu, copy, Item, Separator, toast } from './ContextMenu'
+import { t } from '../lib/i18n'
 
 /**
  * The message an image is in gives its menu items here, so a right click on the image shows the
@@ -17,7 +18,7 @@ export interface ImageGallery {
 }
 
 export function ImageMenuItems({ image, gallery }: { image: ChatImage; gallery?: ImageGallery | null }): ReactNode {
-  if (image.kind === 'gif') return <Item icon={Link} label="Copiar link do GIF" onClick={() => copy(image.url, 'Link do GIF copiado')} />
+  if (image.kind === 'gif') return <Item icon={Link} label={t('media.image.copyGifLink')} onClick={() => copy(image.url, t('media.image.gifLinkCopied'))} />
   const run = (action: Promise<unknown>, done: string | null, failed: string): void =>
     void action.then(
       (ok) => done && ok !== false && toast(done),
@@ -25,10 +26,10 @@ export function ImageMenuItems({ image, gallery }: { image: ChatImage; gallery?:
     )
   return (
     <>
-      <Item icon={Copy} label="Copiar imagem" onClick={() => run(copyImage(image), 'Imagem copiada!', 'Não foi possível copiar a imagem.')} />
-      <Item icon={Download} label="Salvar imagem como…" onClick={() => run(saveImage(image), null, 'Não foi possível salvar a imagem.')} />
+      <Item icon={Copy} label={t('media.image.copy')} onClick={() => run(copyImage(image), t('media.image.copied'), t('media.image.copyFailed'))} />
+      <Item icon={Download} label={t('media.image.saveAs')} onClick={() => run(saveImage(image), null, t('media.image.saveFailed'))} />
       {gallery !== null && (
-        <Item icon={Maximize2} label="Abrir imagem" onClick={() => (gallery ? openImages(gallery.images, gallery.index) : openImages([image]))} />
+        <Item icon={Maximize2} label={t('media.image.open')} onClick={() => (gallery ? openImages(gallery.images, gallery.index) : openImages([image]))} />
       )}
     </>
   )

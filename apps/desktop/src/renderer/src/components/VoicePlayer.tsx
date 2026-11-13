@@ -5,6 +5,7 @@ import type { Attachment } from '../lib/api'
 import { useAttachmentUrl } from '../lib/attachments'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { formatDuration, toWaveform } from '../lib/voiceRecorder'
+import { t } from '../lib/i18n'
 
 const SPEEDS = [1, 1.5, 2] as const
 // Bars drawn: the stored waveform (up to 64) is squeezed so it fits the bubble.
@@ -88,7 +89,7 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
       <button
         type="button"
         disabled={!url}
-        aria-label={isPlaying ? 'Pausar mensagem de voz' : 'Ouvir mensagem de voz'}
+        aria-label={isPlaying ? t('media.voice.pause') : t('media.voice.play')}
         onClick={toggle}
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent hover:bg-accent-hover disabled:opacity-50"
       >
@@ -96,7 +97,7 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
       </button>
       <div
         role="slider"
-        aria-label="Posição"
+        aria-label={t('media.voice.position')}
         aria-valuemin={0}
         aria-valuemax={Math.round(duration / 1000)}
         aria-valuenow={Math.round(position / 1000)}
@@ -117,8 +118,8 @@ export function VoicePlayer({ attachment, own }: { attachment: Attachment; own: 
       </span>
       <button
         type="button"
-        title="Velocidade"
-        aria-label={`Velocidade ${speed}x`}
+        title={t('media.voice.speed')}
+        aria-label={t('media.voice.speedN', { speed })}
         onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])}
         className="w-10 shrink-0 rounded-item bg-panel/60 py-0.5 text-xs font-semibold tabular-nums text-fg-muted hover:text-fg"
       >

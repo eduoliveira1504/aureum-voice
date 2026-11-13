@@ -3,6 +3,8 @@
  * 48 kHz WAV, and the original is never uploaded or kept. The API still checks 5 s and 1 MB.
  */
 
+import { t } from './i18n'
+
 export const MAX_SOURCE_BYTES = 10 * 1024 * 1024
 export const MAX_SOURCE_SECONDS = 10 * 60
 export const MAX_CLIP_SECONDS = 5
@@ -53,12 +55,12 @@ export function parseTime(text: string): number | null {
 
 /** Checks the size, decodes at 48 kHz (Chromium converts) and checks the length. */
 export async function decodeSoundFile(file: Blob): Promise<AudioBuffer> {
-  if (file.size > MAX_SOURCE_BYTES) throw new SoundFileError('O arquivo pode ter até 10 MB.')
+  if (file.size > MAX_SOURCE_BYTES) throw new SoundFileError(t('media.soundFile.tooBig'))
   const data = await file.arrayBuffer()
   const buffer = await new OfflineAudioContext(1, 1, TRIM_RATE).decodeAudioData(data).catch(() => {
-    throw new SoundFileError('Não deu para ler esse áudio. Tente um MP3, OGG ou WAV.')
+    throw new SoundFileError(t('media.soundFile.unreadable'))
   })
-  if (buffer.duration > MAX_SOURCE_SECONDS) throw new SoundFileError('O áudio pode ter até 10 minutos.')
+  if (buffer.duration > MAX_SOURCE_SECONDS) throw new SoundFileError(t('media.soundFile.tooLong'))
   return buffer
 }
 

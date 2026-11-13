@@ -1,10 +1,12 @@
 /**
  * Emojis: telling them apart in text, Twemoji's drawing for each (the same on every PC, shipped
  * with the app at twemoji/, see electron.vite.config.ts) and the catalog the picker and the
- * ":fogo" autocomplete search, with Portuguese names (emojibase-data, loaded on first use).
+ * ":fogo" autocomplete search, with names in the app's language (emojibase-data, loaded on first use).
  */
 
 import twemojiNames from 'virtual:twemoji-names'
+import type { Locale } from '../../../shared/i18n/locales'
+import { currentLocale } from './i18n'
 
 const DRAWN = new Set(twemojiNames)
 
@@ -95,15 +97,36 @@ const COMPONENT_GROUP = 2
 /** Lowercase without accents, for matching what people type. */
 export const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR')
 
-let catalog: Promise<EmojiCatalog> | null = null
+type Sources = [{ default: unknown }, { default: { groups: unknown } }, { default: unknown }]
 
-/** The catalog, loaded once (a separate chunk: it only arrives when first needed). */
+/** Each language's names and shortcodes: separate chunks, they only arrive when first needed. */
+const SOURCES: Record<Locale, () => Promise<Sources>> = {
+  'pt-BR': () =>
+    Promise.all([
+      import('emojibase-data/pt/compact.json'),
+      import('emojibase-data/pt/messages.json'),
+      import('emojibase-data/pt/shortcodes/cldr.json')
+    ]),
+  en: () =>
+    Promise.all([
+      import('emojibase-data/en/compact.json'),
+      import('emojibase-data/en/messages.json'),
+      import('emojibase-data/en/shortcodes/cldr.json')
+    ])
+}
+
+const catalogs = new Map<Locale, Promise<EmojiCatalog>>()
+
+/** The catalog in the app's language, loaded once per language. */
 export function loadEmojis(): Promise<EmojiCatalog> {
-  catalog ??= Promise.all([
-    import('emojibase-data/pt/compact.json'),
-    import('emojibase-data/pt/messages.json'),
-    import('emojibase-data/pt/shortcodes/cldr.json')
-  ]).then(([data, messages, shortcodes]) => {
+  const locale = currentLocale()
+  let catalog = catalogs.get(locale)
+  if (!catalog) catalogs.set(locale, (catalog = SOURCES[locale]().then(buildCatalog)))
+  return catalog
+}
+
+function buildCatalog([data, messages, shortcodes]: Sources): EmojiCatalog {
+  {
     const codes = shortcodes.default as Record<string, string | string[]>
     // Only what Twemoji draws: the picker doesn't offer emojis that look different on each PC.
     const entries = (data.default as CompactEmoji[])
@@ -126,10 +149,9 @@ export function loadEmojis(): Promise<EmojiCatalog> {
     }
     const groups = (messages.default.groups as { message: string; order: number }[])
       .filter((g) => g.order !== COMPONENT_GROUP)
-      .map((g) => ({ id: g.order, label: g.message[0].toLocaleUpperCase('pt-BR') + g.message.slice(1) }))
+      .map((g) => ({ id: g.order, label: g.message[0].toLocaleUpperCase(currentLocale()) + g.message.slice(1) }))
     return { entries, groups, byEmoji }
-  })
-  return catalog
+  }
 }
 
 /** The entry's emoji in the user's tone (when it has tones). */

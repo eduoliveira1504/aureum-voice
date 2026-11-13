@@ -7,6 +7,7 @@ import { fitImage } from './Attachments'
 import { toast } from './ContextMenu'
 import { useImageMenu } from './ImageMenu'
 import { cn, inputClass } from './ui'
+import { t } from '../lib/i18n'
 
 /** Plays while on screen, muted and looping; paused when it scrolls away. With reduced motion it
  * shows its still and plays only while the mouse is over it. */
@@ -44,12 +45,12 @@ function StarButton({ gif, className = '' }: { gif: Gif; className?: string }): 
   return (
     <button
       type="button"
-      title={starred ? 'Tirar dos favoritos' : 'Favoritar'}
-      aria-label={starred ? 'Tirar dos favoritos' : 'Favoritar'}
+      title={starred ? t('media.gifs.unstar') : t('media.gifs.star')}
+      aria-label={starred ? t('media.gifs.unstar') : t('media.gifs.star')}
       aria-pressed={starred}
       onClick={(e) => {
         e.stopPropagation()
-        void useGifs.getState().toggleFavorite(gif).catch(() => toast('Não foi possível salvar o favorito.'))
+        void useGifs.getState().toggleFavorite(gif).catch(() => toast(t('media.gifs.starFailed')))
       }}
       className={cn('rounded-full bg-black/55 p-1.5 text-white hover:bg-black/75', starred ? 'opacity-100' : 'opacity-0 group-hover/gif:opacity-100 focus-visible:opacity-100', className)}
     >
@@ -88,7 +89,7 @@ export function GifMessage({ gif }: { gif: Gif }): ReactNode {
       ) : (
         <img src={gif.url} alt={gif.title || 'GIF'} loading="lazy" className="h-full w-full object-cover" />
       )}
-      <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-item bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">GIF</span>
+      <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-item bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">{t('media.gifs.badge')}</span>
       <StarButton gif={gif} className="absolute right-1.5 top-1.5" />
     </div>
   )
@@ -149,7 +150,7 @@ export function GifPanel({ onPick }: { onPick(gif: Gif): void }): ReactNode {
       setHasNext(result.hasNext)
       setPage((p) => p + 1)
     } catch (err) {
-      toast(err instanceof GifsUnavailable ? 'Os GIFs estão fora do ar agora.' : 'Não foi possível carregar mais.')
+      toast(err instanceof GifsUnavailable ? t('media.gifs.down') : t('media.gifs.moreFailed'))
     }
   }
 
@@ -174,7 +175,7 @@ export function GifPanel({ onPick }: { onPick(gif: Gif): void }): ReactNode {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search KLIPY"
-            aria-label="Buscar GIF"
+            aria-label={t('media.gifs.search')}
             className={cn(inputClass, 'py-1.5 pl-8 text-sm')}
           />
         </div>
@@ -182,8 +183,8 @@ export function GifPanel({ onPick }: { onPick(gif: Gif): void }): ReactNode {
           <div className="flex gap-1 text-sm">
             {(
               [
-                ['trending', 'Em alta'],
-                ['favorites', 'Favoritos']
+                ['trending', t('media.gifs.trending')],
+                ['favorites', t('media.gifs.favorites')]
               ] as const
             ).map(([key, label]) => (
               <button
@@ -201,12 +202,12 @@ export function GifPanel({ onPick }: { onPick(gif: Gif): void }): ReactNode {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {!showFavorites && state === 'error' ? (
-          <p className="py-8 text-center text-sm text-fg-subtle">Os GIFs estão fora do ar agora. Tente daqui a pouco.</p>
+          <p className="py-8 text-center text-sm text-fg-subtle">{t('media.gifs.downLong')}</p>
         ) : !showFavorites && state === 'loading' ? (
-          <p className="py-8 text-center text-sm text-fg-subtle">Carregando…</p>
+          <p className="py-8 text-center text-sm text-fg-subtle">{t('common.loading')}</p>
         ) : tiles.length === 0 ? (
           <p className="py-8 text-center text-sm text-fg-subtle">
-            {showFavorites ? 'Toque na estrela de um GIF para guardar aqui.' : 'Nenhum GIF encontrado.'}
+            {showFavorites ? t('media.gifs.noFavorites') : t('media.gifs.none')}
           </p>
         ) : (
           <>
@@ -234,7 +235,7 @@ export function GifPanel({ onPick }: { onPick(gif: Gif): void }): ReactNode {
             </div>
             {!showFavorites && hasNext && (
               <button type="button" onClick={() => void more()} className="mt-2 w-full rounded-item py-2 text-sm text-fg-muted hover:bg-elevated hover:text-fg">
-                Carregar mais
+                {t('media.gifs.loadMore')}
               </button>
             )}
           </>

@@ -21,6 +21,7 @@ import { Item, openMenuAt } from './ContextMenu'
 import { GifPanel } from './Gifs'
 import { FormError, Modal, SecondaryButton } from './Modal'
 import { labelClass, PrimaryButton } from './ui'
+import { t } from '../lib/i18n'
 
 const MAX_BYTES = 8 * 1024 * 1024
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
@@ -33,7 +34,7 @@ const KEY_STEP = 12
 export type CropShape = 'avatar' | 'banner' | 'icon' | 'server-banner'
 
 interface Preview {
-  label: string
+  label: 'profileCard' | 'nextToName' | 'top' | 'lists' | 'overview'
   size: Size
   rounded: string
   /** Shown next to the small one, as in a member list. */
@@ -45,28 +46,28 @@ const SHAPES: Record<CropShape, { frame: Size; rounded: string; previews: Previe
     frame: { width: 280, height: 280 },
     rounded: 'rounded-full',
     previews: [
-      { label: 'No cartão de perfil', size: { width: 88, height: 88 }, rounded: 'rounded-full' },
-      { label: 'Ao lado do nome', size: { width: 24, height: 24 }, rounded: 'rounded-full', withName: true }
+      { label: 'profileCard', size: { width: 88, height: 88 }, rounded: 'rounded-full' },
+      { label: 'nextToName', size: { width: 24, height: 24 }, rounded: 'rounded-full', withName: true }
     ]
   },
   // The profile card's banner is 340 x 120.
   banner: {
     frame: { width: 408, height: 144 },
     rounded: 'rounded-control',
-    previews: [{ label: 'No cartão de perfil', size: { width: 340, height: 120 }, rounded: 'rounded-control' }]
+    previews: [{ label: 'profileCard', size: { width: 340, height: 120 }, rounded: 'rounded-control' }]
   },
   icon: {
     frame: { width: 280, height: 280 },
     rounded: 'rounded-[18%]',
     previews: [
-      { label: 'No topo', size: { width: 48, height: 48 }, rounded: 'rounded-item' },
-      { label: 'Nas listas', size: { width: 24, height: 24 }, rounded: 'rounded-item', withName: true }
+      { label: 'top', size: { width: 48, height: 48 }, rounded: 'rounded-item' },
+      { label: 'lists', size: { width: 24, height: 24 }, rounded: 'rounded-item', withName: true }
     ]
   },
   'server-banner': {
     frame: { width: 420, height: 140 },
     rounded: 'rounded-control',
-    previews: [{ label: 'Na visão geral', size: { width: 300, height: 100 }, rounded: 'rounded-control' }]
+    previews: [{ label: 'overview', size: { width: 300, height: 100 }, rounded: 'rounded-control' }]
   }
 }
 
@@ -108,7 +109,7 @@ function PreviewOf({
   )
   return (
     <div>
-      <span className={labelClass}>{preview.label}</span>
+      <span className={labelClass}>{t(`media.crop.previews.${preview.label}`)}</span>
       {preview.withName ? (
         <span className="flex items-center gap-2 rounded-item bg-main px-2 py-1.5">
           {box}
@@ -165,7 +166,7 @@ export function ImageCropModal({
     if (size) return start(size)
     const probe = new Image()
     probe.onload = () => start({ width: probe.naturalWidth, height: probe.naturalHeight })
-    probe.onerror = () => setError('Não foi possível abrir a imagem.')
+    probe.onerror = () => setError(t('media.crop.openFailed'))
     probe.src = src
     // The frame is fixed per shape, and `initial` only matters on open.
   }, [src])
@@ -218,13 +219,13 @@ export function ImageCropModal({
   }
 
   return (
-    <Modal title="Ajustar imagem" subtitle="Arraste para posicionar. Use a roda do mouse ou o controle para dar zoom." wide onClose={onClose}>
+    <Modal title={t('media.crop.title')} subtitle={t('media.crop.subtitle')} wide onClose={onClose}>
       <div className="flex flex-wrap items-start justify-center gap-6">
         <div>
           <div
             ref={stage}
             role="application"
-            aria-label="Área de recorte: arraste ou use as setas para mover, + e - para o zoom"
+            aria-label={t('media.crop.area')}
             tabIndex={0}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -248,7 +249,7 @@ export function ImageCropModal({
             <ZoomOut size={16} className="shrink-0 text-fg-muted" aria-hidden />
             <input
               type="range"
-              aria-label="Zoom"
+              aria-label={t('media.crop.zoom')}
               min={MIN_ZOOM}
               max={MAX_ZOOM}
               step={0.01}
@@ -264,7 +265,7 @@ export function ImageCropModal({
               onClick={() => update((v, im) => rotateView(v, im, frame))}
               className="ml-2 flex items-center gap-1.5 rounded-control px-2 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg"
             >
-              <RotateCw size={16} /> Girar 90°
+              <RotateCw size={16} /> {t('media.crop.rotate')}
             </button>
           </div>
         </div>
@@ -282,10 +283,10 @@ export function ImageCropModal({
         <FormError message={error} />
         <div className="ml-auto grid w-80 grid-cols-2 gap-3">
           <SecondaryButton type="button" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </SecondaryButton>
           <PrimaryButton type="button" disabled={!view || busy} onClick={save}>
-            {busy ? 'Salvando…' : 'Salvar'}
+            {busy ? t('common.saving') : t('common.save')}
           </PrimaryButton>
         </div>
       </div>
@@ -295,9 +296,9 @@ export function ImageCropModal({
 
 export function uploadError(err: unknown): string {
   if (err instanceof ApiError && err.status === 413) return 'A imagem passa de 8 MB.'
-  if (err instanceof ApiError && err.status === 415) return 'Formato não suportado. Use PNG, JPG, GIF ou WebP.'
-  if (err instanceof ApiError && err.status === 422) return 'Não foi possível recortar essa imagem.'
-  return 'Não foi possível enviar a imagem.'
+  if (err instanceof ApiError && err.status === 415) return t('media.crop.format')
+  if (err instanceof ApiError && err.status === 422) return t('media.crop.cropFailed')
+  return t('media.crop.uploadFailed')
 }
 
 interface Editing {
@@ -315,7 +316,7 @@ interface Editing {
 /** "Escolher um GIF": the chat's GIF picker (Klipy search, Em alta, Favoritos) in a modal. */
 function GifPickerModal({ onPick, onClose }: { onPick(gif: Gif): void; onClose(): void }): ReactNode {
   return (
-    <Modal title="Escolher um GIF" subtitle="Depois você ajusta a posição e o zoom." onClose={onClose}>
+    <Modal title={t('media.crop.pickGif')} subtitle={t('media.crop.pickGifHint')} onClose={onClose}>
       <div className="flex h-[420px] flex-col overflow-hidden rounded-control border border-line bg-panel">
         <GifPanel onPick={onPick} />
       </div>
@@ -377,7 +378,7 @@ export function CroppedImageRow<T>({
     const file = e.target.files?.[0]
     e.target.value = '' // allow picking the same file again
     if (!file) return
-    if (file.size > MAX_BYTES) return setError('A imagem passa de 8 MB.')
+    if (file.size > MAX_BYTES) return setError(t('media.crop.tooBig'))
     setError(null)
     setEditing({ src: URL.createObjectURL(file), file, initial: null })
   }
@@ -393,7 +394,7 @@ export function CroppedImageRow<T>({
       const original = await fetchMedia(`/api${path}/original`)
       setEditing({ src: URL.createObjectURL(original), file: null, initial: crop ?? null })
     } catch {
-      setError('Não foi possível abrir a imagem original.')
+      setError(t('media.crop.originalFailed'))
     } finally {
       setBusy(null)
     }
@@ -436,26 +437,26 @@ export function CroppedImageRow<T>({
             if (!gifsOn) return input.current?.click()
             openMenuAt(e.currentTarget, () => (
               <>
-                <Item icon={ImageUp} label="Enviar imagem" onClick={() => input.current?.click()} />
-                <Item icon={Clapperboard} label="Escolher um GIF" onClick={() => setChoosingGif(true)} />
+                <Item icon={ImageUp} label={t('media.crop.upload')} onClick={() => input.current?.click()} />
+                <Item icon={Clapperboard} label={t('media.crop.pickGif')} onClick={() => setChoosingGif(true)} />
               </>
             ))
           }}
           className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
         >
-          {`Alterar ${lower}`}
+          {t('media.crop.change', { what: lower })}
         </button>
         {hasImage && (crop || currentGif) && (
           <button type="button" disabled={busy !== null} onClick={adjust} className="text-sm text-fg-muted hover:text-fg">
-            {busy === 'adjust' ? 'Abrindo…' : 'Ajustar posição'}
+            {busy === 'adjust' ? t('media.crop.opening') : t('media.crop.adjust')}
           </button>
         )}
         {hasImage && (
           <button type="button" disabled={busy !== null} onClick={remove} className="text-sm text-fg-muted hover:text-fg">
-            {busy === 'remove' ? 'Removendo…' : 'Remover'}
+            {busy === 'remove' ? t('media.crop.removing') : t('common.remove')}
           </button>
         )}
-        <input ref={input} type="file" accept={ACCEPT} hidden aria-label={`Arquivo de ${lower}`} onChange={pick} />
+        <input ref={input} type="file" accept={ACCEPT} hidden aria-label={t('media.crop.fileOf', { what: lower })} onChange={pick} />
       </div>
       {error && <p role="alert" className="mt-1.5 text-sm text-danger">{error}</p>}
       {choosingGif && <GifPickerModal onPick={pickGif} onClose={() => setChoosingGif(false)} />}
@@ -513,14 +514,14 @@ export function ImageRow({
           onClick={() => input.current?.click()}
           className="rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover disabled:opacity-60"
         >
-          {busy ? 'Enviando…' : `Alterar ${label.toLowerCase()}`}
+          {busy ? t('media.crop.sending') : t('media.crop.change', { what: label.toLowerCase() })}
         </button>
         {hasImage && (
           <button type="button" disabled={busy} onClick={onRemove} className="text-sm text-fg-muted hover:text-fg">
             Remover
           </button>
         )}
-        <input ref={input} type="file" accept={ACCEPT} hidden aria-label={`Arquivo de ${label.toLowerCase()}`} onChange={onPick} />
+        <input ref={input} type="file" accept={ACCEPT} hidden aria-label={t('media.crop.fileOf', { what: label.toLowerCase() })} onChange={onPick} />
       </div>
     </div>
   )

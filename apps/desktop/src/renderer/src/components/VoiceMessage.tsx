@@ -2,6 +2,7 @@ import { ChevronLeft, Mic, SendHorizontal, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 
 import { formatDuration, MAX_VOICE_MS, VoiceRecorder, type Recording } from '../lib/voiceRecorder'
+import { t } from '../lib/i18n'
 
 // A press shorter than this is a click: the recording keeps going until sent or thrown away.
 const CLICK_MS = 300
@@ -68,7 +69,7 @@ export function useVoiceMessage(onSend: (recording: Recording) => Promise<void>,
         return r
       },
       () => {
-        onError('Não foi possível acessar o microfone. Confira as Configurações.')
+        onError(t('media.voice.micError'))
         cancel()
         return null
       }
@@ -111,8 +112,8 @@ export function useVoiceMessage(onSend: (recording: Recording) => Promise<void>,
   const button: ReactNode = recording?.locked ? (
     <button
       type="button"
-      title="Enviar mensagem de voz"
-      aria-label="Enviar mensagem de voz"
+      title={t('media.voice.send')}
+      aria-label={t('media.voice.send')}
       onClick={() => void finish()}
       className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent hover:bg-accent-hover"
     >
@@ -121,8 +122,8 @@ export function useVoiceMessage(onSend: (recording: Recording) => Promise<void>,
   ) : (
     <button
       type="button"
-      title="Mensagem de voz: segure para gravar, ou clique"
-      aria-label="Gravar mensagem de voz"
+      title={t('media.voice.hold')}
+      aria-label={t('media.voice.record')}
       disabled={state.phase === 'sending'}
       onPointerDown={start}
       onPointerMove={move}
@@ -139,7 +140,7 @@ export function useVoiceMessage(onSend: (recording: Recording) => Promise<void>,
   const bar: ReactNode =
     state.phase === 'sending' ? (
       <div className="absolute inset-0 flex items-center rounded-control border border-line bg-elevated px-4 text-sm text-fg-muted">
-        Enviando mensagem de voz…
+        {t('media.voice.sending')}
       </div>
     ) : recording ? (
       <div
@@ -157,15 +158,15 @@ export function useVoiceMessage(onSend: (recording: Recording) => Promise<void>,
             onClick={cancel}
             className="ml-auto flex items-center gap-1.5 rounded-control px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10"
           >
-            <Trash2 size={14} /> Descartar
+            <Trash2 size={14} /> {t('media.voice.discard')}
           </button>
         ) : (
           <span className={`ml-auto flex items-center gap-1 text-xs ${recording.cancelling ? 'font-semibold text-danger' : 'text-fg-subtle'}`}>
             {recording.cancelling ? (
-              'Solte para cancelar'
+              t('media.voice.releaseCancel')
             ) : (
               <>
-                <ChevronLeft size={14} /> Arraste para cancelar
+                <ChevronLeft size={14} /> {t('media.voice.dragCancel')}
               </>
             )}
           </span>

@@ -20,6 +20,7 @@ import { useAppearance } from '../store/appearance'
 import { GifPanel } from './Gifs'
 import { StickerPanel } from './Stickers'
 import { cn, inputClass, menuClass } from './ui'
+import { t as tr } from '../lib/i18n'
 
 /** One emoji drawn with Twemoji, the same on every PC; the system's own if the drawing is missing.
  * `size` in px; by default it follows the text (1.25em). */
@@ -124,8 +125,8 @@ export function EmojiPickerHost(): ReactNode {
   const { stickers, gifs } = open
   const tabs = (
     [
-      ['emoji', 'Emojis', true],
-      ['stickers', 'Figurinhas', !!stickers],
+      ['emoji', tr('media.emoji.tabEmoji'), true],
+      ['stickers', tr('media.emoji.tabStickers'), !!stickers],
       ['gifs', 'GIFs', !!gifs]
     ] as const
   ).filter(([, , shown]) => shown)
@@ -210,7 +211,7 @@ function PickerFrame({ x, y, tall, children }: { x: number; y: number; tall: boo
     <div
       ref={ref}
       role="dialog"
-      aria-label="Escolher emoji"
+      aria-label={tr('media.emoji.pick')}
       style={{ ...pos, width: PICKER_W, height }}
       className={cn(menuClass, 'app-no-drag fixed z-popover flex flex-col p-0')}
     >
@@ -265,16 +266,16 @@ function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar emoji"
-            aria-label="Buscar emoji"
+            placeholder={tr('media.emoji.search')}
+            aria-label={tr('media.emoji.search')}
             className={cn(inputClass, 'py-1.5 pl-8 text-sm')}
           />
         </div>
         <div className="relative">
           <button
             type="button"
-            title="Tom de pele"
-            aria-label="Tom de pele"
+            title={tr('media.emoji.tone')}
+            aria-label={tr('media.emoji.tone')}
             aria-expanded={tones}
             onClick={() => setTones((t) => !t)}
             className="flex h-8 w-8 items-center justify-center rounded-item hover:bg-elevated"
@@ -282,14 +283,14 @@ function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
             <Emoji emoji={catalog ? withTone(catalog.byEmoji.get(TONE_SAMPLE)!, tone) : TONE_SAMPLE} size={22} />
           </button>
           {tones && catalog && (
-            <div role="radiogroup" aria-label="Tom de pele" className={cn(menuClass, 'absolute right-0 top-9 flex gap-0.5 p-1')}>
+            <div role="radiogroup" aria-label={tr('media.emoji.tone')} className={cn(menuClass, 'absolute right-0 top-9 flex gap-0.5 p-1')}>
               {([0, 1, 2, 3, 4, 5] as SkinTone[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   role="radio"
                   aria-checked={t === tone}
-                  aria-label={`Tom ${t}`}
+                  aria-label={tr('media.emoji.toneN', { n: t })}
                   onClick={() => {
                     useAppearance.getState().update({ emoji_tone: t })
                     setTones(false)
@@ -306,7 +307,7 @@ function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
 
       {!results && catalog && (
         <div className="flex justify-between border-b border-line px-1.5 py-1 text-fg-subtle">
-          {[{ id: RECENT, label: 'Recentes' }, ...catalog.groups].map((g) => {
+          {[{ id: RECENT, label: tr('media.emoji.recent') }, ...catalog.groups].map((g) => {
             const Icon = g.id === RECENT ? Clock : (GROUP_ICONS[g.id] ?? Smile)
             if (g.id === RECENT && !recentEntries.length) return null
             return (
@@ -320,18 +321,18 @@ function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
 
       <div ref={list} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {!catalog ? (
-          <p className="py-8 text-center text-sm text-fg-subtle">Carregando…</p>
+          <p className="py-8 text-center text-sm text-fg-subtle">{tr('common.loading')}</p>
         ) : results ? (
           results.length ? (
             <div className="grid grid-cols-8 pt-2">{results.map((e) => cell(e))}</div>
           ) : (
-            <p className="py-8 text-center text-sm text-fg-subtle">Nenhum emoji encontrado.</p>
+            <p className="py-8 text-center text-sm text-fg-subtle">{tr('media.emoji.none')}</p>
           )
         ) : (
           <>
             {recentEntries.length > 0 && (
               <section data-group={RECENT}>
-                <h3 className="sticky top-0 bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Recentes</h3>
+                <h3 className="sticky top-0 bg-main pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{tr('media.emoji.recent')}</h3>
                 <div className="grid grid-cols-8">{recentEntries.map((r) => cell(r.entry!, r.emoji))}</div>
               </section>
             )}
@@ -353,7 +354,7 @@ function EmojiPanel({ onPick }: { onPick(emoji: string): void }): ReactNode {
             {hovered.words[0] && <span className="truncate text-xs text-fg-subtle">:{hovered.words[0]}:</span>}
           </>
         ) : (
-          <span className="text-fg-subtle">Emojis por Twemoji</span>
+          <span className="text-fg-subtle">{tr('media.emoji.credit')}</span>
         )}
       </p>
     </>
@@ -402,7 +403,7 @@ export function useEmojiAutocomplete(
     return true
   }
   const popup = found.length ? (
-    <ul role="listbox" aria-label="Emojis" className={cn(menuClass, 'absolute bottom-full left-0 mb-2 w-72')}>
+    <ul role="listbox" aria-label={tr('media.emoji.list')} className={cn(menuClass, 'absolute bottom-full left-0 mb-2 w-72')}>
       {found.map((entry, i) => (
         <li key={entry.emoji} role="option" aria-selected={i === active}>
           <button
