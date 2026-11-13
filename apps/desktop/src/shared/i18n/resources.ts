@@ -12,6 +12,7 @@ import enCall from './locales/en/call.json'
 import enChat from './locales/en/chat.json'
 import enCommon from './locales/en/common.json'
 import enErrors from './locales/en/errors.json'
+import enHome from './locales/en/home.json'
 import enMedia from './locales/en/media.json'
 import enNav from './locales/en/nav.json'
 import enOverlay from './locales/en/overlay.json'
@@ -30,6 +31,7 @@ import ptCall from './locales/pt-BR/call.json'
 import ptChat from './locales/pt-BR/chat.json'
 import ptCommon from './locales/pt-BR/common.json'
 import ptErrors from './locales/pt-BR/errors.json'
+import ptHome from './locales/pt-BR/home.json'
 import ptMedia from './locales/pt-BR/media.json'
 import ptNav from './locales/pt-BR/nav.json'
 import ptOverlay from './locales/pt-BR/overlay.json'
@@ -60,7 +62,8 @@ export const ptBR = {
   sounds: ptSounds,
   nav: ptNav,
   top: ptTop,
-  people: ptPeople
+  people: ptPeople,
+  home: ptHome
 }
 
 export const en: typeof ptBR = {
@@ -81,7 +84,8 @@ export const en: typeof ptBR = {
   sounds: enSounds,
   nav: enNav,
   top: enTop,
-  people: enPeople
+  people: enPeople,
+  home: enHome
 }
 
 export const resources = {

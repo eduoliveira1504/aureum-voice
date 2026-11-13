@@ -11,7 +11,8 @@
     "online": "Online",
     "idle": "Away",
     "dnd": "Do not disturb",
-    "invisible": "Invisible"
+    "invisible": "Invisible",
+    "offline": "Offline"
   },
   "closeHint": {
     "macTitle": "Aureum is still open",

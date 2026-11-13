@@ -14,6 +14,7 @@ import { AddFriend } from './socialModals'
 import { Avatar, CountBadge, menuClass, MenuItem, PRESENCE_LABEL, PresenceAvatar, useDismiss } from './ui'
 import { ActivityLine, activityLabel, StatusBubble, useElapsed } from './profileBits'
 import { userContextMenu } from './UserMenu'
+import { t as tr } from '../lib/i18n'
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 
@@ -32,7 +33,7 @@ export function HomeView({ me }: { me: Me }): ReactNode {
   return (
     <div className="flex min-w-0 flex-1 py-2 pr-2">
       <section
-        aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? 'Amigos' : 'Início'}
+        aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? tr('home.friends.title') : tr('home.friends.home')}
         data-tour="inicio"
         className="flex min-w-0 flex-1 overflow-hidden rounded-panel border border-line bg-main"
       >
@@ -42,12 +43,13 @@ export function HomeView({ me }: { me: Me }): ReactNode {
   )
 }
 
-const TABS: { id: Exclude<Tab, 'add'>; label: string }[] = [
-  { id: 'online', label: 'Online' },
-  { id: 'all', label: 'Todos' },
-  { id: 'pending', label: 'Pendentes' },
-  { id: 'blocked', label: 'Bloqueados' }
-]
+const tab = (id: Exclude<Tab, 'add'>): { id: Exclude<Tab, 'add'>; readonly label: string } => ({
+  id,
+  get label() {
+    return tr(`home.friends.tabs.${id}`)
+  }
+})
+const TABS = [tab('online'), tab('all'), tab('pending'), tab('blocked')]
 
 function FriendsPage({ me }: { me: Me }): ReactNode {
   const friends = useSocial((s) => s.friends)
@@ -71,7 +73,7 @@ function FriendsPage({ me }: { me: Me }): ReactNode {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
           <Users size={20} className="text-fg-subtle" />
-          <h2 className="mr-2 font-semibold">Amigos</h2>
+          <h2 className="mr-2 font-semibold">{tr('home.friends.title')}</h2>
           <div role="tablist" className="flex min-w-0 gap-1 overflow-x-auto">
             {TABS.map((t) => (
               <button
@@ -98,7 +100,7 @@ function FriendsPage({ me }: { me: Me }): ReactNode {
             }`}
           >
             <UserPlus size={16} />
-            Adicionar amigo
+            {tr('home.friends.add')}
           </button>
         </header>
 
@@ -128,10 +130,10 @@ function FriendsPage({ me }: { me: Me }): ReactNode {
 
 function EmptyTab({ tab, onAdd }: { tab: Tab; onAdd(): void }): ReactNode {
   const text = {
-    online: 'Nenhum amigo online agora.',
-    all: 'Você ainda não adicionou ninguém.',
-    pending: 'Nenhum pedido de amizade pendente.',
-    blocked: 'Você não bloqueou ninguém.',
+    online: tr('home.friends.empty.online'),
+    all: tr('home.friends.empty.all'),
+    pending: tr('home.friends.empty.pending'),
+    blocked: tr('home.friends.empty.blocked'),
     add: ''
   }[tab]
   return (
@@ -142,7 +144,7 @@ function EmptyTab({ tab, onAdd }: { tab: Tab; onAdd(): void }): ReactNode {
       <p className="mt-4 text-fg-muted">{text}</p>
       {(tab === 'all' || tab === 'online') && (
         <button type="button" onClick={onAdd} className="mt-3 text-sm font-semibold text-accent-text hover:underline">
-          Adicionar pelo @username
+          {tr('home.friends.addByUsername')}
         </button>
       )}
     </div>
@@ -184,7 +186,7 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
   const { user, kind } = friend
   const playing = !!useUserActivity(user.id)
   const subtitle =
-    kind === 'friend' ? PRESENCE_LABEL[status] : kind === 'incoming' ? 'Pedido recebido' : kind === 'outgoing' ? 'Pedido enviado' : 'Bloqueado'
+    kind === 'friend' ? PRESENCE_LABEL[status] : kind === 'incoming' ? tr('home.friends.incoming') : kind === 'outgoing' ? tr('home.friends.outgoing') : tr('home.friends.blocked')
   const fail = (): void => {} // the next friend.* event or reload shows the real state
 
   return (
@@ -214,10 +216,10 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
         <div className="flex shrink-0 items-center gap-2">
           {kind === 'friend' && (
             <>
-              <RoundButton label="Mensagem" onClick={() => void openDm(user.id).catch(fail)}>
+              <RoundButton label={tr('home.friends.message')} onClick={() => void openDm(user.id).catch(fail)}>
                 <MessageCircle size={18} />
               </RoundButton>
-              <RoundButton label="Ligar" onClick={() => void openDm(user.id).then(startCall).catch(fail)}>
+              <RoundButton label={tr('home.friends.call')} onClick={() => void openDm(user.id).then(startCall).catch(fail)}>
                 <Phone size={18} />
               </RoundButton>
               <FriendMenu onRemove={() => setConfirm('remove')} onBlock={() => setConfirm('block')} />
@@ -225,16 +227,16 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
           )}
           {kind === 'incoming' && (
             <>
-              <RoundButton label="Aceitar" onClick={() => void accept(user.id).catch(fail)}>
+              <RoundButton label={tr('home.accept')} onClick={() => void accept(user.id).catch(fail)}>
                 <Check size={18} />
               </RoundButton>
-              <RoundButton label="Recusar" danger onClick={() => void remove(user.id).catch(fail)}>
+              <RoundButton label={tr('home.decline')} danger onClick={() => void remove(user.id).catch(fail)}>
                 <X size={18} />
               </RoundButton>
             </>
           )}
           {kind === 'outgoing' && (
-            <RoundButton label="Cancelar pedido" danger onClick={() => void remove(user.id).catch(fail)}>
+            <RoundButton label={tr('home.friends.cancelRequest')} danger onClick={() => void remove(user.id).catch(fail)}>
               <X size={18} />
             </RoundButton>
           )}
@@ -244,20 +246,20 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
               onClick={() => void unblock(user.id).catch(fail)}
               className="rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg"
             >
-              Desbloquear
+              {tr('home.friends.unblock')}
             </button>
           )}
         </div>
       </div>
       {confirm && (
         <ConfirmModal
-          title={confirm === 'remove' ? `Remover ${user.display_name}` : `Bloquear ${user.display_name}`}
+          title={confirm === 'remove' ? tr('people.menu.unfriendTitle', { name: user.display_name }) : tr('people.menu.blockTitle', { name: user.display_name })}
           message={
             confirm === 'remove'
-              ? 'Vocês deixam de ser amigos. A conversa continua aí, mas só amigos trocam mensagens e ligações.'
-              : 'A amizade acaba e essa pessoa não consegue mais te mandar pedidos, mensagens nem te ligar.'
+              ? tr('people.menu.unfriendConfirm')
+              : tr('people.menu.blockConfirm')
           }
-          confirmLabel={confirm === 'remove' ? 'Remover amizade' : 'Bloquear'}
+          confirmLabel={confirm === 'remove' ? tr('people.menu.unfriend') : tr('people.menu.block')}
           onConfirm={() => (confirm === 'remove' ? remove(user.id) : useSocial.getState().block(user.id))}
           onClose={() => setConfirm(null)}
         />
@@ -277,13 +279,13 @@ function FriendMenu({ onRemove, onBlock }: { onRemove(): void; onBlock(): void }
   }
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
-      <RoundButton label="Mais opções" onClick={() => setOpen((v) => !v)}>
+      <RoundButton label={tr('home.friends.more')} onClick={() => setOpen((v) => !v)}>
         <EllipsisVertical size={18} />
       </RoundButton>
       {open && (
         <div className={`${menuClass} absolute right-0 top-full mt-1 w-48`}>
-          <MenuItem icon={UserMinus} label="Remover amizade" danger onClick={pick(onRemove)} />
-          <MenuItem icon={Ban} label="Bloquear" danger onClick={pick(onBlock)} />
+          <MenuItem icon={UserMinus} label={tr('people.menu.unfriend')} danger onClick={pick(onRemove)} />
+          <MenuItem icon={Ban} label={tr('people.menu.block')} danger onClick={pick(onBlock)} />
         </div>
       )}
     </div>
@@ -333,7 +335,7 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
     activities.push({
       key: dm.id,
       title: dmTitle(dm, me.id),
-      subtitle: dm.type === 'dm' ? 'Chamada privada' : 'Grupo',
+      subtitle: dm.type === 'dm' ? tr('home.friends.privateCall') : tr('home.friends.group'),
       people: dm.voice_states.map((v) => dm.members.find((m) => m.user.id === v.user_id)?.user).filter((u): u is User => !!u),
       live: dm.voice_states.some((v) => v.screen),
       here: voiceChannel === dm.id,
@@ -345,10 +347,10 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
   }
 
   return (
-    <aside aria-label="Ativo agora" className="hidden w-72 shrink-0 overflow-y-auto border-l border-line p-4 xl:block">
-      <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">Ativo agora</h3>
+    <aside aria-label={tr('home.friends.activeNow')} className="hidden w-72 shrink-0 overflow-y-auto border-l border-line p-4 xl:block">
+      <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wide text-fg-subtle">{tr('home.friends.activeNow')}</h3>
       {activities.length === 0 && gamers.length === 0 && (
-        <p className="text-sm text-fg-muted">Quando seus amigos entrarem numa chamada ou abrirem um jogo, aparece aqui.</p>
+        <p className="text-sm text-fg-muted">{tr('home.friends.activeHint')}</p>
       )}
       <div className="space-y-2">
         {activities.map((a) => (
@@ -362,19 +364,19 @@ function ActiveNow({ me }: { me: Me }): ReactNode {
                 ))}
               </div>
               {a.people.length > 4 && <span className="text-xs text-fg-subtle">+{a.people.length - 4}</span>}
-              {a.live && <span className="ml-auto rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>}
+              {a.live && <span className="ml-auto rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{tr('home.live')}</span>}
             </div>
             <div className="mt-2 truncate text-sm font-semibold">{a.title}</div>
             <div className="truncate text-xs text-fg-subtle">{a.subtitle}</div>
             {a.here ? (
-              <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-accent-text">Você está aqui</div>
+              <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-accent-text">{tr('home.youAreHere')}</div>
             ) : (
               <button
                 type="button"
                 onClick={a.join}
                 className="mt-2 w-full rounded-control bg-elevated py-1.5 text-sm font-semibold hover:bg-line"
               >
-                Entrar
+                {tr('home.join')}
               </button>
             )}
           </div>

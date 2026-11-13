@@ -18,6 +18,9 @@ import { AddServerModal } from './modals'
 import { activityLabel } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, PRESENCE_LABEL, PresenceAvatar, ServerIcon } from './ui'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
+import { Trans } from 'react-i18next'
 
 const LIVE_PREVIEW = 6
 const SIDE_COLUMN = 'flex flex-col gap-6 @min-[1000px]:w-[300px] @min-[1000px]:shrink-0'
@@ -26,18 +29,19 @@ const CARD_GRID = 'grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240
 /** "Bom dia" from 5h, "Boa tarde" from 12h, "Boa noite" from 18h, by the PC's clock. */
 export function greeting(now: Date = new Date()): string {
   const hour = now.getHours()
-  if (hour >= 5 && hour < 12) return 'Bom dia'
-  if (hour >= 12 && hour < 18) return 'Boa tarde'
-  return 'Boa noite'
+  if (hour >= 5 && hour < 12) return t('home.morning')
+  if (hour >= 12 && hour < 18) return t('home.afternoon')
+  return t('home.evening')
 }
 
 /** The line under the greeting: friends in a call and things waiting, or all clear. */
 export function hubSummary(inCall: number, pending: number): string {
   const parts = [
-    inCall > 0 && `${inCall} ${inCall === 1 ? 'amigo' : 'amigos'} em call agora`,
-    pending > 0 && `${pending} ${pending === 1 ? 'coisa esperando' : 'coisas esperando'} por você`
-  ].filter(Boolean)
-  return parts.length ? `${parts.join(' e ')}.` : 'Tudo em dia por aqui.'
+    inCall > 0 && t('home.friendsInCall', { count: inCall }),
+    pending > 0 && t('home.waiting', { count: pending })
+  ].filter((part): part is string => !!part)
+  if (parts.length === 2) return t('home.summary', { first: parts[0], second: parts[1] })
+  return parts.length ? t('home.summaryOne', { first: parts[0] }) : t('home.allClear')
 }
 
 /** How long a room has been going: "agora", "41 min", "1 h 5 min". */
@@ -91,7 +95,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
             <Pending me={me} />
             <Tasks />
           </div>
-          <aside aria-label="Coluna lateral" className={SIDE_COLUMN}>
+          <aside aria-label={t('home.side')} className={SIDE_COLUMN}>
             <ActiveFriends me={me} />
             <HomeCalendarCard onExpand={() => setCalendar(true)} expanded={calendar} />
           </aside>
@@ -130,10 +134,10 @@ function Header({ me, onDialog }: { me: Me; onDialog(dialog: Dialog): void }): R
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Action icon={Phone} label="Iniciar chamada" primary onClick={() => onDialog('call')} />
-        <Action icon={UserPlus} label="Adicionar amigo" onClick={() => onDialog('friend')} />
-        <Action icon={Plus} label="Criar servidor" onClick={() => onDialog('create')} />
-        <Action icon={Link2} label="Entrar com convite" onClick={() => onDialog('join')} />
+        <Action icon={Phone} label={t('home.startCall')} primary onClick={() => onDialog('call')} />
+        <Action icon={UserPlus} label={t('home.addFriend')} onClick={() => onDialog('friend')} />
+        <Action icon={Plus} label={t('home.createServer')} onClick={() => onDialog('create')} />
+        <Action icon={Link2} label={t('home.joinInvite')} onClick={() => onDialog('join')} />
       </div>
     </header>
   )
@@ -191,12 +195,12 @@ function LiveNow({ me, onCall }: { me: Me; onCall(): void }): ReactNode {
   useEffect(() => (watchKey ? watchHome(watchKey.split(',')) : undefined), [watchKey])
 
   return (
-    <section aria-label="Ao vivo agora">
+    <section aria-label={t('home.liveNow')}>
       <SectionHeader
-        title="Ao vivo agora"
-        hint="nos seus servidores e grupos"
+        title={t('home.liveNow')}
+        hint={t('home.liveHint')}
         live
-        action={rooms.length > LIVE_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : 'Ver mais'}</LinkButton>}
+        action={rooms.length > LIVE_PREVIEW && <LinkButton onClick={() => setAll(!all)}>{all ? t('home.seeLess') : t('home.seeMore')}</LinkButton>}
       />
       {!chatLoaded || !socialLoaded ? (
         <div className={CARD_GRID}>
@@ -216,11 +220,11 @@ function LiveNow({ me, onCall }: { me: Me; onCall(): void }): ReactNode {
               className="flex min-h-[220px] flex-col items-center justify-center gap-1.5 rounded-control border border-dashed border-line p-5 text-center hover:border-accent/60"
             >
               <Phone size={20} className="mb-1 text-fg-muted" />
-              <span className="font-semibold">Chamar alguém</span>
-              <span className="text-sm text-fg-subtle">Ligue pra um amigo ou um grupo</span>
+              <span className="font-semibold">{t('home.callSomeone')}</span>
+              <span className="text-sm text-fg-subtle">{t('home.callSomeoneHint')}</span>
             </button>
           </div>
-          {rooms.length === 0 && <p className="mt-3 text-sm text-fg-subtle">Ninguém em call agora.</p>}
+          {rooms.length === 0 && <p className="mt-3 text-sm text-fg-subtle">{t('home.nobodyInCall')}</p>}
         </>
       )}
     </section>
@@ -240,9 +244,9 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
       ? room.server.members.map((m) => [m.user.id, { ...m.user, display_name: memberName(m) }])
       : room.dm.members.map((m) => [m.user.id, m.user])
   )
-  const nameOf = (id: string): string => people.get(id)?.display_name ?? 'Alguém'
+  const nameOf = (id: string): string => people.get(id)?.display_name ?? t('home.someone')
   const title = room.kind === 'room' ? (room.channel.name ?? '') : dmTitle(room.dm, meId)
-  const place = room.kind === 'room' ? room.server.name : room.dm.type === 'group_dm' ? 'Chamada em grupo' : 'Chamada'
+  const place = room.kind === 'room' ? room.server.name : room.dm.type === 'group_dm' ? t('home.groupCall') : t('home.call')
   const sharer = room.states.find((v) => v.screen)
   const thumb = sharer && thumbnails[sharer.user_id]?.channelId === room.key ? thumbnails[sharer.user_id] : undefined
   const count = `${room.states.length} ${room.states.length === 1 ? 'pessoa' : 'pessoas'}`
@@ -265,11 +269,11 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
       <div className="relative aspect-video overflow-hidden rounded-item bg-rail">
         {sharer ? (
           thumb ? (
-            <img src={thumb.image} alt={`Tela de ${nameOf(sharer.user_id)}`} className="h-full w-full object-contain" />
+            <img src={thumb.image} alt={t('home.screenOf', { name: nameOf(sharer.user_id) })} className="h-full w-full object-contain" />
           ) : (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-fg-subtle">
               <Radio size={18} />
-              Transmissão ao vivo
+              {t('home.liveStream')}
             </div>
           )
         ) : (
@@ -282,10 +286,10 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
             {room.states.length > 4 && <span className="text-sm font-semibold text-fg-muted">+{room.states.length - 4}</span>}
           </div>
         )}
-        {sharer && <span className="absolute left-2 top-2 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>}
+        {sharer && <span className="absolute left-2 top-2 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('home.live')}</span>}
       </div>
       <div className="min-w-0">
-        {mine && <span className="block text-[10px] font-bold uppercase tracking-wide text-accent-text">Você está aqui</span>}
+        {mine && <span className="block text-[10px] font-bold uppercase tracking-wide text-accent-text">{t('home.youAreHere')}</span>}
         <h3 className="truncate font-semibold">{title}</h3>
         <p className="truncate text-xs text-fg-subtle">
           {place} · {detail}
@@ -313,13 +317,13 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
         )}
         <button
           type="button"
-          aria-label={`${mine ? 'Abrir' : 'Entrar em'} ${title}`}
+          aria-label={mine ? t('home.openNamed', { name: title }) : t('home.joinNamed', { name: title })}
           onClick={open}
           className={`shrink-0 rounded-control px-4 py-1.5 text-sm font-semibold ${
             mine ? 'border border-line text-fg-muted hover:text-fg' : 'bg-accent text-on-accent hover:bg-accent-hover'
           }`}
         >
-          {mine ? 'Abrir' : 'Entrar'}
+          {mine ? t('home.open') : t('home.join')}
         </button>
       </div>
     </article>
@@ -327,17 +331,17 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
 }
 
 const PENDING_PREVIEW = 8
-const shortDate = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+const SHORT_DATE = { day: '2-digit', month: '2-digit' } as const
 
 /** "12 min", "3 h", "ontem", "18/10": how long ago, short. */
 export function ago(iso: string, now: number = Date.now()): string {
   const minutes = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000))
-  if (minutes < 1) return 'agora'
-  if (minutes < 60) return `${minutes} min`
-  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h`
+  if (minutes < 1) return t('home.now')
+  if (minutes < 60) return t('home.minutes', { count: minutes })
+  if (minutes < 24 * 60) return t('home.hours', { count: Math.floor(minutes / 60) })
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
-  return new Date(iso).toDateString() === yesterday.toDateString() ? 'ontem' : shortDate.format(new Date(iso))
+  return new Date(iso).toDateString() === yesterday.toDateString() ? t('home.yesterday') : dateFormat(SHORT_DATE).format(new Date(iso))
 }
 
 /** A message in one line: its text, or what it carries ("Mensagem de voz · 0:42"). */
@@ -365,9 +369,9 @@ function Pending({ me }: { me: Me }): ReactNode {
   }
 
   return (
-    <section aria-label="Pra você ver" className="rounded-panel border border-line bg-panel/40 p-4">
-      <SectionHeader title="Pra você ver" action={readable && <LinkButton onClick={markAll}>Marcar tudo como lido</LinkButton>} />
-      {error && <p className="mb-2 text-sm text-danger">Não foi possível marcar como lido. Tente de novo.</p>}
+    <section aria-label={t('home.forYou')} className="rounded-panel border border-line bg-panel/40 p-4">
+      <SectionHeader title={t('home.forYou')} action={readable && <LinkButton onClick={markAll}>{t('home.markAll')}</LinkButton>} />
+      {error && <p className="mb-2 text-sm text-danger">{t('home.markFailed')}</p>}
       {!loaded ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
@@ -375,7 +379,7 @@ function Pending({ me }: { me: Me }): ReactNode {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-fg-subtle">Nada pendente por aqui.</p>
+        <p className="py-6 text-center text-sm text-fg-subtle">{t('home.nothingPending')}</p>
       ) : (
         <ul className="space-y-1">
           {shown.map((item) => (
@@ -387,14 +391,14 @@ function Pending({ me }: { me: Me }): ReactNode {
       )}
       {items.length > PENDING_PREVIEW && (
         <div className="mt-2 text-center">
-          <LinkButton onClick={() => setAll(!all)}>{all ? 'Ver menos' : `Ver tudo (${items.length})`}</LinkButton>
+          <LinkButton onClick={() => setAll(!all)}>{all ? t('home.seeLess') : t('home.seeAll', { count: items.length })}</LinkButton>
         </div>
       )}
     </section>
   )
 }
 
-const eventTime = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const EVENT_TIME = { hour: '2-digit', minute: '2-digit' } as const
 
 function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number }): ReactNode {
   const [busy, setBusy] = useState(false)
@@ -409,7 +413,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
     const { server, message } = item
     const channel = server.channels.find((c) => c.id === message.channel_id)
     const author = server.members.find((m) => m.user.id === message.author?.id)
-    const name = author ? memberName(author) : (message.author?.display_name ?? 'Alguém')
+    const name = author ? memberName(author) : (message.author?.display_name ?? t('home.someone'))
     const open = (): void => {
       nav.openServer(server.id)
       nav.openTab(server.id, channelTab(message.channel_id))
@@ -419,9 +423,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
       <Row
         icon={<RowIcon tone="accent" icon={AtSign} />}
         title={
-          <>
-            <b>{name}</b> mencionou você em <b>#{channel?.name}</b>
-          </>
+          <Trans i18nKey="home.mention" values={{ name, channel: channel?.name }} components={{ b: <b /> }} />
         }
         detail={`“${previewOf(message)}” · ${server.name}`}
         time={ago(message.created_at, now)}
@@ -434,7 +436,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
   if (item.kind === 'dm') {
     const { dm, message, unread } = item
     const peer = dmPeer(dm, me.id)
-    const count = unread === 1 ? 'uma mensagem' : `${unread} mensagens`
+    const count = t('home.messages', { count: unread })
     const open = (): void => {
       nav.openHome(dm.id)
       useChat.getState().focusMessage(dm.id, message.id)
@@ -444,16 +446,12 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
         icon={peer ? <Avatar name={peer.display_name} url={peer.avatar_url} gif={peer.avatar_gif} size={32} /> : <GroupAvatar url={dm.icon_url} size={32} />}
         title={
           peer ? (
-            <>
-              <b>{peer.display_name}</b> mandou {count}
-            </>
+            <Trans i18nKey="home.dmSent" values={{ name: peer.display_name, count }} components={{ b: <b /> }} />
           ) : (
-            <>
-              {count[0].toUpperCase() + count.slice(1)} em <b>{dmTitle(dm, me.id)}</b>
-            </>
+            <Trans i18nKey="home.groupMessages" values={{ count: count[0].toUpperCase() + count.slice(1), group: dmTitle(dm, me.id) }} components={{ b: <b /> }} />
           )
         }
-        detail={peer ? previewOf(message) : `${message.author?.display_name ?? 'Alguém'}: ${previewOf(message)}`}
+        detail={peer ? previewOf(message) : `${message.author?.display_name ?? t('home.someone')}: ${previewOf(message)}`}
         time={ago(message.created_at, now)}
         onOpen={open}
       />
@@ -467,9 +465,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
       <Row
         icon={<RowIcon tone="danger" icon={PhoneMissed} />}
         title={
-          <>
-            Chamada perdida de <b>{caller?.display_name ?? 'alguém'}</b>
-          </>
+          <Trans i18nKey="home.missedCall" values={{ name: caller?.display_name ?? t('home.someoneLower') }} components={{ b: <b /> }} />
         }
         detail={dm?.type === 'group_dm' ? dmTitle(dm, me.id) : undefined}
         time={ago(call.started_at, now)}
@@ -483,7 +479,7 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
                 await social.startCall(dm.id)
               })}
             >
-              Ligar
+              {t('home.callBack')}
             </RowButton>
           )
         }
@@ -500,21 +496,15 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
         icon={<RowIcon tone={event.cancelled ? 'danger' : 'accent'} icon={CalendarDays} />}
         title={
           event.cancelled ? (
-            <>
-              <b>{event.title}</b> foi cancelado
-            </>
+            <Trans i18nKey="home.eventCancelled" values={{ title: event.title }} components={{ b: <b /> }} />
           ) : happening ? (
-            <>
-              <b>{event.title}</b> está acontecendo agora
-            </>
+            <Trans i18nKey="home.eventNow" values={{ title: event.title }} components={{ b: <b /> }} />
           ) : (
-            <>
-              <b>{event.title}</b> hoje às {eventTime.format(start)}
-            </>
+            <Trans i18nKey="home.eventToday" values={{ title: event.title, time: dateFormat(EVENT_TIME).format(start) }} components={{ b: <b /> }} />
           )
         }
         detail={`${event.server_name} · ${event.channel_name}`}
-        time={happening ? 'agora' : eventTime.format(start)}
+        time={happening ? t('home.now') : dateFormat(EVENT_TIME).format(start)}
         onOpen={() => nav.openAddonItem(event.server_id, event.channel_id, event.item_id)}
         highlight={!event.cancelled}
       />
@@ -526,19 +516,17 @@ function PendingRow({ item, me, now }: { item: PendingItem; me: Me; now: number 
     <Row
       icon={<RowIcon tone="success" icon={UserPlus} />}
       title={
-        <>
-          <b>@{friend.user.username}</b> quer ser seu amigo
-        </>
+        <Trans i18nKey="home.friendRequest" values={{ username: friend.user.username }} components={{ b: <b /> }} />
       }
       detail={friend.user.display_name}
       time={ago(friend.since, now)}
       actions={
         <>
           <RowButton primary disabled={busy} onClick={run(() => social.accept(friend.user.id))}>
-            Aceitar
+            {t('home.accept')}
           </RowButton>
           <RowButton disabled={busy} onClick={run(() => social.remove(friend.user.id))}>
-            Recusar
+            {t('home.decline')}
           </RowButton>
         </>
       }
@@ -611,7 +599,6 @@ function Row({
 }
 
 const TASKS_PREVIEW = 6
-const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 /**
  * A due date as the hub shows it: "23 out · atrasado" (danger), "23 out · hoje", "amanhã" or
@@ -619,12 +606,12 @@ const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', '
  */
 export function dueLabel(due: string, today: Date = new Date()): { text: string; tone: 'danger' | 'idle' | 'muted' } {
   const [y, m, d] = due.split('-').map(Number)
-  const date = `${d} ${MONTHS[m - 1]}`
+  const date = t('home.dayMonth', { day: d, month: t(`home.months.${m as 1}`) })
   const days = Math.round((new Date(y, m - 1, d).getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000)
-  if (days < 0) return { text: `${date} · atrasado`, tone: 'danger' }
-  if (days === 0) return { text: `${date} · hoje`, tone: 'idle' }
-  if (days === 1) return { text: `${date} · amanhã`, tone: 'idle' }
-  if (days === 2) return { text: `${date} · em 2 dias`, tone: 'idle' }
+  if (days < 0) return { text: t('home.dueLate', { date }), tone: 'danger' }
+  if (days === 0) return { text: t('home.dueToday', { date }), tone: 'idle' }
+  if (days === 1) return { text: t('home.dueTomorrow', { date }), tone: 'idle' }
+  if (days === 2) return { text: t('home.dueIn2', { date }), tone: 'idle' }
   return { text: date, tone: 'muted' }
 }
 
@@ -645,11 +632,11 @@ function Tasks(): ReactNode {
   const [all, setAll] = useState(false)
 
   return (
-    <section aria-label="Minhas tarefas" className="rounded-panel border border-line bg-panel/40 p-4">
+    <section aria-label={t('home.tasks')} className="rounded-panel border border-line bg-panel/40 p-4">
       <SectionHeader
-        title="Minhas tarefas"
-        hint="de todos os Kanbans"
-        action={total > TASKS_PREVIEW && <LinkButton onClick={() => setAll(true)}>Ver todas ({total})</LinkButton>}
+        title={t('home.tasks')}
+        hint={t('home.tasksHint')}
+        action={total > TASKS_PREVIEW && <LinkButton onClick={() => setAll(true)}>{t('home.allTasks', { count: total })}</LinkButton>}
       />
       {!loaded ? (
         <div className={TASK_GRID}>
@@ -658,7 +645,7 @@ function Tasks(): ReactNode {
           ))}
         </div>
       ) : tasks.length === 0 ? (
-        <p className="py-6 text-center text-sm text-fg-subtle">Nenhuma tarefa com você.</p>
+        <p className="py-6 text-center text-sm text-fg-subtle">{t('home.noTasks')}</p>
       ) : (
         <ul className={TASK_GRID}>
           {tasks.slice(0, TASKS_PREVIEW).map((task) => (
@@ -713,11 +700,11 @@ function AllTasksModal({ onClose }: { onClose(): void }): ReactNode {
   }, [])
 
   return (
-    <Modal title="Minhas tarefas" subtitle="Tudo que está com você e ainda não foi concluído." onClose={onClose} wide>
+    <Modal title={t('home.tasks')} subtitle={t('home.tasksSubtitle')} onClose={onClose} wide>
       {error ? (
-        <p className="py-6 text-center text-sm text-danger">Não foi possível carregar as tarefas.</p>
+        <p className="py-6 text-center text-sm text-danger">{t('home.tasksFailed')}</p>
       ) : !tasks ? (
-        <p className="py-6 text-center text-sm text-fg-subtle">Carregando…</p>
+        <p className="py-6 text-center text-sm text-fg-subtle">{t('common.loading')}</p>
       ) : (
         <ul className="space-y-1">
           {tasks.map((task) => {
@@ -766,12 +753,12 @@ function callOf(userId: string, servers: Record<string, ServerDetail>, dms: Reco
     const room = state && server.channels.find((c) => c.id === state.channel_id)
     if (!room) continue
     const joinable = has(channelPermissions(server, room, meId), Perm.CONNECT)
-    return { label: `Em call · ${room.name}`, join: joinable ? () => void useVoice.getState().join(server.id, room.id) : undefined }
+    return { label: t('home.inCallAt', { place: room.name }), join: joinable ? () => void useVoice.getState().join(server.id, room.id) : undefined }
   }
   const dm = Object.values(dms).find((d) => d.call && d.voice_states.some((v) => v.user_id === userId))
   if (!dm) return null
   return {
-    label: dm.type === 'group_dm' ? `Em call · ${dmTitle(dm, meId)}` : 'Em call com você',
+    label: dm.type === 'group_dm' ? t('home.inCallAt', { place: dmTitle(dm, meId) }) : t('home.inCallWithYou'),
     join: () => {
       useNav.getState().openHome(dm.id)
       void useVoice.getState().join(null, dm.id)
@@ -832,14 +819,14 @@ function ActiveFriends({ me }: { me: Me }): ReactNode {
 
   return (
     <SideCard
-      title="Amigos ativos"
+      title={t('home.activeFriends')}
       hint={loaded ? `${list.length} online` : undefined}
-      action={list.length > FRIENDS_PREVIEW && <LinkButton onClick={() => useNav.getState().openHome('friends')}>Ver todos</LinkButton>}
+      action={list.length > FRIENDS_PREVIEW && <LinkButton onClick={() => useNav.getState().openHome('friends')}>{t('home.seeAllShort')}</LinkButton>}
     >
       {!loaded ? (
         <SideSkeleton />
       ) : list.length === 0 ? (
-        <p className="py-3 text-sm text-fg-subtle">Nenhum amigo online agora.</p>
+        <p className="py-3 text-sm text-fg-subtle">{t('home.noFriendsOnline')}</p>
       ) : (
         <ul className="space-y-1">
           {list.slice(0, FRIENDS_PREVIEW).map((f) => (
@@ -859,10 +846,10 @@ function ActiveFriendRow({ item }: { item: ActiveFriend }): ReactNode {
   const line = call ? call.label : activity ? activityLabel(activity) : PRESENCE_LABEL[status]
   const social = useSocial.getState()
   const action = call?.join ? (
-    <RowButton onClick={call.join}>Entrar</RowButton>
+    <RowButton onClick={call.join}>{t('home.join')}</RowButton>
   ) : activity ? (
     <IconButton
-      label={`Ligar para ${user.display_name}`}
+      label={t('home.callNamed', { name: user.display_name })}
       icon={Phone}
       onClick={async () => {
         const id = await social.openDm(user.id)
@@ -870,7 +857,7 @@ function ActiveFriendRow({ item }: { item: ActiveFriend }): ReactNode {
       }}
     />
   ) : (
-    <IconButton label={`Mensagem para ${user.display_name}`} icon={MessageCircle} onClick={() => social.openDm(user.id)} />
+    <IconButton label={t('home.messageNamed', { name: user.display_name })} icon={MessageCircle} onClick={() => social.openDm(user.id)} />
   )
   return (
     <div className="flex items-center gap-3 rounded-item px-1 py-1.5">
@@ -959,10 +946,10 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
   const list = serverSummaries(order, servers, reads, activity)
 
   return (
-    <section aria-label="Seus servidores">
+    <section aria-label={t('home.yourServers')}>
       <SectionHeader
-        title="Seus servidores"
-        action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(true)}>Ver todos ({list.length})</LinkButton>}
+        title={t('home.yourServers')}
+        action={list.length > SERVERS_PREVIEW && <LinkButton onClick={() => setAll(true)}>{t('home.allServers', { count: list.length })}</LinkButton>}
       />
       {!loaded ? (
         <div className={SERVER_GRID}>
@@ -981,18 +968,18 @@ function YourServers({ onAdd }: { onAdd(): void }): ReactNode {
             <button
               type="button"
               onClick={onAdd}
-              aria-label="Criar ou entrar em um servidor"
-              title="Criar ou entrar em um servidor"
+              aria-label={t('home.createOrJoin')}
+              title={t('home.createOrJoin')}
               className={`${TILE} h-full w-full justify-center border-dashed text-fg-muted hover:border-accent/60 hover:text-fg`}
             >
               <Plus size={18} />
-              {list.length === 0 && <span className="text-sm font-medium">Criar ou entrar em um servidor</span>}
+              {list.length === 0 && <span className="text-sm font-medium">{t('home.createOrJoin')}</span>}
             </button>
           </li>
         </ul>
       )}
       {all && (
-        <Modal title="Seus servidores" onClose={() => setAll(false)} wide>
+        <Modal title={t('home.yourServers')} onClose={() => setAll(false)} wide>
           <ul className={SERVER_GRID}>
             {list.map((s) => (
               <li key={s.server.id} className="min-w-0">
@@ -1034,7 +1021,7 @@ function ServerTile({ summary: s, onOpen }: { summary: ServerSummary; onOpen?: (
         {s.inCall > 0 && (
           <span className="flex items-center gap-1 text-xs text-success">
             <Volume2 size={12} className="shrink-0" />
-            {s.inCall} em call
+            {t('home.inCallCount', { count: s.inCall })}
           </span>
         )}
       </span>

@@ -19,15 +19,17 @@ import { ServerBannerLayer } from './ServerBanner'
 import { COLUMNS, useColumnWidth } from './Resizer'
 import { Avatar, CountBadge, ServerIcon, TileRing } from './ui'
 import { userContextMenu } from './UserMenu'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const FEED_SIZE = 30
 const PER_CHANNEL = 3
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
+const DAY = { day: '2-digit', month: '2-digit' } as const
 
 function shortTime(iso: string): string {
   const date = new Date(iso)
-  return date.toDateString() === new Date().toDateString() ? timeFmt.format(date) : dayFmt.format(date)
+  return date.toDateString() === new Date().toDateString() ? dateFormat(TIME).format(date) : dateFormat(DAY).format(date)
 }
 
 /** A server's home: who's in which room right now, its addons, unread news and who's online. */
@@ -96,7 +98,7 @@ function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
           className="relative flex shrink-0 items-center gap-2 rounded-control bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
           <UserPlus size={16} />
-          Convidar
+          {t('home.overview.invite')}
         </button>
       )}
       {inviting && <InviteModal server={server} onClose={() => setInviting(false)} />}
@@ -110,7 +112,7 @@ function Rooms({ server, members }: { server: ServerDetail; members: Map<string,
   if (rooms.length === 0) return null
   return (
     <section>
-      <SectionTitle>Salas agora</SectionTitle>
+      <SectionTitle>{t('home.overview.roomsNow')}</SectionTitle>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
         {rooms.map((room) => (
           <RoomCard
@@ -148,7 +150,7 @@ function RoomCard({
   const expandCall = useNav((s) => s.expandCall)
   const nameOf = (id: string): string => {
     const member = members.get(id)
-    return member ? memberName(member) : 'Alguém'
+    return member ? memberName(member) : t('home.someone')
   }
 
   if (states.length === 0) {
@@ -164,7 +166,7 @@ function RoomCard({
           onClick={() => void join(server.id, room.id)}
           className="rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:border-accent hover:text-accent-text"
         >
-          Abrir a sala
+          {t('home.overview.openRoom')}
         </button>
       </div>
     )
@@ -178,16 +180,16 @@ function RoomCard({
       {sharer ? (
         <div className="relative aspect-video bg-scrim">
           {thumb ? (
-            <img src={thumb.image} alt={`Tela de ${nameOf(sharer.user_id)}`} className="h-full w-full object-contain" />
+            <img src={thumb.image} alt={t('home.screenOf', { name: nameOf(sharer.user_id) })} className="h-full w-full object-contain" />
           ) : (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-on-scrim/70">
               <Radio size={18} />
-              Transmissão ao vivo
+              {t('home.liveStream')}
             </div>
           )}
           <div className="absolute left-2 top-2 flex items-center gap-1.5">
-            <span className="rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">AO VIVO</span>
-            <span className="truncate rounded-item bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">Tela de {nameOf(sharer.user_id)}</span>
+            <span className="rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('home.live')}</span>
+            <span className="truncate rounded-item bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">{t('home.screenOf', { name: nameOf(sharer.user_id) })}</span>
           </div>
         </div>
       ) : (
@@ -212,7 +214,7 @@ function RoomCard({
       )}
       <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          {mine && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-accent-text">Você está aqui</span>}
+          {mine && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wide text-accent-text">{t('home.youAreHere')}</span>}
           <span className="flex items-center gap-1 font-medium">
             <span className="truncate">{room.name}</span>
             <PrivateMark server={server} channel={room} />
@@ -228,7 +230,7 @@ function RoomCard({
             mine ? 'border border-line text-fg-muted hover:text-fg' : 'bg-accent text-on-accent hover:bg-accent-hover'
           }`}
         >
-          {mine ? 'Abrir' : 'Entrar'}
+          {mine ? t('home.open') : t('home.join')}
         </button>
       </div>
     </div>
@@ -237,7 +239,7 @@ function RoomCard({
 
 function PrivateMark({ server, channel }: { server: ServerDetail; channel: Channel }): ReactNode {
   if (!isPrivate(server, channel)) return null
-  return <Lock size={12} aria-label="Canal privado" className="shrink-0 text-fg-subtle" />
+  return <Lock size={12} aria-label={t('home.overview.private')} className="shrink-0 text-fg-subtle" />
 }
 
 /** A card per addon channel, with the addon's live summary; or a way to add the first one. */
@@ -251,7 +253,7 @@ function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
 
   return (
     <section data-tour="addons">
-      <SectionTitle>Addons do servidor</SectionTitle>
+      <SectionTitle>{t('home.overview.addons')}</SectionTitle>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
         {channels.map((channel) => {
           const addon = addonModule(channel.addon_key)
@@ -273,14 +275,14 @@ function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
                     <PrivateMark server={server} channel={channel} />
                   </span>
                   {addon?.name !== channel.name && (
-                    <span className="block truncate text-xs text-fg-subtle">{addon?.name ?? 'Addon desconhecido'}</span>
+                    <span className="block truncate text-xs text-fg-subtle">{addon?.name ?? t('home.overview.unknownAddon')}</span>
                   )}
                 </span>
               </span>
               {addon?.Summary ? (
                 <addon.Summary server={server} channel={channel} me={me} perms={channelPermissions(server, channel, me.id)} />
               ) : (
-                <span className="line-clamp-2 text-sm text-fg-muted">{addon?.description ?? 'Atualize o app para usar este addon.'}</span>
+                <span className="line-clamp-2 text-sm text-fg-muted">{addon?.description ?? t('home.overview.updateApp')}</span>
               )}
             </button>
           )
@@ -291,7 +293,7 @@ function Addons({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
             onClick={() => setAdding(true)}
             className="flex min-h-[96px] items-center justify-center gap-2 rounded-control border border-dashed border-line p-4 text-sm font-medium text-fg-muted hover:border-accent/60 hover:text-fg"
           >
-            <Plus size={16} /> Adicionar addon
+            <Plus size={16} /> {t('home.overview.addAddon')}
           </button>
         )}
       </div>
@@ -338,11 +340,11 @@ function News({ server }: { server: ServerDetail }): ReactNode {
 
   return (
     <section>
-      <SectionTitle>Novidades</SectionTitle>
+      <SectionTitle>{t('home.overview.news')}</SectionTitle>
       {items === null ? (
-        <p className="text-sm text-fg-subtle">Carregando…</p>
+        <p className="text-sm text-fg-subtle">{t('common.loading')}</p>
       ) : groups.size === 0 ? (
-        <p className="text-sm text-fg-subtle">Tudo em dia. Nenhuma mensagem nova.</p>
+        <p className="text-sm text-fg-subtle">{t('home.overview.allCaughtUp')}</p>
       ) : (
         <ul className="space-y-3">
           {[...groups].map(([channelId, messages]) => {
@@ -361,12 +363,12 @@ function News({ server }: { server: ServerDetail }): ReactNode {
                     onClick={open}
                     className="shrink-0 rounded-item px-2 py-0.5 text-xs font-semibold text-accent-text hover:bg-elevated"
                   >
-                    Abrir
+                    {t('home.open')}
                   </button>
                 </div>
                 {/* Oldest of the group first, like in the chat. */}
                 {[...messages].reverse().map((m) => {
-                  const name = m.author ? nameIn(server, m.author.id, m.author.display_name) : 'Usuário removido'
+                  const name = m.author ? nameIn(server, m.author.id, m.author.display_name) : t('home.overview.removedUser')
                   return (
                     <button key={m.id} type="button" onClick={open} className="flex w-full gap-2.5 p-2 text-left hover:bg-elevated/60">
                       <span onContextMenu={m.author && meId ? userContextMenu(m.author, meId, server.id) : undefined}>
@@ -413,7 +415,7 @@ function Members({ server, meId }: { server: ServerDetail; meId: string }): Reac
   return (
     <section>
       <SectionTitle>
-        Membros — {onlineCount} de {server.members.length} online
+        {t('home.overview.members', { online: onlineCount, total: server.members.length })}
       </SectionTitle>
       {online.map((g) => (
         <div key={g.key} className="mb-3">
@@ -432,7 +434,7 @@ function Members({ server, meId }: { server: ServerDetail; meId: string }): Reac
             className="flex w-full items-center gap-1 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg-muted"
           >
             <ChevronDown size={12} className={`transition-transform ${showOffline ? '' : '-rotate-90'}`} />
-            Offline — {offline.members.length}
+            {t('home.overview.offline', { count: offline.members.length })}
           </button>
           {showOffline && offline.members.map(row)}
         </>

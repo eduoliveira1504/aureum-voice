@@ -8,13 +8,15 @@ import type { AgendaItem } from '../lib/api'
 import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { ServerIcon } from './ui'
+import { dateFormat } from '../lib/format'
+import { t } from '../lib/i18n'
 
 const NEXT_DAYS = 7
 const WEEKDAYS = ['d', 's', 't', 'q', 'q', 's', 's']
 const NO_ITEMS: AgendaItem[] = []
 
-const timeFmt = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const dayFmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: 'numeric' })
+const TIME = { hour: '2-digit', minute: '2-digit' } as const
+const DAY = { weekday: 'short', day: 'numeric' } as const
 
 const openItem = (item: AgendaItem): void => useNav.getState().openAddonItem(item.server_id, item.channel_id, item.item_id)
 
@@ -51,12 +53,12 @@ export function HomeCalendarCard({ expanded, onExpand }: { expanded: boolean; on
   const upcoming = nextDays.flatMap((day) => dayItems(items, day).map((item) => ({ day, item })))
 
   return (
-    <section aria-label="Calendário" className="rounded-panel border border-line bg-panel p-4">
+    <section aria-label={t('home.calendar.title')} className="rounded-panel border border-line bg-panel p-4">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <h2 className="font-display font-semibold first-letter:uppercase">{viewTitle('month', today)}</h2>
         {!expanded && (
           <button type="button" onClick={onExpand} className="shrink-0 text-sm font-semibold text-accent-text hover:underline">
-            Abrir calendário
+            {t('home.calendar.open')}
           </button>
         )}
       </div>
@@ -84,9 +86,9 @@ export function HomeCalendarCard({ expanded, onExpand }: { expanded: boolean; on
       </div>
       <div className="mt-3 border-t border-line pt-3">
         {failed ? (
-          <p className="text-sm text-danger">Não foi possível carregar o calendário.</p>
+          <p className="text-sm text-danger">{t('home.calendar.failed')}</p>
         ) : upcoming.length === 0 ? (
-          <p className="text-sm text-fg-subtle">Nada marcado nos próximos 7 dias.</p>
+          <p className="text-sm text-fg-subtle">{t('home.calendar.empty')}</p>
         ) : (
           <ul className="space-y-1">
             {upcoming.map(({ day, item }) => (
@@ -102,8 +104,8 @@ export function HomeCalendarCard({ expanded, onExpand }: { expanded: boolean; on
                     {item.title}
                   </span>
                   <span className="shrink-0 text-xs text-fg-subtle">
-                    {dayFmt.format(day)}
-                    {item.starts_at && ` · ${timeFmt.format(new Date(item.starts_at))}`}
+                    {dateFormat(DAY).format(day)}
+                    {item.starts_at && ` · ${dateFormat(TIME).format(new Date(item.starts_at))}`}
                   </span>
                 </button>
               </li>
@@ -141,11 +143,11 @@ export function HomeCalendar({ onClose }: { onClose(): void }): ReactNode {
     })
 
   return (
-    <section aria-label="Calendário de todos os servidores" className="relative flex h-[640px] min-h-0 flex-col overflow-hidden rounded-panel border border-line">
+    <section aria-label={t('home.calendar.all')} className="relative flex h-[640px] min-h-0 flex-col overflow-hidden rounded-panel border border-line">
       <button
         type="button"
-        title="Fechar calendário"
-        aria-label="Fechar calendário"
+        title={t('home.calendar.close')}
+        aria-label={t('home.calendar.close')}
         onClick={onClose}
         className="absolute right-2 top-2 z-drawer rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg"
       >
@@ -175,7 +177,7 @@ export function HomeCalendar({ onClose }: { onClose(): void }): ReactNode {
                 onToggle={() => toggle(server.id)}
               />
             ))}
-            {!servers.length && loaded && <span className="text-fg-subtle">Nenhum evento ou prazo neste período.</span>}
+            {!servers.length && loaded && <span className="text-fg-subtle">{t('home.calendar.nothing')}</span>}
             <OnlyMine checked={onlyMine} onChange={setOnlyMine} />
           </>
         }

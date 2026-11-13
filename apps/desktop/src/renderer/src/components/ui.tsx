@@ -4,6 +4,7 @@ import { twMerge } from 'tailwind-merge'
 
 import { mediaUrl, type Presence, type ProfileGif } from '../lib/api'
 import { CroppedGif, useGifFailed } from './ProfileGif'
+import { t } from '../lib/i18n'
 
 export function Field({
   label,
@@ -259,11 +260,20 @@ export function ServerIcon({ name, url, size = 32 }: { name: string; url: string
   )
 }
 
+/** Read in the app's language when shown (getters). */
 export const PRESENCE_LABEL: Record<Presence, string> = {
-  online: 'Online',
-  idle: 'Ausente',
-  dnd: 'Não perturbe',
-  offline: 'Offline'
+  get online() {
+    return t('system.status.online')
+  },
+  get idle() {
+    return t('system.status.idle')
+  },
+  get dnd() {
+    return t('system.status.dnd')
+  },
+  get offline() {
+    return t('system.status.offline')
+  }
 }
 
 const PRESENCE_TONE: Record<Presence, string> = {
