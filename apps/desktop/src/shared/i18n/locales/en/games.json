@@ -1,0 +1,33 @@
+{
+  "title": "Daily games",
+  "hint": "A new challenge every day, the same for everyone",
+  "streak_one": "{{count}} day in a row",
+  "streak_other": "{{count}} days in a row",
+  "play": "Play",
+  "see": "View",
+  "playNamed": "Play {{game}}",
+  "done": "Done in {{time}}",
+  "attempts_one": "{{count}} try",
+  "attempts_other": "{{count}} tries",
+  "friendsOne": "{{name}} already played today",
+  "friendsMany": "{{name}} and {{count}} more already played today",
+  "noFriends": "No friends played today yet.",
+  "loadFailed": "Couldn't load the games.",
+  "checkFailed": "Couldn't check right now.",
+  "wrong": "Something is still wrong. Check and try again.",
+  "closed": "That challenge has closed. Open today's.",
+  "solved": "Solved!",
+  "solvedHint": "Come back tomorrow for a new challenge.",
+  "yourTime": "Your time",
+  "yourAttempts": "Tries",
+  "time": "Time",
+  "games": {
+    "sudoku": {
+      "name": "Sudoku",
+      "rules": "Fill the grid: every row, column and 3×3 box has the numbers 1 to 9, none repeated.",
+      "cell": "Row {{row}}, column {{col}}",
+      "erase": "Erase",
+      "number": "Number {{n}}"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { AtSign, CalendarDays, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, Volume2, type LucideIcon } from 'lucide-react'
+import { AtSign, CalendarDays, CheckCircle2, Flame, Gamepad2, Link2, MessageCircle, Phone, PhoneMissed, Plus, Radio, UserPlus, Volume2, type LucideIcon } from 'lucide-react'
 import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 
 import type { Activity, Dm, Friend, HomeTask, Me, Message, Presence, ServerDetail, User } from '../lib/api'
@@ -7,18 +7,21 @@ import { roleNameIn } from '../lib/mentions'
 import { memberName } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import { useActivity } from '../store/activity'
+import { useDaily } from '../store/daily'
 import { useChat } from '../store/chat'
 import { friendsInCall, liveRooms, useHome, usePendingItems, type LiveRoom, type PendingItem } from '../store/home'
 import { channelTab, useNav } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
+import { DAILY_GAMES, DailyGameModal, gameName } from './games/DailyGameModal'
 import { HomeCalendar, HomeCalendarCard } from './HomeCalendar'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
 import { activityWithTime, useElapsed } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, PRESENCE_LABEL, PresenceAvatar, ServerIcon } from './ui'
+import { formatDuration, type DailyGameKey } from '../lib/daily'
 import { dateFormat } from '../lib/format'
 import { t } from '../lib/i18n'
 import { Trans } from 'react-i18next'
@@ -98,6 +101,7 @@ export function HomeHub({ me }: { me: Me }): ReactNode {
           </div>
           <aside aria-label={t('home.side')} className={SIDE_COLUMN}>
             <ActiveFriends me={me} />
+            <DailyGames />
             <HomeCalendarCard onExpand={() => setCalendar(true)} expanded={calendar} />
           </aside>
         </div>
@@ -797,7 +801,7 @@ export function activeFriends(
     .sort((a, b) => rank(a) - rank(b) || a.friend.user.display_name.localeCompare(b.friend.user.display_name))
 }
 
-function SideCard({ title, children, hint, action, className = '' }: { title: string; children: ReactNode; hint?: string; action?: ReactNode; className?: string }): ReactNode {
+function SideCard({ title, children, hint, action, className = '' }: { title: string; children: ReactNode; hint?: ReactNode; action?: ReactNode; className?: string }): ReactNode {
   return (
     <section aria-label={title} className={`rounded-panel border p-4 ${className || 'border-line bg-panel/40'}`}>
       <div className="mb-3 flex items-baseline gap-2">
@@ -807,6 +811,86 @@ function SideCard({ title, children, hint, action, className = '' }: { title: st
       </div>
       {children}
     </section>
+  )
+}
+
+/** "Jogos do dia" (block 4.2.10): today's games with my result or "Jogar", the streak, and which
+ * friends already played today. */
+function DailyGames(): ReactNode {
+  const summary = useDaily((s) => s.summary)
+  const failed = useDaily((s) => s.failed)
+  const friends = useSocial((s) => s.friends)
+  const [playing, setPlaying] = useState<DailyGameKey | null>(null)
+  useEffect(() => {
+    void useDaily.getState().load()
+  }, [])
+
+  const names = (summary?.friends_today ?? [])
+    .map((f) => friends[f.user_id]?.user)
+    .filter((u): u is User => !!u)
+  return (
+    <SideCard
+      title={t('games.title')}
+      hint={
+        summary && summary.streak > 0 ? (
+          <span className="flex items-center gap-1">
+            <Flame size={12} className="text-accent-text" />
+            {t('games.streak', { count: summary.streak })}
+          </span>
+        ) : undefined
+      }
+    >
+      {!summary ? (
+        failed ? <p className="py-3 text-sm text-fg-subtle">{t('games.loadFailed')}</p> : <SideSkeleton />
+      ) : (
+        <>
+          <ul className="space-y-1">
+            {summary.games.filter((g) => DAILY_GAMES[g]).map((game) => {
+              const result = summary.results.find((r) => r.game === game)
+              const Icon = DAILY_GAMES[game].icon
+              return (
+                <li key={game} className="flex items-center gap-3 rounded-item px-1 py-1.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-elevated text-fg-muted">
+                    <Icon size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{gameName(game)}</span>
+                    {result && (
+                      <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
+                        <CheckCircle2 size={12} className="shrink-0 text-success" />
+                        {t('games.done', { time: formatDuration(result.time_ms) })} · {t('games.attempts', { count: result.attempts })}
+                      </span>
+                    )}
+                  </span>
+                  <RowButton primary={!result} aria-label={t('games.playNamed', { game: gameName(game) })} onClick={() => setPlaying(game)}>
+                    {result ? t('games.see') : t('games.play')}
+                  </RowButton>
+                </li>
+              )
+            })}
+          </ul>
+          <div className="mt-3 flex items-center gap-2 text-xs text-fg-subtle">
+            {names.length > 0 && (
+              <span className="flex shrink-0">
+                {names.slice(0, 4).map((u, i) => (
+                  <span key={u.id} className={`rounded-full border-2 border-panel ${i > 0 ? '-ml-2' : ''}`}>
+                    <Avatar name={u.display_name} url={u.avatar_url} gif={u.avatar_gif} size={20} />
+                  </span>
+                ))}
+              </span>
+            )}
+            <span className="min-w-0 truncate">
+              {names.length === 0
+                ? t('games.noFriends')
+                : names.length === 1
+                  ? t('games.friendsOne', { name: names[0].display_name })
+                  : t('games.friendsMany', { name: names[0].display_name, count: names.length - 1 })}
+            </span>
+          </div>
+        </>
+      )}
+      {playing && <DailyGameModal game={playing} onClose={() => setPlaying(null)} />}
+    </SideCard>
   )
 }
 

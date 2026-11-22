@@ -1,0 +1,33 @@
+{
+  "title": "Jogos do dia",
+  "hint": "Um desafio novo por dia, igual para todo mundo",
+  "streak_one": "{{count}} dia seguido",
+  "streak_other": "{{count}} dias seguidos",
+  "play": "Jogar",
+  "see": "Ver",
+  "playNamed": "Jogar {{game}}",
+  "done": "Feito em {{time}}",
+  "attempts_one": "{{count}} tentativa",
+  "attempts_other": "{{count}} tentativas",
+  "friendsOne": "{{name}} já jogou hoje",
+  "friendsMany": "{{name}} e mais {{count}} já jogaram hoje",
+  "noFriends": "Nenhum amigo jogou hoje ainda.",
+  "loadFailed": "Não foi possível carregar os jogos.",
+  "checkFailed": "Não foi possível conferir agora.",
+  "wrong": "Ainda tem algo errado. Confira e tente de novo.",
+  "closed": "Esse desafio já fechou. Abra o de hoje.",
+  "solved": "Resolvido!",
+  "solvedHint": "Volte amanhã para um desafio novo.",
+  "yourTime": "Seu tempo",
+  "yourAttempts": "Tentativas",
+  "time": "Tempo",
+  "games": {
+    "sudoku": {
+      "name": "Sudoku",
+      "rules": "Complete a grade: cada linha, coluna e quadrado 3×3 tem os números de 1 a 9, sem repetir.",
+      "cell": "Linha {{row}}, coluna {{col}}",
+      "erase": "Apagar",
+      "number": "Número {{n}}"
+    }
+  }
+}
