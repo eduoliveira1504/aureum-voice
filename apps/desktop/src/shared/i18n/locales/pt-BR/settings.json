@@ -233,5 +233,13 @@
     "exePlaceholder": "jogo.exe",
     "exe": "Executável",
     "addShort": "Adicionar"
+  },
+  "groups": {
+    "account": "Conta e privacidade",
+    "appearance": "Aparência e idioma",
+    "voice": "Voz, vídeo e sons",
+    "notifications": "Notificações",
+    "games": "Jogos",
+    "system": "Sistema"
   }
 }

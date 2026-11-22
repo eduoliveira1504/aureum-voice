@@ -92,11 +92,10 @@ describe('Editar perfil', () => {
     expect(screen.queryByText('Você tem alterações não salvas.')).toBeNull()
   })
 
-  it('Configurações no longer has the profile or the account', () => {
+  it('Configurações has no profile, and opens on Conta e privacidade (the account, privacy, invites)', () => {
     render(<SettingsModal onClose={() => {}} />)
-    expect(screen.queryByRole('tab', { name: 'Meu perfil' })).toBeNull()
-    expect(screen.queryByRole('tab', { name: 'Conta' })).toBeNull()
-    expect(screen.getByRole('tab', { name: 'Convites', selected: true })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Conta e privacidade', current: 'page' })).toBeTruthy()
+    for (const section of ['Conta', 'Privacidade', 'Convites']) expect(screen.getByRole('region', { name: section })).toBeTruthy()
     expect(screen.queryByLabelText('Pronomes')).toBeNull()
   })
 

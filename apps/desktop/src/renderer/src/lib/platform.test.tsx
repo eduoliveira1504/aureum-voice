@@ -1,5 +1,5 @@
 /** Windows vs Mac (block 3.21): Cmd for Ctrl, no push-to-talk and no overlay on the Mac. */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SettingsModal } from '../components/SettingsModal'
@@ -42,11 +42,14 @@ describe('platform', () => {
     expect(loadMediaPrefs().inputMode).toBe('voice')
   })
 
-  it('has no Overlay tab on the Mac, and a "Mac" tab for the app settings', () => {
+  it('has no Overlay on the Mac, and a "Mac" section for the app settings', () => {
     onMac()
     render(<SettingsModal onClose={() => {}} />)
-    expect(screen.queryByRole('tab', { name: 'Overlay' })).toBeNull()
-    expect(screen.queryByRole('tab', { name: 'Windows' })).toBeNull()
-    expect(screen.getByRole('tab', { name: 'Mac' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Jogos' }))
+    expect(screen.getByRole('region', { name: 'Atividade' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Overlay' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Sistema' }))
+    expect(screen.queryByRole('region', { name: 'Windows' })).toBeNull()
+    expect(screen.getByRole('region', { name: 'Mac' })).toBeTruthy()
   })
 })
