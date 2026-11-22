@@ -30,6 +30,8 @@ def rng_for(game: str, day: date) -> random.Random:
 @dataclass(frozen=True)
 class DailyGame:
     key: str
+    # As it reads in a shared challenge's plain text (apps that don't know the games).
+    name: str
     # (rng) -> (what the app gets, the solution kept in the API)
     generate: Callable[[random.Random], tuple[dict[str, Any], Any]]
     # (puzzle, solution, the player's answer) -> solved?

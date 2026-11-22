@@ -197,3 +197,68 @@ def test_the_word_list_is_tidy() -> None:
         assert len(words) >= 20, theme
         assert all(w == w.strip() and " " not in w and "-" not in w for w in words), theme
         assert sum(1 for w in words if 4 <= len(cacapalavras.plain(w)) <= cacapalavras.SIZE) >= cacapalavras.WORDS, theme
+
+
+async def solve(user: ApiUser, game: str = "sudoku") -> str:
+    day = (await user.get(f"/daily/{game}")).json()["day"]
+    await check(user, game, day, await solution_of(game, day))
+    return day
+
+
+async def test_sharing_posts_a_challenge_without_the_answer(client: AsyncClient) -> None:
+    from tests.test_dms import open_dm
+
+    ana, bia = await make_user(client, "ana"), await make_user(client, "bia")
+    await befriend(ana, bia)
+    dm = await open_dm(ana, bia)
+    day = (await ana.get("/daily/sudoku")).json()["day"]
+    # Only after finishing.
+    assert (await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [dm["id"]]})).status_code == 409
+    await check(ana, "sudoku", day, await solution_of("sudoku", day))
+
+    res = await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [dm["id"]]})
+    assert res.status_code == 200 and res.json() == {"shared": [dm["id"]], "already": []}
+    [message] = (await bia.get(f"/channels/{dm['id']}/messages")).json()
+    assert message["embed"]["addon_key"] == "daily" and message["embed"]["game"] == "sudoku" and message["embed"]["day"] == day
+    assert "Desafio do dia: Sudoku" in message["content"] and "Consegue fazer melhor?" in message["content"]
+    # No spoiler: nothing of the grid.
+    solution = "".join(map(str, await solution_of("sudoku", day)))
+    assert solution[:9] not in message["content"] and "solution" not in message["embed"]
+    # One challenge per game, day and channel.
+    again = await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [dm["id"]]})
+    assert again.json() == {"shared": [], "already": [dm["id"]]}
+    assert len((await bia.get(f"/channels/{dm['id']}/messages")).json()) == 1
+
+
+async def test_sharing_needs_to_be_able_to_write_there(client: AsyncClient) -> None:
+    from app.permissions import Perm
+    from tests.helpers import make_server, text_channel
+    from tests.test_private_channels import create_private
+
+    owner, ana = await make_user(client, "owner"), await make_user(client, "ana")
+    server = await make_server(owner, ana)
+    sid, chat = server["id"], text_channel(server)
+    private = await create_private(owner, sid)
+    day = await solve(ana)
+    assert (await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [private["id"]]})).status_code == 404
+    res = await owner.put(f"/channels/{chat}/overrides/role/{sid}", {"allow": 0, "deny": int(Perm.SEND_MESSAGES)})
+    assert res.status_code == 200
+    assert (await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [chat]})).status_code == 403
+    # Nothing was posted anywhere.
+    assert (await owner.get(f"/channels/{chat}/messages")).json() == []
+
+
+async def test_a_challenge_ranks_everyone_who_sees_the_channel(client: AsyncClient) -> None:
+    from tests.helpers import make_server, text_channel
+
+    owner, ana, bia, zed = [await make_user(client, n) for n in ("owner", "ana", "bia", "zed")]
+    server = await make_server(owner, ana, bia)
+    chat = text_channel(server)
+    day = await solve(ana)
+    await solve(bia)
+    await solve(zed)  # not in the server
+    res = await ana.post("/daily/sudoku/share", {"day": day, "channel_ids": [chat]})
+    assert res.json()["shared"] == [chat]
+    ranking = (await owner.get("/daily/sudoku/ranking", params={"channel_id": chat, "day": day})).json()
+    assert {r["user_id"] for r in ranking} == {ana.id, bia.id}
+    assert (await zed.get("/daily/sudoku/ranking", params={"channel_id": chat, "day": day})).status_code == 404

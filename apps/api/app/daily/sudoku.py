@@ -106,4 +106,4 @@ def check(puzzle: dict[str, Any], solution: list[int], answer: Any) -> bool:
     return all(isinstance(v, int) and not isinstance(v, bool) for v in answer) and answer == solution
 
 
-GAME = DailyGame(key="sudoku", generate=generate, check=check)
+GAME = DailyGame(key="sudoku", name="Sudoku", generate=generate, check=check)

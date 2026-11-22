@@ -1110,3 +1110,16 @@ class DailyResult(Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False)
     completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = _created_at()
+
+
+class DailyShare(Base):
+    """A daily game's challenge posted in a channel: one per game, day and channel (anti-spam).
+    The message carries the challenge; its card shows the ranking of who sees the channel."""
+
+    __tablename__ = "daily_shares"
+
+    game: Mapped[str] = mapped_column(String(16), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _created_at()

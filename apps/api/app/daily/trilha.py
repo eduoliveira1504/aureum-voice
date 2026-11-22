@@ -174,4 +174,4 @@ def check(puzzle: dict[str, Any], solution: list[int], answer: Any) -> bool:
     return met == list(range(1, max(numbers) + 1))
 
 
-GAME = DailyGame(key="trilha", generate=generate, check=check)
+GAME = DailyGame(key="trilha", name="Trilha", generate=generate, check=check)

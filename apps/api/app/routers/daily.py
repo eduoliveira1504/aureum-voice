@@ -13,9 +13,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import daily, ratelimit, social
+from app.access import channel_audience
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
-from app.models import DailyPuzzle, DailyResult
+from app.messages import chat_channel, post_message, require_dm_friends
+from app.models import DailyPuzzle, DailyResult, DailyShare
+from app.permissions import Perm
 from app.realtime import broker
 
 router = APIRouter(prefix="/daily", tags=["daily"])
@@ -26,6 +29,9 @@ CHECKS = (60, 60)
 TRACK_SECONDS = 2 * 24 * 60 * 60
 # A streak shown for at most this many days back (the query stops there).
 STREAK_DAYS = 400
+# Sharing: a few channels at once, and not many times an hour.
+SHARE_CHANNELS = 10
+SHARES = (30, 60 * 60)
 
 
 class ResultOut(BaseModel):
@@ -77,6 +83,18 @@ class Check(BaseModel):
 class CheckOut(BaseModel):
     correct: bool
     result: ResultOut | None = None
+
+
+class Share(BaseModel):
+    day: date
+    channel_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=SHARE_CHANNELS)]
+
+
+class ShareOut(BaseModel):
+    # Posted now.
+    shared: list[uuid.UUID]
+    # Already had this game's challenge for the day (one per channel).
+    already: list[uuid.UUID]
 
 
 def _track_key(kind: str, user_id: uuid.UUID, game: str, day: date) -> str:
@@ -222,3 +240,68 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
     result = await session.get(DailyResult, (user.id, game.key, body.day))
     assert result is not None
     return CheckOut(correct=True, result=_out(result))
+
+
+def challenge_text(game: daily.DailyGame, result: DailyResult) -> str:
+    """What apps that don't know the games show: the result, never the answer."""
+    seconds = result.time_ms // 1000
+    tries = "1 tentativa" if result.attempts == 1 else f"{result.attempts} tentativas"
+    return (
+        f"Desafio do dia: {game.name} de {result.day.strftime('%d/%m')}. Fiz em {seconds // 60}:{seconds % 60:02d} "
+        f"com {tries}. Consegue fazer melhor? Jogue em Jogos do dia, no Início do Aureum."
+    )
+
+
+@router.post("/{game_key}/share", response_model=ShareOut)
+async def share(game_key: str, body: Share, user: CurrentUser, session: SessionDep) -> ShareOut:
+    """Posts the user's result as a challenge in DMs, groups or server text channels they can
+    write in. One challenge per game, day and channel: the card's ranking covers everyone there."""
+    game = _game(game_key)
+    result = await session.get(DailyResult, (user.id, game.key, body.day))
+    if result is None or not result.completed:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Finish the game before sharing it")
+    channel_ids = list(dict.fromkeys(body.channel_ids))
+    channels = []
+    for channel_id in channel_ids:
+        channel, access = await chat_channel(session, channel_id, user.id)
+        await require_dm_friends(session, channel, user.id)
+        if access is not None:
+            access.require_in(channel, Perm.SEND_MESSAGES)
+        channels.append(channel)
+    await ratelimit.hit(f"daily-share:{user.id}", *SHARES)
+    shared, already = [], []
+    for channel in channels:
+        claimed = await session.scalar(
+            insert(DailyShare)
+            .values(game=game.key, day=body.day, channel_id=channel.id, user_id=user.id)
+            .on_conflict_do_nothing()
+            .returning(DailyShare.channel_id)
+        )
+        if claimed is None:
+            already.append(channel.id)
+            continue
+        embed = {
+            "addon_key": "daily",
+            "id": f"{game.key}:{body.day.isoformat()}",
+            "game": game.key,
+            "day": body.day.isoformat(),
+            "time_ms": result.time_ms,
+            "attempts": result.attempts,
+        }
+        await post_message(session, channel, user.id, challenge_text(game, result), embed=embed)
+        shared.append(channel.id)
+    return ShareOut(shared=shared, already=already)
+
+
+@router.get("/{game_key}/ranking", response_model=list[RankEntry])
+async def channel_ranking(game_key: str, channel_id: uuid.UUID, day: date, user: CurrentUser, session: SessionDep) -> list[RankEntry]:
+    """A challenge card's ranking: that day's results of everyone who sees the channel."""
+    game = _game(game_key)
+    channel, _ = await chat_channel(session, channel_id, user.id)
+    people = await channel_audience(session, channel)
+    rows = await session.scalars(
+        select(DailyResult)
+        .where(DailyResult.user_id.in_(people), DailyResult.game == game.key, DailyResult.day == day, DailyResult.completed.is_(True))
+        .order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at)
+    )
+    return [RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts) for r in rows]

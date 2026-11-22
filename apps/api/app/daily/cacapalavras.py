@@ -119,4 +119,4 @@ def check(puzzle: dict[str, Any], solution: list[list[int]], answer: Any) -> boo
     return True
 
 
-GAME = DailyGame(key="cacapalavras", generate=generate, check=check)
+GAME = DailyGame(key="cacapalavras", name="Caça-palavras", generate=generate, check=check)
