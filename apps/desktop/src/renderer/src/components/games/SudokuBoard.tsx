@@ -4,6 +4,12 @@ import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { sudokuConflicts, type Hint, type SudokuPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 
+/** A Sudoku in progress: the grid and the cells a hint filled. */
+export interface SudokuProgress {
+  cells: number[]
+  hinted: number[]
+}
+
 /**
  * The Sudoku grid: click a cell (or move with the arrows) and type 1–9, Backspace or 0 erases.
  * Repeated numbers show in red. Once every cell is filled without repeats, `onFilled` gets the grid
@@ -15,7 +21,8 @@ export function SudokuBoard({
   onFilled,
   solved,
   hint,
-  onState
+  saved,
+  onProgress
 }: {
   puzzle: SudokuPuzzle
   disabled: boolean
@@ -24,16 +31,18 @@ export function SudokuBoard({
   solved?: number[]
   /** The latest hint: a number of the solution, put in place and locked. */
   hint?: Hint | null
-  /** The grid as it is, for asking a hint. */
-  onState?(cells: number[]): void
+  /** Where it was left (closing the game keeps it). */
+  saved?: SudokuProgress | null
+  /** The board as it is: kept for later, and sent when asking a hint. */
+  onProgress?(progress: SudokuProgress): void
 }): ReactNode {
-  const [cells, setCells] = useState<number[]>(() => solved ?? [...puzzle.givens])
+  const [cells, setCells] = useState<number[]>(() => solved ?? (saved?.cells.length === 81 ? saved.cells : [...puzzle.givens]))
   const [selected, setSelected] = useState<number | null>(() => (solved ? null : puzzle.givens.indexOf(0)))
-  const [hinted, setHinted] = useState<number[]>([])
+  const [hinted, setHinted] = useState<number[]>(() => saved?.hinted ?? [])
   const conflicts = sudokuConflicts(cells)
   const fixed = (i: number): boolean => puzzle.givens[i] !== 0 || hinted.includes(i)
 
-  useEffect(() => onState?.(cells), [cells])
+  useEffect(() => onProgress?.({ cells, hinted }), [cells, hinted])
   useEffect(() => {
     if (!hint || hint.value === undefined || solved) return
     const next = [...cells]

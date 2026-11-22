@@ -10,6 +10,7 @@ import {
   formatDuration,
   HINT_SECONDS,
   loadPuzzle,
+  saveProgress,
   type DailyGameKey,
   type DailyPuzzle,
   type DailyResult,
@@ -27,16 +28,17 @@ import { useSocial } from '../../store/social'
 import { FormError, Modal } from '../Modal'
 import { Avatar } from '../ui'
 import { ShareChallengeModal, type ShareTarget } from './ShareChallenge'
-import { SudokuBoard } from './SudokuBoard'
-import { TrilhaBoard } from './TrilhaBoard'
-import { WordSearchBoard } from './WordSearchBoard'
+import { SudokuBoard, type SudokuProgress } from './SudokuBoard'
+import { TrilhaBoard, type TrilhaProgress } from './TrilhaBoard'
+import { WordSearchBoard, type WordSearchProgress } from './WordSearchBoard'
 
 const noop = (): void => {}
 
-/** What a board gets while playing: a hint to apply, and where to report its state (for asking one). */
+/** What a board gets while playing: a hint to apply, where it was left, and where to report changes. */
 interface Play {
   hint: Hint | null
-  onState(state: unknown): void
+  saved: unknown
+  onProgress(progress: unknown): void
 }
 
 /** Each daily game: its icon, its board (which calls `onFilled` with an answer to check), and the
@@ -47,27 +49,53 @@ export const DAILY_GAMES: Record<
     icon: LucideIcon
     board(puzzle: unknown, disabled: boolean, onFilled: (answer: unknown) => void, play?: Play): ReactNode
     solved(puzzle: unknown, answer: unknown): ReactNode
+    /** What a hint needs to know of the board, out of its progress. */
+    hintState(progress: unknown): unknown
   }
 > = {
   sudoku: {
     icon: Grid3x3,
     board: (puzzle, disabled, onFilled, play) => (
-      <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled={disabled} onFilled={onFilled} hint={play?.hint} onState={play?.onState} />
+      <SudokuBoard
+        puzzle={puzzle as SudokuPuzzle}
+        disabled={disabled}
+        onFilled={onFilled}
+        hint={play?.hint}
+        saved={play?.saved as SudokuProgress | null}
+        onProgress={play?.onProgress}
+      />
     ),
+    hintState: (progress) => (progress as SudokuProgress | null)?.cells ?? null,
     solved: (puzzle, answer) => <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled onFilled={noop} solved={answer as number[]} />
   },
   trilha: {
     icon: Route,
     board: (puzzle, disabled, onFilled, play) => (
-      <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled={disabled} onFilled={onFilled} hint={play?.hint} onState={play?.onState} />
+      <TrilhaBoard
+        puzzle={puzzle as TrilhaPuzzle}
+        disabled={disabled}
+        onFilled={onFilled}
+        hint={play?.hint}
+        saved={play?.saved as TrilhaProgress | null}
+        onProgress={play?.onProgress}
+      />
     ),
+    hintState: (progress) => (progress as TrilhaProgress | null)?.path ?? [],
     solved: (puzzle, answer) => <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled onFilled={noop} solved={answer as number[]} />
   },
   cacapalavras: {
     icon: Search,
     board: (puzzle, disabled, onFilled, play) => (
-      <WordSearchBoard puzzle={puzzle as WordSearchPuzzle} disabled={disabled} onFilled={onFilled} hint={play?.hint} onState={play?.onState} />
+      <WordSearchBoard
+        puzzle={puzzle as WordSearchPuzzle}
+        disabled={disabled}
+        onFilled={onFilled}
+        hint={play?.hint}
+        saved={play?.saved as WordSearchProgress | null}
+        onProgress={play?.onProgress}
+      />
     ),
+    hintState: (progress) => (progress as WordSearchProgress | null)?.order ?? [],
     solved: (puzzle, answer) => (
       <WordSearchBoard puzzle={puzzle as WordSearchPuzzle} disabled onFilled={noop} solved={answer as [number, number][]} />
     )
@@ -108,8 +136,9 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
   const started = useRef(0)
   const [now, setNow] = useState(() => Date.now())
   const ranking = useRanking(game, puzzle?.ranking)
-  // Hints (block 4.2.10): the board reports where it is, the API answers with a nudge.
-  const boardState = useRef<unknown>(null)
+  // The board as it is (block 4.2.10): kept by the API while unfinished, and what a hint looks at.
+  const progress = useRef<unknown>(null)
+  const dirty = useRef(false)
   const [hint, setHint] = useState<Hint | null>(null)
   const [hintsUsed, setHintsUsed] = useState(0)
   const [nextHintAt, setNextHintAt] = useState(0)
@@ -119,7 +148,7 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
     if (!puzzle || wait > 0) return
     setError(null)
     try {
-      const got = await askHint(game, puzzle.day, boardState.current)
+      const got = await askHint(game, puzzle.day, DAILY_GAMES[game].hintState(progress.current))
       setHint({ ...got.hint, n: got.used })
       setHintsUsed(got.used)
       setNextHintAt(Date.now() + HINT_SECONDS * 1000)
@@ -132,7 +161,10 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
   useEffect(() => {
     loadPuzzle(game).then(
       (p) => {
-        started.current = Date.now()
+        // Where I left it: the clock picks up from the time played (closed, it doesn't count).
+        started.current = Date.now() - (p.progress?.elapsed_ms ?? 0)
+        setNow(Date.now())
+        progress.current = p.progress?.state ?? null
         setPuzzle(p)
         setResult(p.result)
       },
@@ -146,6 +178,25 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [puzzle, result])
+
+  // Keeps the unfinished game: a moment after a move, every so often for the clock, and on closing.
+  const solvedRef = useRef(false)
+  solvedRef.current = !!result
+  useEffect(() => {
+    if (!puzzle || puzzle.result) return
+    const keep = (): void => {
+      if (solvedRef.current) return
+      dirty.current = false
+      saveProgress(game, puzzle.day, progress.current, Date.now() - started.current).catch(() => {})
+    }
+    const afterMove = setInterval(() => dirty.current && keep(), 1500)
+    const clock = setInterval(keep, 15_000)
+    return () => {
+      clearInterval(afterMove)
+      clearInterval(clock)
+      keep()
+    }
+  }, [puzzle])
 
   async function onFilled(answer: unknown): Promise<void> {
     if (!puzzle) return
@@ -194,7 +245,11 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
           </div>
           {DAILY_GAMES[game].board(puzzle.puzzle, checking, (answer) => void onFilled(answer), {
             hint,
-            onState: (state) => void (boardState.current = state)
+            saved: puzzle.progress?.state ?? null,
+            onProgress: (state) => {
+              progress.current = state
+              dirty.current = true
+            }
           })}
         </div>
       )}

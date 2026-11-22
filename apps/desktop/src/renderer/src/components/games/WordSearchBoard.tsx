@@ -3,6 +3,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Hint, WordSearchPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 
+/** A Caça-palavras in progress: where each word was found (null: not yet) and in what order. */
+export interface WordSearchProgress {
+  found: ([number, number] | null)[]
+  order: number[]
+}
+
 /** One color per found word, in the order they were found (theme tokens; it cycles past 8). */
 export const WORD_COLORS = ['bg-game-1/45', 'bg-game-2/45', 'bg-game-3/45', 'bg-game-4/45', 'bg-game-5/45', 'bg-game-6/45', 'bg-game-7/45', 'bg-game-8/45']
 
@@ -30,7 +36,8 @@ export function WordSearchBoard({
   onFilled,
   solved,
   hint,
-  onState
+  saved,
+  onProgress
 }: {
   puzzle: WordSearchPuzzle
   disabled: boolean
@@ -39,16 +46,18 @@ export function WordSearchBoard({
   solved?: [number, number][]
   /** The latest hint: where a word not found yet begins, marked until it's found. */
   hint?: Hint | null
-  /** Which words (their place in the list) are found, for asking a hint. */
-  onState?(found: number[]): void
+  /** Where it was left (closing the game keeps it). */
+  saved?: WordSearchProgress | null
+  /** The words found and their order: kept for later, and sent when asking a hint. */
+  onProgress?(progress: WordSearchProgress): void
 }): ReactNode {
   const { size, rows, words, theme } = puzzle
   const letters = rows.join('')
-  const [found, setFound] = useState<([number, number] | null)[]>(() => solved ?? words.map(() => null))
+  const [found, setFound] = useState<([number, number] | null)[]>(() => solved ?? (saved?.found.length === words.length ? saved.found : words.map(() => null)))
   // The order the words were found in: each gets the next color.
-  const [order, setOrder] = useState<number[]>(() => (solved ? words.map((_, i) => i) : []))
+  const [order, setOrder] = useState<number[]>(() => (solved ? words.map((_, i) => i) : (saved?.order ?? [])))
   const [nudge, setNudge] = useState<{ word: number; cell: number } | null>(null)
-  useEffect(() => onState?.(order), [order])
+  useEffect(() => onProgress?.({ found, order }), [found, order])
   useEffect(() => {
     if (hint?.word !== undefined && !solved) setNudge({ word: hint.word, cell: hint.cell })
   }, [hint?.n])

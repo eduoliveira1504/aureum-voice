@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { Hint, TrilhaPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 
+/** A Trilha in progress: the path drawn so far. */
+export interface TrilhaProgress {
+  path: number[]
+}
+
 /** Cells a step can go to from `i`: up, down, left, right, minus the walls. */
 function openNeighbors(size: number, walls: [number, number][]): number[][] {
   const blocked = new Set(walls.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`))
@@ -37,7 +42,8 @@ export function TrilhaBoard({
   onFilled,
   solved,
   hint,
-  onState
+  saved,
+  onProgress
 }: {
   puzzle: TrilhaPuzzle
   disabled: boolean
@@ -45,18 +51,20 @@ export function TrilhaBoard({
   solved?: number[]
   /** The latest hint: the path back to where it was right, and the next cell marked. */
   hint?: Hint | null
-  /** The path as it is, for asking a hint. */
-  onState?(path: number[]): void
+  /** Where it was left (closing the game keeps it). */
+  saved?: TrilhaProgress | null
+  /** The path as it is: kept for later, and sent when asking a hint. */
+  onProgress?(progress: TrilhaProgress): void
 }): ReactNode {
   const { size, numbers, walls } = puzzle
   const cells = size * size
   const start = numbers.indexOf(1)
   const last = Math.max(...numbers)
   const open = useMemo(() => openNeighbors(size, walls), [size, walls])
-  const [path, setPath] = useState<number[]>(() => solved ?? [start])
+  const [path, setPath] = useState<number[]>(() => solved ?? (saved?.path[0] === start ? saved.path : [start]))
   // The hinted next cell, marked until the path reaches it.
   const [nudge, setNudge] = useState<number | null>(null)
-  useEffect(() => onState?.(path), [path])
+  useEffect(() => onProgress?.({ path }), [path])
   useEffect(() => {
     if (!hint || hint.keep === undefined || solved) return
     setPath((p) => p.slice(0, hint.keep))

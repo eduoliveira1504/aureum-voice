@@ -92,7 +92,13 @@ export interface DailyPuzzle<P = unknown> {
   ranking?: RankEntry[]
   /** The answer key, once this day's puzzle is finished (the board shown on the result). */
   solution?: unknown
+  /** Where I left it: the board and the time played (the clock stops while it's closed). */
+  progress?: { state: unknown; elapsed_ms: number } | null
 }
+
+/** Keeps an unfinished game's board and time, so closing it loses nothing. */
+export const saveProgress = (game: DailyGameKey, day: string, state: unknown, elapsedMs: number): Promise<void> =>
+  api(`/daily/${game}/progress`, { method: 'PUT', body: { day, state, elapsed_ms: Math.round(elapsedMs) } })
 
 export interface CheckResult {
   correct: boolean
