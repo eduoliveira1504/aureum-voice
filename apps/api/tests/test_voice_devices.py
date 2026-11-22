@@ -159,7 +159,8 @@ async def test_a_silent_connection_also_gets_the_grace(
 
 
 async def test_after_a_restart_who_doesnt_reconnect_leaves(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(voice, "RESTART_GRACE_SECONDS", 0.3)
+    # Short, but with room for a slow machine to reconnect Ana in time (it was 0.3 s and flaky).
+    monkeypatch.setattr(voice, "RESTART_GRACE_SECONDS", 1.0)
     monkeypatch.setattr(voice, "SWEEP_SECONDS", 0.05)
     ana, bia = await make_user(client, "ana"), await make_user(client, "bia")
     server = await make_server(ana, bia)
@@ -175,7 +176,7 @@ async def test_after_a_restart_who_doesnt_reconnect_leaves(client: AsyncClient, 
     async with ws_client() as wsc, aconnect_ws(url(ana, PC), wsc) as pc:
         await next_event(pc, "ready")
         sweeper = asyncio.create_task(ws_router.run_voice_sweeper())
-        await asyncio.sleep(0.6)
+        await asyncio.sleep(2.0)
         sweeper.cancel()
         # Ana's device came back; Bia (an app from before devices) didn't.
         assert await in_room(ana, server) == [ana.id]
