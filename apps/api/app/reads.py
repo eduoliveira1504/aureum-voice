@@ -1,4 +1,9 @@
-"""Read state: unread counters and @username mentions per channel and user.
+"""Read state: unread counters and mentions per channel and user.
+
+Mentions (block 4.2.4 follow-up): "@username" for a person, "<@&role id>" for a role, "@all" for
+everyone who can see the channel and "@here" for those of them online. A role nobody may mention
+(not `mentionable`), @all and @here need MENTION_EVERYONE in the channel; without it they're
+plain text. Who got notified is kept in `messages.mentions`.
 
 Minimal on purpose (no push notifications or per-channel settings yet): each user has a
 last-read message id per text channel. Unread messages are the ones after it written by
@@ -12,14 +17,51 @@ from sqlalchemy import ColumnElement, and_, delete, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Channel, ChannelRead, ChannelType, Message, User
+from app.models import Channel, ChannelRead, ChannelType, Message, Role, User
+from app.permissions import Perm, channel_overwrites, is_voice, load_context
 
 # "@name" not preceded by a word character, so e-mail addresses don't count as mentions.
 MENTION_RE = re.compile(r"(?<![\w.])@([A-Za-z0-9_.]{3,32})")
+ROLE_MENTION_RE = re.compile(r"<@&([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>")
+# Reserved as usernames (app/accounts.py), so they never mean a person.
+MENTION_ALL = "all"
+MENTION_HERE = "here"
 
 
 def mentioned_usernames(content: str) -> set[str]:
     return {name.lower().rstrip(".") for name in MENTION_RE.findall(content)}
+
+
+def mentioned_roles(content: str) -> set[uuid.UUID]:
+    return {uuid.UUID(r) for r in ROLE_MENTION_RE.findall(content)}
+
+
+async def mention_targets(session: AsyncSession, message: Message, viewers: list[uuid.UUID]) -> set[uuid.UUID]:
+    """Who among `viewers` (those who can see the channel) the message mentions."""
+    names = mentioned_usernames(message.content)
+    people = names - {MENTION_ALL, MENTION_HERE}
+    found = set(await session.scalars(select(User.id).where(User.id.in_(viewers), User.username.in_(people)))) if people else set()
+    roles = mentioned_roles(message.content)
+    if not (roles or MENTION_ALL in names or MENTION_HERE in names) or message.author_id is None:
+        return found
+    channel = await session.get(Channel, message.channel_id)
+    if channel is None or channel.server_id is None:
+        return found
+    ctx = await load_context(session, channel.server_id)
+    overwrites = (await channel_overwrites(session, [channel.id]))[channel.id]
+    everyone = bool(ctx.in_channel(message.author_id, overwrites, voice=is_voice(channel)) & Perm.MENTION_EVERYONE)
+    if everyone and MENTION_ALL in names:
+        found |= set(viewers)
+    elif everyone and MENTION_HERE in names:
+        from app import presence  # app.presence imports app.access, which needs this module
+
+        found |= {u for u, s in (await presence.statuses(viewers)).items() if s != "offline"}
+    roles.discard(channel.server_id)  # @everyone's role: that's @all
+    if roles:
+        rows = await session.execute(select(Role.id, Role.mentionable).where(Role.id.in_(roles), Role.server_id == channel.server_id))
+        allowed = {role_id for role_id, mentionable in rows if everyone or mentionable}
+        found |= {u for u in viewers if ctx.member_roles.get(u, set()) & allowed}
+    return found
 
 
 async def seed(session: AsyncSession, user_id: uuid.UUID, server_id: uuid.UUID) -> None:
@@ -62,14 +104,14 @@ async def forget_server(session: AsyncSession, user_id: uuid.UUID, server_id: uu
 async def record_mentions(
     session: AsyncSession, message: Message, viewers: list[uuid.UUID], also: uuid.UUID | None = None
 ) -> list[uuid.UUID]:
-    """Counts the message's @username mentions of people who can see the channel (not
-    committed), plus `also` (the author of the message a reply mentions). Returns who was
-    mentioned."""
-    names = mentioned_usernames(message.content)
-    found = set(await session.scalars(select(User.id).where(User.id.in_(viewers), User.username.in_(names)))) if names else set()
+    """Counts the message's mentions of people who can see the channel (not committed), plus
+    `also` (the author of the message a reply mentions), and keeps them on the message. Returns
+    who was mentioned."""
+    found = await mention_targets(session, message, viewers)
     if also is not None and also in viewers:
         found.add(also)
-    mentioned = [u for u in found if u != message.author_id]
+    mentioned = sorted(u for u in found if u != message.author_id)
+    message.mentions = mentioned
     for user_id in mentioned:
         await session.execute(
             insert(ChannelRead)

@@ -121,9 +121,9 @@ async def _mention_channels(session: AsyncSession, user_id: uuid.UUID, readable:
 
 
 async def mentions(session: AsyncSession, user: User, readable: dict[uuid.UUID, uuid.UUID]) -> list[HomeMention]:
-    """Unread messages that mention the user, newest first. Mentions are matched exactly like
-    reads.record_mentions counts them (same parser, case-insensitive, whole name), so the list
-    agrees with the channels' mention counters."""
+    """Unread messages that mention the user, newest first: those whose `mentions` hold them (as
+    reads.record_mentions counted them, so the list agrees with the channels' counters), and, for
+    messages from before `mentions` was kept, an @username in the text."""
     marked = await _mention_channels(session, user.id, readable)
     if not marked:
         return []
@@ -131,12 +131,21 @@ async def mentions(session: AsyncSession, user: User, readable: dict[uuid.UUID, 
     # A cheap filter first; LIKE may over-match ("_" is a wildcard), the parser below decides.
     candidates = await session.scalars(
         select(Message)
-        .where(after_read, _not_mine(user.id), Message.content.ilike(f"%@{user.username}%"))
+        .where(
+            after_read,
+            _not_mine(user.id),
+            or_(
+                Message.mentions.any(user.id),
+                and_(Message.mentions.is_(None), Message.content.ilike(f"%@{user.username}%")),
+            ),
+        )
         .order_by(Message.id.desc())
         .limit(MENTION_SCAN)
     )
     name = user.username.lower()
-    found = [m for m in candidates if name in reads.mentioned_usernames(m.content)][:MENTIONS_LIMIT]
+    found = [
+        m for m in candidates if (user.id in m.mentions if m.mentions is not None else name in reads.mentioned_usernames(m.content))
+    ][:MENTIONS_LIMIT]
     return [HomeMention(server_id=readable[m.channel_id], message=MessageOut.model_validate(m)) for m in found]
 
 

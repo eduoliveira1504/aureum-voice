@@ -25,7 +25,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # Deterministic constraint names keep Alembic migrations stable.
@@ -626,6 +626,9 @@ class Message(Base):
     # The message this one answers, in the same channel. No foreign key: once the original is
     # deleted the id stays, and the app shows "Mensagem original apagada".
     reply_to_id: Mapped[int | None] = mapped_column(BigInteger)
+    # Who the message notified when it was sent (app/reads.py): @name, a role, @all or @here.
+    # NULL on messages from before it was kept (Home then reads the @names in the text).
+    mentions: Mapped[list[uuid.UUID] | None] = mapped_column(ARRAY(UUID(as_uuid=True)))
     # A forward: snapshot of the original, {"content", "created_at", "source"} (see app/forwarding.py).
     # Its `content` is the comment added when forwarding.
     forwarded_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

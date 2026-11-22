@@ -20,6 +20,9 @@ RESERVED_USERNAMES = frozenset(
         "official",
         "moderador",
         "mod",
+        # Mentions of everyone in a channel and of who is online (app/reads.py).
+        "all",
+        "here",
     }
 )
 

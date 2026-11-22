@@ -17,7 +17,7 @@ async def test_reserved_usernames_cannot_sign_up(client: AsyncClient, username: 
 async def test_the_reserved_list() -> None:
     assert RESERVED_USERNAMES == {
         "aureum", "admin", "administrador", "suporte", "support", "staff", "equipe",
-        "sistema", "system", "oficial", "official", "moderador", "mod",
+        "sistema", "system", "oficial", "official", "moderador", "mod", "all", "here",
     }
 
 
