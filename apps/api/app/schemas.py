@@ -16,7 +16,7 @@ from pydantic import (
 )
 
 from app.config import get_settings
-from app.models import DEFAULT_ACCENT, BadgeRarity, ChannelType, OverrideTarget, ServerType, Theme, UserStatus
+from app.models import DEFAULT_ACCENT, BadgeRarity, CategoryKind, ChannelType, OverrideTarget, ServerType, Theme, UserStatus
 from app.media import MediaTier
 from app.permissions import ALL
 from app.voice import VoiceState
@@ -778,6 +778,8 @@ class CategoryOut(BaseModel):
     server_id: uuid.UUID
     name: str
     position: int
+    # "addons": the server's one category for addons (block 4.2.8), shown translated.
+    kind: CategoryKind = CategoryKind.normal
     overrides: list[OverrideOut] = []
 
 

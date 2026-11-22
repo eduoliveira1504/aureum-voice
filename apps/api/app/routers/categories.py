@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import categories
 from app.deps import CurrentUser, SessionDep
-from app.models import Channel, ChannelCategory, ChannelCategoryOverride, OverrideTarget, Role, ServerMember
+from app.models import CategoryKind, Channel, ChannelCategory, ChannelCategoryOverride, OverrideTarget, Role, ServerMember
 from app.permissions import CHANNEL_PERMS, Perm, ServerAccess, channel_overwrites, server_access
 from app.routers.servers import category_out, channel_out, permissions_changed
 from app.schemas import CategoryCreate, CategoryOrder, CategoryOut, CategoryUpdate, ChannelArrange, ChannelOut, OverrideSet
@@ -39,6 +39,7 @@ async def _out(session: AsyncSession, category: ChannelCategory) -> CategoryOut:
 @router.post("/servers/{server_id}/categories", response_model=CategoryOut, status_code=status.HTTP_201_CREATED)
 async def create_category(server_id: uuid.UUID, body: CategoryCreate, user: CurrentUser, session: SessionDep) -> CategoryOut:
     (await server_access(session, server_id, user.id)).require(Perm.MANAGE_CHANNELS)
+    categories.require_free_name(body.name)
     existing = await categories.of_server(session, server_id)
     if len(existing) >= categories.MAX_PER_SERVER:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=f"A server can have up to {categories.MAX_PER_SERVER} categories")
@@ -75,6 +76,9 @@ async def reorder_categories(server_id: uuid.UUID, body: CategoryOrder, user: Cu
 async def update_category(category_id: uuid.UUID, body: CategoryUpdate, user: CurrentUser, session: SessionDep) -> CategoryOut:
     category, access, _ = await _visible_category(session, category_id, user.id)
     access.require(Perm.MANAGE_CHANNELS)
+    if category.kind == CategoryKind.addons:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=categories.LOCKED_RENAME)
+    categories.require_free_name(body.name)
     category.name = body.name
     await session.commit()
     await permissions_changed(session, category.server_id)
@@ -86,6 +90,8 @@ async def delete_category(category_id: uuid.UUID, user: CurrentUser, session: Se
     """Its channels stay, without a category and with the permissions they have now."""
     category, access, _ = await _visible_category(session, category_id, user.id)
     access.require(Perm.MANAGE_CHANNELS)
+    if category.kind == CategoryKind.addons:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=categories.LOCKED_DELETE)
     server_id = category.server_id
     await session.execute(
         update(Channel).where(Channel.category_id == category_id).values(category_id=None, permissions_synced=False)
@@ -100,7 +106,8 @@ async def delete_category(category_id: uuid.UUID, user: CurrentUser, session: Se
 async def arrange_channels(server_id: uuid.UUID, body: ChannelArrange, user: CurrentUser, session: SessionDep) -> list[ChannelOut]:
     """One category's channels the user can see, in the new order, including any coming from
     elsewhere (`category_id` null: the ones without a category). Hidden ones keep their place.
-    A channel that moves keeps its permissions; it's synced only if they match the new category."""
+    A channel that moves keeps its permissions; it's synced only if they match the new category.
+    Addons only move within the addons category, and nothing else moves into it."""
     access = await server_access(session, server_id, user.id)
     access.require(Perm.MANAGE_CHANNELS)
     await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": f"channel_order:{server_id}"})
@@ -110,16 +117,20 @@ async def arrange_channels(server_id: uuid.UUID, body: ChannelArrange, user: Cur
     overwrites = await channel_overwrites(session, [c.id for c in channels])
     access = ServerAccess(access.ctx, user.id, overwrites)
     target: list[categories.Overwrite] = []
+    kind: CategoryKind | None = None
     if body.category_id is not None:
         category = await session.get(ChannelCategory, body.category_id)
         if category is None or category.server_id != server_id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
         target = (await categories.overwrites_of(session, [category.id]))[category.id]
+        kind = category.kind
     visible = {c.id: c for c in channels if access.can_view(c)}
     here = {c.id for c in visible.values() if c.category_id == body.category_id}
     listed = set(body.channel_ids)
     if len(listed) != len(body.channel_ids) or not here <= listed or not listed <= set(visible):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="List every channel you can see in this category, once")
+    for channel_id in listed - here:
+        categories.require_fits(kind, visible[channel_id].type)
     moved = iter(visible[i] for i in body.channel_ids)
     ordered = [next(moved) if c.id in listed else c for c in channels]
     for position, channel in enumerate(ordered):

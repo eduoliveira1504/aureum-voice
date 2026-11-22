@@ -107,6 +107,13 @@ class ServerType(str, enum.Enum):
     mixed = "mixed"
 
 
+class CategoryKind(str, enum.Enum):
+    """A server's one "addons" category holds its addons and nothing else (block 4.2.8)."""
+
+    normal = "normal"
+    addons = "addons"
+
+
 class UserPlan(str, enum.Enum):
     """What the user pays for. Only the free plan exists for now (see app/media.py)."""
 
@@ -484,7 +491,8 @@ class Invite(Base):
 
 
 class ChannelCategory(Base):
-    """A named group of a server's channels, of any type. A channel without one sits at the top."""
+    """A named group of a server's text and voice channels. A channel without one sits at the top.
+    Each server also has exactly one "addons" category, where its addons live and only they do."""
 
     __tablename__ = "channel_categories"
 
@@ -492,6 +500,13 @@ class ChannelCategory(Base):
     server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    kind: Mapped[CategoryKind] = mapped_column(
+        _str_enum(CategoryKind, "category_kind"), nullable=False, default=CategoryKind.normal, server_default="normal"
+    )
+
+    __table_args__ = (
+        Index("uq_channel_categories_addons", "server_id", unique=True, postgresql_where=text("kind = 'addons'")),
+    )
 
 
 class Channel(Base):

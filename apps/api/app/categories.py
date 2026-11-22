@@ -4,18 +4,58 @@ Access is always decided by each channel's own overrides. A category's overrides
 while a channel is `permissions_synced`, it holds a copy of them. So nothing that checks access
 knows categories exist, and a channel is never opened by landing in a category: moving keeps its
 permissions, and it counts as synced only if they already match.
+
+Each server has one "addons" category (block 4.2.8): addons live there and only they do. It can't be
+renamed or deleted, and its name is reserved. Apps show it translated.
 """
 
 import uuid
 from collections.abc import Iterable
 
-from sqlalchemy import delete, select
+from fastapi import HTTPException, status
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Channel, ChannelCategory, ChannelCategoryOverride, ChannelOverride
+from app.models import CategoryKind, Channel, ChannelCategory, ChannelCategoryOverride, ChannelOverride, ChannelType
 from app.permissions import Context, Overwrite, Perm
 
 MAX_PER_SERVER = 50
+ADDONS_NAME = "Addons"
+
+ONLY_ADDONS = "Only addons go in the Addons category"
+ADDONS_STAY = "Addons stay in the Addons category"
+RESERVED_NAME = "The name Addons is reserved for the addons category"
+LOCKED_RENAME = "The Addons category can't be renamed"
+LOCKED_DELETE = "The Addons category can't be deleted"
+
+
+def require_free_name(name: str) -> None:
+    """A normal category can't be called "Addons", in any case."""
+    if name.strip().casefold() == ADDONS_NAME.casefold():
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=RESERVED_NAME)
+
+
+def require_fits(kind: CategoryKind | None, channel_type: ChannelType) -> None:
+    """`kind` None: no category. Addons only in the addons category, and nothing else there."""
+    if kind == CategoryKind.addons and channel_type != ChannelType.addon:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=ONLY_ADDONS)
+    if kind != CategoryKind.addons and channel_type == ChannelType.addon:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=ADDONS_STAY)
+
+
+async def addons_category(session: AsyncSession, server_id: uuid.UUID) -> ChannelCategory:
+    category = await session.scalar(
+        select(ChannelCategory).where(ChannelCategory.server_id == server_id, ChannelCategory.kind == CategoryKind.addons)
+    )
+    if category is None:
+        # Every server gets one on creation and from the migration; this is only a safety net.
+        last = await session.scalar(select(func.max(ChannelCategory.position)).where(ChannelCategory.server_id == server_id))
+        category = ChannelCategory(
+            server_id=server_id, name=ADDONS_NAME, kind=CategoryKind.addons, position=(last + 1) if last is not None else 0
+        )
+        session.add(category)
+        await session.flush()
+    return category
 
 
 async def of_server(session: AsyncSession, server_id: uuid.UUID) -> list[ChannelCategory]:

@@ -14,6 +14,7 @@ from app.access import get_membership, server_member_ids
 from app.addons import registry as addons
 from app.deps import CurrentUser, SessionDep
 from app.models import (
+    CategoryKind,
     Channel,
     ChannelCategory,
     ChannelOverride,
@@ -66,7 +67,12 @@ from app.schemas import (
 
 router = APIRouter(tags=["servers"])
 
-DEFAULT_CATEGORIES = ("Salas", "Conversas", "Addons")
+# (name, kind); the addons one holds the server's addons and only them.
+DEFAULT_CATEGORIES = (
+    ("Salas", CategoryKind.normal),
+    ("Conversas", CategoryKind.normal),
+    (categories.ADDONS_NAME, CategoryKind.addons),
+)
 # (name, type, index of its category)
 DEFAULT_CHANNELS = [("geral", ChannelType.text, 1), ("Geral", ChannelType.voice, 0)]
 
@@ -186,7 +192,9 @@ async def create_server(body: ServerCreate, user: CurrentUser, session: SessionD
     await session.flush()
     session.add(ServerMember(server_id=server.id, user_id=user.id))
     session.add(Role(id=server.id, server_id=server.id, name="@everyone", position=0, permissions=int(DEFAULT_EVERYONE)))
-    defaults = [ChannelCategory(server_id=server.id, name=name, position=i) for i, name in enumerate(DEFAULT_CATEGORIES)]
+    defaults = [
+        ChannelCategory(server_id=server.id, name=name, kind=kind, position=i) for i, (name, kind) in enumerate(DEFAULT_CATEGORIES)
+    ]
     session.add_all(defaults)
     await session.flush()
     for position, (name, type_, category) in enumerate(DEFAULT_CHANNELS):
@@ -522,6 +530,12 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
     category = await session.get(ChannelCategory, body.category_id) if body.category_id else None
     if body.category_id and (category is None or category.server_id != server_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
+    if type_ == ChannelType.addon:
+        # Older apps send no category or another one: the addon goes where addons live.
+        if category is None or category.kind != CategoryKind.addons:
+            category = await categories.addons_category(session, server_id)
+    else:
+        categories.require_fits(category.kind if category else None, type_)
     last = await session.scalar(select(func.max(Channel.position)).where(Channel.server_id == server_id))
     channel = Channel(
         server_id=server_id,
@@ -530,7 +544,7 @@ async def create_channel(server_id: uuid.UUID, body: ChannelCreate, user: Curren
         position=(last + 1) if last is not None else 0,
         addon_key=body.addon_key,
         config=config,
-        category_id=body.category_id,
+        category_id=category.id if category else None,
         permissions_synced=not body.private,
     )
     session.add(channel)
