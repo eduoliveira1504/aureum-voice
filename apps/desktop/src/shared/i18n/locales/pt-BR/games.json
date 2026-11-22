@@ -82,5 +82,8 @@
   "viewGame": "Ver jogo",
   "hideGame": "Esconder jogo",
   "notYet": "Ainda não jogou hoje",
-  "seeResult": "Ver resultado"
+  "seeResult": "Ver resultado",
+  "freezes_one": "{{count}} congelamento",
+  "freezes_other": "{{count}} congelamentos",
+  "freezesHint": "A cada 7 dias seguidos você ganha um congelamento (até 2). Ele segura a sequência se você passar um dia sem jogar. A insígnia do jogo acompanha a sequência: 3, 7, 30, 90, 180 e 365 dias."
 }

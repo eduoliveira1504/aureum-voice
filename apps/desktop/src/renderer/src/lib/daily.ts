@@ -32,6 +32,8 @@ export interface DailySummary {
   streak: number
   friends_today: { user_id: string; games: DailyGameKey[] }[]
   rankings?: Partial<Record<DailyGameKey, RankEntry[]>>
+  /** Per game: days in a row and freezes kept (block 4.2.13). */
+  streaks?: Partial<Record<DailyGameKey, { days: number; freezes: number }>>
 }
 
 export interface SudokuPuzzle {

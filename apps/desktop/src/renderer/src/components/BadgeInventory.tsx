@@ -7,15 +7,44 @@ import { BadgeIcon, GRANTED, RARITY_TEXT } from './Badge'
 import { dateFormat } from '../lib/format'
 import { t } from '../lib/i18n'
 
-/** Every badge of the Aureum: the person's own first (rarest first), then the rest, locked. */
+/** A level of a family (the daily games' streak badges, "daily_<game>_<days>"): its family and days. */
+export function badgeLevel(key: string): { family: string; days: number } | null {
+  const match = /^(daily_[a-z]+)_(\d+)$/.exec(key)
+  return match ? { family: match[1], days: Number(match[2]) } : null
+}
+
+/** Of each family's levels the person doesn't hold, only the next one up (block 4.2.13): the
+ * first level when they hold none, nothing past the one after theirs. */
+export function nextLevelsOnly(locked: Badge[], heldKeys: Set<string>): Badge[] {
+  const heldDays = new Map<string, number>()
+  for (const key of heldKeys) {
+    const level = badgeLevel(key)
+    if (level) heldDays.set(level.family, level.days)
+  }
+  const next = new Map<string, number>()
+  for (const badge of locked) {
+    const level = badgeLevel(badge.key)
+    if (!level || level.days <= (heldDays.get(level.family) ?? 0)) continue
+    next.set(level.family, Math.min(next.get(level.family) ?? Infinity, level.days))
+  }
+  return locked.filter((badge) => {
+    const level = badgeLevel(badge.key)
+    return !level || next.get(level.family) === level.days
+  })
+}
+
+/** Every badge of the Aureum: the person's own first (rarest first), then the rest, locked (of the
+ * streak badges, just the next level). */
 function useInventory(badges: HeldBadge[]): { badge: Badge; held: ShownBadge | null }[] {
   const catalog = useBadges((s) => s.catalog)
   useEffect(() => void useBadges.getState().load(), [])
   return useMemo(() => {
     const owned = sortBadges(badges, catalog)
     const keys = new Set(owned.map((s) => s.key))
-    const locked = Object.values(catalog)
-      .filter((b) => !keys.has(b.key))
+    const locked = nextLevelsOnly(
+      Object.values(catalog).filter((b) => !keys.has(b.key)),
+      keys
+    )
       // Ones that can still be earned before the ones that can't.
       .sort((a, b) => Number(a.available === false) - Number(b.available === false) || RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity])
     return [...owned.map((s) => ({ badge: s.badge, held: s })), ...locked.map((badge) => ({ badge, held: null }))]

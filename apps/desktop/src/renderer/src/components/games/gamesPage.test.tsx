@@ -90,3 +90,26 @@ describe('Ver jogo', () => {
     expect(screen.queryByRole('button', { name: 'Ver jogo' })).toBeNull()
   })
 })
+
+describe('streak badges (block 4.2.13)', () => {
+  it('each game card shows its streak and freezes', async () => {
+    vi.spyOn(api, 'api').mockImplementation(async (path) =>
+      path === '/daily' ? { ...SUMMARY, streaks: { sudoku: { days: 9, freezes: 1 }, trilha: { days: 0, freezes: 0 }, cacapalavras: { days: 0, freezes: 0 } } } : []
+    )
+    render(<DailyGamesPage />)
+    const sudoku = await screen.findByRole('article', { name: 'Sudoku' })
+    expect(within(sudoku).getByText('9 dias seguidos')).toBeTruthy()
+    expect(within(sudoku).getByText('1 congelamento')).toBeTruthy()
+    expect(within(screen.getByRole('article', { name: 'Trilha' })).queryByText(/congelamento/)).toBeNull()
+  })
+
+  it('the inventory offers only the next level of each game', async () => {
+    const { nextLevelsOnly } = await import('../BadgeInventory')
+    const badge = (key: string) => ({ key }) as never
+    const all = ['daily_sudoku_3', 'daily_sudoku_7', 'daily_sudoku_30', 'daily_trilha_3', 'daily_trilha_7', 'bug_hunter'].map(badge)
+    const shown = (held: string[]) =>
+      nextLevelsOnly(all.filter((b: { key: string }) => !held.includes(b.key)), new Set(held)).map((b: { key: string }) => b.key)
+    expect(shown([])).toEqual(['daily_sudoku_3', 'daily_trilha_3', 'bug_hunter'])
+    expect(shown(['daily_sudoku_7'])).toEqual(['daily_sudoku_30', 'daily_trilha_3', 'bug_hunter'])
+  })
+})

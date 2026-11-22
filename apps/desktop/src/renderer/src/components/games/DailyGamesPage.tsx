@@ -1,4 +1,4 @@
-import { CheckCircle2, Flame, Gamepad2 } from 'lucide-react'
+import { CheckCircle2, Flame, Gamepad2, Snowflake } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import type { User } from '../../lib/api'
@@ -92,6 +92,7 @@ function GameCard({ game, onPlay }: { game: DailyGameKey; onPlay(): void }): Rea
   const ranking = summary?.rankings?.[game] ?? []
   const position = ranking.findIndex((r) => r.user_id === meId) + 1
   const best = !result ? ranking.find((r) => r.user_id !== meId) : undefined
+  const streak = summary?.streaks?.[game]
   const Icon = DAILY_GAMES[game].icon
 
   return (
@@ -113,6 +114,22 @@ function GameCard({ game, onPlay }: { game: DailyGameKey; onPlay(): void }): Rea
           )}
         </div>
       </div>
+      {streak && (streak.days > 0 || streak.freezes > 0) && (
+        <p className="flex flex-wrap items-center gap-3 text-sm" title={t('games.freezesHint')}>
+          {streak.days > 0 && (
+            <span className="flex items-center gap-1 font-semibold text-accent-text">
+              <Flame size={14} />
+              {t('games.streak', { count: streak.days })}
+            </span>
+          )}
+          {streak.freezes > 0 && (
+            <span className="flex items-center gap-1 text-fg-muted">
+              <Snowflake size={14} />
+              {t('games.freezes', { count: streak.freezes })}
+            </span>
+          )}
+        </p>
+      )}
       <p className="text-sm text-fg-muted">{t(`games.games.${game}.rules`)}</p>
       {best && <p className="text-sm font-medium">{t('games.beat', { name: person(best.user_id).name, time: formatDuration(best.time_ms) })}</p>}
       {ranking.length > 0 && (
