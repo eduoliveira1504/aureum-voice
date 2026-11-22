@@ -35,6 +35,14 @@
       "cell": "Row {{row}}, column {{col}}",
       "undo": "Undo",
       "restart": "Start over"
+    },
+    "cacapalavras": {
+      "name": "Caça-palavras",
+      "rules": "Find the theme's words in the grid: in a straight line, any direction, even backwards. Drag from the first letter to the last.",
+      "cell": "Row {{row}}, column {{col}}: {{letter}}",
+      "theme": "Theme: {{theme}}",
+      "foundWord": "{{word}} (found)",
+      "count": "{{found}} of {{total}}"
     }
   },
   "ranking": "Friends ranking",

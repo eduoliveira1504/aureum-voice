@@ -35,6 +35,14 @@
       "cell": "Linha {{row}}, coluna {{col}}",
       "undo": "Desfazer",
       "restart": "Recomeçar"
+    },
+    "cacapalavras": {
+      "name": "Caça-palavras",
+      "rules": "Ache as palavras do tema na grade: em linha reta, em qualquer direção, até de trás para frente. Arraste da primeira à última letra.",
+      "cell": "Linha {{row}}, coluna {{col}}: {{letter}}",
+      "theme": "Tema: {{theme}}",
+      "foundWord": "{{word}} (achada)",
+      "count": "{{found}} de {{total}}"
     }
   },
   "ranking": "Ranking dos amigos",

@@ -5,7 +5,7 @@
 
 import { api } from './api'
 
-export type DailyGameKey = 'sudoku' | 'trilha'
+export type DailyGameKey = 'sudoku' | 'trilha' | 'cacapalavras'
 
 export interface DailyResult {
   game: DailyGameKey
@@ -44,6 +44,16 @@ export interface TrilhaPuzzle {
   numbers: number[]
   /** Pairs of neighboring cells with a wall between them. */
   walls: [number, number][]
+}
+
+export interface WordSearchPuzzle {
+  size: number
+  /** The day's theme ("Comida"), in Portuguese like the words. */
+  theme: string
+  /** One string per row, capitals without accents. */
+  rows: string[]
+  /** The words to find, as written (with accents), in alphabetical order. */
+  words: string[]
 }
 
 export interface DailyPuzzle<P = unknown> {
