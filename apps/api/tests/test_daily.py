@@ -9,7 +9,8 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app import daily
-from app.daily import sudoku, trilha
+from app.daily import cacapalavras, sudoku, trilha
+from app.daily.words import THEMES
 from app.db import engine
 from app.routers.daily import streak_of
 from tests.helpers import ApiUser, make_user
@@ -94,7 +95,7 @@ async def test_summary_with_streak_and_friends(client: AsyncClient) -> None:
                 {"u": ana.id, "d": today - timedelta(days=back)},
             )
     summary = (await ana.get("/daily")).json()
-    assert summary["games"] == ["sudoku", "trilha"] and summary["results"] == []
+    assert summary["games"] == ["sudoku", "trilha", "cacapalavras"] and summary["results"] == []
     # Yesterday and the day before; today not played yet still counts the run.
     assert summary["streak"] == 2
     # Only friends show, and only today's games.
@@ -165,3 +166,34 @@ async def test_trilha_is_played_like_the_others(client: AsyncClient) -> None:
     day = got["day"]
     path = await solution_of("trilha", day)
     assert (await check(ana, "trilha", day, path))["result"]["attempts"] == 1
+
+
+@pytest.mark.parametrize("offset", range(10))
+def test_every_word_has_a_single_place(offset: int) -> None:
+    day = date(2026, 11, 22) + timedelta(days=offset)
+    puzzle, solution = cacapalavras.generate(daily.rng_for("cacapalavras", day))
+    grid = list("".join(puzzle["rows"]))
+    assert len(grid) == 100 and all("A" <= ch <= "Z" for ch in grid)
+    assert len(puzzle["words"]) == cacapalavras.WORDS and puzzle["words"] == sorted(puzzle["words"])
+    for word in puzzle["words"]:
+        assert word in THEMES[puzzle["theme"]]
+        assert len(cacapalavras.occurrences(grid, cacapalavras.plain(word))) == 1
+    assert not any(cacapalavras.occurrences(grid, b) for b in cacapalavras.BLOCKED)
+    assert cacapalavras.check(puzzle, solution, solution)
+    assert cacapalavras.generate(daily.rng_for("cacapalavras", day))[0] == puzzle
+
+
+def test_word_search_checks_each_word() -> None:
+    puzzle, solution = cacapalavras.generate(daily.rng_for("cacapalavras", date(2026, 11, 22)))
+    assert cacapalavras.check(puzzle, solution, [[b, a] for a, b in solution])  # dragged backwards
+    assert not cacapalavras.check(puzzle, solution, solution[::-1])  # words swapped
+    assert not cacapalavras.check(puzzle, solution, solution[:-1])
+    assert not cacapalavras.check(puzzle, solution, [[0, 0]] * len(solution))
+    assert cacapalavras.plain("Maçã") == "MACA" and cacapalavras.plain("pêssego") == "PESSEGO"
+
+
+def test_the_word_list_is_tidy() -> None:
+    for theme, words in THEMES.items():
+        assert len(words) >= 20, theme
+        assert all(w == w.strip() and " " not in w and "-" not in w for w in words), theme
+        assert sum(1 for w in words if 4 <= len(cacapalavras.plain(w)) <= cacapalavras.SIZE) >= cacapalavras.WORDS, theme
