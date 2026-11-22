@@ -37,15 +37,30 @@ def test_the_day_is_brasilias_and_turns_at_1am() -> None:
     assert daily.today(datetime(2026, 11, 23, 4, 0, tzinfo=UTC)) == date(2026, 11, 23)
 
 
-@pytest.mark.parametrize("offset", range(7))
-def test_every_sudoku_has_one_solution(offset: int) -> None:
+@pytest.mark.parametrize("difficulty", daily.DIFFICULTIES)
+@pytest.mark.parametrize("offset", range(4))
+def test_every_sudoku_has_one_solution(offset: int, difficulty: str) -> None:
     day = date(2026, 11, 22) + timedelta(days=offset)
-    puzzle, solution = sudoku.generate(daily.rng_for("sudoku", day))
+    puzzle, solution = sudoku.generate(daily.rng_for("sudoku", day), difficulty)
     assert sudoku.solutions(puzzle["givens"], limit=3) == [solution]
-    assert sum(1 for v in puzzle["givens"] if v) == sudoku.CLUES
+    # Fewer given numbers the harder it is (a symmetric pair can take one past the target, and a
+    # few more may stay to keep it unique).
+    target = sudoku.CLUES_BY[difficulty]
+    assert target - 1 <= sum(1 for v in puzzle["givens"] if v) <= target + 4
+    assert puzzle["difficulty"] == difficulty
     # Made from the day alone: the same again, and different the next day.
-    assert sudoku.generate(daily.rng_for("sudoku", day))[0] == puzzle
-    assert sudoku.generate(daily.rng_for("sudoku", day + timedelta(days=1)))[0] != puzzle
+    assert sudoku.generate(daily.rng_for("sudoku", day), difficulty)[0] == puzzle
+    assert sudoku.generate(daily.rng_for("sudoku", day + timedelta(days=1)), difficulty)[0] != puzzle
+
+
+def test_the_difficulty_is_drawn_for_each_day() -> None:
+    days = [date(2026, 11, 1) + timedelta(days=i) for i in range(90)]
+    drawn = [daily.difficulty_for("sudoku", d) for d in days]
+    assert set(drawn) == set(daily.DIFFICULTIES)
+    # The same day is the same for everyone, and Mondays aren't all alike.
+    assert drawn == [daily.difficulty_for("sudoku", d) for d in days]
+    mondays = {daily.difficulty_for("sudoku", d) for d in days if d.weekday() == 0}
+    assert len(mondays) > 1
 
 
 async def test_everyone_gets_the_same_puzzle_without_the_answer(client: AsyncClient) -> None:
@@ -130,9 +145,9 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
                 {"u": user.id, "d": day, "t": time_ms, "a": attempts},
             )
     expected = [
-        {"user_id": caio.id, "time_ms": 60_000, "attempts": 1},
-        {"user_id": bia.id, "time_ms": 60_000, "attempts": 3},
-        {"user_id": ana.id, "time_ms": 90_000, "attempts": 1},
+        {"user_id": caio.id, "time_ms": 60_000, "attempts": 1, "hints": 0},
+        {"user_id": bia.id, "time_ms": 60_000, "attempts": 3, "hints": 0},
+        {"user_id": ana.id, "time_ms": 90_000, "attempts": 1, "hints": 0},
     ]
     # The fastest first, fewer tries breaking a tie; someone who isn't a friend never shows.
     assert (await ana.get("/daily")).json()["rankings"] == {"sudoku": expected}
@@ -141,15 +156,17 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
     assert [r["user_id"] for r in (await bia.get("/daily/sudoku")).json()["ranking"]] == [bia.id, ana.id]
 
 
-@pytest.mark.parametrize("offset", range(10))
-def test_every_trilha_has_one_path(offset: int) -> None:
+@pytest.mark.parametrize("difficulty", daily.DIFFICULTIES)
+@pytest.mark.parametrize("offset", range(3))
+def test_every_trilha_has_one_path(offset: int, difficulty: str) -> None:
     day = date(2026, 11, 22) + timedelta(days=offset)
-    puzzle, path = trilha.generate(daily.rng_for("trilha", day))
-    assert trilha.solutions(puzzle["numbers"], puzzle["walls"], limit=3) == [path]
+    puzzle, path = trilha.generate(daily.rng_for("trilha", day), difficulty)
+    assert puzzle["size"] == trilha.SIZES[difficulty] and len(path) == puzzle["size"] ** 2
+    assert trilha.solutions(puzzle["size"], puzzle["numbers"], puzzle["walls"], limit=3) == [path]
     numbers = puzzle["numbers"]
     # Starts on 1, ends on the highest, and stays readable: few numbers.
     assert numbers[path[0]] == 1 and numbers[path[-1]] == max(numbers) <= 12
-    assert trilha.generate(daily.rng_for("trilha", day))[0] == puzzle
+    assert trilha.generate(daily.rng_for("trilha", day), difficulty)[0] == puzzle
 
 
 def test_trilha_checks_the_rules() -> None:
@@ -162,35 +179,37 @@ def test_trilha_checks_the_rules() -> None:
     assert not trilha.check(puzzle, path, jump)  # not neighbors, or numbers out of order
     if puzzle["walls"]:
         a, b = puzzle["walls"][0]
-        assert b not in [n for n in trilha.NEIGHBORS[a] if trilha._open_bits(puzzle["walls"])[a] >> n & 1]
+        assert not trilha.grid(puzzle["size"]).open_bits(puzzle["walls"])[a] >> b & 1
     assert not trilha.check(puzzle, path, "nope")
 
 
 async def test_trilha_is_played_like_the_others(client: AsyncClient) -> None:
     ana = await make_user(client, "ana")
     got = (await ana.get("/daily/trilha")).json()
-    assert set(got["puzzle"]) == {"size", "numbers", "walls"}
+    assert set(got["puzzle"]) == {"size", "difficulty", "numbers", "walls"}
     day = got["day"]
     path = await solution_of("trilha", day)
     assert (await check(ana, "trilha", day, path))["result"]["attempts"] == 1
 
 
-@pytest.mark.parametrize("offset", range(10))
-def test_every_word_has_a_single_place(offset: int) -> None:
+@pytest.mark.parametrize("difficulty", daily.DIFFICULTIES)
+@pytest.mark.parametrize("offset", range(4))
+def test_every_word_has_a_single_place(offset: int, difficulty: str) -> None:
     day = date(2026, 11, 22) + timedelta(days=offset)
-    puzzle, solution = cacapalavras.generate(daily.rng_for("cacapalavras", day))
+    puzzle, solution = cacapalavras.generate(daily.rng_for("cacapalavras", day), difficulty)
+    size, count = cacapalavras.LEVELS[difficulty]
     grid = list("".join(puzzle["rows"]))
-    assert len(grid) == cacapalavras.CELLS and all("A" <= ch <= "Z" for ch in grid)
-    # Mostly diagonal, and never all one way.
-    diagonal = [a for a, b in solution if a // cacapalavras.SIZE != b // cacapalavras.SIZE and a % cacapalavras.SIZE != b % cacapalavras.SIZE]
-    assert len(diagonal) == 5
-    assert len(puzzle["words"]) == cacapalavras.WORDS and puzzle["words"] == sorted(puzzle["words"])
+    assert puzzle["size"] == size and len(grid) == size * size and all("A" <= ch <= "Z" for ch in grid)
+    # Half of them diagonal, and never all one way.
+    diagonal = [a for a, b in solution if a // size != b // size and a % size != b % size]
+    assert len(diagonal) == count // 2
+    assert len(puzzle["words"]) == count and puzzle["words"] == sorted(puzzle["words"])
     for word in puzzle["words"]:
         assert word in THEMES[puzzle["theme"]]
         assert len(cacapalavras.occurrences(grid, cacapalavras.plain(word))) == 1
     assert not any(cacapalavras.occurrences(grid, b) for b in cacapalavras.BLOCKED)
     assert cacapalavras.check(puzzle, solution, solution)
-    assert cacapalavras.generate(daily.rng_for("cacapalavras", day))[0] == puzzle
+    assert cacapalavras.generate(daily.rng_for("cacapalavras", day), difficulty)[0] == puzzle
 
 
 def test_word_search_checks_each_word() -> None:
@@ -206,7 +225,9 @@ def test_the_word_list_is_tidy() -> None:
     for theme, words in THEMES.items():
         assert len(words) >= 20, theme
         assert all(w == w.strip() and " " not in w and "-" not in w for w in words), theme
-        assert sum(1 for w in words if 4 <= len(cacapalavras.plain(w)) <= cacapalavras.SIZE) >= cacapalavras.WORDS, theme
+        # Enough short words for the easy grid too.
+        size, count = cacapalavras.LEVELS["facil"]
+        assert sum(1 for w in words if 4 <= len(cacapalavras.plain(w)) <= size) >= count, theme
 
 
 async def solve(user: ApiUser, game: str = "sudoku") -> str:
@@ -360,3 +381,59 @@ def test_streak_badges_top_out_at_legendary() -> None:
     assert BADGES["daily_sudoku_365"].rarity == BadgeRarity.lendaria
     # No mythic outer ring in their art.
     assert 'points="48,4' not in BADGES["daily_sudoku_365"].icon_svg
+
+
+
+# --- Hints -------------------------------------------------------------------------------------
+
+
+def test_hints_nudge_without_solving() -> None:
+    import random
+
+    rng = random.Random(1)
+    puzzle, solution = sudoku.generate(daily.rng_for("sudoku", date(2026, 11, 22)))
+    cells = list(puzzle["givens"])
+    first_empty = cells.index(0)
+    cells[first_empty] = solution[first_empty] % 9 + 1  # a wrong number
+    assert sudoku.hint(puzzle, solution, cells, rng) == {"cell": first_empty, "value": solution[first_empty]}  # fixes it first
+    got = sudoku.hint(puzzle, solution, list(puzzle["givens"]), rng)
+    assert puzzle["givens"][got["cell"]] == 0 and got["value"] == solution[got["cell"]]
+
+    puzzle, path = trilha.generate(daily.rng_for("trilha", date(2026, 11, 22)))
+    assert trilha.hint(puzzle, path, path[:4], rng) == {"keep": 4, "cell": path[4]}
+    wrong = path[:3] + [path[-1]]
+    assert trilha.hint(puzzle, path, wrong, rng) == {"keep": 3, "cell": path[3]}  # back to where it was right
+    assert trilha.hint(puzzle, path, [], rng) == {"keep": 1, "cell": path[1]}
+
+    puzzle, pairs = cacapalavras.generate(daily.rng_for("cacapalavras", date(2026, 11, 22)))
+    got = cacapalavras.hint(puzzle, pairs, list(range(len(pairs) - 1)), rng)
+    assert got == {"word": len(pairs) - 1, "cell": pairs[-1][0]}  # the one not found yet
+
+
+async def test_a_hint_every_30_seconds_counted_in_the_result(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    day = (await ana.get("/daily/trilha")).json()["day"]
+    first = await ana.post("/daily/trilha/hint", {"day": day, "state": []})
+    assert first.status_code == 200, first.text
+    assert first.json()["used"] == 1 and set(first.json()["hint"]) == {"keep", "cell"}
+    again = await ana.post("/daily/trilha/hint", {"day": day, "state": []})
+    assert again.status_code == 429 and int(again.headers["retry-after"]) <= 30
+    # The wait passes.
+    from app.config import get_settings
+    from app.realtime import broker
+
+    await broker.redis.delete(f"{get_settings().redis_prefix}:daily:hint-wait:{ana.id}:trilha:{day}")
+    assert (await ana.post("/daily/trilha/hint", {"day": day, "state": []})).json()["used"] == 2
+    done = await check(ana, "trilha", day, await solution_of("trilha", day))
+    assert done["result"]["hints"] == 2
+    ranking = (await ana.get("/daily/trilha")).json()["ranking"]
+    assert ranking[0]["hints"] == 2
+    # Solved: no more hints.
+    assert (await ana.post("/daily/trilha/hint", {"day": day, "state": []})).status_code == 409
+
+
+async def test_the_summary_says_each_games_difficulty(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    summary = (await ana.get("/daily")).json()
+    today = daily.today()
+    assert summary["difficulties"] == {key: daily.difficulty_for(key, today) for key in daily.GAMES}

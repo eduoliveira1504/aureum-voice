@@ -1111,6 +1111,8 @@ class DailyResult(Base):
     completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # How the person solved it (their grid, path or words), for "Ver jogo". Only they get it back.
     answer: Mapped[Any | None] = mapped_column(JSONB)
+    # Hints asked for along the way (shown with the time, in the result and the ranking).
+    hints: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = _created_at()
 
 

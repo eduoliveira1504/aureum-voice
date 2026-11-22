@@ -24,10 +24,19 @@ def today(now: datetime | None = None) -> date:
     return ((now or datetime.now(UTC)).astimezone(BRASILIA) - NEW_DAY_AT).date()
 
 
-def rng_for(game: str, day: date) -> random.Random:
+def rng_for(game: str, day: date, purpose: str = "") -> random.Random:
     """The day's random source for a game: the same everywhere, different every day."""
-    digest = hashlib.sha256(f"aureum-daily:{game}:{day.isoformat()}".encode()).digest()
+    digest = hashlib.sha256(f"aureum-daily:{game}:{day.isoformat()}{purpose}".encode()).digest()
     return random.Random(int.from_bytes(digest[:16], "big"))
+
+
+DIFFICULTIES = ("facil", "medio", "dificil")
+
+
+def difficulty_for(game: str, day: date) -> str:
+    """Each game's day is easy, medium or hard by draw (Eduardo, 22/11): the same for everyone,
+    with no weekday pattern."""
+    return rng_for(game, day, ":difficulty").choice(DIFFICULTIES)
 
 
 @dataclass(frozen=True)
@@ -35,10 +44,12 @@ class DailyGame:
     key: str
     # As it reads in a shared challenge's plain text (apps that don't know the games).
     name: str
-    # (rng) -> (what the app gets, the solution kept in the API)
-    generate: Callable[[random.Random], tuple[dict[str, Any], Any]]
+    # (rng, difficulty) -> (what the app gets, with its "difficulty"; the solution kept in the API)
+    generate: Callable[[random.Random, str], tuple[dict[str, Any], Any]]
     # (puzzle, solution, the player's answer) -> solved?
     check: Callable[[dict[str, Any], Any, Any], bool]
+    # (puzzle, solution, where the player is, rng) -> a nudge that doesn't solve it for them
+    hint: Callable[[dict[str, Any], Any, Any, random.Random], dict[str, Any]]
 
 
 def _games() -> dict[str, DailyGame]:

@@ -1,6 +1,7 @@
 """Daily games on Home (block 4.2.10): today's puzzle, checking an answer, and the summary for
 Home's card (results, streak, friends who played today). See app/daily."""
 
+import asyncio
 import time
 import uuid
 from datetime import date, timedelta
@@ -30,6 +31,8 @@ CHECKS = (60, 60)
 TRACK_SECONDS = 2 * 24 * 60 * 60
 # A streak shown for at most this many days back (the query stops there).
 STREAK_DAYS = 400
+# A new hint at most this often (Eduardo, 22/11).
+HINT_SECONDS = 30
 # Sharing: a few channels at once, and not many times an hour.
 SHARE_CHANNELS = 10
 SHARES = (30, 60 * 60)
@@ -43,12 +46,14 @@ class ResultOut(BaseModel):
     completed: bool
     # The person's own solution ("Ver jogo"); never in a ranking.
     answer: Any = None
+    hints: int = 0
 
 
 class RankEntry(BaseModel):
     user_id: uuid.UUID
     time_ms: int
     attempts: int
+    hints: int = 0
 
 
 class PuzzleOut(BaseModel):
@@ -83,6 +88,8 @@ class DailySummary(BaseModel):
     rankings: dict[str, list[RankEntry]] = {}
     # Per game: the streak with its freezes (block 4.2.13; app/daily/streaks.py).
     streaks: dict[str, StreakOut] = {}
+    # Per game: today's difficulty ("facil", "medio" or "dificil"), drawn for the day.
+    difficulties: dict[str, str] = {}
 
 
 class Check(BaseModel):
@@ -95,6 +102,20 @@ class Check(BaseModel):
 class CheckOut(BaseModel):
     correct: bool
     result: ResultOut | None = None
+
+
+class HintAsk(BaseModel):
+    day: date
+    # Where the player is: the Sudoku grid, the Trilha path drawn, the indexes of the words found.
+    state: Any = None
+
+
+class HintOut(BaseModel):
+    hint: dict[str, Any]
+    # Hints used in this game today, this one included.
+    used: int
+    # When the next one can be asked for.
+    next_in: int = HINT_SECONDS
 
 
 class Share(BaseModel):
@@ -125,7 +146,8 @@ async def puzzle_of(session: AsyncSession, game: daily.DailyGame, day: date) -> 
     saved = await session.get(DailyPuzzle, (game.key, day))
     if saved is not None:
         return saved
-    puzzle, solution = game.generate(daily.rng_for(game.key, day))
+    # Pure CPU (a hard Trilha can take seconds): off the event loop, so the API keeps answering.
+    puzzle, solution = await asyncio.to_thread(game.generate, daily.rng_for(game.key, day), daily.difficulty_for(game.key, day))
     await session.execute(
         insert(DailyPuzzle).values(game=game.key, day=day, puzzle=puzzle, solution=solution).on_conflict_do_nothing()
     )
@@ -137,7 +159,13 @@ async def puzzle_of(session: AsyncSession, game: daily.DailyGame, day: date) -> 
 
 def _out(result: DailyResult) -> ResultOut:
     return ResultOut(
-        game=result.game, day=result.day, time_ms=result.time_ms, attempts=result.attempts, completed=result.completed, answer=result.answer
+        game=result.game,
+        day=result.day,
+        time_ms=result.time_ms,
+        attempts=result.attempts,
+        completed=result.completed,
+        answer=result.answer,
+        hints=result.hints,
     )
 
 
@@ -151,7 +179,7 @@ async def rankings(session: AsyncSession, user_id: uuid.UUID, day: date, game: s
     rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at))
     out: dict[str, list[RankEntry]] = {}
     for r in rows:
-        out.setdefault(r.game, []).append(RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts))
+        out.setdefault(r.game, []).append(RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts, hints=r.hints))
     return out
 
 
@@ -195,6 +223,7 @@ async def summary(user: CurrentUser, session: SessionDep) -> DailySummary:
         friends_today=[FriendPlayed(user_id=u, games=sorted(g)) for u, g in played.items()],
         rankings=await rankings(session, user.id, today),
         streaks={k: StreakOut(days=s.days, freezes=s.freezes) for k, s in (await streak_badges.streaks_of(session, user.id)).items()},
+        difficulties={key: (await puzzle_of(session, game, today)).puzzle.get("difficulty", "medio") for key, game in daily.GAMES.items()},
     )
 
 
@@ -239,18 +268,26 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
         return CheckOut(correct=False)
 
     time_ms = body.time_ms
-    wrong = 0
+    wrong = hints = 0
     try:
         started = await broker.redis.get(_track_key("start", user.id, game.key, body.day))
         if started is not None:
             time_ms = min(time_ms, int((time.time() - float(started)) * 1000) + 1000)
         wrong = int(await broker.redis.get(wrong_key) or 0)
+        hints = int(await broker.redis.get(_track_key("hints", user.id, game.key, body.day)) or 0)
     except Exception:  # noqa: BLE001
         pass
     await session.execute(
         insert(DailyResult)
         .values(
-            user_id=user.id, game=game.key, day=body.day, time_ms=max(time_ms, 0), attempts=wrong + 1, completed=True, answer=body.answer
+            user_id=user.id,
+            game=game.key,
+            day=body.day,
+            time_ms=max(time_ms, 0),
+            attempts=wrong + 1,
+            completed=True,
+            answer=body.answer,
+            hints=hints,
         )
         .on_conflict_do_nothing()
     )
@@ -325,3 +362,29 @@ async def channel_ranking(game_key: str, channel_id: uuid.UUID, day: date, user:
         .order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at)
     )
     return [RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts) for r in rows]
+
+
+@router.post("/{game_key}/hint", response_model=HintOut)
+async def ask_hint(game_key: str, body: HintAsk, user: CurrentUser, session: SessionDep) -> HintOut:
+    """A nudge that doesn't solve it (where a word begins, the Trilha's next step, a Sudoku number),
+    one every HINT_SECONDS. They're counted and shown with the result."""
+    game = _game(game_key)
+    today = daily.today()
+    if body.day not in (today, today - timedelta(days=1)):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="That puzzle is no longer open")
+    if await session.get(DailyResult, (user.id, game.key, body.day)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Already solved")
+    saved = await session.get(DailyPuzzle, (game.key, body.day))
+    if saved is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Open the puzzle first")
+    wait_key = _track_key("hint-wait", user.id, game.key, body.day)
+    if not await broker.redis.set(wait_key, 1, nx=True, ex=HINT_SECONDS):
+        left = await broker.redis.ttl(wait_key)
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, detail="Wait for the next hint", headers={"Retry-After": str(max(left, 1))}
+        )
+    count_key = _track_key("hints", user.id, game.key, body.day)
+    used = int(await broker.redis.incr(count_key))
+    await broker.redis.expire(count_key, TRACK_SECONDS)
+    nudge = game.hint(saved.puzzle, saved.solution, body.state, daily.rng_for(game.key, body.day, f":hint:{user.id}:{used}"))
+    return HintOut(hint=nudge, used=used)

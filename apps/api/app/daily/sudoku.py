@@ -12,8 +12,9 @@ from app.daily import DailyGame
 SIZE = 9
 CELLS = SIZE * SIZE
 ALL = (1 << SIZE) - 1  # bits 0..8 stand for 1..9
-# Medium: enough to start without guessing, few enough to need thought.
-CLUES = 32
+# Given numbers by the day's difficulty: fewer is harder.
+CLUES_BY = {"facil": 38, "medio": 32, "dificil": 27}
+CLUES = CLUES_BY["medio"]
 
 
 def _box(i: int) -> int:
@@ -80,14 +81,15 @@ def solutions(grid: list[int], limit: int = 2, rng: random.Random | None = None)
     return found
 
 
-def generate(rng: random.Random) -> tuple[dict[str, Any], list[int]]:
+def generate(rng: random.Random, difficulty: str = "medio") -> tuple[dict[str, Any], list[int]]:
+    target = CLUES_BY[difficulty]
     solution = solutions([0] * CELLS, limit=1, rng=rng)[0]
     givens = list(solution)
     pairs = list(range(CELLS // 2 + 1))  # i and its mirror 80 - i
     rng.shuffle(pairs)
     clues = CELLS
     for i in pairs:
-        if clues <= CLUES:
+        if clues <= target:
             break
         mirror = CELLS - 1 - i
         kept = givens[i], givens[mirror]
@@ -96,7 +98,19 @@ def generate(rng: random.Random) -> tuple[dict[str, Any], list[int]]:
             givens[i], givens[mirror] = kept
             continue
         clues -= 1 if i == mirror else 2
-    return {"size": SIZE, "givens": givens}, solution
+    # Symmetric pairs can stall above the target: single cells take it the rest of the way.
+    singles = [i for i in range(CELLS) if givens[i]]
+    rng.shuffle(singles)
+    for i in singles:
+        if clues <= target:
+            break
+        kept = givens[i]
+        givens[i] = 0
+        if len(solutions(givens)) != 1:
+            givens[i] = kept
+            continue
+        clues -= 1
+    return {"size": SIZE, "difficulty": difficulty, "givens": givens}, solution
 
 
 def check(puzzle: dict[str, Any], solution: list[int], answer: Any) -> bool:
@@ -106,4 +120,13 @@ def check(puzzle: dict[str, Any], solution: list[int], answer: Any) -> bool:
     return all(isinstance(v, int) and not isinstance(v, bool) for v in answer) and answer == solution
 
 
-GAME = DailyGame(key="sudoku", name="Sudoku", generate=generate, check=check)
+def hint(puzzle: dict[str, Any], solution: list[int], state: Any, rng: random.Random) -> dict[str, Any]:
+    """One number of the solution: a wrong one first (to fix it), else an empty cell."""
+    cells = state if isinstance(state, list) and len(state) == CELLS else list(puzzle["givens"])
+    wrong = [i for i, v in enumerate(cells) if v and v != solution[i] and not puzzle["givens"][i]]
+    empty = [i for i, v in enumerate(cells) if not v]
+    cell = wrong[0] if wrong else rng.choice(empty) if empty else 0
+    return {"cell": cell, "value": solution[cell]}
+
+
+GAME = DailyGame(key="sudoku", name="Sudoku", generate=generate, check=check, hint=hint)
