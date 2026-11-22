@@ -1,7 +1,7 @@
 import { RotateCcw, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
-import type { TrilhaPuzzle } from '../../lib/daily'
+import type { Hint, TrilhaPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 
 /** Cells a step can go to from `i`: up, down, left, right, minus the walls. */
@@ -35,12 +35,18 @@ export function TrilhaBoard({
   puzzle,
   disabled,
   onFilled,
-  solved
+  solved,
+  hint,
+  onState
 }: {
   puzzle: TrilhaPuzzle
   disabled: boolean
   onFilled(path: number[]): void
   solved?: number[]
+  /** The latest hint: the path back to where it was right, and the next cell marked. */
+  hint?: Hint | null
+  /** The path as it is, for asking a hint. */
+  onState?(path: number[]): void
 }): ReactNode {
   const { size, numbers, walls } = puzzle
   const cells = size * size
@@ -48,6 +54,15 @@ export function TrilhaBoard({
   const last = Math.max(...numbers)
   const open = useMemo(() => openNeighbors(size, walls), [size, walls])
   const [path, setPath] = useState<number[]>(() => solved ?? [start])
+  // The hinted next cell, marked until the path reaches it.
+  const [nudge, setNudge] = useState<number | null>(null)
+  useEffect(() => onState?.(path), [path])
+  useEffect(() => {
+    if (!hint || hint.keep === undefined || solved) return
+    setPath((p) => p.slice(0, hint.keep))
+    setNudge(hint.cell)
+  }, [hint?.n])
+  const nudged = nudge !== null && !path.includes(nudge) ? nudge : null
   const dragging = useRef(false)
   const board = useRef<SVGSVGElement>(null)
   const readOnly = disabled || !!solved
@@ -149,6 +164,18 @@ export function TrilhaBoard({
               strokeLinecap="round"
               strokeLinejoin="round"
               opacity={0.75}
+            />
+          )}
+          {nudged !== null && (
+            <rect
+              data-hint-cell={nudged}
+              x={(nudged % size) + 0.1}
+              y={Math.floor(nudged / size) + 0.1}
+              width={0.8}
+              height={0.8}
+              rx={0.15}
+              className="animate-pulse fill-success/30 stroke-success"
+              strokeWidth={0.06}
             />
           )}
           {walls.map(([a, b]) => (

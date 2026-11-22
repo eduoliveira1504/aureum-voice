@@ -1,7 +1,7 @@
 import { Eraser } from 'lucide-react'
-import { useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
 
-import { sudokuConflicts, type SudokuPuzzle } from '../../lib/daily'
+import { sudokuConflicts, type Hint, type SudokuPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 
 /**
@@ -13,18 +13,36 @@ export function SudokuBoard({
   puzzle,
   disabled,
   onFilled,
-  solved
+  solved,
+  hint,
+  onState
 }: {
   puzzle: SudokuPuzzle
   disabled: boolean
   onFilled(cells: number[]): void
   /** A finished grid, shown read-only ("Ver jogo"). */
   solved?: number[]
+  /** The latest hint: a number of the solution, put in place and locked. */
+  hint?: Hint | null
+  /** The grid as it is, for asking a hint. */
+  onState?(cells: number[]): void
 }): ReactNode {
   const [cells, setCells] = useState<number[]>(() => solved ?? [...puzzle.givens])
   const [selected, setSelected] = useState<number | null>(() => (solved ? null : puzzle.givens.indexOf(0)))
+  const [hinted, setHinted] = useState<number[]>([])
   const conflicts = sudokuConflicts(cells)
-  const fixed = (i: number): boolean => puzzle.givens[i] !== 0
+  const fixed = (i: number): boolean => puzzle.givens[i] !== 0 || hinted.includes(i)
+
+  useEffect(() => onState?.(cells), [cells])
+  useEffect(() => {
+    if (!hint || hint.value === undefined || solved) return
+    const next = [...cells]
+    next[hint.cell] = hint.value
+    setCells(next)
+    setHinted((h) => [...h, hint.cell])
+    setSelected(hint.cell)
+    if (next.every(Boolean) && sudokuConflicts(next).size === 0) onFilled(next)
+  }, [hint?.n])
 
   const put = (value: number): void => {
     if (disabled || solved || selected === null || fixed(selected)) return
@@ -69,7 +87,7 @@ export function SudokuBoard({
           const box = `${c % 3 === 2 && c < 8 ? 'border-r-2 border-r-fg-subtle' : c < 8 ? 'border-r border-r-line' : ''} ${
             r % 3 === 2 && r < 8 ? 'border-b-2 border-b-fg-subtle' : r < 8 ? 'border-b border-b-line' : ''
           }`
-          const tone = conflicts.has(i) ? 'text-danger' : fixed(i) ? 'text-fg font-semibold' : 'text-accent-text'
+          const tone = conflicts.has(i) ? 'text-danger' : hinted.includes(i) ? 'text-success font-semibold' : fixed(i) ? 'text-fg font-semibold' : 'text-accent-text'
           const back = i === selected ? 'bg-accent/25' : value && v === value ? 'bg-accent/10' : related(i) ? 'bg-elevated' : ''
           return (
             <button

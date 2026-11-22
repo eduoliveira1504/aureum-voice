@@ -23,6 +23,15 @@
   --danger: #c7363b;
   --idle: #e8b531;
   --dnd: #e5484d;
+  /* Words found in Caça-palavras, one color each (block 4.2.10). */
+  --game-1: #e8b531;
+  --game-2: #4fb3e8;
+  --game-3: #e06c9f;
+  --game-4: #5cc98a;
+  --game-5: #a98be8;
+  --game-6: #ef8a4b;
+  --game-7: #4dd0c4;
+  --game-8: #d4d45a;
   --accent-hover-mix: white 12%;
   /* Label colors (Kanban labels): read on the panel background. */
   --label-gray: #a8a090;
@@ -53,6 +62,14 @@
   --danger: #c7363b;
   --idle: #c98f00;
   --dnd: #c7363b;
+  --game-1: #c98f00;
+  --game-2: #2b8fc7;
+  --game-3: #c74a80;
+  --game-4: #2e9e65;
+  --game-5: #7d5ed1;
+  --game-6: #d0682a;
+  --game-7: #1fa396;
+  --game-8: #a3a32c;
   --accent-hover-mix: black 10%;
   --label-gray: #6b6354;
   --label-red: #c7363b;
@@ -114,6 +131,15 @@
   --color-badge-bronze: var(--badge-bronze);
   --color-badge-silver: var(--badge-silver);
   --color-badge-gold: var(--badge-gold);
+
+  --color-game-1: var(--game-1);
+  --color-game-2: var(--game-2);
+  --color-game-3: var(--game-3);
+  --color-game-4: var(--game-4);
+  --color-game-5: var(--game-5);
+  --color-game-6: var(--game-6);
+  --color-game-7: var(--game-7);
+  --color-game-8: var(--game-8);
 
   --color-scrim: var(--scrim);
   --color-on-scrim: var(--on-scrim);

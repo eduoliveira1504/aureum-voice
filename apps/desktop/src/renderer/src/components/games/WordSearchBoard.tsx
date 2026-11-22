@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import type { WordSearchPuzzle } from '../../lib/daily'
+import type { Hint, WordSearchPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
+
+/** One color per found word, in the order they were found (theme tokens; it cycles past 8). */
+export const WORD_COLORS = ['bg-game-1/45', 'bg-game-2/45', 'bg-game-3/45', 'bg-game-4/45', 'bg-game-5/45', 'bg-game-6/45', 'bg-game-7/45', 'bg-game-8/45']
 
 /** As in the grid: capitals, no accents, Ç as C (the API's plain()). */
 export const plainWord = (word: string): string => word.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase()
@@ -25,17 +28,30 @@ export function WordSearchBoard({
   puzzle,
   disabled,
   onFilled,
-  solved
+  solved,
+  hint,
+  onState
 }: {
   puzzle: WordSearchPuzzle
   disabled: boolean
   onFilled(pairs: [number, number][]): void
   /** The words as found, shown read-only ("Ver jogo"). */
   solved?: [number, number][]
+  /** The latest hint: where a word not found yet begins, marked until it's found. */
+  hint?: Hint | null
+  /** Which words (their place in the list) are found, for asking a hint. */
+  onState?(found: number[]): void
 }): ReactNode {
   const { size, rows, words, theme } = puzzle
   const letters = rows.join('')
   const [found, setFound] = useState<([number, number] | null)[]>(() => solved ?? words.map(() => null))
+  // The order the words were found in: each gets the next color.
+  const [order, setOrder] = useState<number[]>(() => (solved ? words.map((_, i) => i) : []))
+  const [nudge, setNudge] = useState<{ word: number; cell: number } | null>(null)
+  useEffect(() => onState?.(order), [order])
+  useEffect(() => {
+    if (hint?.word !== undefined && !solved) setNudge({ word: hint.word, cell: hint.cell })
+  }, [hint?.n])
   const [start, setStart] = useState<number | null>(null)
   const [end, setEnd] = useState<number | null>(null)
   const dragging = useRef(false)
@@ -53,6 +69,7 @@ export function WordSearchBoard({
     const next = [...found]
     next[index] = [from, to]
     setFound(next)
+    setOrder((o) => [...o, index])
     if (next.every(Boolean)) onFilled(next as [number, number][])
   }
 
@@ -68,7 +85,13 @@ export function WordSearchBoard({
     return () => window.removeEventListener('pointerup', up)
   })
 
-  const foundCells = new Set(found.flatMap((pair) => (pair ? (lineBetween(size, pair[0], pair[1]) ?? []) : [])))
+  // Each cell takes the color of the last word found through it.
+  const colorOf = new Map<number, string>()
+  order.forEach((word, k) => {
+    const pair = found[word]
+    for (const i of pair ? (lineBetween(size, pair[0], pair[1]) ?? []) : []) colorOf.set(i, WORD_COLORS[k % WORD_COLORS.length])
+  })
+  const nudged = nudge && !found[nudge.word] ? nudge.cell : null
   const selected = new Set(selection ?? [])
 
   return (
@@ -96,7 +119,8 @@ export function WordSearchBoard({
             }}
             onPointerEnter={() => dragging.current && setEnd(i)}
             className={`flex items-center justify-center font-display text-base font-semibold sm:text-lg ${
-              selected.has(i) ? 'bg-accent text-on-accent' : foundCells.has(i) ? 'bg-accent/25 text-accent-text' : 'text-fg'
+              selected.has(i) ? 'bg-accent text-on-accent' : colorOf.has(i) ? `${colorOf.get(i)} text-fg` : 'text-fg'
+            } ${nudged === i ? 'animate-pulse ring-2 ring-inset ring-success' : ''
             }`}
           >
             {letter}

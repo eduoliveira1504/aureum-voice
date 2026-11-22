@@ -1,6 +1,6 @@
 {
   "title": "Daily games",
-  "hint": "A new challenge every day, the same for everyone",
+  "hint": "Hint",
   "streak_one": "{{count}} day in a row",
   "streak_other": "{{count}} days in a row",
   "play": "Play",
@@ -84,5 +84,15 @@
   "freezes_one": "{{count}} freeze",
   "freezes_other": "{{count}} freezes",
   "freezesHint": "Every 7 days in a row earns a freeze (up to 2). It keeps the streak going if you skip a day. The game's badge follows the streak: 3, 7, 30, 90, 180 and 365 days.",
-  "solvedBoard": "How it was solved"
+  "solvedBoard": "How it was solved",
+  "difficulty": {
+    "facil": "Easy",
+    "medio": "Medium",
+    "dificil": "Hard"
+  },
+  "hintIn": "Hint in {{seconds}}s",
+  "hintsUsed_one": "{{count}} hint used",
+  "hintsUsed_other": "{{count}} hints used",
+  "hintFailed": "Couldn't get a hint right now.",
+  "yourHints": "Hints"
 }

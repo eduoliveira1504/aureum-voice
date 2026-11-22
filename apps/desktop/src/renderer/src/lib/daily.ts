@@ -7,6 +7,22 @@ import { api } from './api'
 
 export type DailyGameKey = 'sudoku' | 'trilha' | 'cacapalavras'
 
+/** Each game's day is drawn easy, medium or hard (the same for everyone). */
+export type Difficulty = 'facil' | 'medio' | 'dificil'
+
+/** A hint from the API (block 4.2.10): a Sudoku number, the Trilha's next step, where a word
+ * begins. `n` changes with each new one, so the board applies it once. */
+export interface Hint {
+  n: number
+  cell: number
+  value?: number
+  keep?: number
+  word?: number
+}
+
+/** How long until the next hint can be asked for. */
+export const HINT_SECONDS = 30
+
 export interface DailyResult {
   game: DailyGameKey
   /** yyyy-mm-dd, the Brasília day. */
@@ -16,6 +32,8 @@ export interface DailyResult {
   completed: boolean
   /** How I solved it (my grid, path or words), for "Ver jogo". */
   answer?: unknown
+  /** Hints asked for while playing. */
+  hints?: number
 }
 
 /** One line of a day's ranking among friends (the user included), best first. */
@@ -23,6 +41,7 @@ export interface RankEntry {
   user_id: string
   time_ms: number
   attempts: number
+  hints?: number
 }
 
 export interface DailySummary {
@@ -34,16 +53,20 @@ export interface DailySummary {
   rankings?: Partial<Record<DailyGameKey, RankEntry[]>>
   /** Per game: days in a row and freezes kept (block 4.2.13). */
   streaks?: Partial<Record<DailyGameKey, { days: number; freezes: number }>>
+  /** Per game: today's drawn difficulty. */
+  difficulties?: Partial<Record<DailyGameKey, Difficulty>>
 }
 
 export interface SudokuPuzzle {
   size: 9
+  difficulty?: Difficulty
   /** 81 cells, row by row: 1–9 given, 0 to fill in. */
   givens: number[]
 }
 
 export interface TrilhaPuzzle {
   size: number
+  difficulty?: Difficulty
   /** size × size cells, row by row: the numbers to meet in order (0: none). */
   numbers: number[]
   /** Pairs of neighboring cells with a wall between them. */
@@ -52,6 +75,7 @@ export interface TrilhaPuzzle {
 
 export interface WordSearchPuzzle {
   size: number
+  difficulty?: Difficulty
   /** The day's theme ("Comida"), in Portuguese like the words. */
   theme: string
   /** One string per row, capitals without accents. */
@@ -79,6 +103,10 @@ export const loadSummary = (): Promise<DailySummary> => api<DailySummary>('/dail
 export const loadPuzzle = <P>(game: DailyGameKey): Promise<DailyPuzzle<P>> => api<DailyPuzzle<P>>(`/daily/${game}`)
 export const checkAnswer = (game: DailyGameKey, day: string, answer: unknown, timeMs: number): Promise<CheckResult> =>
   api<CheckResult>(`/daily/${game}/check`, { method: 'POST', body: { day, answer, time_ms: Math.round(timeMs) } })
+
+export async function askHint(game: DailyGameKey, day: string, state: unknown): Promise<{ hint: Omit<Hint, 'n'>; used: number }> {
+  return api(`/daily/${game}/hint`, { method: 'POST', body: { day, state } })
+}
 
 export const shareChallenge = (game: DailyGameKey, day: string, channelIds: string[]): Promise<{ shared: string[]; already: string[] }> =>
   api(`/daily/${game}/share`, { method: 'POST', body: { day, channel_ids: channelIds } })

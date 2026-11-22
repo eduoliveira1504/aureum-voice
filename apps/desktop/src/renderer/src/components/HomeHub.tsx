@@ -14,7 +14,7 @@ import { channelTab, useNav } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
-import { DAILY_GAMES, DailyGameModal, gameName, useRankPeople } from './games/DailyGameModal'
+import { DAILY_GAMES, DailyGameModal, DifficultyTag, gameName, useRankPeople } from './games/DailyGameModal'
 import { HomeCalendar, HomeCalendarCard } from './HomeCalendar'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
@@ -861,7 +861,10 @@ function DailyGames(): ReactNode {
                     <Icon size={18} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{gameName(game)}</span>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold">
+                      <span className="truncate">{gameName(game)}</span>
+                      <DifficultyTag difficulty={summary.difficulties?.[game]} />
+                    </span>
                     {result && (
                       <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
                         <CheckCircle2 size={12} className="shrink-0 text-success" />

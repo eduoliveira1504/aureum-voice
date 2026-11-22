@@ -1,6 +1,6 @@
 {
   "title": "Jogos do dia",
-  "hint": "Um desafio novo por dia, igual para todo mundo",
+  "hint": "Dica",
   "streak_one": "{{count}} dia seguido",
   "streak_other": "{{count}} dias seguidos",
   "play": "Jogar",
@@ -84,5 +84,15 @@
   "freezes_one": "{{count}} congelamento",
   "freezes_other": "{{count}} congelamentos",
   "freezesHint": "A cada 7 dias seguidos você ganha um congelamento (até 2). Ele segura a sequência se você passar um dia sem jogar. A insígnia do jogo acompanha a sequência: 3, 7, 30, 90, 180 e 365 dias.",
-  "solvedBoard": "Como ficou resolvido"
+  "solvedBoard": "Como ficou resolvido",
+  "difficulty": {
+    "facil": "Fácil",
+    "medio": "Médio",
+    "dificil": "Difícil"
+  },
+  "hintIn": "Dica em {{seconds}}s",
+  "hintsUsed_one": "{{count}} dica usada",
+  "hintsUsed_other": "{{count}} dicas usadas",
+  "hintFailed": "Não foi possível pegar uma dica agora.",
+  "yourHints": "Dicas"
 }

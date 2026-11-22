@@ -8,7 +8,7 @@ import { useChat } from '../../store/chat'
 import { useDaily } from '../../store/daily'
 import { useSocial } from '../../store/social'
 import { Avatar } from '../ui'
-import { DAILY_GAMES, DailyGameModal, gameName, useRankPeople } from './DailyGameModal'
+import { DAILY_GAMES, DailyGameModal, DifficultyTag, gameName, useRankPeople } from './DailyGameModal'
 
 /** Top of a game's ranking shown on its card. */
 const PODIUM = 3
@@ -101,8 +101,11 @@ function GameCard({ game, onPlay }: { game: DailyGameKey; onPlay(): void }): Rea
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-control bg-accent/15 text-accent-text">
           <Icon size={24} />
         </span>
-        <div className="min-w-0">
-          <h2 className="truncate font-display text-lg font-semibold">{gameName(game)}</h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+            <span className="truncate">{gameName(game)}</span>
+            <DifficultyTag difficulty={summary?.difficulties?.[game]} />
+          </h2>
           {result ? (
             <p className="flex items-center gap-1 text-sm text-fg-muted">
               <CheckCircle2 size={14} className="shrink-0 text-success" />
