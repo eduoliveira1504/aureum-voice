@@ -1132,6 +1132,13 @@ def _klipy_media(url: str) -> str:
 KlipyUrl = Annotated[str, StringConstraints(max_length=1000), AfterValidator(_klipy_media)]
 
 
+
+class SearchOut(BaseModel):
+    """A page of search results, newest first; `next_before` pages on (null: no more)."""
+
+    messages: list[MessageOut]
+    next_before: int | None = None
+
 class GifIn(BaseModel):
     """A GIF as the app got it from Klipy's search."""
 

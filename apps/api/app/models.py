@@ -650,6 +650,8 @@ class Message(Base):
     __table_args__ = (
         # Covers "latest messages of a channel" and "messages before id X".
         Index("ix_messages_channel_id_id", "channel_id", "id"),
+        # Server search (app/routers/search.py): Postgres full text, Portuguese config.
+        Index("ix_messages_content_search", text("to_tsvector('portuguese', content)"), postgresql_using="gin"),
     )
 
 

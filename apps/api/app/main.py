@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.moved import ServerMovedMiddleware
 from app.realtime import broker
-from app.routers import account, addons, auth, badges as badges_router, bug_reports, calls, categories, channels, dms, friends, gifs, home, moderation, public, roles, servers, soundboard, stickers, users, web, ws
+from app.routers import account, addons, auth, badges as badges_router, bug_reports, calls, categories, channels, dms, friends, gifs, home, moderation, public, roles, search, servers, soundboard, stickers, users, web, ws
 
 settings = get_settings()
 
@@ -82,6 +82,7 @@ api.include_router(users.media_router)
 api.include_router(categories.router)
 api.include_router(servers.router)
 api.include_router(channels.router)
+api.include_router(search.router)
 api.include_router(roles.router)
 api.include_router(moderation.router)
 api.include_router(friends.router)
