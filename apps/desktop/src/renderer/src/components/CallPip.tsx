@@ -1,12 +1,11 @@
-import { Expand, Maximize2, Minimize2, SquareArrowOutUpRight } from 'lucide-react'
+import { Maximize2, Minimize2, SquareArrowOutUpRight } from 'lucide-react'
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 
+import { pickFocus, thumbnails, type Tile } from '../lib/callFocus'
 import { useCallOnScreen, useNav, type Corner } from '../store/nav'
-import { cameraTrackOf, roomIdentities, screenTrackOf, useVoice } from '../store/voice'
+import { roomIdentities, useVoice } from '../store/voice'
 import { CallButtons, useCallContext } from './CallCard'
-import { Avatar, TileRing } from './ui'
-import { userContextMenu } from './UserMenu'
-import { VideoTrackView } from './VoiceView'
+import { callTiles, ParticipantTile, ScreenTile } from './VoiceView'
 import { t } from '../lib/i18n'
 
 const CORNER_CLASS: Record<Corner, string> = {
@@ -16,33 +15,42 @@ const CORNER_CLASS: Record<Corner, string> = {
   'bottom-right': 'bottom-4 right-4'
 }
 
-/** Picks what the floating window (and the detached one) shows: someone else's screen, else who's speaking. */
-export function useSubject(meId: string): { identity: string; kind: 'screen' | 'person' } | null {
-  useVoice((s) => s.version) // re-render on room changes
-  const speaking = useVoice((s) => s.speaking)
-  const lastSpeaker = useRef<string | null>(null)
-  const ids = roomIdentities()
-  if (ids.length === 0) return null
+/** Thumbnails under the big tile; the rest show as "+N". */
+const MAX_THUMBNAILS = 3
 
-  const screen = ids.find((id) => id !== meId && screenTrackOf(id))
-  if (screen) return { identity: screen, kind: 'screen' }
-  const talking = speaking.find((id) => id !== meId) ?? speaking[0]
-  if (talking) lastSpeaker.current = talking
-  // Between sentences keep showing the last speaker instead of flickering.
-  const shown = lastSpeaker.current && ids.includes(lastSpeaker.current) ? lastSpeaker.current : (ids.find((id) => id !== meId) ?? meId)
-  return { identity: shown, kind: 'person' }
+/**
+ * Who the floating window (and the detached one) shows big, out of `tiles` (block 4.2.9; see
+ * lib/callFocus.ts). The pin is the call screen's own, so pinning here pins there too.
+ */
+export function useCallFocus(meId: string, tiles: Tile[]): { focused: Tile | undefined; pin(key: string): void } {
+  const channelId = useVoice((s) => s.channelId)
+  const speaking = useVoice((s) => s.speaking)
+  const pinned = useNav((s) => (channelId && s.callPin?.channelId === channelId ? s.callPin.key : null))
+  const previous = useRef<string | null>(null)
+  const focused = pickFocus(tiles, { pinned, meId, speaking, previous: previous.current })
+  previous.current = focused?.key ?? null
+  return {
+    focused,
+    pin: (key) => {
+      if (channelId) useNav.getState().setCallPin(channelId, key)
+    }
+  }
 }
 
-/** Floating call window (picture-in-picture), draggable to any of the 4 corners. */
+/** Floating call window (picture-in-picture), draggable to any of the 4 corners. It looks like the
+ * call screen in focus mode: one big tile, the others as thumbnails that pin whoever is clicked. */
 export function CallPip({ meId }: { meId: string }): ReactNode {
   const info = useCallContext(meId)
+  const phase = useVoice((s) => s.phase)
+  useVoice((s) => s.version) // re-render on room changes
   const speaking = useVoice((s) => s.speaking)
   const minimized = useNav((s) => s.pipMinimized)
   const detached = useNav((s) => s.callDetached)
   const corner = useNav((s) => s.pipCorner)
-  const { setPipCorner, setPipMinimized, setCallFullscreen, setCallDetached } = useNav.getState()
+  const { setPipCorner, setPipMinimized, setCallDetached } = useNav.getState()
   const onScreen = useCallOnScreen()
-  const subject = useSubject(meId)
+  const tiles = callTiles(phase === 'connecting' ? [meId] : roomIdentities())
+  const { focused, pin } = useCallFocus(meId, tiles)
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -50,7 +58,8 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
   if (!info || minimized || onScreen || detached) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
-    if ((e.target as HTMLElement).closest('button') || !ref.current) return
+    // Buttons and thumbnails are clicked, not dragged.
+    if ((e.target as HTMLElement).closest('button, [role="button"]') || !ref.current) return
     // Grabbing the photo would start the browser's own image drag (which can drop it in the chat as
     // an attachment) and select text on the way: moving the window is all this gesture does.
     e.preventDefault()
@@ -84,10 +93,21 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
     el.addEventListener('pointercancel', stop)
   }
 
-  const person = subject ? info.people.get(subject.identity) : undefined
-  const name = subject?.identity === meId ? t('call.you') : (person?.display_name ?? t('call.someone'))
-  // The window is small, so adaptiveStream subscribes to the lowest video layer.
-  const track = subject ? (subject.kind === 'screen' ? screenTrackOf(subject.identity) : cameraTrackOf(subject.identity)) : undefined
+  const render = (tile: Tile, size: 'pip' | 'mini'): ReactNode => {
+    const props = {
+      identity: tile.identity,
+      user: info.people.get(tile.identity),
+      isLocal: tile.identity === meId,
+      size,
+      onClick: size === 'mini' ? () => pin(tile.key) : undefined
+    }
+    return tile.kind === 'screen' ? (
+      <ScreenTile key={tile.key} {...props} />
+    ) : (
+      <ParticipantTile key={tile.key} {...props} speaking={speaking.includes(tile.identity)} meId={meId} />
+    )
+  }
+  const { shown, more } = thumbnails(tiles, focused, MAX_THUMBNAILS)
   const iconButton = 'rounded-item p-1.5 text-fg-muted hover:bg-elevated hover:text-fg'
 
   return (
@@ -98,49 +118,43 @@ export function CallPip({ meId }: { meId: string }): ReactNode {
       onPointerDown={onPointerDown}
       onDragStart={(e) => e.preventDefault()}
       style={drag ? { left: drag.x, top: drag.y } : undefined}
-      className={`fixed z-float w-80 cursor-grab touch-none select-none overflow-hidden rounded-panel border border-line bg-panel shadow-2xl active:cursor-grabbing ${
+      className={`fixed z-float w-80 cursor-grab touch-none select-none overflow-hidden rounded-panel border border-line bg-rail shadow-2xl active:cursor-grabbing ${
         drag ? '' : CORNER_CLASS[corner]
       }`}
     >
-      <div className="relative flex aspect-video items-center justify-center rounded-t-panel bg-scrim">
-        {track ? (
-          <VideoTrackView track={track} mirror={subject?.identity === meId && subject.kind === 'person'} />
-        ) : (
-          subject && (
-            <span onContextMenu={person ? userContextMenu(person, meId, useVoice.getState().serverId) : undefined}>
-              <Avatar name={person?.display_name ?? name} url={person?.avatar_url} gif={person?.avatar_gif} size={64} />
-            </span>
-          )
-        )}
-        {subject?.kind === 'screen' && (
-          <span className="absolute left-2 top-2 rounded bg-danger px-1.5 text-[10px] font-bold leading-5 text-on-danger">{t('call.live')}</span>
-        )}
-        {subject && (
-          <span className="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-item bg-scrim/60 px-2 py-0.5 text-xs text-on-scrim">
-            {subject.kind === 'screen' ? t('call.screenOf', { name }) : name}
-          </span>
-        )}
-        <TileRing on={subject?.kind === 'person' && speaking.includes(subject.identity)} />
-      </div>
-      <div className="px-3 pb-2 pt-2.5">
-        <div className="truncate text-sm font-semibold">{info.room}</div>
-        <div className="truncate text-xs text-fg-subtle">{info.speakingText}</div>
-        <div className="mt-1.5 flex items-center gap-0.5">
-          <CallButtons size={16} />
-          <span className="flex-1" />
-          <button type="button" title={t('call.detach')} aria-label={t('call.detach')} onClick={() => setCallDetached(true)} className={iconButton}>
-            <SquareArrowOutUpRight size={18} />
-          </button>
-          <button type="button" title={t('call.expand')} aria-label={t('call.expand')} onClick={info.open} className={iconButton}>
-            <Maximize2 size={18} />
-          </button>
-          <button type="button" title={t('call.fullscreen')} aria-label={t('call.fullscreen')} onClick={() => setCallFullscreen(true)} className={iconButton}>
-            <Expand size={18} />
-          </button>
-          <button type="button" title={t('call.hidePip')} aria-label={t('call.hidePip')} onClick={() => setPipMinimized(true)} className={iconButton}>
-            <Minimize2 size={18} />
-          </button>
+      <div className="relative flex aspect-video p-1.5 pb-0">{focused && render(focused, 'pip')}</div>
+      {(shown.length > 0 || more > 0) && (
+        <div className="flex gap-1.5 px-1.5 pt-1.5" data-pip-thumbnails>
+          {shown.map((tile) => (
+            <div key={tile.key} className="w-16 shrink-0">
+              {render(tile, 'mini')}
+            </div>
+          ))}
+          {more > 0 && (
+            <button
+              type="button"
+              title={t('call.pip.more', { count: more })}
+              aria-label={t('call.pip.more', { count: more })}
+              onClick={info.open}
+              className="flex aspect-video w-16 shrink-0 items-center justify-center rounded-control bg-panel text-xs font-semibold text-fg-muted hover:bg-elevated hover:text-fg"
+            >
+              +{more}
+            </button>
+          )}
         </div>
+      )}
+      <div className="flex items-center gap-0.5 px-2 pb-1.5 pt-1">
+        <CallButtons size={16} compact />
+        <span className="min-w-0 flex-1 truncate px-1 text-xs text-fg-subtle">{info.room}</span>
+        <button type="button" title={t('call.pip.back')} aria-label={t('call.pip.back')} onClick={info.open} className={iconButton}>
+          <Maximize2 size={18} />
+        </button>
+        <button type="button" title={t('call.detach')} aria-label={t('call.detach')} onClick={() => setCallDetached(true)} className={iconButton}>
+          <SquareArrowOutUpRight size={16} />
+        </button>
+        <button type="button" title={t('call.hidePip')} aria-label={t('call.hidePip')} onClick={() => setPipMinimized(true)} className={iconButton}>
+          <Minimize2 size={16} />
+        </button>
       </div>
     </div>
   )

@@ -151,6 +151,9 @@ interface NavState {
   callFullscreen: boolean
   /** The call is in a window of its own (block 3.20 B); the floating window hides meanwhile. */
   callDetached: boolean
+  /** The tile pinned in a call (block 4.2.9): the same on the call screen, the floating window and
+   * the detached one. Kept with the call it belongs to, so another call starts unpinned. Never saved. */
+  callPin: { channelId: string; key: string } | null
   /** Window below ~1100px: sidebar shows icons only and a single panel. */
   narrow: boolean
   /** Panels really on screen, per server, as the panel area worked them out. */
@@ -206,6 +209,7 @@ interface NavState {
   setPipMinimized(minimized: boolean): void
   setPipCorner(corner: Corner): void
   setCallDetached(detached: boolean): void
+  setCallPin(channelId: string, key: string): void
   /** Shows the call in a panel of its server. */
   expandCall(serverId: string): void
   setCallFullscreen(on: boolean): void
@@ -247,6 +251,7 @@ export const useNav = create<NavState>()((set, get) => {
     pipCorner: loadPip().corner,
     callFullscreen: false,
     callDetached: false,
+    callPin: null,
     profileEditor: false,
     narrow: false,
     maximized: {},
@@ -425,6 +430,8 @@ export const useNav = create<NavState>()((set, get) => {
     setCallFullscreen: (callFullscreen) => set({ callFullscreen }),
 
     setCallDetached: (callDetached) => set({ callDetached }),
+
+    setCallPin: (channelId, key) => set({ callPin: { channelId, key } }),
 
     setNarrow: (narrow) => set({ narrow, membersDrawer: null }),
 

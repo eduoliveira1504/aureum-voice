@@ -161,5 +161,9 @@
     "serverMutedHere": "Você foi silenciado neste servidor",
     "soundboard": "Painel de sons",
     "controls": "Controles da chamada"
+  },
+  "pip": {
+    "back": "Voltar à chamada",
+    "more": "Mais {{count}} na chamada"
   }
 }

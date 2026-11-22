@@ -19,7 +19,7 @@ vi.mock('./CallCard', () => ({
   useCallContext: () => ({
     room: 'Sala',
     place: 'Servidor',
-    people: new Map([['ana', { id: 'ana', display_name: 'Ana', avatar_url: '/media/ana.png' }]]),
+    people: new Map([['ana', { id: 'ana', display_name: 'Ana', avatar_url: '/media/ana.png', badges: [] }]]),
     present: [],
     speakingText: 'Ninguém falando',
     open: () => {}

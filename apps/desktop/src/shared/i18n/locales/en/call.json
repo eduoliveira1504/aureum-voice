@@ -161,5 +161,9 @@
     "serverMutedHere": "You were muted on this server",
     "soundboard": "Soundboard",
     "controls": "Call controls"
+  },
+  "pip": {
+    "back": "Back to the call",
+    "more": "{{count}} more in the call"
   }
 }

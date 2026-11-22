@@ -5,11 +5,12 @@ import { createPortal } from 'react-dom'
 
 import { CALL_FRAME_NAME } from '../../../shared/callWindow'
 import type { User } from '../lib/api'
+import type { Tile } from '../lib/callFocus'
 import { preparePopup } from '../lib/popupDocument'
 import { useNav } from '../store/nav'
 import { cameraTrackOf, roomIdentities, screenTrackOf, useVoice } from '../store/voice'
 import { CallButtons, useCallContext } from './CallCard'
-import { useSubject } from './CallPip'
+import { useCallFocus } from './CallPip'
 import { PopupVideo } from './PopupVideo'
 import { Avatar, TileRing } from './ui'
 import { SoundboardControl } from './VoiceView'
@@ -70,15 +71,17 @@ export function DetachedCallHost({ meId }: { meId: string }): ReactNode {
   return createPortal(<DetachedCall popup={popup} meId={meId} />, popup.document.body)
 }
 
-interface Tile {
-  key: string
-  identity: string
-  kind: 'screen' | 'person'
-}
-
 function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNode {
   const info = useCallContext(meId)
-  const subject = useSubject(meId)
+  useVoice((s) => s.version) // re-render on room changes
+  const ids = roomIdentities()
+  // Here a screen is shown only once its stream is there (being watched, or our own).
+  const tiles: Tile[] = [
+    ...ids.filter((id) => screenTrackOf(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' })),
+    ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))
+  ]
+  // The same choice and the same pin as the floating window and the call screen (block 4.2.9).
+  const { focused, pin } = useCallFocus(meId, tiles)
   const [layout, setLayout] = useState<Layout>('focus')
   const [pinned, setPinned] = useState(true)
   const [hover, setHover] = useState(false)
@@ -89,11 +92,6 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
 
   if (!info) return null
 
-  const ids = roomIdentities()
-  const tiles: Tile[] = [
-    ...ids.filter((id) => screenTrackOf(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' })),
-    ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))
-  ]
   const grid = layout === 'grid' && tiles.length > 1
 
   const togglePin = (): void => {
@@ -110,7 +108,7 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
   // Dragged by any part that isn't a control, like the floating window (block 3.20 A): the
   // gesture never starts the browser's own image drag or selects text.
   const onPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('button, select, input')) return
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, select, input, [role="button"]')) return
     e.preventDefault()
     const el = e.currentTarget
     const start = { x: e.screenX, y: e.screenY, left: popup.screenX, top: popup.screenY }
@@ -144,16 +142,17 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
       className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-rail text-fg active:cursor-grabbing"
     >
       {grid ? (
-        <Grid tiles={tiles} people={info.people} meId={meId} />
+        <Grid
+          tiles={tiles}
+          people={info.people}
+          meId={meId}
+          onPick={(key) => {
+            pin(key)
+            setLayout('focus')
+          }}
+        />
       ) : (
-        subject && (
-          <CallTile
-            tile={{ key: `${subject.identity}:${subject.kind}`, ...subject }}
-            user={info.people.get(subject.identity)}
-            meId={meId}
-            avatarSize={64}
-          />
-        )
+        focused && <CallTile tile={focused} user={info.people.get(focused.identity)} meId={meId} avatarSize={64} />
       )}
 
       <div className={`${bars} top-0`}>
@@ -194,7 +193,7 @@ function DetachedCall({ popup, meId }: { popup: Window; meId: string }): ReactNo
   )
 }
 
-function Grid({ tiles, people, meId }: { tiles: Tile[]; people: Map<string, User>; meId: string }): ReactNode {
+function Grid({ tiles, people, meId, onPick }: { tiles: Tile[]; people: Map<string, User>; meId: string; onPick(key: string): void }): ReactNode {
   const cols = Math.ceil(Math.sqrt(tiles.length))
   const rows = Math.ceil(tiles.length / cols)
   return (
@@ -203,7 +202,7 @@ function Grid({ tiles, people, meId }: { tiles: Tile[]; people: Map<string, User
       style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
     >
       {tiles.map((t) => (
-        <CallTile key={t.key} tile={t} user={people.get(t.identity)} meId={meId} avatarSize={40} rounded />
+        <CallTile key={t.key} tile={t} user={people.get(t.identity)} meId={meId} avatarSize={40} rounded onPick={() => onPick(t.key)} />
       ))}
     </div>
   )
@@ -215,13 +214,16 @@ function CallTile({
   user,
   meId,
   avatarSize,
-  rounded = false
+  rounded = false,
+  onPick
 }: {
   tile: Tile
   user: User | undefined
   meId: string
   avatarSize: number
   rounded?: boolean
+  /** In the grid: pins this one and shows it big. */
+  onPick?: () => void
 }): ReactNode {
   const speaking = useVoice((s) => s.speaking.includes(tile.identity))
   const track: Track | undefined = tile.kind === 'screen' ? screenTrackOf(tile.identity) : cameraTrackOf(tile.identity)
@@ -229,7 +231,14 @@ function CallTile({
   return (
     <div
       data-tile={tile.key}
-      className={`relative flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden bg-scrim ${rounded ? 'rounded-item' : ''}`}
+      role={onPick ? 'button' : undefined}
+      tabIndex={onPick ? 0 : undefined}
+      aria-label={onPick ? t('call.room.focusOn', { name: tile.kind === 'screen' ? t('call.screenOf', { name }) : name }) : undefined}
+      onClick={onPick}
+      onKeyDown={(e) => onPick && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onPick())}
+      className={`relative flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden bg-scrim ${rounded ? 'rounded-item' : ''} ${
+        onPick ? 'cursor-pointer' : ''
+      }`}
     >
       {track ? (
         <PopupVideo track={track} mirror={tile.identity === meId && tile.kind === 'person'} />

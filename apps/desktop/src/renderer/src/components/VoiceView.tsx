@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { serverAllows, type Channel, type ServerDetail, type User, type VoiceState } from '../lib/api'
+import type { Tile } from '../lib/callFocus'
 import { loadMediaPrefs } from '../lib/mediaPrefs'
 import { serverPeople } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
@@ -47,13 +48,6 @@ import { t } from '../lib/i18n'
 
 type Layout = 'grid' | 'focus'
 
-/** One box on the call stage: a person (camera or avatar) or a shared screen. */
-interface Tile {
-  key: string
-  identity: string
-  kind: 'person' | 'screen'
-}
-
 /** Columns for n tiles: 1, 2, 2x2, 3x3, then 4 wide. */
 function columns(n: number): number {
   if (n <= 1) return 1
@@ -63,7 +57,7 @@ function columns(n: number): number {
 }
 
 /** Shared screens first (they're what people came to watch), then everyone in the call. */
-function callTiles(ids: string[]): Tile[] {
+export function callTiles(ids: string[]): Tile[] {
   const screens = ids.filter((id) => isSharing(id)).map((id): Tile => ({ key: `${id}:screen`, identity: id, kind: 'screen' }))
   return [...screens, ...ids.map((id): Tile => ({ key: `${id}:person`, identity: id, kind: 'person' }))]
 }
@@ -127,13 +121,15 @@ export function CallView({
   useVoice((s) => s.version) // re-render on room changes
   // null = automatic: focus on a shared screen when there is one, grid otherwise.
   const [chosenLayout, setChosenLayout] = useState<Layout | null>(null)
-  const [pinned, setPinned] = useState<string | null>(null)
+  // Shared with the floating and detached windows (block 4.2.9).
+  const pinned = useNav((s) => (s.callPin?.channelId === channelId ? s.callPin.key : null))
 
   const inThisChannel = activeChannelId === channelId && phase !== 'idle'
 
   const tiles = inThisChannel ? callTiles(phase === 'connecting' ? [meId] : roomIdentities()) : []
   const hasScreen = tiles.some((t) => t.kind === 'screen')
-  const layout: Layout = tiles.length < 2 ? 'grid' : (chosenLayout ?? (hasScreen ? 'focus' : 'grid'))
+  const hasPin = tiles.some((t) => t.key === pinned)
+  const layout: Layout = tiles.length < 2 ? 'grid' : (chosenLayout ?? (hasScreen || hasPin ? 'focus' : 'grid'))
   // Without a pin (or when the pinned tile went away): someone else's screen, else someone else.
   // Our own screen is never picked automatically; watching yourself share isn't useful.
   const others = tiles.filter((t) => t.identity !== meId)
@@ -141,7 +137,7 @@ export function CallView({
     tiles.find((t) => t.key === pinned) ?? others.find((t) => t.kind === 'screen') ?? others[0] ?? tiles[0]
 
   const focusOn = (key: string): void => {
-    setPinned(key)
+    useNav.getState().setCallPin(channelId, key)
     setChosenLayout('focus')
   }
 
@@ -268,9 +264,13 @@ export function CallStage({
   )
 }
 
-type TileSize = 'grid' | 'focus' | 'strip'
+/** `pip`: the big tile of the floating window; `mini`: its thumbnails. */
+type TileSize = 'grid' | 'focus' | 'strip' | 'pip' | 'mini'
 
-interface TileProps {
+const AVATAR_SIZE: Record<TileSize, number> = { grid: 80, focus: 120, strip: 40, pip: 64, mini: 24 }
+const small = (size: TileSize): boolean => size === 'strip' || size === 'pip' || size === 'mini'
+
+export interface TileProps {
   identity: string
   user: User | undefined
   isLocal: boolean
@@ -297,7 +297,7 @@ function TileFrame({
   dark?: boolean
   children: ReactNode
 }): ReactNode {
-  const shape = size === 'focus' ? 'h-full w-full' : 'aspect-video w-full shrink-0'
+  const shape = size === 'focus' || size === 'pip' ? 'h-full w-full' : 'aspect-video w-full shrink-0'
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -316,7 +316,7 @@ function TileFrame({
   )
 }
 
-function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meId }: TileProps & { speaking: boolean; meId: string }): ReactNode {
+export function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meId }: TileProps & { speaking: boolean; meId: string }): ReactNode {
   const participant = isLocal ? getRoom()?.localParticipant : getRoom()?.remoteParticipants.get(identity)
   const name = user?.display_name ?? participant?.name ?? t('call.someone')
   const micMuted = !micEnabled(identity)
@@ -335,27 +335,53 @@ function ParticipantTile({ identity, user, isLocal, size, onClick, speaking, meI
       {camera ? (
         <VideoTrackView track={camera} mirror={isLocal} />
       ) : (
-        <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={size === 'strip' ? 40 : size === 'focus' ? 120 : 80} />
+        <Avatar name={name} url={user?.avatar_url} gif={user?.avatar_gif} size={AVATAR_SIZE[size]} />
       )}
-      {user && size !== 'strip' && (
+      {user && !small(size) && (
         <div className="absolute bottom-10 left-2 flex max-w-[calc(100%-1rem)]">
           <StatusBubble user={user} tail="bottom-left" size="xs" />
         </div>
       )}
-      <div className="absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-sm text-on-scrim">
-        {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
-        {!isLocal && <LocallyMuted userId={identity} />}
-        <span className="truncate">{name}</span>
-        {user && <NameMarks user={user} />}
-      </div>
+      {size === 'mini' ? (
+        micMuted && <MicOff size={10} className="absolute bottom-0.5 right-0.5 text-danger" />
+      ) : (
+        <div
+          className={`absolute bottom-2 left-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${
+            size === 'pip' ? 'text-xs' : 'text-sm'
+          }`}
+        >
+          {micMuted && <MicOff size={14} className="shrink-0 text-danger" />}
+          {!isLocal && <LocallyMuted userId={identity} />}
+          <span className="truncate">{name}</span>
+          {user && <NameMarks user={user} />}
+        </div>
+      )}
     </TileFrame>
   )
 }
 
 /** Someone's shared screen: an invitation to watch it until "Assistir", then the stream. */
-function ScreenTile(props: TileProps): ReactNode {
+export function ScreenTile(props: TileProps): ReactNode {
   const watching = useVoice((s) => s.watching.includes(props.identity))
+  if (props.size === 'mini') return <MiniScreen {...props} watching={props.isLocal || watching} />
   return props.isLocal || watching ? <ScreenView {...props} /> : <ScreenInvite {...props} />
+}
+
+/** A screen as a thumbnail: the stream if it's being watched, else its blurred preview. */
+function MiniScreen({ identity, user, isLocal, size, onClick, watching }: TileProps & { watching: boolean }): ReactNode {
+  const preview = useVoice((s) => s.screenPreviews[identity])
+  const track = watching ? screenTrackOf(identity) : undefined
+  const name = isLocal ? t('call.room.yourScreen') : t('call.screenOf', { name: user?.display_name ?? t('call.someone') })
+  return (
+    <TileFrame size={size} label={name} onClick={onClick} dark>
+      {track ? (
+        <VideoTrackView track={track} mirror={false} />
+      ) : (
+        preview && <img src={preview} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-60 blur-sm" />
+      )}
+      <span className="absolute left-0.5 top-0.5 rounded bg-danger px-1 text-[8px] font-bold leading-4 text-on-danger">{t('call.live')}</span>
+    </TileFrame>
+  )
 }
 
 function LiveBadge(): ReactNode {
@@ -370,7 +396,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
   const watchScreen = useVoice((s) => s.watchScreen)
   const preview = useVoice((s) => s.screenPreviews[identity])
   const name = user?.display_name ?? t('call.someone')
-  const small = size === 'strip'
+  const compact = small(size)
   return (
     <TileFrame size={size} label={t('call.screenOf', { name })} onClick={onClick} dark>
       {preview && (
@@ -380,7 +406,7 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
         <LiveBadge />
       </div>
       <div className="relative flex max-w-full flex-col items-center gap-2 px-3 text-center text-on-scrim">
-        <p className={`max-w-full truncate ${small ? 'text-xs' : 'text-sm'}`}>{t('call.room.streaming', { name })}</p>
+        <p className={`max-w-full truncate ${compact ? 'text-xs' : 'text-sm'}`}>{t('call.room.streaming', { name })}</p>
         <button
           type="button"
           data-tour="assistir"
@@ -391,10 +417,10 @@ function ScreenInvite({ identity, user, size, onClick }: TileProps): ReactNode {
             onClick?.()
           }}
           className={`flex items-center gap-2 rounded-control bg-accent font-semibold text-on-accent hover:bg-accent-hover ${
-            small ? 'px-2.5 py-1 text-xs' : 'px-4 py-2'
+            compact ? 'px-2.5 py-1 text-xs' : 'px-4 py-2'
           }`}
         >
-          <Eye size={small ? 14 : 18} />
+          <Eye size={compact ? 14 : 18} />
           {t('call.room.watch')}
         </button>
       </div>
@@ -455,11 +481,11 @@ function ScreenView({ identity, user, isLocal, size, onClick }: TileProps): Reac
         </div>
         <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5">
           <LiveBadge />
-          <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}>{name}</span>
+          <span className={`truncate rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${small(size) ? 'text-xs' : 'text-sm'}`}>{name}</span>
           {isLocal && (
             <span
               title={t('call.room.watchers')}
-              className={`flex shrink-0 items-center gap-1 rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${size === 'strip' ? 'text-xs' : 'text-sm'}`}
+              className={`flex shrink-0 items-center gap-1 rounded-item bg-scrim/60 px-2 py-0.5 text-on-scrim ${small(size) ? 'text-xs' : 'text-sm'}`}
             >
               <Eye size={14} />
               {t('call.room.watching', { count: watchers })}
