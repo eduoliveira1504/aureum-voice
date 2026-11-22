@@ -79,11 +79,10 @@
     "nobody": "Nobody here played yet.",
     "unknown": "Update the app to play this challenge."
   },
-  "viewGame": "View game",
-  "hideGame": "Hide game",
   "notYet": "Not played today yet",
   "seeResult": "See result",
   "freezes_one": "{{count}} freeze",
   "freezes_other": "{{count}} freezes",
-  "freezesHint": "Every 7 days in a row earns a freeze (up to 2). It keeps the streak going if you skip a day. The game's badge follows the streak: 3, 7, 30, 90, 180 and 365 days."
+  "freezesHint": "Every 7 days in a row earns a freeze (up to 2). It keeps the streak going if you skip a day. The game's badge follows the streak: 3, 7, 30, 90, 180 and 365 days.",
+  "solvedBoard": "How it was solved"
 }

@@ -66,6 +66,8 @@ export interface DailyPuzzle<P = unknown> {
   puzzle: P
   result: DailyResult | null
   ranking?: RankEntry[]
+  /** The answer key, once this day's puzzle is finished (the board shown on the result). */
+  solution?: unknown
 }
 
 export interface CheckResult {

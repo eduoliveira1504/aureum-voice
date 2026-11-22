@@ -1,4 +1,4 @@
-import { CheckCircle2, Eye, EyeOff, Grid3x3, Route, Search, Server, Timer, Trophy, Users, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Grid3x3, Route, Search, Server, Timer, Trophy, Users, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ApiError } from '../../lib/api'
@@ -93,7 +93,7 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
     <Modal title={gameName(game)} subtitle={t(`games.games.${game}.rules`)} wide onClose={onClose}>
       <FormError message={error} />
       {!puzzle && !error && <p className="py-10 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
-      {puzzle && result && <ResultView game={game} puzzle={puzzle.puzzle} result={result} ranking={ranking} />}
+      {puzzle && result && <ResultView game={game} puzzle={puzzle.puzzle} solved={result.answer ?? puzzle.solution} result={result} ranking={ranking} />}
       {puzzle && !result && (
         <div className="flex flex-col items-center gap-3">
           <span className="flex items-center gap-1.5 text-sm tabular-nums text-fg-muted" aria-label={t('games.time')}>
@@ -156,11 +156,22 @@ export function Ranking({ entries }: { entries: RankEntry[] }): ReactNode {
   )
 }
 
-function ResultView({ game, puzzle, result, ranking }: { game: DailyGameKey; puzzle: unknown; result: DailyResult; ranking: RankEntry[] }): ReactNode {
+/** After solving: the board as solved (my answer, or the answer key for results from before it
+ * was kept), my time and tries, the challenge buttons and the ranking. */
+function ResultView({
+  game,
+  puzzle,
+  solved,
+  result,
+  ranking
+}: {
+  game: DailyGameKey
+  puzzle: unknown
+  solved: unknown
+  result: DailyResult
+  ranking: RankEntry[]
+}): ReactNode {
   const [sharing, setSharing] = useState<ShareTarget | null>(null)
-  // "Ver jogo": the board as I solved it (results from before it was kept have none).
-  const [viewing, setViewing] = useState(false)
-  const canView = result.answer != null
   const shareButton = 'flex items-center gap-1.5 rounded-control border border-line px-3 py-2 text-sm font-semibold hover:bg-elevated'
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
@@ -179,6 +190,11 @@ function ResultView({ game, puzzle, result, ranking }: { game: DailyGameKey; puz
           <dd className="font-display text-xl font-semibold tabular-nums">{result.attempts}</dd>
         </div>
       </dl>
+      {solved != null && (
+        <section aria-label={t('games.solvedBoard')} className="w-full">
+          {DAILY_GAMES[game].solved(puzzle, solved)}
+        </section>
+      )}
       <div className="flex flex-wrap justify-center gap-2">
         <button type="button" onClick={() => setSharing('friends')} className={shareButton}>
           <Users size={16} />
@@ -188,14 +204,7 @@ function ResultView({ game, puzzle, result, ranking }: { game: DailyGameKey; puz
           <Server size={16} />
           {t('games.share.server')}
         </button>
-        {canView && (
-          <button type="button" aria-pressed={viewing} onClick={() => setViewing((v) => !v)} className={shareButton}>
-            {viewing ? <EyeOff size={16} /> : <Eye size={16} />}
-            {viewing ? t('games.hideGame') : t('games.viewGame')}
-          </button>
-        )}
       </div>
-      {viewing && canView && <div className="w-full">{DAILY_GAMES[game].solved(puzzle, result.answer)}</div>}
       <Ranking entries={ranking} />
       {sharing && <ShareChallengeModal game={game} gameLabel={gameName(game)} day={result.day} target={sharing} onClose={() => setSharing(null)} />}
     </div>

@@ -1,6 +1,6 @@
 /** Block 4.2.10 follow-up: the "Jogos do dia" page from Home's sidebar, and "Ver jogo". */
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '../../lib/api'
@@ -56,38 +56,39 @@ describe('Jogos do dia page', () => {
   })
 })
 
-describe('Ver jogo', () => {
-  it('shows the board as I solved it, read-only', async () => {
-    const path = [0, 1, 2, 5, 4, 3, 6, 7, 8]
+describe('the result shows the solved board', () => {
+  const PUZZLE = { size: 3, numbers: [1, 0, 0, 0, 0, 0, 0, 0, 2], walls: [] }
+  const PATH = [0, 1, 2, 5, 4, 3, 6, 7, 8]
+  const onPath = (): number[] =>
+    [...document.querySelectorAll('[aria-selected="true"]')].map((el) => Number((el as Element).getAttribute('data-cell'))).sort((a, b) => a - b)
+
+  it('as I solved it, right away and read-only', async () => {
     vi.spyOn(api, 'api').mockResolvedValue({
       game: 'trilha',
       day: DAY,
-      puzzle: { size: 3, numbers: [1, 0, 0, 0, 0, 0, 0, 0, 2], walls: [] },
-      result: { game: 'trilha', day: DAY, time_ms: 95_000, attempts: 1, completed: true, answer: path },
-      ranking: []
+      puzzle: PUZZLE,
+      result: { game: 'trilha', day: DAY, time_ms: 95_000, attempts: 1, completed: true, answer: PATH },
+      ranking: [],
+      solution: PATH
     })
     render(<DailyGameModal game="trilha" onClose={() => {}} />)
-    await screen.findByText('Resolvido!')
-    await act(async () => void fireEvent.click(await screen.findByRole('button', { name: 'Ver jogo' })))
-    const cells = [...document.querySelectorAll('[aria-selected="true"]')].map((el) => Number((el as Element).getAttribute('data-cell')))
-    expect(cells.sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
-    // Read-only: no undo or start over.
+    expect(await screen.findByRole('region', { name: 'Como ficou resolvido' })).toBeTruthy()
+    expect(onPath()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
     expect(screen.queryByRole('button', { name: 'Recomeçar' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Esconder jogo' }))
-    expect(document.querySelector('[data-cell]')).toBeNull()
   })
 
-  it('has nothing to show for a result from before solutions were kept', async () => {
+  it('from the answer key when my solution was not kept', async () => {
     vi.spyOn(api, 'api').mockResolvedValue({
       game: 'trilha',
       day: DAY,
-      puzzle: { size: 3, numbers: [1, 0, 0, 0, 0, 0, 0, 0, 2], walls: [] },
+      puzzle: PUZZLE,
       result: { game: 'trilha', day: DAY, time_ms: 95_000, attempts: 1, completed: true },
-      ranking: []
+      ranking: [],
+      solution: PATH
     })
     render(<DailyGameModal game="trilha" onClose={() => {}} />)
-    expect(await screen.findByText('Resolvido!')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Ver jogo' })).toBeNull()
+    expect(await screen.findByRole('region', { name: 'Como ficou resolvido' })).toBeTruthy()
+    expect(onPath()).toHaveLength(9)
   })
 })
 
