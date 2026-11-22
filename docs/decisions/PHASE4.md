@@ -235,8 +235,11 @@ Ver docs/decisions/0053-daily-games.md. Feito: os três jogos, o cartão "Jogos 
 quem jogou, posição no ranking ou o tempo a bater), o ranking dos amigos no resultado, e o desafio
 por mensagem privada ou num canal do servidor, com o ranking de quem está ali.
 Produção: backup com data no nome, `alembic upgrade heads` (core b5d1f7c9e042 cria daily_puzzles e
-daily_results, c6e2a8d0f153 cria daily_shares) e reiniciar a API, com OK do Eduardo. Apps antigos
-veem o desafio como texto simples.
+daily_results, c6e2a8d0f153 cria daily_shares, d8a4c0e2f364 guarda a resolução) e reiniciar a API,
+com OK do Eduardo. Apps antigos veem o desafio como texto simples.
+Ajustes do teste do Eduardo (22/11): página "Jogos do dia" na barra lateral do Início, "Ver jogo"
+depois de resolver, Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
+difícil (12×12, metade na diagonal). Proposta em aberto: insígnias de sequência (4.2.13).
 
 - Cartão "Jogos do dia" no Início (3.4): jogos, sequência de dias, e quais amigos já jogaram hoje.
 - Ordem de construção (proposta): Sudoku, jogo de ligar os pontos passando por todo o caminho, caça-palavras,

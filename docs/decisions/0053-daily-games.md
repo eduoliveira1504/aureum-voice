@@ -29,8 +29,10 @@ they didn't make, and there is a single generator for every client.
   ours doesn't, which rules it out for good; when the search can't tell within its step budget, one
   more number is added. In practice: 7 numbers, 1 to 9 walls, under 0.2 s. Any path that keeps the
   rules is accepted.
-- *Caça-palavras* (10×10): 8 words of a theme from our own list (`app/daily/words.py`, written for
-  the Aureum, no dependency), in any of the 8 directions. Filler letters are redrawn until every
+- *Caça-palavras* (12×12): 10 words of a theme from our own list (`app/daily/words.py`, written for
+  the Aureum, no dependency), following a daily plan of directions: 5 diagonal (either way), 2
+  across or down and 3 backwards, so no single reading finds them all (Eduardo found the first
+  version too easy, 22/11). Filler letters are redrawn until every
   word reads in exactly one place and none of a short blocklist shows up by chance. The grid has no
   accents (Ç is C); the list shows the words as written.
 
@@ -53,6 +55,12 @@ text for apps that don't know the games. One challenge per game, day and channel
 (`daily_shares`): the card's ranking covers everyone who sees the channel and played that day
 (`GET /daily/{game}/ranking`), so a second one isn't needed. The card offers "Jogar" while it's
 still today's, and shows the viewer's time once they played.
+
+**Where.** "Jogos do dia" is a page of its own, from Home's sidebar under Amigos (each game with
+my result or "Jogar", the friends' podium, the time to beat and the streak); Home's card links to
+it. After solving, "Ver jogo" shows the board as the person solved it, read-only: the accepted
+answer is kept in `daily_results.answer` and only its owner gets it back. The Trilha board is one
+SVG (every cell the same size, walls on the shared edge), after CSS borders misaligned it.
 
 ## Consequences
 
