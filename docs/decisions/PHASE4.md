@@ -289,7 +289,8 @@ mão notificava. Feito entre o 4.2.4 e o 4.2.5. Ver docs/decisions/0052-mentions
 
 - Uma insígnia por jogo, que acompanha a sequência atual: 3, 7, 30, 90, 180 e 365 dias. Vão até
   lendária (365 também): mítica fica só para Fundador e Pioneiro até o Eduardo dizer o contrário.
-- PENDENTE (Eduardo): um nome para cada nível (3 dias = X, 7 = Y...), que muda junto com a insígnia.
+- Em teste por uma semana (domingo 22/11 a domingo 29/11), para ver se as insígnias chegam certo.
+  Depois disso, na atualização seguinte: um nome para cada nível (3 dias = X, 7 = Y...).
 - Congelamento: a cada 7 dias seguidos jogando, ganha 1 (máximo 2); um dia sem jogar gasta um e a
   sequência segue. Sem congelamento, a sequência zera e a insígnia cai junto.
 - Aviso da @aureum ao ganhar ou subir de nível; quem destacou no perfil mantém o lugar.
