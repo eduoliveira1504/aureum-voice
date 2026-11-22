@@ -66,5 +66,6 @@
     "muteServer": "Mute server",
     "createEvent": "Create event",
     "closeTab": "Close tab"
-  }
+  },
+  "addAddonIn": "Add addon to {{category}}"
 }

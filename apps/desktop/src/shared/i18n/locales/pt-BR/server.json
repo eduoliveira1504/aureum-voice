@@ -39,7 +39,9 @@
     "namePlaceholder": "Jogos",
     "perms": "Permissões de {{name}}",
     "permsHint": "Os canais sincronizados seguem o que for definido aqui.",
-    "here": "nesta categoria"
+    "here": "nesta categoria",
+    "addonsName": "Addons",
+    "reservedName": "O nome Addons é reservado para a categoria dos addons."
   },
   "settings": {
     "tabs": {

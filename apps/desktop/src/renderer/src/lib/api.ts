@@ -279,6 +279,8 @@ export interface Category {
   server_id: string
   name: string
   position: number
+  /** "addons": the server's one category for addons, and only them (block 4.2.8). */
+  kind?: 'normal' | 'addons'
   overrides: Override[]
 }
 

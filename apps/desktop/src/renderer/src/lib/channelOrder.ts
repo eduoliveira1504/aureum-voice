@@ -6,10 +6,28 @@
  */
 
 import type { Category, Channel, ServerDetail } from './api'
+import { t } from './i18n'
 
-/** What a drag carries: a channel going to a place in a list, or a category. */
+/** What a drag carries: a channel going to a place in a list, or a category. An addon also
+ * carries ADDON_DRAG_TYPE, since only the types can be read while dragging. */
 export const CHANNEL_DRAG_TYPE = 'application/x-aureum-reorder-channel'
+export const ADDON_DRAG_TYPE = 'application/x-aureum-reorder-addon'
 export const CATEGORY_DRAG_TYPE = 'application/x-aureum-reorder-category'
+
+/** The server's addons category: addons live there and only they do (block 4.2.8). */
+export function isAddons(category: Category | null | undefined): boolean {
+  return category?.kind === 'addons'
+}
+
+/** How a category is shown: the addons one in the app's language. */
+export function categoryName(category: Category): string {
+  return isAddons(category) ? t('server.category.addonsName') : category.name
+}
+
+/** Whether a channel (an addon or not) may land in a list (the addons category or not). */
+export function fitsIn(addonsList: boolean, addon: boolean): boolean {
+  return addonsList === addon
+}
 
 type Layout = Pick<ServerDetail, 'channels'> & { categories?: Category[] }
 
@@ -40,7 +58,8 @@ export function orderedChannels(server: Layout): Channel[] {
 
 /** Where a new channel of this type goes unless the person picks: next to the others of its type. */
 export function defaultCategory(server: Layout | undefined, type: Channel['type']): string {
-  const found = server && channelGroups(server).groups.find((g) => g.channels.some((c) => c.type === type))
+  const groups = server ? channelGroups(server).groups.filter((g) => fitsIn(isAddons(g.category), type === 'addon')) : []
+  const found = type === 'addon' ? groups[0] : groups.find((g) => g.channels.some((c) => c.type === type))
   return found?.category.id ?? ''
 }
 

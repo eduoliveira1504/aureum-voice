@@ -24,7 +24,7 @@ import { Fragment, useCallback, useRef, useState, type DragEvent, type MouseEven
 
 import { addonIcon } from '../addons/registry'
 import { api, mediaUrl, type Category, type Channel, type Dm, type Me, type ServerDetail, type User, type VoiceState } from '../lib/api'
-import { CATEGORY_DRAG_TYPE, CHANNEL_DRAG_TYPE, channelGroups, moveId } from '../lib/channelOrder'
+import { ADDON_DRAG_TYPE, CATEGORY_DRAG_TYPE, CHANNEL_DRAG_TYPE, categoryName, channelGroups, fitsIn, isAddons, moveId } from '../lib/channelOrder'
 import { serverPeople } from '../lib/members'
 import { basePermissions, channelActions, has, isPrivate, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
@@ -234,6 +234,8 @@ function Section({
 function Reorderable({
   serverId,
   categoryId,
+  addonsList,
+  addon,
   ids,
   id,
   enabled,
@@ -242,6 +244,10 @@ function Reorderable({
   serverId: string
   /** The list it's in: null for the channels without a category. */
   categoryId: string | null
+  /** The list is the addons category, where only addons go. */
+  addonsList: boolean
+  /** This channel is an addon: it only moves inside the addons category. */
+  addon: boolean
   /** The list's channel ids, in order. */
   ids: string[]
   id: string
@@ -250,7 +256,8 @@ function Reorderable({
 }): ReactNode {
   const [over, setOver] = useState<'before' | 'after' | null>(null)
   if (!enabled) return children
-  const ours = (e: DragEvent): boolean => e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE)
+  const ours = (e: DragEvent): boolean =>
+    e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE) && fitsIn(addonsList, e.dataTransfer.types.includes(ADDON_DRAG_TYPE))
   const side = (e: DragEvent<HTMLDivElement>): 'before' | 'after' => {
     const rect = e.currentTarget.getBoundingClientRect()
     return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
@@ -261,6 +268,7 @@ function Reorderable({
       data-channel-id={id}
       onDragStart={(e) => {
         e.dataTransfer.setData(CHANNEL_DRAG_TYPE, id)
+        if (addon) e.dataTransfer.setData(ADDON_DRAG_TYPE, id)
         e.dataTransfer.effectAllowed = 'move'
       }}
       onDragOver={(e) => {
@@ -336,8 +344,14 @@ function CategorySection({
     const rect = e.currentTarget.getBoundingClientRect()
     return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
   }
+  const addons = isAddons(category)
+  // A channel only drops here if it fits: addons into the addons category, the rest elsewhere.
   const kind = (e: DragEvent): 'channel' | 'category' | null =>
-    e.dataTransfer.types.includes(CATEGORY_DRAG_TYPE) ? 'category' : e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE) ? 'channel' : null
+    e.dataTransfer.types.includes(CATEGORY_DRAG_TYPE)
+      ? 'category'
+      : e.dataTransfer.types.includes(CHANNEL_DRAG_TYPE) && fitsIn(addons, e.dataTransfer.types.includes(ADDON_DRAG_TYPE))
+        ? 'channel'
+        : null
   const dragProps = canManage
     ? {
         draggable: true,
@@ -374,7 +388,7 @@ function CategorySection({
     : {}
 
   return (
-    <section aria-label={category.name}>
+    <section aria-label={categoryName(category)}>
       <div
         data-category-id={category.id}
         onContextMenu={contextMenu(() => <CategoryMenu server={server} category={category} meId={meId} />)}
@@ -395,10 +409,16 @@ function CategorySection({
           className="flex min-w-0 flex-1 items-center gap-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg-muted"
         >
           <ChevronDown size={12} className={`shrink-0 transition-transform ${closed ? '-rotate-90' : ''}`} />
-          <span className="truncate">{category.name}</span>
+          <span className="truncate">{categoryName(category)}</span>
         </button>
         {onAdd && (
-          <button type="button" title={t('nav.createChannel')} aria-label={t('nav.createChannelIn', { category: category.name })} onClick={onAdd} className="shrink-0 text-fg-subtle hover:text-fg">
+          <button
+            type="button"
+            title={addons ? t('nav.addAddon') : t('nav.createChannel')}
+            aria-label={addons ? t('nav.addAddonIn', { category: categoryName(category) }) : t('nav.createChannelIn', { category: categoryName(category) })}
+            onClick={onAdd}
+            className="shrink-0 text-fg-subtle hover:text-fg"
+          >
             <Plus size={16} />
           </button>
         )}
@@ -432,6 +452,7 @@ function ServerPlaces({
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const perms = basePermissions(server, me.id)
   const canCreateChannels = has(perms, Perm.MANAGE_CHANNELS)
+  const canAddAddons = canCreateChannels && has(perms, Perm.MANAGE_ADDONS)
   // The same permission reorders channels (the API checks it too).
   const canReorder = canCreateChannels
 
@@ -449,8 +470,16 @@ function ServerPlaces({
   const people = serverPeople(server)
   const idsOf = (list: Channel[]): string[] => list.map((c) => c.id)
 
-  const channelRow = (channel: Channel, categoryId: string | null, ids: string[]): ReactNode => {
-    const reorderable = { serverId: server.id, categoryId, ids, id: channel.id, enabled: canReorder }
+  const channelRow = (channel: Channel, category: Category | null, ids: string[]): ReactNode => {
+    const reorderable = {
+      serverId: server.id,
+      categoryId: category?.id ?? null,
+      addonsList: isAddons(category),
+      addon: channel.type === 'addon',
+      ids,
+      id: channel.id,
+      enabled: canReorder
+    }
     const shared = {
       label: channel.name ?? '',
       collapsed,
@@ -542,6 +571,14 @@ function ServerPlaces({
 
         {groups.map(({ category, channels }) => {
           const onlyRooms = channels.some((c) => c.type === 'voice') && !channels.some((c) => c.type === 'text')
+          // The addons category's "+" adds an addon; the others' creates a channel in them.
+          const onAdd = isAddons(category)
+            ? canAddAddons
+              ? () => setDialog({ kind: 'addon' })
+              : undefined
+            : canCreateChannels
+              ? () => setDialog({ kind: 'channel', type: onlyRooms ? 'voice' : 'text', categoryId: category.id })
+              : undefined
           return (
             <CategorySection
               key={category.id}
@@ -552,9 +589,9 @@ function ServerPlaces({
               meId={me.id}
               collapsed={collapsed}
               canManage={canReorder}
-              onAdd={canCreateChannels ? () => setDialog({ kind: 'channel', type: onlyRooms ? 'voice' : 'text', categoryId: category.id }) : undefined}
+              onAdd={onAdd}
             >
-              {channels.map((c) => channelRow(c, category.id, idsOf(channels)))}
+              {channels.map((c) => channelRow(c, category, idsOf(channels)))}
             </CategorySection>
           )
         })}

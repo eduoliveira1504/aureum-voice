@@ -15,7 +15,7 @@ import {
 } from '../lib/api'
 import { memberName } from '../lib/members'
 import { basePermissions, has, outranks, Perm, rankOf } from '../lib/permissions'
-import { channelGroups, defaultCategory } from '../lib/channelOrder'
+import { channelGroups, defaultCategory, isAddons } from '../lib/channelOrder'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
 import { DangerButton, FormError, Modal, SecondaryButton } from './Modal'
@@ -265,10 +265,10 @@ function PrivateAccess({
   )
 }
 
-/** Which category a new channel goes in. */
+/** Which category a new text or voice channel goes in: any but the addons one. */
 function CategorySelect({ serverId, value, onChange }: { serverId: string; value: string; onChange(id: string): void }): ReactNode {
   const server = useChat((s) => s.servers[serverId])
-  const categories = server ? channelGroups(server).groups.map((g) => g.category) : []
+  const categories = server ? channelGroups(server).groups.map((g) => g.category).filter((c) => !isAddons(c)) : []
   if (!categories.length) return null
   return (
     <label className="block">
@@ -353,11 +353,10 @@ export function CreateChannelModal({
 }
 
 /** Adds an addon to the server: picks one of the addons both the API and this app know, and
- * creates its channel. */
-export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: string; categoryId?: string; onClose(): void }): ReactNode {
+ * creates its channel, always in the addons category. */
+export function CreateAddonModal({ serverId, onClose }: { serverId: string; onClose(): void }): ReactNode {
   const openTab = useNav((s) => s.openTab)
   const server = useChat((s) => s.servers[serverId])
-  const [category, setCategory] = useState(categoryId ?? defaultCategory(server, 'addon'))
   const [addons, setAddons] = useState<AddonInfo[] | null>(null)
   const [key, setKey] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -393,7 +392,7 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
     try {
       const channel = await api<Channel>(`/servers/${serverId}/channels`, {
         method: 'POST',
-        body: { category_id: category || null, name: name.trim(), type: 'addon', addon_key: key, ...accessBody(access) }
+        body: { category_id: defaultCategory(server, 'addon') || null, name: name.trim(), type: 'addon', addon_key: key, ...accessBody(access) }
       })
       openTab(serverId, channelTab(channel.id))
       onClose()
@@ -429,7 +428,6 @@ export function CreateAddonModal({ serverId, categoryId, onClose }: { serverId: 
         </div>
         {key && <Field label={tr('server.newAddon.name')} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />}
         {key && <PrivateAccess serverId={serverId} voice={false} value={access} onChange={setAccess} />}
-        <CategorySelect serverId={serverId} value={category} onChange={setCategory} />
         <PrimaryButton type="submit" disabled={busy || !key}>
           {busy ? tr('server.newAddon.adding') : tr('server.newAddon.add')}
         </PrimaryButton>

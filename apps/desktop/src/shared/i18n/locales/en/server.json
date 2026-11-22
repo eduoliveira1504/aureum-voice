@@ -39,7 +39,9 @@
     "namePlaceholder": "Games",
     "perms": "{{name}} permissions",
     "permsHint": "Synced channels follow what is set here.",
-    "here": "in this category"
+    "here": "in this category",
+    "addonsName": "Addons",
+    "reservedName": "The name Addons is reserved for the addons category."
   },
   "settings": {
     "tabs": {

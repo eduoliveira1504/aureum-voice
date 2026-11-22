@@ -9,6 +9,7 @@ import { useChat } from '../store/chat'
 import { FormError, Modal, ModalBody, ModalTabs, SecondaryButton } from './Modal'
 import { Avatar, Field, inputClass, labelClass, menuClass, PrimaryButton, useDismiss } from './ui'
 import { t } from '../lib/i18n'
+import { categoryName } from '../lib/channelOrder'
 
 const COMMON: PermName[] = ['VIEW_CHANNEL', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'CREATE_INVITE']
 const TEXT: PermName[] = ['SEND_MESSAGES', 'READ_HISTORY', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS', 'MENTION_EVERYONE']
@@ -257,7 +258,7 @@ function SyncNotice({ server, channel }: { server: ServerDetail; channel: Channe
   return (
     <div className="flex items-center gap-3 rounded-control border border-line bg-main px-3 py-2 text-sm text-fg-muted">
       <span className="min-w-0 flex-1">
-        {channel.permissions_synced ? t('server.channel.synced', { category: category.name }) : t('server.channel.ownPerms', { category: category.name })}
+        {channel.permissions_synced ? t('server.channel.synced', { category: categoryName(category) }) : t('server.channel.ownPerms', { category: categoryName(category) })}
       </span>
       {!channel.permissions_synced && (
         <button type="button" onClick={sync} className="shrink-0 rounded-control border border-line px-3 py-1.5 font-medium hover:bg-elevated hover:text-fg">

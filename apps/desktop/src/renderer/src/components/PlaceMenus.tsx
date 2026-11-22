@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, CalendarPlus, CheckCheck, Columns2, Copy, FolderPlu
 import { useEffect, type ReactNode } from 'react'
 
 import { api, type Category, type Channel, type Invite, type ReadState, type ServerDetail } from '../lib/api'
-import { channelGroups } from '../lib/channelOrder'
+import { categoryName, channelGroups, isAddons } from '../lib/channelOrder'
 import { basePermissions, channelActions, channelPermissions, has, Perm } from '../lib/permissions'
 import { useAppearance } from '../store/appearance'
 import { useChat } from '../store/chat'
@@ -25,16 +25,22 @@ export function toggleMuted(id: string): void {
   update({ muted_places: muted.includes(id) ? muted.filter((x) => x !== id) : [...muted, id] })
 }
 
-/** Create a text or voice channel, or add an addon, in `categoryId` (or the suggested place). */
-function CreateItems({ server, meId, categoryId }: { server: ServerDetail; meId: string; categoryId?: string }): ReactNode {
+/** Create a text or voice channel in `category` (or the suggested place), or add an addon (they
+ * all go in the addons category): only what fits where the menu was opened. */
+function CreateItems({ server, meId, category }: { server: ServerDetail; meId: string; category?: Category }): ReactNode {
   const perms = basePermissions(server, meId)
   if (!has(perms, Perm.MANAGE_CHANNELS)) return null
+  const addons = isAddons(category)
   return (
     <>
-      <Item icon={Hash} label={t('nav.menus.createText')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={categoryId} onClose={close} />)} />
-      <Item icon={Volume2} label={t('nav.menus.createVoice')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="voice" categoryId={categoryId} onClose={close} />)} />
-      {has(perms, Perm.MANAGE_ADDONS) && (
-        <Item icon={Puzzle} label={t('nav.addAddon')} onClick={() => showDialog((close) => <CreateAddonModal serverId={server.id} categoryId={categoryId} onClose={close} />)} />
+      {!addons && (
+        <>
+          <Item icon={Hash} label={t('nav.menus.createText')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="text" categoryId={category?.id} onClose={close} />)} />
+          <Item icon={Volume2} label={t('nav.menus.createVoice')} onClick={() => showDialog((close) => <CreateChannelModal serverId={server.id} initialType="voice" categoryId={category?.id} onClose={close} />)} />
+        </>
+      )}
+      {has(perms, Perm.MANAGE_ADDONS) && (!category || addons) && (
+        <Item icon={Puzzle} label={t('nav.addAddon')} onClick={() => showDialog((close) => <CreateAddonModal serverId={server.id} onClose={close} />)} />
       )}
     </>
   )
@@ -50,14 +56,15 @@ export function ChannelListMenu({ server, meId }: { server: ServerDetail; meId: 
   )
 }
 
-/** Rename, permissions, create a channel in it, delete: its channels are never deleted with it. */
+/** Rename, permissions, create a channel in it, delete: its channels are never deleted with it.
+ * The addons category can't be renamed or deleted. */
 export function CategoryMenu({ server, category, meId }: { server: ServerDetail; category: Category; meId: string }): ReactNode {
   const perms = basePermissions(server, meId)
-  const canManage = has(perms, Perm.MANAGE_CHANNELS)
+  const canManage = has(perms, Perm.MANAGE_CHANNELS) && !isAddons(category)
   return (
     <>
-      <Label>{category.name}</Label>
-      <CreateItems server={server} meId={meId} categoryId={category.id} />
+      <Label>{categoryName(category)}</Label>
+      <CreateItems server={server} meId={meId} category={category} />
       {canManage && <Item icon={Pencil} label={t('nav.menus.rename')} onClick={() => showDialog((close) => <CategoryNameModal serverId={server.id} category={category} onClose={close} />)} />}
       {has(perms, Perm.MANAGE_ROLES) && (
         <Item

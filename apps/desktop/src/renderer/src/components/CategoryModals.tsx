@@ -5,10 +5,15 @@ import { PermissionsEditor, categoryAsChannel } from './ChannelSettings'
 import { FormError, Modal } from './Modal'
 import { Field, PrimaryButton } from './ui'
 import { t } from '../lib/i18n'
+import { categoryName } from '../lib/channelOrder'
+
+/** The API's answer when a category would be called "Addons" (block 4.2.8). */
+const RESERVED_NAME = 'The name Addons is reserved for the addons category'
 
 function categoryError(err: unknown): string {
   if (err instanceof ApiError && err.status === 403) return t('server.forbidden')
   if (err instanceof ApiError && err.status === 404) return t('server.category.notFound')
+  if (err instanceof ApiError && err.status === 409 && err.detail === RESERVED_NAME) return t('server.category.reservedName')
   return t('server.category.saveFailed')
 }
 
@@ -58,7 +63,7 @@ export function CategoryPermissionsModal({
   onClose(): void
 }): ReactNode {
   return (
-    <Modal title={t('server.category.perms', { name: category.name })} subtitle={t('server.category.permsHint')} wide onClose={onClose}>
+    <Modal title={t('server.category.perms', { name: categoryName(category) })} subtitle={t('server.category.permsHint')} wide onClose={onClose}>
       <PermissionsEditor server={server} channel={categoryAsChannel(category)} meId={meId} path={`/categories/${category.id}/overrides`} place={t('server.category.here')} />
     </Modal>
   )
