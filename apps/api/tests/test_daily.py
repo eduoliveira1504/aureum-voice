@@ -144,16 +144,21 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
                 text("INSERT INTO daily_results (user_id, game, day, time_ms, attempts) VALUES (:u, 'sudoku', :d, :t, :a)"),
                 {"u": user.id, "d": day, "t": time_ms, "a": attempts},
             )
+    # Ties go to fewer hints, then to who finished first (Bia's row went in before Caio's).
     expected = [
-        {"user_id": caio.id, "time_ms": 60_000, "attempts": 1, "hints": 0},
         {"user_id": bia.id, "time_ms": 60_000, "attempts": 3, "hints": 0},
+        {"user_id": caio.id, "time_ms": 60_000, "attempts": 1, "hints": 0},
         {"user_id": ana.id, "time_ms": 90_000, "attempts": 1, "hints": 0},
     ]
-    # The fastest first, fewer tries breaking a tie; someone who isn't a friend never shows.
+    # The fastest first; someone who isn't a friend never shows.
     assert (await ana.get("/daily")).json()["rankings"] == {"sudoku": expected}
     assert (await ana.get("/daily/sudoku")).json()["ranking"] == expected
     # Bia only sees her own friends (Ana), not Caio.
     assert [r["user_id"] for r in (await bia.get("/daily/sudoku")).json()["ranking"]] == [bia.id, ana.id]
+    # Fewer hints win a tie in time.
+    async with engine.begin() as conn:
+        await conn.execute(text("UPDATE daily_results SET hints = 2 WHERE user_id = :u"), {"u": bia.id})
+    assert [r["user_id"] for r in (await ana.get("/daily/sudoku")).json()["ranking"]][:2] == [caio.id, bia.id]
 
 
 @pytest.mark.parametrize("difficulty", daily.DIFFICULTIES)
@@ -437,3 +442,35 @@ async def test_the_summary_says_each_games_difficulty(client: AsyncClient) -> No
     summary = (await ana.get("/daily")).json()
     today = daily.today()
     assert summary["difficulties"] == {key: daily.difficulty_for(key, today) for key in daily.GAMES}
+
+
+
+# --- A game in progress ------------------------------------------------------------------------
+
+
+async def test_closing_a_game_keeps_the_board_and_the_time(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    got = (await ana.get("/daily/sudoku")).json()
+    day = got["day"]
+    assert got["progress"] is None
+    board = list(got["puzzle"]["givens"])
+    board[board.index(0)] = 7
+    res = await ana.put("/daily/sudoku/progress", {"day": day, "state": {"cells": board, "hinted": []}, "elapsed_ms": 8_000})
+    assert res.status_code == 204, res.text
+    again = (await ana.get("/daily/sudoku")).json()
+    assert again["progress"] == {"state": {"cells": board, "hinted": []}, "elapsed_ms": 8_000}
+    # Someone else starts from scratch.
+    bia = await make_user(client, "bia")
+    assert (await bia.get("/daily/sudoku")).json()["progress"] is None
+    # Solved: it's gone, and nothing more is kept.
+    await check(ana, "sudoku", day, await solution_of("sudoku", day))
+    assert (await ana.get("/daily/sudoku")).json()["progress"] is None
+    assert (await ana.put("/daily/sudoku/progress", {"day": day, "state": None, "elapsed_ms": 1})).status_code == 409
+
+
+async def test_progress_has_limits(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    day = (await ana.get("/daily/trilha")).json()["day"]
+    assert (await ana.put("/daily/trilha/progress", {"day": day, "state": "x" * 9_000, "elapsed_ms": 1})).status_code == 413
+    old = (daily.today() - timedelta(days=2)).isoformat()
+    assert (await ana.put("/daily/trilha/progress", {"day": old, "state": [], "elapsed_ms": 1})).status_code == 409

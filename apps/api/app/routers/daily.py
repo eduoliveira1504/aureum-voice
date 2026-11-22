@@ -2,12 +2,13 @@
 Home's card (results, streak, friends who played today). See app/daily."""
 
 import asyncio
+import json
 import time
 import uuid
 from datetime import date, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -31,6 +32,8 @@ CHECKS = (60, 60)
 TRACK_SECONDS = 2 * 24 * 60 * 60
 # A streak shown for at most this many days back (the query stops there).
 STREAK_DAYS = 400
+# A saved game in progress, at most this big (a Sudoku grid, a path, the words found).
+PROGRESS_BYTES = 8_000
 # A new hint at most this often (Eduardo, 22/11).
 HINT_SECONDS = 30
 # Sharing: a few channels at once, and not many times an hour.
@@ -56,6 +59,19 @@ class RankEntry(BaseModel):
     hints: int = 0
 
 
+class ProgressIn(BaseModel):
+    day: date
+    # The board as the app keeps it (each game's own shape).
+    state: Any = None
+    # Time played so far: the clock stops while the game is closed (Eduardo, 22/11).
+    elapsed_ms: Annotated[int, Field(ge=0, le=TRACK_SECONDS * 1000)]
+
+
+class ProgressOut(BaseModel):
+    state: Any = None
+    elapsed_ms: int = 0
+
+
 class PuzzleOut(BaseModel):
     game: str
     day: date
@@ -65,6 +81,8 @@ class PuzzleOut(BaseModel):
     ranking: list[RankEntry] = []
     # The answer key, only once the user finished this day's puzzle (the board shown after it).
     solution: Any = None
+    # Where the user left it (the board and the time played), to pick up from there.
+    progress: ProgressOut | None = None
 
 
 class FriendPlayed(BaseModel):
@@ -171,12 +189,13 @@ def _out(result: DailyResult) -> ResultOut:
 
 async def rankings(session: AsyncSession, user_id: uuid.UUID, day: date, game: str | None = None) -> dict[str, list[RankEntry]]:
     """Per game, the day's finished results of the user and their friends: the shortest time
-    first, then fewer attempts, then whoever finished first."""
+    first, then fewer hints, then whoever finished first (tries aren't shown: in Trilha and
+    Caça-palavras the app never lets a wrong answer through, Eduardo 22/11)."""
     people = await social.friend_ids(session, user_id) | {user_id}
     query = select(DailyResult).where(DailyResult.user_id.in_(people), DailyResult.day == day, DailyResult.completed.is_(True))
     if game is not None:
         query = query.where(DailyResult.game == game)
-    rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at))
+    rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.hints, DailyResult.created_at))
     out: dict[str, list[RankEntry]] = {}
     for r in rows:
         out.setdefault(r.game, []).append(RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts, hints=r.hints))
@@ -240,7 +259,35 @@ async def today_puzzle(game_key: str, user: CurrentUser, session: SessionDep) ->
     result = await session.get(DailyResult, (user.id, game.key, day))
     ranking = (await rankings(session, user.id, day, game.key)).get(game.key, [])
     solution = saved.solution if result is not None and result.completed else None
-    return PuzzleOut(game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None, ranking=ranking, solution=solution)
+    progress = None if result is not None else await _progress(user.id, game.key, day)
+    return PuzzleOut(
+        game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None, ranking=ranking, solution=solution, progress=progress
+    )
+
+
+async def _progress(user_id: uuid.UUID, game: str, day: date) -> ProgressOut | None:
+    try:
+        raw = await broker.redis.get(_track_key("progress", user_id, game, day))
+    except Exception:  # noqa: BLE001 - without Redis the game just starts over
+        return None
+    return ProgressOut.model_validate(json.loads(raw)) if raw else None
+
+
+@router.put("/{game_key}/progress", status_code=status.HTTP_204_NO_CONTENT)
+async def save_progress(game_key: str, body: ProgressIn, user: CurrentUser, session: SessionDep) -> Response:
+    """Keeps where the user left an unfinished game, so closing it doesn't lose the board or the
+    time played. Gone once it's solved, or after a couple of days."""
+    game = _game(game_key)
+    today = daily.today()
+    if body.day not in (today, today - timedelta(days=1)):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="That puzzle is no longer open")
+    if await session.get(DailyResult, (user.id, game.key, body.day)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Already solved")
+    data = json.dumps({"state": body.state, "elapsed_ms": body.elapsed_ms})
+    if len(data) > PROGRESS_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Too much to keep")
+    await broker.redis.set(_track_key("progress", user.id, game.key, body.day), data, ex=TRACK_SECONDS)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{game_key}/check", response_model=CheckOut)
@@ -295,6 +342,10 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
     result = await session.get(DailyResult, (user.id, game.key, body.day))
     assert result is not None
     out = CheckOut(correct=True, result=_out(result))
+    try:
+        await broker.redis.delete(_track_key("progress", user.id, game.key, body.day))
+    except Exception:  # noqa: BLE001
+        pass
     await streak_badges.sync_and_announce(user.id)
     return out
 
@@ -302,10 +353,9 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
 def challenge_text(game: daily.DailyGame, result: DailyResult) -> str:
     """What apps that don't know the games show: the result, never the answer."""
     seconds = result.time_ms // 1000
-    tries = "1 tentativa" if result.attempts == 1 else f"{result.attempts} tentativas"
     return (
-        f"Desafio do dia: {game.name} de {result.day.strftime('%d/%m')}. Fiz em {seconds // 60}:{seconds % 60:02d} "
-        f"com {tries}. Consegue fazer melhor? Jogue em Jogos do dia, no Início do Aureum."
+        f"Desafio do dia: {game.name} de {result.day.strftime('%d/%m')}. Fiz em {seconds // 60}:{seconds % 60:02d}. "
+        "Consegue fazer melhor? Jogue em Jogos do dia, no Início do Aureum."
     )
 
 
@@ -359,9 +409,9 @@ async def channel_ranking(game_key: str, channel_id: uuid.UUID, day: date, user:
     rows = await session.scalars(
         select(DailyResult)
         .where(DailyResult.user_id.in_(people), DailyResult.game == game.key, DailyResult.day == day, DailyResult.completed.is_(True))
-        .order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at)
+        .order_by(DailyResult.time_ms, DailyResult.hints, DailyResult.created_at)
     )
-    return [RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts) for r in rows]
+    return [RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts, hints=r.hints) for r in rows]
 
 
 @router.post("/{game_key}/hint", response_model=HintOut)
