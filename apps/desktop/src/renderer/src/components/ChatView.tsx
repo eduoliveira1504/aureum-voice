@@ -101,7 +101,7 @@ function withMentions(text: string, mention: ((username: string) => ReactNode) |
 
 /** A channel mention, "<#id>" in the text (the bot writes them): the channel's #name, which
  * opens it. A channel the user can't see shows as a plain "#canal". */
-function ChannelMention({ id }: { id: string }): ReactNode {
+function ChannelMention({ id, own = false }: { id: string; own?: boolean }): ReactNode {
   // A string, not an object: the selector must return the same value while nothing changed.
   const serverId = useChat((s) => Object.values(s.servers).find((server) => server.channels.some((c) => c.id === id))?.id ?? null)
   const name = useChat((s) => (serverId ? s.servers[serverId]?.channels.find((c) => c.id === id)?.name : undefined))
@@ -111,7 +111,7 @@ function ChannelMention({ id }: { id: string }): ReactNode {
     <button
       type="button"
       onClick={() => openTab(serverId, channelTab(id))}
-      className="rounded-sm bg-accent/15 px-0.5 font-medium text-accent-text hover:underline"
+      className={`${mentionChip(own)} hover:underline`}
     >
       #{name}
     </button>
@@ -119,7 +119,7 @@ function ChannelMention({ id }: { id: string }): ReactNode {
 }
 
 /** A message link (Copiar link da mensagem): where it is, and opens it there. */
-function MessageLinkMention({ channelId, messageId }: { channelId: string; messageId: number }): ReactNode {
+function MessageLinkMention({ channelId, messageId, own = false }: { channelId: string; messageId: number; own?: boolean }): ReactNode {
   const name = useChat((s) => {
     for (const server of Object.values(s.servers)) {
       const channel = server.channels.find((c) => c.id === channelId)
@@ -132,7 +132,7 @@ function MessageLinkMention({ channelId, messageId }: { channelId: string; messa
     <button
       type="button"
       onClick={() => openMessageLink(channelId, messageId)}
-      className="rounded-sm bg-accent/15 px-0.5 font-medium text-accent-text hover:underline"
+      className={`${mentionChip(own)} hover:underline`}
     >
       {name ? t('chat.messageIn', { name }) : inDm ? t('chat.dmMessage') : t('chat.message')}
     </button>
@@ -170,7 +170,7 @@ function Linkified({
   const plain = (part: string): ReactNode[] =>
     part.split(CHANNEL_MENTION).map((piece, j) =>
       j % 2 === 1 ? (
-        <ChannelMention key={j} id={piece} />
+        <ChannelMention key={j} id={piece} own={own} />
       ) : (
         <Fragment key={j}>
           {piece.split(ROLE_MENTION).map((bit, r) =>
@@ -187,7 +187,7 @@ function Linkified({
     )
   return parts.map((part, i) => {
     const messageLink = i % 2 === 1 && part.match(MESSAGE_LINK)
-    if (messageLink) return <MessageLinkMention key={i} channelId={messageLink[1]} messageId={Number(messageLink[2])} />
+    if (messageLink) return <MessageLinkMention key={i} channelId={messageLink[1]} messageId={Number(messageLink[2])} own={own} />
     return i % 2 === 1 ? (
       // On the accent-tinted bubble the accent text color can lack contrast: underline instead.
       <a key={i} href={part} target="_blank" rel="noreferrer" className={own ? 'underline' : 'text-accent-text hover:underline'}>
@@ -274,8 +274,11 @@ function OfficialEvent({ event }: { event: OfficialEventRef }): ReactNode {
 }
 
 /** An @mention: opens the person's profile, and their menu on right click. */
+/** Every mention reads as the same chip, as in @aureum's messages (people, roles, @all/@here,
+ * #channels, message links). On my own bubble, already accent-tinted, the chip goes dark to stay
+ * readable. */
 const mentionChip = (own: boolean): string =>
-  `inline-flex max-w-full items-center gap-1 rounded-sm px-0.5 align-bottom font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text'}`
+  `inline-flex max-w-full items-center gap-1 rounded-sm px-0.5 align-bottom font-medium text-accent-text ${own ? 'bg-main/70' : 'bg-accent/15'}`
 
 /** "<@&id>" in the text: the role's @name in its color. A role that's gone reads "@cargo". */
 function RoleMention({ id, own }: { id: string; own: boolean }): ReactNode {
@@ -287,7 +290,7 @@ function RoleMention({ id, own }: { id: string; own: boolean }): ReactNode {
     return undefined
   })
   return (
-    <span className={mentionChip(own)} style={role?.color && !own ? { color: role.color } : undefined}>
+    <span className={mentionChip(own)} style={role?.color ? { color: role.color } : undefined}>
       <span className="truncate">@{role?.name ?? t('chat.mention.someRole')}</span>
     </span>
   )
@@ -308,7 +311,7 @@ function Mention({ user, own, onOpen, onMenu }: { user: User; own: boolean; onOp
       type="button"
       onClick={(e) => onOpen(e.currentTarget)}
       onContextMenu={onMenu}
-      className={`inline-flex max-w-full items-center gap-1 rounded-sm px-0.5 align-bottom font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text hover:underline'}`}
+      className={`${mentionChip(own)} hover:underline`}
     >
       <span className="truncate">@{user.username}</span>
       <NameMarks user={user} size={14} />
