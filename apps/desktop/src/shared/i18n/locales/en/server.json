@@ -192,5 +192,11 @@
     "tooMany": "Too many searches in a row. Wait a minute.",
     "more": "Load more",
     "someone": "Someone"
+  },
+  "stats": {
+    "online": "{{count}} online",
+    "streaming": "{{count}} streaming",
+    "members_one": "{{count}} member",
+    "members_other": "{{count}} members"
   }
 }

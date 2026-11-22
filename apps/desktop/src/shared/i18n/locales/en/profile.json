@@ -133,5 +133,6 @@
     "title": "Members",
     "close": "Close members",
     "owner": "Server owner"
-  }
+  },
+  "playingFor": "{{activity}} · {{elapsed}}"
 }

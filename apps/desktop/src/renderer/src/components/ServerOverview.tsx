@@ -73,9 +73,9 @@ function Banner({ server, me }: { server: ServerDetail; me: Me }): ReactNode {
   const online = server.members.filter((m) => m.online).length
   const streaming = server.voice_states.filter((v) => v.screen).length
   const stats = [
-    `${online} online`,
-    `${streaming} transmitindo`,
-    `${server.members.length} ${server.members.length === 1 ? 'membro' : 'membros'}`
+    t('server.stats.online', { count: online }),
+    t('server.stats.streaming', { count: streaming }),
+    t('server.stats.members', { count: server.members.length })
   ]
 
   return (
@@ -221,7 +221,7 @@ function RoomCard({
             <PrivateMark server={server} channel={room} />
           </span>
           <span className="block text-xs text-fg-subtle">
-            {states.length} {states.length === 1 ? 'pessoa' : 'pessoas'}
+            {t('home.peopleCount', { count: states.length })}
           </span>
         </div>
         <button

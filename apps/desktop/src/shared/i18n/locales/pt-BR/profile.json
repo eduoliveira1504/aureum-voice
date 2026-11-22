@@ -133,5 +133,6 @@
     "title": "Membros",
     "close": "Fechar membros",
     "owner": "Dono do servidor"
-  }
+  },
+  "playingFor": "{{activity}} · {{elapsed}}"
 }

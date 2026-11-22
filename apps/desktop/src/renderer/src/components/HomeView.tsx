@@ -208,7 +208,7 @@ function FriendRow({ friend, status, meId }: { friend: Friend; status: Friend['s
           </div>
           {kind === 'friend' && status !== 'offline' && <StatusBubble user={user} size="xs" className="my-0.5" />}
           {kind === 'friend' && playing ? (
-            <ActivityLine userId={user.id} />
+            <ActivityLine userId={user.id} withTime />
           ) : (
             <div className="truncate text-xs text-fg-muted">{subtitle}</div>
           )}

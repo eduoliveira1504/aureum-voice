@@ -192,5 +192,11 @@
     "tooMany": "Muitas buscas seguidas. Espere um minuto.",
     "more": "Carregar mais",
     "someone": "Alguém"
+  },
+  "stats": {
+    "online": "{{count}} online",
+    "streaming": "{{count}} transmitindo",
+    "members_one": "{{count}} membro",
+    "members_other": "{{count}} membros"
   }
 }

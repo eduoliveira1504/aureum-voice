@@ -120,14 +120,20 @@ export function useElapsed(since: string | undefined): string | null {
 
 export const activityLabel = (activity: Activity): string => t('profile.playing', { game: activity.name })
 
-/** Small "Jogando X" line (member lists, Active now). */
-export function ActivityLine({ userId, className = '' }: { userId: string; className?: string }): ReactNode {
+/** "Jogando X · há 2 h" (block 4.2.5); just "Jogando X" without a time. */
+export const activityWithTime = (activity: Activity, elapsed: string | null): string =>
+  elapsed ? t('profile.playingFor', { activity: activityLabel(activity), elapsed }) : activityLabel(activity)
+
+/** Small "Jogando X" line (member lists, Active now); `withTime` adds how long ("há 2 h"). */
+export function ActivityLine({ userId, className = '', withTime = false }: { userId: string; className?: string; withTime?: boolean }): ReactNode {
   const activity = useUserActivity(userId)
+  const elapsed = useElapsed(withTime ? activity?.started_at : undefined)
   if (!activity) return null
+  const label = activityWithTime(activity, elapsed)
   return (
-    <span className={`flex min-w-0 items-center gap-1 text-xs text-fg-subtle ${className}`} title={activityLabel(activity)}>
+    <span className={`flex min-w-0 items-center gap-1 text-xs text-fg-subtle ${className}`} title={label}>
       <Gamepad2 size={12} strokeWidth={1.8} className="shrink-0" />
-      <span className="truncate">{activityLabel(activity)}</span>
+      <span className="truncate">{label}</span>
     </span>
   )
 }

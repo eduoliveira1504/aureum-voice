@@ -144,5 +144,9 @@
     "removedUser": "Usuário removido",
     "members": "Membros — {{online}} de {{total}} online",
     "offline": "Offline — {{count}}"
-  }
+  },
+  "peopleCount_one": "{{count}} pessoa",
+  "peopleCount_other": "{{count}} pessoas",
+  "streamingBy": "{{name}} transmitindo",
+  "voiceMessage": "Mensagem de voz · {{duration}}"
 }

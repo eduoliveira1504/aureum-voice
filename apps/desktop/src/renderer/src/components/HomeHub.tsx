@@ -16,7 +16,7 @@ import { useVoice } from '../store/voice'
 import { HomeCalendar, HomeCalendarCard } from './HomeCalendar'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
-import { activityLabel } from './profileBits'
+import { activityWithTime, useElapsed } from './profileBits'
 import { AddFriendModal, StartCallModal } from './socialModals'
 import { Avatar, CountBadge, GroupAvatar, PRESENCE_LABEL, PresenceAvatar, ServerIcon } from './ui'
 import { dateFormat } from '../lib/format'
@@ -250,9 +250,10 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
   const place = room.kind === 'room' ? room.server.name : room.dm.type === 'group_dm' ? t('home.groupCall') : t('home.call')
   const sharer = room.states.find((v) => v.screen)
   const thumb = sharer && thumbnails[sharer.user_id]?.channelId === room.key ? thumbnails[sharer.user_id] : undefined
-  const count = `${room.states.length} ${room.states.length === 1 ? 'pessoa' : 'pessoas'}`
-  const detail = sharer ? `${nameOf(sharer.user_id)} transmitindo` : room.since ? `${count} · ${liveFor(room.since, now)}` : count
+  const count = t('home.peopleCount', { count: room.states.length })
+  const detail = sharer ? t('home.streamingBy', { name: nameOf(sharer.user_id) }) : room.since ? `${count} · ${liveFor(room.since, now)}` : count
   const playing = room.states.map((v) => activities[v.user_id]).find(Boolean)
+  const playingFor = useElapsed(playing?.started_at)
   const ringed = (id: string): string => (speaking?.includes(id) ? 'ring-[3px] ring-accent' : '')
 
   const open = (): void => {
@@ -298,9 +299,9 @@ function LiveCard({ room, meId }: { room: LiveRoom; meId: string }): ReactNode {
       </div>
       <div className="mt-auto flex items-center gap-2">
         {playing ? (
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-fg-muted" title={activityLabel(playing)}>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-fg-muted" title={activityWithTime(playing, playingFor)}>
             <Gamepad2 size={14} className="shrink-0" />
-            <span className="truncate">{activityLabel(playing)}</span>
+            <span className="truncate">{activityWithTime(playing, playingFor)}</span>
           </span>
         ) : (
           <span className="flex min-w-0 flex-1 items-center">
@@ -350,7 +351,7 @@ export function previewOf(message: Message): string {
   const voice = message.attachments.find((a) => a.kind === 'voice')
   if (voice) {
     const seconds = Math.round((voice.duration_ms ?? 0) / 1000)
-    return `Mensagem de voz · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+    return t('home.voiceMessage', { duration: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` })
   }
   return messagePreview(message, roleNameIn(Object.values(useChat.getState().servers))).replace(/\s+/g, ' ')
 }
@@ -844,7 +845,8 @@ function ActiveFriends({ me }: { me: Me }): ReactNode {
 function ActiveFriendRow({ item }: { item: ActiveFriend }): ReactNode {
   const { friend, status, call, activity } = item
   const user = friend.user
-  const line = call ? call.label : activity ? activityLabel(activity) : PRESENCE_LABEL[status]
+  const elapsed = useElapsed(activity?.started_at)
+  const line = call ? call.label : activity ? activityWithTime(activity, elapsed) : PRESENCE_LABEL[status]
   const social = useSocial.getState()
   const action = call?.join ? (
     <RowButton onClick={call.join}>{t('home.join')}</RowButton>
