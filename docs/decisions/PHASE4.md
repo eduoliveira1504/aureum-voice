@@ -194,7 +194,15 @@ abre "Criar canal" (Sidebar.tsx, onAdd da categoria) e o "Adicionar addon" tem s
 - Testes: criação e movimento recusados na API; migração com categoria renomeada e com addon fora; "+" de
   cada categoria abre o modal certo; app antigo ainda cria addon.
 
-## 4.2.9 Picture in picture das chamadas privadas
+## 4.2.9 Picture in picture das chamadas privadas ✅ código concluído (falta teste manual)
+
+Feito: a escolha de quem fica grande mora em lib/callFocus.ts (fixado → tela de outra pessoa →
+1 a 1 a outra pessoa → no grupo quem fala, e quem já estava entre uma frase e outra), usada pelo PiP
+e pela janela destacada. A fixação fica no store de navegação, presa à chamada, e é a mesma da tela
+de chamada (que abre em foco quando há alguém fixado). O PiP usa os tiles da tela de chamada, até 3
+miniaturas e "+N" (que abre a chamada). Controles: silenciar, desligar, voltar à chamada; destacar
+e esconder continuam como ícones da janela. Sem migração nem mudança na API.
+
 - Hoje useSubject (CallPip.tsx) mostra a tela de alguém ou quem está falando, e pula de pessoa em pessoa.
   A janela destacada (DetachedCall) usa o mesmo, então a mudança vale para as duas.
 - O PiP passa a usar o mesmo componente e visual da tela de chamada (modo foco do 2.2).

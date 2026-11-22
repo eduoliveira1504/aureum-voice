@@ -67,4 +67,21 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
   salvar a categoria." (ou nada, ao excluir).
 - **Sugestão:** nenhuma; some quando a pessoa atualizar. Só para saber, se alguém reclamar.
 
+### Não há como desafixar (4.2.9)
+- **Tela:** chamada (tela cheia, PiP e janela destacada).
+- **Problema:** clicar em alguém fixa a pessoa, mas nada desfaz a fixação: ela só cai quando a
+  pessoa sai da chamada. Num grupo, quem fixou sem querer perde o "quem fala" automático.
+- **Sugestão:** clicar de novo em quem está grande desafixa (ou um alfinete no tile). Pequeno.
+
+### A tela de chamada e o PiP escolhem diferente sem fixação (4.2.9)
+- **Tela:** chamada em grupo, modo foco, sem ninguém fixado.
+- **Problema:** o PiP mostra quem fala; a tela de chamada mostra sempre a primeira pessoa.
+- **Sugestão:** a tela de chamada usar a mesma escolha do PiP (lib/callFocus.ts). Pequeno.
+
+### Tela cheia saiu do PiP (4.2.9)
+- **Tela:** janelinha da chamada.
+- **Problema:** com os controles mínimos, o botão de tela cheia saiu; agora são dois cliques
+  (voltar à chamada, depois tela cheia).
+- **Sugestão:** manter assim, a não ser que o beta sinta falta.
+
 ## Resolvidos
