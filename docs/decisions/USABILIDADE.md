@@ -104,4 +104,17 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
 - **Sugestão:** a API carregar a página em volta de uma mensagem (`around=`). Médio; só se o beta
   esbarrar nisso.
 
+### Editar mensagem com cargo mostra o código (4.2.12)
+- **Tela:** chat › editar uma mensagem que marcou um cargo.
+- **Problema:** a caixa de edição mostra `<@&…>` no lugar de `@Nome`.
+- **Sugestão:** a edição trocar o código pelo nome e de volta ao salvar, como o campo de mensagem
+  já faz. Pequeno.
+
+### Marcar sem permissão não avisa (4.2.12)
+- **Tela:** chat, alguém sem "Mencionar @all, @here e cargos" digita `@all` à mão.
+- **Problema:** a mensagem sai e não notifica ninguém, sem aviso nenhum. A lista já não oferece
+  `@all`/`@here` para quem não pode, então só acontece digitando.
+- **Sugestão:** uma linha discreta embaixo do campo: "Você não pode marcar todos neste canal".
+  Pequeno.
+
 ## Resolvidos

@@ -247,6 +247,18 @@ e esconder continuam como ícones da janela. Sem migração nem mudança na API.
   primeiro, Riot API depois). Chave só em .env.
 - Addon só nos tipos Jogo e Misto e na categoria Addons (4.2.8).
 
+## 4.2.12 Menções no chat (pedido do Eduardo, 22/11) ✅ código concluído (falta teste manual e produção)
+
+Achado do Eduardo: digitar "@" no chat não mostrava ninguém para escolher, e só `@usuario` digitado à
+mão notificava. Feito entre o 4.2.4 e o 4.2.5. Ver docs/decisions/0052-mentions.md.
+- "@" abre uma lista em cima do campo: pessoas que veem o canal, cargos que a pessoa pode marcar,
+  `@all` (todos que veem o canal) e `@here` (quem está online). ↑/↓, Enter ou Tab, Esc.
+- `@all`, `@here` e cargo não mencionável pedem "Mencionar @all, @here e cargos" (MENTION_EVERYONE);
+  cargo mencionável qualquer um marca. Nomes de usuário "all" e "here" ficam reservados.
+- Produção: antes, conferir que nenhuma conta se chama "all" ou "here"; backup com data no nome;
+  `alembic upgrade heads` (core a4c0e6b8d931 cria messages.mentions) e reiniciar a API, com OK do
+  Eduardo. Apps antigos mostram a menção de cargo como `<@&…>` até atualizar (ainda notifica).
+
 ## Depois do advogado (início de 2027)
 - Idade mínima 18+, termos de uso, política de privacidade, LGPD (a exclusão de conta já ajuda no direito de apagar).
 - Moderação entre usuários: bloquear e reportar.
