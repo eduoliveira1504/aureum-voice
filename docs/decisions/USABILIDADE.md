@@ -84,4 +84,24 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
   (voltar à chamada, depois tela cheia).
 - **Sugestão:** manter assim, a não ser que o beta sinta falta.
 
+### Busca não ignora acento (4.2.4)
+- **Tela:** Buscar no servidor.
+- **Problema:** "reuniao" não acha "reunião" (a busca do Postgres em português não tira acento).
+  Muita gente digita sem acento.
+- **Sugestão:** usar a extensão `unaccent` do próprio Postgres (grátis) numa configuração de busca
+  e num índice novo. Médio (migração + índice).
+
+### Resultado não destaca a palavra (4.2.4)
+- **Tela:** Buscar no servidor.
+- **Problema:** a lista mostra o começo da mensagem; numa mensagem longa a palavra procurada pode
+  ficar fora das 3 linhas.
+- **Sugestão:** mostrar o trecho em volta da palavra, com ela em negrito. Pequeno a médio.
+
+### Resultado muito antigo não chega na mensagem (4.2.4)
+- **Tela:** Buscar no servidor › clicar num resultado.
+- **Problema:** se a mensagem está a mais de ~2000 mensagens do fim do canal, o canal abre mas não
+  rola até ela.
+- **Sugestão:** a API carregar a página em volta de uma mensagem (`around=`). Médio; só se o beta
+  esbarrar nisso.
+
 ## Resolvidos

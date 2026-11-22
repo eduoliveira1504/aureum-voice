@@ -132,7 +132,11 @@ Seguir o visual do mockup e os tokens do ADR 0003. Dados de exemplo sempre com o
 ### Testes
 Addon só aparece em Jogo e Misto; fixar plano persiste e aparece no overlay; atalho e posição do overlay salvos; overlay some fora do jogo; troca de provider não altera a UI; chave nunca aparece em log nem no cliente; limite de taxa respeitado (teste com mock).
 
-## 4.2.4 Busca dentro do servidor
+## 4.2.4 Busca dentro do servidor ✅ código concluído (falta teste manual e produção)
+
+Ver docs/decisions/0051-server-search.md.
+Produção: backup com data no nome, depois `alembic upgrade heads` (core f3b9d5a7c820 cria só o
+índice de busca) e reiniciar a API, com OK do Eduardo. Apps antigos não mudam (rota nova).
 - Campo de busca no servidor: procura mensagens nos canais que a pessoa pode ver (VIEW_CHANNEL), respeitando canais privados.
 - Filtros: canal, autor, data. Resultado leva ao ponto da mensagem no canal.
 - Busca de texto do próprio Postgres (config portuguesa). Sem serviço novo, custo zero.
