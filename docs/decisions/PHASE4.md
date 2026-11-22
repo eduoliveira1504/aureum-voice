@@ -13,10 +13,12 @@ Regras do CLAUDE.md: sem IA no produto, custo R$ 0 (exceções já aprovadas con
 # Fase 4.2
 
 Ordem (mudada em 22/11): 4.2.8 (categoria Addons) → 4.2.9 (PiP) → 4.2.4 (busca) → 4.2.5 (atividade)
-→ 4.2.10 (joguinhos) → 4.2.3 (TFT) → 4.2.11 (LoL).
+→ 4.2.10 (joguinhos), mais o 4.2.12 (menções), pedido no caminho. Todos com o código pronto.
+TFT (4.2.3) e LoL (4.2.11) SAÍRAM da 4.2 (Eduardo, 22/11): os addons de jogo dependem da chave da
+Riot e ficam para a Fase 5 (anotados em FUTURO.md). As specs abaixo ficam como referência.
+Agora: teste manual do Eduardo no dev de tudo o que foi feito, depois a release beta.12.
 Já prontos: 4.2.1, 4.2.2 (código) e 4.2.6. Com o e-mail de volta, falta o teste manual do 4.2.2 e do 4.2.6
 e a produção (backup + migrações do 4.2.1 e do 4.2.2) numa release beta.12, com OK do Eduardo.
-TFT e LoL ficam por último porque dependem da chave da Riot (o Eduardo está pedindo).
 Toda tela nova já nasce com as chaves de tradução (pt-BR e en), desde o primeiro commit.
 A revisão de usabilidade (4.2.7) roda junto, o tempo todo.
 
@@ -92,7 +94,7 @@ ativa → desativada (reversível) → exclusão agendada (30 dias) → excluíd
 ### Testes
 Desativar e reativar; excluir com e sem a caixinha; dono bloqueado até passar a posse; cancelar dentro dos 30 dias; job conclui só as vencidas; autor vira "Usuário excluído"; arquivos apagados do MinIO; purge em dry-run não apaga nada.
 
-## 4.2.3 Addon TFT (depois dos joguinhos; camada 3 só com a chave da Riot)
+## 4.2.3 Addon TFT ⏭️ adiado para a Fase 5 (depende da chave da Riot; ver FUTURO.md)
 
 Mockup aprovado (quatro telas): https://claude.ai/artifact/5jymvkv7859u7QsNNtsXsD
 Seguir o visual do mockup e os tokens do ADR 0003. Dados de exemplo sempre com o selo "Dados de exemplo" enquanto não houver dado real.
@@ -253,7 +255,7 @@ veem o desafio como texto simples.
 - Testes: mesmo puzzle para todos no mesmo dia; solução única; resultado único por dia; compartilhar
   respeita permissão de escrita no canal; mensagem sem spoiler.
 
-## 4.2.11 Addon LoL (consulta de confronto, estilo Blitz; só com a chave da Riot)
+## 4.2.11 Addon LoL ⏭️ adiado para a Fase 5 (consulta de confronto; depende da chave da Riot; ver FUTURO.md)
 - Tela de consulta, não é dica durante a partida e NÃO lê o jogo. A pessoa escolhe campeão, lane e
   campeão inimigo (ex: Aurelion Sol no mid contra Zed) e vê: melhor build e ordem de itens, runas,
   win rate do confronto e indicadores de como o confronto costuma ser (mais agressivo ou passivo), tirados
@@ -306,5 +308,6 @@ mão notificava. Feito entre o 4.2.4 e o 4.2.5. Ver docs/decisions/0052-mentions
 - PiP das chamadas privadas mostra a pessoa certa e deixa escolher quem fica grande.
 - Busca dentro do servidor, atividade ao vivo e idioma português/inglês funcionando.
 - Joguinhos diários no Início, com compartilhamento em servidor e com amigos.
-- Addon TFT com as cinco abas e o overlay "Meu plano" funcionando em dados de exemplo, e addon LoL de consulta; estatísticas reais só quando a Riot liberar a chave.
+- Menções no chat: pessoa, cargo, @all e @here, com a lista ao digitar @.
+- (TFT e LoL saíram da 4.2: Fase 5, ver FUTURO.md.)
 - USABILIDADE.md revisado e a passada final de teste feita.

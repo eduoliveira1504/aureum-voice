@@ -18,6 +18,12 @@ Esperando os relatórios dos testers.
 - Explicar a causa de cada um ao Eduardo antes de corrigir; ajustes por aparelho só se não houver
   correção geral.
 
+## Fase 5
+### Addons de jogo: TFT e LoL (saíram da 4.2 em 22/11)
+Dependem da chave da Riot (o Eduardo está pedindo); inviáveis agora. As specs completas continuam
+no PHASE4.md (4.2.3 TFT, com as camadas 1 a 3 e os limites da Riot; 4.2.11 LoL, consulta de
+confronto). Juntar com o addon "Jogos Riot" do backlog abaixo quando a Fase 5 for planejada.
+
 ## Backlog
 - Convite de grupo do WhatsApp (invites create --usos 15 --dias 7); a landing já está no
   ar, só falta gerar com OK do Eduardo.
