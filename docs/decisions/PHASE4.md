@@ -225,13 +225,16 @@ e esconder continuam como ícones da janela. Sem migração nem mudança na API.
 - Testes: 1 a 1 mostra só a outra pessoa; fixar no PiP reflete na chamada; transmissão tem prioridade;
   entrar e sair não faz piscar.
 
-## 4.2.10 Joguinhos diários (Início) 🚧 em andamento
+## 4.2.10 Joguinhos diários (Início) ✅ código concluído (falta teste manual e produção)
 
 Escolhas do Eduardo (22/11): Sudoku, Trilha e Caça-palavras nesta rodada (cruzadas depois); lista de
-palavras própria; puzzle gerado e conferido pela API. Ver docs/decisions/0053-daily-games.md.
-Andamento: ✅ base + Sudoku + cartão do Início · ⬜ Trilha · ⬜ Caça-palavras · ⬜ compartilhar.
+palavras própria; puzzle gerado e conferido pela API; ranking com o tempo dos amigos, para desafiar.
+Ver docs/decisions/0053-daily-games.md. Feito: os três jogos, o cartão "Jogos do dia" (sequência,
+quem jogou, posição no ranking ou o tempo a bater), o ranking dos amigos no resultado, e o desafio
+por mensagem privada ou num canal do servidor, com o ranking de quem está ali.
 Produção: backup com data no nome, `alembic upgrade heads` (core b5d1f7c9e042 cria daily_puzzles e
-daily_results) e reiniciar a API, com OK do Eduardo.
+daily_results, c6e2a8d0f153 cria daily_shares) e reiniciar a API, com OK do Eduardo. Apps antigos
+veem o desafio como texto simples.
 
 - Cartão "Jogos do dia" no Início (3.4): jogos, sequência de dias, e quais amigos já jogaram hoje.
 - Ordem de construção (proposta): Sudoku, jogo de ligar os pontos passando por todo o caminho, caça-palavras,

@@ -130,4 +130,20 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
   ("pessoas", "transmitindo", "membros", "Mensagem de voz", corrigidos agora). Pode haver outros.
 - **Sugestão:** o teste procurar também palavras em português dentro de template strings. Pequeno.
 
+### Sudoku sem anotações (4.2.10)
+- **Tela:** Jogos do dia › Sudoku.
+- **Problema:** não dá para marcar candidatos pequenos numa casa; quem joga sério sente falta.
+- **Sugestão:** um modo "lápis" que põe números pequenos na casa. Pequeno a médio.
+
+### Segundo desafio no mesmo canal (4.2.10)
+- **Tela:** Desafiar no servidor.
+- **Problema:** se alguém já desafiou o canal hoje naquele jogo, o próximo vê "já tinha o desafio de
+  hoje". Está certo (o cartão já mostra o ranking de todos), mas a pessoa pode querer "aparecer".
+- **Sugestão:** nessa resposta, um botão "Ir para o desafio" que abre a mensagem. Pequeno.
+
+### Caça-palavras em português no app em inglês (4.2.10)
+- **Tela:** Jogos do dia › Caça-palavras, com o app em English.
+- **Problema:** tema e palavras ficam em português (a lista é nossa e em português).
+- **Sugestão:** manter; se o app abrir para fora, uma lista em inglês. Médio.
+
 ## Resolvidos
