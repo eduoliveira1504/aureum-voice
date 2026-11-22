@@ -54,4 +54,17 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
 - **Sugestão:** procurar nos dois catálogos e mostrar o do idioma atual primeiro. Pequeno, se o
   beta pedir.
 
+### Arrastar para o lugar errado não explica nada (4.2.8)
+- **Tela:** barra lateral do servidor (arrastar canal ou addon).
+- **Problema:** arrastar um canal de texto para Addons (ou um addon para Conversas) simplesmente não
+  mostra onde soltar. É o certo, mas quem tenta não sabe por quê.
+- **Sugestão:** enquanto arrasta um addon, deixar as outras categorias apagadinhas (e o contrário).
+  Pequeno.
+
+### Apps antigos mostram Renomear e Excluir na Addons (4.2.8)
+- **Tela:** menu da categoria Addons, em apps até a 0.2.0-beta.11.
+- **Problema:** as opções continuam lá; a API recusa e o app antigo mostra só "Não foi possível
+  salvar a categoria." (ou nada, ao excluir).
+- **Sugestão:** nenhuma; some quando a pessoa atualizar. Só para saber, se alguém reclamar.
+
 ## Resolvidos

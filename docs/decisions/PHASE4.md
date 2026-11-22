@@ -161,7 +161,12 @@ Telas novas (a partir daqui) já nascem com as chaves de tradução, nos dois id
 - Eduardo escolhe o que entra. Coisa pequena entra no commit do bloco; o resto vira item novo.
 - Ao fim da 4.2, uma passada ponto a ponto de teste em todas as telas principais.
 
-## 4.2.8 Categoria Addons (correção)
+## 4.2.8 Categoria Addons (correção) ✅ código concluído (falta teste manual e produção)
+
+Ver o adendo do docs/decisions/0037-channel-categories.md.
+Produção: backup com data no nome, depois `alembic upgrade heads` (core e2a8c4f6b719 cria
+channel_categories.kind e arruma cada servidor) e reiniciar a API, com OK do Eduardo. API antes do
+app: apps antigos continuam criando addon (vai para a Addons sem erro).
 
 Problema (achado pelo Eduardo): desde o 3.12 (ADR 0037) "Addons" é uma categoria comum. O "+" dela
 abre "Criar canal" (Sidebar.tsx, onAdd da categoria) e o "Adicionar addon" tem seletor de categoria

@@ -51,3 +51,22 @@ servers small.
 The new fields are additive. `PUT /servers/{id}/channels/order` stays for apps on 0.2.0-beta.8 and
 earlier, which keep showing their three sections by type. A channel they create has no category, so
 newer apps show it at the top until someone moves it.
+
+## Addendum (block 4.2.8): the addons category
+
+"Addons" had become a category like any other, so a text channel could be created in it and an
+addon in "Salas". Now `channel_categories.kind` is `normal` or `addons`, with at most one `addons`
+per server (a partial unique index), made with the server.
+
+- **Rules, in the API:** addons live in the addons category and only they do. A text or voice
+  channel created in it, or a channel moved between kinds (`PUT .../channels/arrange`, into it, out
+  of it or to no category), gets 409 with a readable detail. It can't be renamed or deleted, and no
+  normal category may be called "Addons" (any case). Its permissions and its place in the order
+  stay editable. Apps show its name in their own language.
+- **Older apps:** an addon created with no category or another one goes to the addons category
+  without an error. `PUT .../channels/order` only changes positions, so it needs nothing.
+- **Migration** (`e2a8c4f6b719`): in each server the category named "Addons" (any case, the first
+  one) becomes the addons one; if it was renamed or deleted, a new one is made at the end. Text and
+  voice channels in it move to "Conversas" and "Salas" (or to no category), and addons outside it
+  move in. As above, moving never changes permissions: a channel counts as synced only if its
+  overrides already match the new category's.
