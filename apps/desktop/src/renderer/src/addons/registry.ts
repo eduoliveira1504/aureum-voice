@@ -2,6 +2,7 @@ import { Puzzle, type LucideIcon } from 'lucide-react'
 
 import type { ServerEvent } from '../lib/realtime'
 import calendar from './calendar'
+import daily from './daily'
 import events from './events'
 import kanban from './kanban'
 import polls from './polls'
@@ -16,7 +17,7 @@ import whiteboard from './whiteboard'
 const MODULES: Record<string, AddonModule> = Object.fromEntries([kanban, whiteboard, events, calendar].map((m) => [m.key, m]))
 
 /** Addons that live in chats (their things are messages), by key. */
-const CHAT_MODULES: Record<string, ChatAddonModule> = Object.fromEntries([polls].map((m) => [m.key, m]))
+const CHAT_MODULES: Record<string, ChatAddonModule> = Object.fromEntries([polls, daily].map((m) => [m.key, m]))
 
 export function chatAddon(key: string | null | undefined): ChatAddonModule | undefined {
   return key ? CHAT_MODULES[key] : undefined

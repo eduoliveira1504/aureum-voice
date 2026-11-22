@@ -49,5 +49,34 @@
   "rankingEmpty": "Nenhum amigo terminou hoje ainda.",
   "position": "{{position}}º de {{total}}",
   "you": "Você",
-  "beat": "{{name}} fez em {{time}}. Consegue melhor?"
+  "beat": "{{name}} fez em {{time}}. Consegue melhor?",
+  "share": {
+    "friends": "Desafiar amigos",
+    "server": "Desafiar no servidor",
+    "title": "Desafiar com {{game}}",
+    "pickFriends": "Quem você quer desafiar?",
+    "noFriends": "Você ainda não tem amigos no Aureum.",
+    "serverLabel": "Servidor",
+    "channel": "Canal",
+    "noChannels": "Nenhum canal de texto onde você possa escrever.",
+    "send": "Enviar desafio",
+    "sending": "Enviando…",
+    "sent_one": "Desafio enviado para {{count}} conversa.",
+    "sent_other": "Desafio enviado para {{count}} conversas.",
+    "already_one": "{{count}} conversa já tinha o desafio de hoje desse jogo.",
+    "already_other": "{{count}} conversas já tinham o desafio de hoje desse jogo.",
+    "failed": "Não foi possível enviar o desafio.",
+    "hint": "Vai só o seu tempo e as tentativas, nunca a resposta."
+  },
+  "challenge": {
+    "title": "Desafio do dia",
+    "when": "{{game}} · {{date}}",
+    "by": "{{name}} fez em {{time}} com {{attempts}}. Consegue fazer melhor?",
+    "play": "Jogar",
+    "yours": "Seu tempo: {{time}}",
+    "closed": "Desafio encerrado",
+    "ranking": "Ranking daqui",
+    "nobody": "Ninguém daqui jogou ainda.",
+    "unknown": "Atualize o app para jogar este desafio."
+  }
 }

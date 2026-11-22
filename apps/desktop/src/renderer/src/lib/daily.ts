@@ -74,6 +74,23 @@ export const loadPuzzle = <P>(game: DailyGameKey): Promise<DailyPuzzle<P>> => ap
 export const checkAnswer = (game: DailyGameKey, day: string, answer: unknown, timeMs: number): Promise<CheckResult> =>
   api<CheckResult>(`/daily/${game}/check`, { method: 'POST', body: { day, answer, time_ms: Math.round(timeMs) } })
 
+export const shareChallenge = (game: DailyGameKey, day: string, channelIds: string[]): Promise<{ shared: string[]; already: string[] }> =>
+  api(`/daily/${game}/share`, { method: 'POST', body: { day, channel_ids: channelIds } })
+
+/** A challenge card's ranking: that day's results of everyone who sees the channel. */
+export const loadChannelRanking = (game: DailyGameKey, channelId: string, day: string): Promise<RankEntry[]> =>
+  api<RankEntry[]>(`/daily/${game}/ranking?channel_id=${channelId}&day=${day}`)
+
+/** What a shared challenge's message carries (Message.embed). */
+export interface ChallengeEmbed {
+  addon_key: 'daily'
+  id: string
+  game: DailyGameKey
+  day: string
+  time_ms: number
+  attempts: number
+}
+
 /** "3:07", "1:02:15". */
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))

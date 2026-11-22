@@ -49,6 +49,8 @@ interface SocialState {
   unblock(userId: string): Promise<void>
   /** Opens (creating if needed) the DM with a friend and shows it; returns its id. */
   openDm(userId: string): Promise<string>
+  /** The DM with someone, created if needed, without opening it (sharing to several at once). */
+  ensureDm(userId: string): Promise<string>
   createGroup(userIds: string[], name?: string): Promise<Dm>
   renameGroup(id: string, name: string | null): Promise<void>
   /** Sets (or with null removes) a group's picture. */
@@ -213,10 +215,15 @@ export const useSocial = create<SocialState>()((set, get) => {
     },
 
     openDm: async (userId) => {
+      const id = await get().ensureDm(userId)
+      useNav.getState().openHome(id)
+      return id
+    },
+
+    ensureDm: async (userId) => {
       const existing = Object.values(get().dms).find((d) => d.type === 'dm' && d.members.some((m) => m.user.id === userId))
       const dm = existing ?? (await api<Dm>('/dms', { method: 'POST', body: { user_id: userId } }))
       upsertDm(dm)
-      useNav.getState().openHome(dm.id)
       return dm.id
     },
 

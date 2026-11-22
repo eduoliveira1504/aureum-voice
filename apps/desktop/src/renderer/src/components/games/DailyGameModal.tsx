@@ -1,4 +1,4 @@
-import { CheckCircle2, Grid3x3, Route, Search, Timer, Trophy, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Grid3x3, Route, Search, Server, Timer, Trophy, Users, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ApiError } from '../../lib/api'
@@ -10,6 +10,7 @@ import { useDaily } from '../../store/daily'
 import { useSocial } from '../../store/social'
 import { FormError, Modal } from '../Modal'
 import { Avatar } from '../ui'
+import { ShareChallengeModal, type ShareTarget } from './ShareChallenge'
 import { SudokuBoard } from './SudokuBoard'
 import { TrilhaBoard } from './TrilhaBoard'
 import { WordSearchBoard } from './WordSearchBoard'
@@ -81,7 +82,7 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
     <Modal title={gameName(game)} subtitle={t(`games.games.${game}.rules`)} wide onClose={onClose}>
       <FormError message={error} />
       {!puzzle && !error && <p className="py-10 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
-      {puzzle && result && <ResultView result={result} ranking={ranking} />}
+      {puzzle && result && <ResultView game={game} result={result} ranking={ranking} />}
       {puzzle && !result && (
         <div className="flex flex-col items-center gap-3">
           <span className="flex items-center gap-1.5 text-sm tabular-nums text-fg-muted" aria-label={t('games.time')}>
@@ -144,7 +145,9 @@ export function Ranking({ entries }: { entries: RankEntry[] }): ReactNode {
   )
 }
 
-function ResultView({ result, ranking }: { result: DailyResult; ranking: RankEntry[] }): ReactNode {
+function ResultView({ game, result, ranking }: { game: DailyGameKey; result: DailyResult; ranking: RankEntry[] }): ReactNode {
+  const [sharing, setSharing] = useState<ShareTarget | null>(null)
+  const shareButton = 'flex items-center gap-1.5 rounded-control border border-line px-3 py-2 text-sm font-semibold hover:bg-elevated'
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
       <CheckCircle2 size={48} className="text-success" />
@@ -162,7 +165,18 @@ function ResultView({ result, ranking }: { result: DailyResult; ranking: RankEnt
           <dd className="font-display text-xl font-semibold tabular-nums">{result.attempts}</dd>
         </div>
       </dl>
+      <div className="flex flex-wrap justify-center gap-2">
+        <button type="button" onClick={() => setSharing('friends')} className={shareButton}>
+          <Users size={16} />
+          {t('games.share.friends')}
+        </button>
+        <button type="button" onClick={() => setSharing('server')} className={shareButton}>
+          <Server size={16} />
+          {t('games.share.server')}
+        </button>
+      </div>
       <Ranking entries={ranking} />
+      {sharing && <ShareChallengeModal game={game} gameLabel={gameName(game)} day={result.day} target={sharing} onClose={() => setSharing(null)} />}
     </div>
   )
 }

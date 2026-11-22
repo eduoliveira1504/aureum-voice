@@ -49,5 +49,34 @@
   "rankingEmpty": "No friends finished today yet.",
   "position": "#{{position}} of {{total}}",
   "you": "You",
-  "beat": "{{name}} did it in {{time}}. Can you beat it?"
+  "beat": "{{name}} did it in {{time}}. Can you beat it?",
+  "share": {
+    "friends": "Challenge friends",
+    "server": "Challenge a server",
+    "title": "Challenge with {{game}}",
+    "pickFriends": "Who do you want to challenge?",
+    "noFriends": "You have no friends on Aureum yet.",
+    "serverLabel": "Server",
+    "channel": "Channel",
+    "noChannels": "No text channel you can write in.",
+    "send": "Send challenge",
+    "sending": "Sending…",
+    "sent_one": "Challenge sent to {{count}} conversation.",
+    "sent_other": "Challenge sent to {{count}} conversations.",
+    "already_one": "{{count}} conversation already had today's challenge for this game.",
+    "already_other": "{{count}} conversations already had today's challenge for this game.",
+    "failed": "Couldn't send the challenge.",
+    "hint": "Only your time and tries go, never the answer."
+  },
+  "challenge": {
+    "title": "Daily challenge",
+    "when": "{{game}} · {{date}}",
+    "by": "{{name}} did it in {{time}} with {{attempts}}. Can you beat it?",
+    "play": "Play",
+    "yours": "Your time: {{time}}",
+    "closed": "Challenge closed",
+    "ranking": "Ranking here",
+    "nobody": "Nobody here played yet.",
+    "unknown": "Update the app to play this challenge."
+  }
 }
