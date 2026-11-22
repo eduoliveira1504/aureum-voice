@@ -16,7 +16,10 @@ Ordem (mudada em 22/11): 4.2.8 (categoria Addons) → 4.2.9 (PiP) → 4.2.4 (bus
 → 4.2.10 (joguinhos), mais o 4.2.12 (menções), pedido no caminho. Todos com o código pronto.
 TFT (4.2.3) e LoL (4.2.11) SAÍRAM da 4.2 (Eduardo, 22/11): os addons de jogo dependem da chave da
 Riot e ficam para a Fase 5 (anotados em FUTURO.md). As specs abaixo ficam como referência.
-Agora: teste manual do Eduardo no dev de tudo o que foi feito, depois a release beta.12.
+Produção da beta.12 FEITA em 22/11: backup em ~/backups/pre-beta12/2026-11-22 (cópia no PC em
+backups/vps/pre-beta12), deploy da API na VPS com as 9 migrações (c9e5a1b3d486 até e9b5d1f3a475),
+conferidas (uma categoria Addons por servidor, nenhum addon fora, todos os servidores com tipo).
+Falta: push do Eduardo, `npm run release` (0.2.0-beta.12) e publicar o rascunho.
 Já prontos: 4.2.1, 4.2.2 (código) e 4.2.6. Com o e-mail de volta, falta o teste manual do 4.2.2 e do 4.2.6
 e a produção (backup + migrações do 4.2.1 e do 4.2.2) numa release beta.12, com OK do Eduardo.
 Toda tela nova já nasce com as chaves de tradução (pt-BR e en), desde o primeiro commit.
