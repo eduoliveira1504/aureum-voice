@@ -34,6 +34,9 @@ async def me(client: AsyncClient, tokens: dict) -> dict:
 async def test_catalog(client: AsyncClient) -> None:
     alice = await make_user(client, "alice")
     catalog = {b["key"]: b for b in (await alice.get("/badges")).json()}
+    # Besides the daily games' streak badges (3 games x 6 levels, tested in test_daily).
+    assert sum(1 for k in catalog if k.startswith("daily_")) == 18
+    catalog = {k: b for k, b in catalog.items() if not k.startswith("daily_")}
     assert set(catalog) == {"founder", "pioneer", "beta_tester", "bug_hunter"}
     assert (catalog["founder"]["name"], catalog["founder"]["rarity"]) == ("Fundador", "mitica")
     assert catalog["pioneer"]["numbered"] is True
@@ -208,7 +211,7 @@ async def test_catalog_says_how_to_get_and_what_is_left(client: AsyncClient, bet
     alice = await make_user(client, "alice")
 
     async def catalog() -> dict:
-        return {b["key"]: b for b in (await alice.get("/badges")).json()}
+        return {b["key"]: b for b in (await alice.get("/badges")).json() if not b["key"].startswith("daily_")}
 
     beta()
     now = await catalog()

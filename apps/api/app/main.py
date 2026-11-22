@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app import account_deletion, badges, mail, presence, storage
+from app.daily import streak_badges
 from app.addons.registry import ADDONS
 from app.bot import broadcast, releases
 from app.config import get_settings
@@ -38,6 +39,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     workers = [
         asyncio.create_task(ws.run_voice_sweeper()),
         asyncio.create_task(presence.run_activity_sweeper()),
+        asyncio.create_task(streak_badges.run_sweeper()),
         asyncio.create_task(mail.run_worker()),
         asyncio.create_task(account_deletion.run_worker()),
         asyncio.create_task(broadcast.run_worker()),

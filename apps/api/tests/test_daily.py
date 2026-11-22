@@ -267,3 +267,79 @@ async def test_a_challenge_ranks_everyone_who_sees_the_channel(client: AsyncClie
     ranking = (await owner.get("/daily/sudoku/ranking", params={"channel_id": chat, "day": day})).json()
     assert {r["user_id"] for r in ranking} == {ana.id, bia.id}
     assert (await zed.get("/daily/sudoku/ranking", params={"channel_id": chat, "day": day})).status_code == 404
+
+
+# --- Streaks and their badges (block 4.2.13) ---------------------------------------------------
+
+from app.daily import streak_badges  # noqa: E402
+from app.daily.streaks import Streak, level_of, streak_of as game_streak  # noqa: E402
+
+
+def test_freezes_carry_a_streak_over_missed_days() -> None:
+    today = date(2026, 11, 30)
+    back = lambda n: today - timedelta(days=n)  # noqa: E731
+    assert game_streak([back(i) for i in range(1, 8)], today) == Streak(7, 1)  # today not played yet
+    assert game_streak([back(i) for i in range(2, 9)], today) == Streak(7, 0)  # yesterday frozen
+    assert game_streak([back(i) for i in range(3, 10)], today) == Streak(0, 0)  # two missed, one freeze
+    assert game_streak([back(i) for i in range(0, 15)] + [back(i) for i in range(17, 40)], today) == Streak(38, 2)
+    assert game_streak([back(i) for i in range(0, 30)], today).freezes == 2  # never more than 2
+    assert [level_of(n) for n in (2, 3, 6, 7, 29, 30, 365, 900)] == [None, 3, 3, 7, 7, 30, 365, 365]
+
+
+async def played(user: ApiUser, game: str, *days_back: int) -> None:
+    today = daily.today()
+    async with engine.begin() as conn:
+        for n in days_back:
+            await conn.execute(
+                text("INSERT INTO daily_results (user_id, game, day, time_ms, attempts) VALUES (:u, :g, :d, 1000, 1) ON CONFLICT DO NOTHING"),
+                {"u": user.id, "g": game, "d": today - timedelta(days=n)},
+            )
+
+
+async def daily_badges(user: ApiUser) -> list[str]:
+    me = (await user.get("/users/me")).json()
+    return sorted(b["key"] for b in me["badges"] if b["key"].startswith("daily_"))
+
+
+async def test_a_streak_earns_its_badge_and_levels_up(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    await played(ana, "sudoku", 1, 2)
+    await solve(ana)  # today: 3 days in a row
+    assert await daily_badges(ana) == ["daily_sudoku_3"]
+    summary = (await ana.get("/daily")).json()
+    assert summary["streaks"]["sudoku"] == {"days": 3, "freezes": 0}
+    assert summary["streaks"]["trilha"] == {"days": 0, "freezes": 0}
+
+    # Featured on the profile, then 7 days: the new level takes its place.
+    assert (await ana.put("/users/me/badges/featured", {"keys": ["daily_sudoku_3"]})).status_code in (200, 204)
+    await played(ana, "sudoku", 3, 4, 5, 6)
+    from app.db import SessionLocal
+
+    async with SessionLocal() as session:
+        await streak_badges.sync(session, uuid_of(ana))
+    me = (await ana.get("/users/me")).json()
+    held = [b for b in me["badges"] if b["key"].startswith("daily_")]
+    assert [b["key"] for b in held] == ["daily_sudoku_7"]
+    assert held[0].get("featured_position") == 0
+
+
+async def test_a_broken_streak_takes_the_badge_away(client: AsyncClient) -> None:
+    from app.db import SessionLocal
+
+    ana = await make_user(client, "ana")
+    await played(ana, "trilha", 1, 2, 3)
+    async with SessionLocal() as session:
+        await streak_badges.sync(session, uuid_of(ana))
+    assert await daily_badges(ana) == ["daily_trilha_3"]
+    # The same days, a week later: two missed days and no freeze.
+    async with engine.begin() as conn:
+        await conn.execute(text("UPDATE daily_results SET day = day - 7 WHERE user_id = :u"), {"u": ana.id})
+    async with SessionLocal() as session:
+        await streak_badges.sync(session, uuid_of(ana))
+    assert await daily_badges(ana) == []
+
+
+def uuid_of(user: ApiUser):  # noqa: ANN201
+    import uuid
+
+    return uuid.UUID(user.id)

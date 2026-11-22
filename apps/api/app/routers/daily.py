@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import daily, ratelimit, social
+from app.daily import streak_badges
 from app.access import channel_audience
 from app.config import get_settings
 from app.deps import CurrentUser, SessionDep
@@ -64,6 +65,11 @@ class FriendPlayed(BaseModel):
     games: list[str]
 
 
+class StreakOut(BaseModel):
+    days: int
+    freezes: int
+
+
 class DailySummary(BaseModel):
     day: date
     games: list[str]
@@ -73,6 +79,8 @@ class DailySummary(BaseModel):
     friends_today: list[FriendPlayed]
     # Per game: today's results of the user and their friends, best first (a challenge among friends).
     rankings: dict[str, list[RankEntry]] = {}
+    # Per game: the streak with its freezes (block 4.2.13; app/daily/streaks.py).
+    streaks: dict[str, StreakOut] = {}
 
 
 class Check(BaseModel):
@@ -184,6 +192,7 @@ async def summary(user: CurrentUser, session: SessionDep) -> DailySummary:
         streak=streak_of(days, today),
         friends_today=[FriendPlayed(user_id=u, games=sorted(g)) for u, g in played.items()],
         rankings=await rankings(session, user.id, today),
+        streaks={k: StreakOut(days=s.days, freezes=s.freezes) for k, s in (await streak_badges.streaks_of(session, user.id)).items()},
     )
 
 
@@ -245,7 +254,9 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
     await session.commit()
     result = await session.get(DailyResult, (user.id, game.key, body.day))
     assert result is not None
-    return CheckOut(correct=True, result=_out(result))
+    out = CheckOut(correct=True, result=_out(result))
+    await streak_badges.sync_and_announce(user.id)
+    return out
 
 
 def challenge_text(game: daily.DailyGame, result: DailyResult) -> str:

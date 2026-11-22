@@ -113,6 +113,32 @@ BADGES: dict[str, BadgeDefinition] = {
     )
 }
 
+def _daily_streak_badges() -> list[BadgeDefinition]:
+    """One per daily game and streak level (block 4.2.13): the holder keeps only their current one
+    (app/daily/streak_badges.py swaps it as the streak goes up or ends)."""
+    from app.daily import GAMES
+    from app.daily.streaks import LEVELS, RARITY, badge_key, badge_svg
+
+    out = []
+    for game in GAMES.values():
+        for level in LEVELS:
+            out.append(
+                BadgeDefinition(
+                    key=badge_key(game.key, level),
+                    name=f"{game.name} · {level} dias",
+                    description=f"Resolveu o {game.name} do dia {level} dias seguidos.",
+                    how_to_get=f"Resolva o {game.name} em Jogos do dia {level} dias seguidos.",
+                    rarity=RARITY[level],
+                    priority=50,
+                    icon_svg=badge_svg(game.key, level),
+                    icon_svg_small=badge_svg(game.key, level, small=True),
+                )
+            )
+    return out
+
+
+BADGES.update({b.key: b for b in _daily_streak_badges()})
+
 # Serializes the numbering of other numbered badges (the Pioneiro one uses its sequence).
 _NUMBER_LOCK = 0x41_55_52_42  # "AURB"
 
