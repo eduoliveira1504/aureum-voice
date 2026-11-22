@@ -238,7 +238,10 @@ Produção: backup com data no nome, `alembic upgrade heads` (core b5d1f7c9e042 
 daily_results, c6e2a8d0f153 cria daily_shares, d8a4c0e2f364 guarda a resolução) e reiniciar a API,
 com OK do Eduardo. Apps antigos veem o desafio como texto simples.
 Ajustes do teste do Eduardo (22/11): página "Jogos do dia" na barra lateral do Início, o tabuleiro
-resolvido (gabarito) direto na tela de resultado, jogo novo todo dia à 1h de Brasília, Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
+resolvido (gabarito) direto na tela de resultado, jogo novo todo dia à 1h de Brasília, dificuldade
+sorteada por dia (fácil, médio, difícil, que muda o tamanho de cada jogo), dica a cada 30 s (contada
+no resultado e no ranking), uma cor por palavra no Caça-palavras, a foto no ranking (migração
+e9b5d1f3a475 para as dicas), Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
 difícil (12×12, metade na diagonal). E as insígnias de sequência (4.2.13).
 
 - Cartão "Jogos do dia" no Início (3.4): jogos, sequência de dias, e quais amigos já jogaram hoje.

@@ -57,6 +57,17 @@ text for apps that don't know the games. One challenge per game, day and channel
 (`GET /daily/{game}/ranking`), so a second one isn't needed. The card offers "Jogar" while it's
 still today's, and shows the viewer's time once they played.
 
+**Difficulty and hints (Eduardo, 22/11).** Each game's day is drawn easy, medium or hard (from
+its own seed, so the same for everyone and with no weekday pattern): Sudoku gives 38, 32 or 27
+numbers (a pass of single cells after the symmetric pairs reaches the target); Trilha is 5×5, 6×6
+or 7×7 (the 7×7 search gets a bigger step budget, or it piles up numbers; up to ~6 s once a day,
+off the event loop); Caça-palavras is 10×10 with 8 words, 12×12 with 10 or 14×14 with 12. A hint
+every 30 seconds, made by the API from the solution and where the board is
+(`POST /daily/{game}/hint`): a Sudoku number (a wrong one first), the Trilha's longest right
+prefix and its next cell, where a missing word begins. Hints used are kept with the result
+(`daily_results.hints`) and shown next to the time and in the ranking. Found words each get a color
+(theme tokens `game-1..8`), a shared letter keeping the last word's.
+
 **Where.** "Jogos do dia" is a page of its own, from Home's sidebar under Amigos (each game with
 my result or "Jogar", the friends' podium, the time to beat and the streak); Home's card links to
 it. The result screen shows the solved board right away, read-only, like an answer key: the
