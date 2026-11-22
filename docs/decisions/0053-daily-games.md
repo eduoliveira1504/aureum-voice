@@ -62,6 +62,17 @@ it. After solving, "Ver jogo" shows the board as the person solved it, read-only
 answer is kept in `daily_results.answer` and only its owner gets it back. The Trilha board is one
 SVG (every cell the same size, walls on the shared edge), after CSS borders misaligned it.
 
+**Streaks and badges (block 4.2.13, Eduardo's choices of 22/11).** Each game has its own streak:
+days in a row it was solved. Every 7 of them earn a freeze, up to 2 kept; a day without playing
+spends one and the streak goes on without counting that day, and with none left it ends (today
+only counts as missed once it's over). One badge per game follows the current streak, in levels of
+3, 7, 30, 90, 180 and 365 days (`daily_<game>_<days>`, 18 in the catalog): it's granted or raised
+after a solve and announced by @aureum, and an hourly sweep takes it away once the streak ends;
+where it was featured, the new level keeps the place. The art is generated in code (the badges'
+hexagon, the game's symbol, a plate with the days); the metal follows the level: bronze for 3 and
+7, silver for 30 and 90, gold for 180, gold with an outer ring for 365. The profile's inventory
+lists only the next level of each game, not all 18.
+
 ## Consequences
 
 - Without Redis, the attempts count from 1 and the app's time is trusted.

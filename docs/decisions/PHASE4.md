@@ -239,7 +239,7 @@ daily_results, c6e2a8d0f153 cria daily_shares, d8a4c0e2f364 guarda a resolução
 com OK do Eduardo. Apps antigos veem o desafio como texto simples.
 Ajustes do teste do Eduardo (22/11): página "Jogos do dia" na barra lateral do Início, "Ver jogo"
 depois de resolver, Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
-difícil (12×12, metade na diagonal). Proposta em aberto: insígnias de sequência (4.2.13).
+difícil (12×12, metade na diagonal). E as insígnias de sequência (4.2.13).
 
 - Cartão "Jogos do dia" no Início (3.4): jogos, sequência de dias, e quais amigos já jogaram hoje.
 - Ordem de construção (proposta): Sudoku, jogo de ligar os pontos passando por todo o caminho, caça-palavras,
@@ -281,6 +281,14 @@ mão notificava. Feito entre o 4.2.4 e o 4.2.5. Ver docs/decisions/0052-mentions
 - Produção: antes, conferir que nenhuma conta se chama "all" ou "here"; backup com data no nome;
   `alembic upgrade heads` (core a4c0e6b8d931 cria messages.mentions) e reiniciar a API, com OK do
   Eduardo. Apps antigos mostram a menção de cargo como `<@&…>` até atualizar (ainda notifica).
+
+## 4.2.13 Insígnias de sequência dos Jogos do dia (pedido do Eduardo, 22/11) ✅ código concluído (falta aprovar a arte e testar)
+
+- Uma insígnia por jogo, que acompanha a sequência atual: 3, 7, 30, 90, 180 e 365 dias.
+- Congelamento: a cada 7 dias seguidos jogando, ganha 1 (máximo 2); um dia sem jogar gasta um e a
+  sequência segue. Sem congelamento, a sequência zera e a insígnia cai junto.
+- Aviso da @aureum ao ganhar ou subir de nível; quem destacou no perfil mantém o lugar.
+- Ver o ADR 0053. Sem migração (as insígnias entram pelo catálogo ao subir a API).
 
 ## Depois do advogado (início de 2027)
 - Idade mínima 18+, termos de uso, política de privacidade, LGPD (a exclusão de conta já ajuda no direito de apagar).
