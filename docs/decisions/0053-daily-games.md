@@ -31,10 +31,13 @@ capped by when the puzzle was first opened (also in Redis), so it can't be short
 game opened yesterday can still be finished today, as yesterday's; older days are closed.
 
 **Home.** `GET /daily` gives today's results, the streak (days in a row with a finished game,
-up to today, or up to yesterday while today isn't played yet) and the friends who played today
-(friends only, game keys only). The card lists the games with "Jogar" or the result.
+up to today, or up to yesterday while today isn't played yet), the friends who played today and,
+per game, a ranking of the user and their friends (shortest time, then fewer attempts, then who
+finished first). It's a challenge among friends (Eduardo, 22/11): the card shows "2º de 4", or the
+best friend's time to beat before playing, and the result screen shows the whole ranking. Each
+person sees only their own friends. A ranking inside a server comes with sharing.
 
 ## Consequences
 
 - Without Redis, the attempts count from 1 and the app's time is trusted.
-- Friends see that you played today and which games; your time stays yours until you share it.
+- Friends see your time and tries in each day's games (that's the point of the ranking).

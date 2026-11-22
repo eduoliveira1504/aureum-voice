@@ -128,3 +128,46 @@ describe('Home card', () => {
     expect(within(card).getByText('Ana e mais 1 já jogaram hoje')).toBeTruthy()
   })
 })
+
+describe('ranking among friends', () => {
+  const friend = (id: string, name: string): Friend =>
+    ({ user: { id, username: id, display_name: name, avatar_url: null, badges: [] } as unknown as User, kind: 'friend', since: '2026-01-01T00:00:00Z', status: 'online' }) as Friend
+  const ranking = [
+    { user_id: 'ana', time_ms: 130_000, attempts: 1 },
+    { user_id: 'me', time_ms: 187_000, attempts: 2 },
+    { user_id: 'bia', time_ms: 240_000, attempts: 1 }
+  ]
+
+  beforeEach(async () => {
+    const { useChat } = await import('../../store/chat')
+    useChat.setState({ meId: 'me' })
+    useSocial.setState({ friends: { ana: friend('ana', 'Ana'), bia: friend('bia', 'Bia') } })
+  })
+
+  it('the result shows everyone in order, me highlighted', async () => {
+    useDaily.setState({ summary: null })
+    vi.spyOn(api, 'api').mockResolvedValue({ game: 'sudoku', day: DAY, puzzle: { size: 9, givens: GIVENS }, result, ranking })
+    render(<DailyGameModal game="sudoku" onClose={() => {}} />)
+    const list = await screen.findByRole('region', { name: 'Ranking dos amigos' })
+    const rows = within(list).getAllByRole('listitem').map((li) => li.textContent)
+    expect(rows[0]).toMatch(/^1º.*Ana.*1 tentativa.*2:10$/)
+    expect(rows[1]).toMatch(/^2º.*Você.*2 tentativas.*3:07$/)
+    expect(rows[2]).toMatch(/^3º.*Bia.*1 tentativa.*4:00$/)
+    expect(within(list).getAllByRole('listitem')[1].className).toContain('bg-accent/10')
+  })
+
+  it('the card shows my place, or the best friend to beat when I have not played', async () => {
+    const { HomeHub } = await import('../HomeHub')
+    const played: DailySummary = { day: DAY, games: ['sudoku'], results: [result as never], streak: 1, friends_today: [], rankings: { sudoku: ranking } }
+    vi.spyOn(api, 'api').mockImplementation(async (path) => (path === '/daily' ? played : []))
+    const { unmount } = render(<HomeHub me={ME} />)
+    expect(await screen.findByText(/2º de 3/)).toBeTruthy()
+    unmount()
+
+    const notYet: DailySummary = { ...played, results: [], rankings: { sudoku: ranking.filter((r) => r.user_id !== 'me') } }
+    vi.spyOn(api, 'api').mockImplementation(async (path) => (path === '/daily' ? notYet : []))
+    useDaily.setState({ summary: null })
+    render(<HomeHub me={ME} />)
+    expect(await screen.findByText('Ana fez em 2:10. Consegue melhor?')).toBeTruthy()
+  })
+})

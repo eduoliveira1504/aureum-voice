@@ -108,3 +108,26 @@ def test_streak_rules() -> None:
     assert streak_of([today - timedelta(days=1), today - timedelta(days=2)], today) == 2
     assert streak_of([today, today - timedelta(days=2)], today) == 1
     assert streak_of([today - timedelta(days=2)], today) == 0
+
+
+async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -> None:
+    ana, bia, caio, zed = [await make_user(client, n) for n in ("ana", "bia", "caio", "zed")]
+    await befriend(ana, bia)
+    await befriend(ana, caio)
+    day = daily.today()
+    async with engine.begin() as conn:
+        for user, time_ms, attempts in ((ana, 90_000, 1), (bia, 60_000, 3), (caio, 60_000, 1), (zed, 1_000, 1)):
+            await conn.execute(
+                text("INSERT INTO daily_results (user_id, game, day, time_ms, attempts) VALUES (:u, 'sudoku', :d, :t, :a)"),
+                {"u": user.id, "d": day, "t": time_ms, "a": attempts},
+            )
+    expected = [
+        {"user_id": caio.id, "time_ms": 60_000, "attempts": 1},
+        {"user_id": bia.id, "time_ms": 60_000, "attempts": 3},
+        {"user_id": ana.id, "time_ms": 90_000, "attempts": 1},
+    ]
+    # The fastest first, fewer tries breaking a tie; someone who isn't a friend never shows.
+    assert (await ana.get("/daily")).json()["rankings"] == {"sudoku": expected}
+    assert (await ana.get("/daily/sudoku")).json()["ranking"] == expected
+    # Bia only sees her own friends (Ana), not Caio.
+    assert [r["user_id"] for r in (await bia.get("/daily/sudoku")).json()["ranking"]] == [bia.id, ana.id]

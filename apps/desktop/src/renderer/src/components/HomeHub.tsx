@@ -14,7 +14,7 @@ import { channelTab, useNav } from '../store/nav'
 import { dmPeer, dmTitle, useSocial } from '../store/social'
 import { HOME_WATCH_MAX, useThumbnails, watchHome } from '../store/thumbnails'
 import { useVoice } from '../store/voice'
-import { DAILY_GAMES, DailyGameModal, gameName } from './games/DailyGameModal'
+import { DAILY_GAMES, DailyGameModal, gameName, useRankPeople } from './games/DailyGameModal'
 import { HomeCalendar, HomeCalendarCard } from './HomeCalendar'
 import { Modal } from './Modal'
 import { AddServerModal } from './modals'
@@ -820,6 +820,8 @@ function DailyGames(): ReactNode {
   const summary = useDaily((s) => s.summary)
   const failed = useDaily((s) => s.failed)
   const friends = useSocial((s) => s.friends)
+  const meId = useChat((s) => s.meId)
+  const person = useRankPeople()
   const [playing, setPlaying] = useState<DailyGameKey | null>(null)
   useEffect(() => {
     void useDaily.getState().load()
@@ -847,6 +849,10 @@ function DailyGames(): ReactNode {
           <ul className="space-y-1">
             {summary.games.filter((g) => DAILY_GAMES[g]).map((game) => {
               const result = summary.results.find((r) => r.game === game)
+              const ranking = summary.rankings?.[game] ?? []
+              const position = ranking.findIndex((r) => r.user_id === meId) + 1
+              // Not played yet: the best friend's time, as a challenge.
+              const best = !result ? ranking.find((r) => r.user_id !== meId) : undefined
               const Icon = DAILY_GAMES[game].icon
               return (
                 <li key={game} className="flex items-center gap-3 rounded-item px-1 py-1.5">
@@ -858,7 +864,13 @@ function DailyGames(): ReactNode {
                     {result && (
                       <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
                         <CheckCircle2 size={12} className="shrink-0 text-success" />
-                        {t('games.done', { time: formatDuration(result.time_ms) })} · {t('games.attempts', { count: result.attempts })}
+                        {t('games.done', { time: formatDuration(result.time_ms) })}
+                        {ranking.length > 1 && position > 0 ? ` · ${t('games.position', { position, total: ranking.length })}` : ` · ${t('games.attempts', { count: result.attempts })}`}
+                      </span>
+                    )}
+                    {best && (
+                      <span className="block truncate text-xs text-fg-subtle">
+                        {t('games.beat', { name: person(best.user_id).name, time: formatDuration(best.time_ms) })}
                       </span>
                     )}
                   </span>

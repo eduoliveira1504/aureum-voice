@@ -29,5 +29,10 @@
       "erase": "Apagar",
       "number": "Número {{n}}"
     }
-  }
+  },
+  "ranking": "Ranking dos amigos",
+  "rankingEmpty": "Nenhum amigo terminou hoje ainda.",
+  "position": "{{position}}º de {{total}}",
+  "you": "Você",
+  "beat": "{{name}} fez em {{time}}. Consegue melhor?"
 }

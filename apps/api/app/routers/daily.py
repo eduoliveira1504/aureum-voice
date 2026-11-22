@@ -36,11 +36,19 @@ class ResultOut(BaseModel):
     completed: bool
 
 
+class RankEntry(BaseModel):
+    user_id: uuid.UUID
+    time_ms: int
+    attempts: int
+
+
 class PuzzleOut(BaseModel):
     game: str
     day: date
     puzzle: dict[str, Any]
     result: ResultOut | None = None
+    # Today's results of the user and their friends in this game, best first.
+    ranking: list[RankEntry] = []
 
 
 class FriendPlayed(BaseModel):
@@ -55,6 +63,8 @@ class DailySummary(BaseModel):
     # Days in a row with at least one game finished, up to today (or yesterday, if not yet today).
     streak: int
     friends_today: list[FriendPlayed]
+    # Per game: today's results of the user and their friends, best first (a challenge among friends).
+    rankings: dict[str, list[RankEntry]] = {}
 
 
 class Check(BaseModel):
@@ -99,6 +109,20 @@ def _out(result: DailyResult) -> ResultOut:
     return ResultOut(game=result.game, day=result.day, time_ms=result.time_ms, attempts=result.attempts, completed=result.completed)
 
 
+async def rankings(session: AsyncSession, user_id: uuid.UUID, day: date, game: str | None = None) -> dict[str, list[RankEntry]]:
+    """Per game, the day's finished results of the user and their friends: the shortest time
+    first, then fewer attempts, then whoever finished first."""
+    people = await social.friend_ids(session, user_id) | {user_id}
+    query = select(DailyResult).where(DailyResult.user_id.in_(people), DailyResult.day == day, DailyResult.completed.is_(True))
+    if game is not None:
+        query = query.where(DailyResult.game == game)
+    rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.attempts, DailyResult.created_at))
+    out: dict[str, list[RankEntry]] = {}
+    for r in rows:
+        out.setdefault(r.game, []).append(RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts))
+    return out
+
+
 def streak_of(days: list[date], today: date) -> int:
     """Days in a row ending today, or yesterday when today has nothing yet."""
     played = set(days)
@@ -137,6 +161,7 @@ async def summary(user: CurrentUser, session: SessionDep) -> DailySummary:
         results=[_out(r) for r in mine],
         streak=streak_of(days, today),
         friends_today=[FriendPlayed(user_id=u, games=sorted(g)) for u, g in played.items()],
+        rankings=await rankings(session, user.id, today),
     )
 
 
@@ -151,7 +176,8 @@ async def today_puzzle(game_key: str, user: CurrentUser, session: SessionDep) ->
     except Exception:  # noqa: BLE001 - without Redis the app's time is trusted
         pass
     result = await session.get(DailyResult, (user.id, game.key, day))
-    return PuzzleOut(game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None)
+    ranking = (await rankings(session, user.id, day, game.key)).get(game.key, [])
+    return PuzzleOut(game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None, ranking=ranking)
 
 
 @router.post("/{game_key}/check", response_model=CheckOut)

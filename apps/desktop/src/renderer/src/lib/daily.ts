@@ -16,12 +16,20 @@ export interface DailyResult {
   completed: boolean
 }
 
+/** One line of a day's ranking among friends (the user included), best first. */
+export interface RankEntry {
+  user_id: string
+  time_ms: number
+  attempts: number
+}
+
 export interface DailySummary {
   day: string
   games: DailyGameKey[]
   results: DailyResult[]
   streak: number
   friends_today: { user_id: string; games: DailyGameKey[] }[]
+  rankings?: Partial<Record<DailyGameKey, RankEntry[]>>
 }
 
 export interface SudokuPuzzle {
@@ -35,6 +43,7 @@ export interface DailyPuzzle<P = unknown> {
   day: string
   puzzle: P
   result: DailyResult | null
+  ranking?: RankEntry[]
 }
 
 export interface CheckResult {

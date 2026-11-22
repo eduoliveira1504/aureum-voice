@@ -29,5 +29,10 @@
       "erase": "Erase",
       "number": "Number {{n}}"
     }
-  }
+  },
+  "ranking": "Friends ranking",
+  "rankingEmpty": "No friends finished today yet.",
+  "position": "#{{position}} of {{total}}",
+  "you": "You",
+  "beat": "{{name}} did it in {{time}}. Can you beat it?"
 }
