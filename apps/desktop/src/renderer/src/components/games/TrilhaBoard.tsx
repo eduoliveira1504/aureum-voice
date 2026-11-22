@@ -15,19 +15,46 @@ function openNeighbors(size: number, walls: [number, number][]): number[][] {
   })
 }
 
+/** Where a wall between two neighboring cells sits: the shared edge, in cell units. */
+function wallLine(size: number, a: number, b: number): { x1: number; y1: number; x2: number; y2: number } {
+  const first = Math.min(a, b)
+  const r = Math.floor(first / size)
+  const c = first % size
+  return Math.abs(a - b) === 1 ? { x1: c + 1, y1: r, x2: c + 1, y2: r + 1 } : { x1: c, y1: r + 1, x2: c + 1, y2: r + 1 }
+}
+
 /**
  * Trilha: drag from 1 (or use the arrows) to draw the path; going back over the last cell undoes
  * it, clicking a cell of the path cuts it there. Walls and numbers out of order can't be crossed.
  * Once the path goes through every cell, `onFilled` gets it for the API to check.
+ *
+ * Drawn as one SVG (block 4.2.10 fix): every cell the same size, walls on the edge between two
+ * cells, the path through the cells' centers. `solved` shows a finished path, read-only.
  */
-export function TrilhaBoard({ puzzle, disabled, onFilled }: { puzzle: TrilhaPuzzle; disabled: boolean; onFilled(path: number[]): void }): ReactNode {
+export function TrilhaBoard({
+  puzzle,
+  disabled,
+  onFilled,
+  solved
+}: {
+  puzzle: TrilhaPuzzle
+  disabled: boolean
+  onFilled(path: number[]): void
+  solved?: number[]
+}): ReactNode {
   const { size, numbers, walls } = puzzle
   const cells = size * size
   const start = numbers.indexOf(1)
   const last = Math.max(...numbers)
   const open = useMemo(() => openNeighbors(size, walls), [size, walls])
-  const [path, setPath] = useState<number[]>([start])
+  const [path, setPath] = useState<number[]>(() => solved ?? [start])
   const dragging = useRef(false)
+  const board = useRef<SVGSVGElement>(null)
+  const readOnly = disabled || !!solved
+
+  useEffect(() => {
+    if (!solved) board.current?.focus()
+  }, [solved])
 
   useEffect(() => {
     const stop = (): void => void (dragging.current = false)
@@ -39,7 +66,7 @@ export function TrilhaBoard({ puzzle, disabled, onFilled }: { puzzle: TrilhaPuzz
   const expected = (p: number[]): number => Math.max(...p.map((i) => numbers[i])) + 1
 
   const extend = (cell: number): void => {
-    if (disabled) return
+    if (readOnly) return
     const end = path[path.length - 1]
     if (path.length > 1 && cell === path[path.length - 2]) return setPath(path.slice(0, -1)) // back over the last step
     if (path.includes(cell) || !open[end].includes(cell)) return
@@ -51,92 +78,116 @@ export function TrilhaBoard({ puzzle, disabled, onFilled }: { puzzle: TrilhaPuzz
     if (next.length === cells) onFilled(next)
   }
   const cut = (cell: number): void => {
-    if (disabled) return
+    if (readOnly) return
     setPath((p) => (p.includes(cell) ? p.slice(0, p.indexOf(cell) + 1) : p))
   }
 
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+  const onKeyDown = (e: KeyboardEvent<SVGSVGElement>): void => {
     const end = path[path.length - 1]
     const step = { ArrowUp: -size, ArrowDown: size, ArrowLeft: -1, ArrowRight: 1 }[e.key]
     if (step !== undefined) {
       const target = end + step
       const sameRow = Math.abs(step) !== 1 || Math.floor(target / size) === Math.floor(end / size)
       if (target >= 0 && target < cells && sameRow) extend(target)
-    } else if (e.key === 'Backspace') setPath((p) => (p.length > 1 ? p.slice(0, -1) : p))
+    } else if (e.key === 'Backspace' && !readOnly) setPath((p) => (p.length > 1 ? p.slice(0, -1) : p))
     else return
     e.preventDefault()
   }
 
-  const center = (i: number): string => `${(i % size) + 0.5},${Math.floor(i / size) + 0.5}`
-  const wallRight = (i: number): boolean => i % size < size - 1 && !open[i].includes(i + 1)
-  const wallDown = (i: number): boolean => i + size < cells && !open[i].includes(i + size)
+  const x = (i: number): number => (i % size) + 0.5
+  const y = (i: number): number => Math.floor(i / size) + 0.5
+  const lines = Array.from({ length: size - 1 }, (_, k) => k + 1)
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div
+      <svg
         role="grid"
         aria-label={t('games.games.trilha.name')}
+        ref={board}
         tabIndex={0}
-        autoFocus
         onKeyDown={onKeyDown}
-        className="relative grid aspect-square w-full max-w-[420px] touch-none select-none overflow-hidden rounded-control border-2 border-fg-subtle bg-main outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
+        viewBox={`-0.06 -0.06 ${size + 0.12} ${size + 0.12}`}
+        className="aspect-square w-full max-w-[420px] touch-none select-none rounded-control outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       >
-        <svg aria-hidden viewBox={`0 0 ${size} ${size}`} className="pointer-events-none absolute inset-0 h-full w-full">
-          <polyline points={path.map(center).join(' ')} fill="none" className="stroke-accent" strokeWidth={0.32} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />
-        </svg>
-        {Array.from({ length: cells }, (_, i) => {
-          const r = Math.floor(i / size)
-          const c = i % size
-          const onPath = path.includes(i)
-          const n = numbers[i]
-          return (
-            <div
-              key={i}
-              role="gridcell"
-              aria-label={`${t('games.games.trilha.cell', { row: r + 1, col: c + 1 })}${n ? `: ${n}` : ''}`}
-              aria-selected={onPath}
-              data-cell={i}
-              onPointerDown={(e) => {
-                e.preventDefault()
-                dragging.current = true
-                if (onPath) cut(i)
-                else extend(i)
-              }}
-              onPointerEnter={() => dragging.current && extend(i)}
-              className={`relative flex items-center justify-center ${wallRight(i) ? 'border-r-4 border-r-fg' : c < size - 1 ? 'border-r border-r-line' : ''} ${
-                wallDown(i) ? 'border-b-4 border-b-fg' : r < size - 1 ? 'border-b border-b-line' : ''
-              } ${onPath ? 'bg-accent/15' : ''}`}
-            >
-              {n > 0 && (
-                <span className={`relative z-raised flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${onPath ? 'bg-accent text-on-accent' : 'bg-fg text-main'}`}>
+        <rect x={0} y={0} width={size} height={size} rx={0.12} className="fill-main" />
+        {/* Every cell: tinted once the path goes through it, and where the pointer lands. */}
+        {Array.from({ length: cells }, (_, i) => (
+          <rect
+            key={i}
+            role="gridcell"
+            data-cell={i}
+            aria-label={`${t('games.games.trilha.cell', { row: Math.floor(i / size) + 1, col: (i % size) + 1 })}${numbers[i] ? `: ${numbers[i]}` : ''}`}
+            aria-selected={path.includes(i)}
+            x={i % size}
+            y={Math.floor(i / size)}
+            width={1}
+            height={1}
+            className={path.includes(i) ? 'fill-accent/15' : 'fill-transparent'}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              dragging.current = true
+              if (path.includes(i)) cut(i)
+              else extend(i)
+            }}
+            onPointerEnter={() => dragging.current && extend(i)}
+          />
+        ))}
+        <g className="pointer-events-none">
+          {lines.map((k) => (
+            <g key={k} className="stroke-line" strokeWidth={0.02}>
+              <line x1={k} y1={0} x2={k} y2={size} />
+              <line x1={0} y1={k} x2={size} y2={k} />
+            </g>
+          ))}
+          <rect x={0} y={0} width={size} height={size} rx={0.12} fill="none" className="stroke-fg-subtle" strokeWidth={0.06} />
+          {path.length > 1 && (
+            <polyline
+              points={path.map((i) => `${x(i)},${y(i)}`).join(' ')}
+              fill="none"
+              className="stroke-accent"
+              strokeWidth={0.34}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.75}
+            />
+          )}
+          {walls.map(([a, b]) => (
+            <line key={`${a}-${b}`} {...wallLine(size, a, b)} className="stroke-fg" strokeWidth={0.12} strokeLinecap="round" />
+          ))}
+          {numbers.map((n, i) =>
+            n ? (
+              <g key={i}>
+                <circle cx={x(i)} cy={y(i)} r={0.3} className={path.includes(i) ? 'fill-accent' : 'fill-fg'} />
+                <text x={x(i)} y={y(i)} dy="0.12em" textAnchor="middle" fontSize={0.34} fontWeight={700} className={path.includes(i) ? 'fill-on-accent' : 'fill-main'}>
                   {n}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={disabled || path.length < 2}
-          onClick={() => setPath((p) => p.slice(0, -1))}
-          className="flex items-center gap-1.5 rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-50"
-        >
-          <Undo2 size={16} />
-          {t('games.games.trilha.undo')}
-        </button>
-        <button
-          type="button"
-          disabled={disabled || path.length < 2}
-          onClick={() => setPath([start])}
-          className="flex items-center gap-1.5 rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-50"
-        >
-          <RotateCcw size={16} />
-          {t('games.games.trilha.restart')}
-        </button>
-      </div>
+                </text>
+              </g>
+            ) : null
+          )}
+        </g>
+      </svg>
+      {!solved && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={readOnly || path.length < 2}
+            onClick={() => setPath((p) => p.slice(0, -1))}
+            className="flex items-center gap-1.5 rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-50"
+          >
+            <Undo2 size={16} />
+            {t('games.games.trilha.undo')}
+          </button>
+          <button
+            type="button"
+            disabled={readOnly || path.length < 2}
+            onClick={() => setPath([start])}
+            className="flex items-center gap-1.5 rounded-control border border-line px-3 py-1.5 text-sm font-medium text-fg-muted hover:bg-elevated hover:text-fg disabled:opacity-50"
+          >
+            <RotateCcw size={16} />
+            {t('games.games.trilha.restart')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
