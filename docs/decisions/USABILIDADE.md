@@ -146,7 +146,7 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
 - **Problema:** tema e palavras ficam em português (a lista é nossa e em português).
 - **Sugestão:** manter; se o app abrir para fora, uma lista em inglês. Médio.
 
-### Configurações com abas demais (pedido do Eduardo, 22/11)
+### Configurações com abas demais (pedido do Eduardo, 22/11) ✅ resolvido (seis grupos numa coluna, 22/11)
 - **Tela:** Configurações.
 - **Problema:** 13 abas numa linha só (Convites, Atividade, Aparência, Idioma, Voz e vídeo, Sons,
   Notificações, Privacidade, Dicas, Overlay, Windows, Problemas, Sobre); cortam até num monitor de 27".
