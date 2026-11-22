@@ -201,5 +201,12 @@
     "close": "Close DM",
     "copyId": "Copy ID",
     "idCopied": "ID copied"
+  },
+  "mention": {
+    "list": "Who to mention",
+    "all": "Everyone who sees this channel",
+    "here": "Who is online now",
+    "role": "Role",
+    "someRole": "role"
   }
 }

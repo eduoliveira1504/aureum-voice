@@ -72,7 +72,7 @@
     "hoist": "Exibir separadamente",
     "hoistHint": "Quem tem o cargo aparece num grupo próprio na lista de membros.",
     "mentionable": "Mencionável",
-    "mentionableHint": "Reservado: menções a cargos chegam numa próxima versão.",
+    "mentionableHint": "Qualquer membro pode marcar este cargo com @. Sem isso, só quem pode mencionar @all.",
     "everyoneHint": "O que todo mundo do servidor pode fazer, antes dos outros cargos.",
     "undo": "Desfazer",
     "delete": "Excluir cargo",

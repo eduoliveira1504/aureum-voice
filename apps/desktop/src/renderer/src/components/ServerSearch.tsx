@@ -11,6 +11,7 @@ import { messagePreview } from '../lib/attachments'
 import { orderedChannels } from '../lib/channelOrder'
 import { dateFormat } from '../lib/format'
 import { memberName } from '../lib/members'
+import { roleNameIn } from '../lib/mentions'
 import { t } from '../lib/i18n'
 import { useChat } from '../store/chat'
 import { channelTab, useNav } from '../store/nav'
@@ -215,7 +216,7 @@ export function ServerSearchModal({ server, onClose }: { server: ServerDetail; o
                       </span>
                       <span className="shrink-0 text-xs text-fg-subtle">{day.format(new Date(message.created_at))}</span>
                     </span>
-                    <span className="line-clamp-3 block text-sm wrap-anywhere text-fg-muted">{messagePreview(message)}</span>
+                    <span className="line-clamp-3 block text-sm wrap-anywhere text-fg-muted">{messagePreview(message, roleNameIn([server]))}</span>
                   </span>
                 </button>
               </li>

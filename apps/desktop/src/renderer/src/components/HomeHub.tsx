@@ -3,6 +3,7 @@ import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, typ
 
 import type { Activity, Dm, Friend, HomeTask, Me, Message, Presence, ServerDetail, User } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
+import { roleNameIn } from '../lib/mentions'
 import { memberName } from '../lib/members'
 import { channelPermissions, has, Perm } from '../lib/permissions'
 import { useActivity } from '../store/activity'
@@ -351,7 +352,7 @@ export function previewOf(message: Message): string {
     const seconds = Math.round((voice.duration_ms ?? 0) / 1000)
     return `Mensagem de voz · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
   }
-  return messagePreview(message).replace(/\s+/g, ' ')
+  return messagePreview(message, roleNameIn(Object.values(useChat.getState().servers))).replace(/\s+/g, ' ')
 }
 
 function Pending({ me }: { me: Me }): ReactNode {

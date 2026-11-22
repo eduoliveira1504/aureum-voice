@@ -201,5 +201,12 @@
     "close": "Fechar DM",
     "copyId": "Copiar ID",
     "idCopied": "ID copiado"
+  },
+  "mention": {
+    "list": "Quem marcar",
+    "all": "Todos que veem este canal",
+    "here": "Quem está online agora",
+    "role": "Cargo",
+    "someRole": "cargo"
   }
 }

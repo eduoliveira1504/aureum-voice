@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { api, type Channel, type Member, type Message, type Reaction, type ReadState, type Server, type ServerDetail } from '../lib/api'
 import { messagePreview } from '../lib/attachments'
+import { roleNameIn } from '../lib/mentions'
 import { channelGroups, stepId, withArrangement } from '../lib/channelOrder'
 import { DEVICE_ID, type ConnectionStatus, type ServerEvent } from '../lib/realtime'
 import { playSound } from '../lib/sounds'
@@ -47,7 +48,7 @@ function messageAlert(message: Message, serverId: string | null, mentioned: bool
       name: author.display_name,
       username: author.username,
       avatarUrl: author.avatar_url,
-      text: messagePreview(message)
+      text: messagePreview(message, roleNameIn(Object.values(useChat.getState().servers)))
     })
   }
 }

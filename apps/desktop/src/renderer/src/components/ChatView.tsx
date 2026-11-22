@@ -16,7 +16,7 @@ import {
 
 import { addonIcon, chatAddon, chatComposerAddons } from '../addons/registry'
 import { useAuth } from '../auth/AuthProvider'
-import { api, ApiError, uploadFile, type Attachment, type Channel, type Gif, type Me, type Message, type OfficialEventRef, type Sticker, type User } from '../lib/api'
+import { api, ApiError, uploadFile, type Attachment, type Channel, type Gif, type Me, type Message, type OfficialEventRef, type Role, type Sticker, type User } from '../lib/api'
 import { seedAttachment } from '../lib/attachments'
 import { isInternalDrag } from '../lib/internalDrag'
 import type { Recording } from '../lib/voiceRecorder'
@@ -34,6 +34,8 @@ import { ReplyBar, ReplyQuote } from './MessageReply'
 import { ReactionChips } from './MessageReactions'
 import { ForwardModal } from './ForwardModal'
 import { EmojiText, pickEmoji, useEmojiAutocomplete } from './Emoji'
+import { mentionSourcesFor, useMentionAutocomplete } from './MentionAutocomplete'
+import { MENTION_ALL, MENTION_HERE, ROLE_MENTION, withRoleTokens } from '../lib/mentions'
 import { LinkPreviews } from './LinkPreviews'
 import { GifMessage } from './Gifs'
 import { MessageMenuContext } from './ImageMenu'
@@ -171,7 +173,15 @@ function Linkified({
         <ChannelMention key={j} id={piece} />
       ) : (
         <Fragment key={j}>
-          {withMentions(piece, mention).map((node, k) => (typeof node === 'string' ? <EmojiText key={k} text={node} /> : <Fragment key={k}>{node}</Fragment>))}
+          {piece.split(ROLE_MENTION).map((bit, r) =>
+            r % 2 === 1 ? (
+              <RoleMention key={r} id={bit} own={own} />
+            ) : (
+              <Fragment key={r}>
+                {withMentions(bit, mention).map((node, k) => (typeof node === 'string' ? <EmojiText key={k} text={node} /> : <Fragment key={k}>{node}</Fragment>))}
+              </Fragment>
+            )
+          )}
         </Fragment>
       )
     )
@@ -264,6 +274,34 @@ function OfficialEvent({ event }: { event: OfficialEventRef }): ReactNode {
 }
 
 /** An @mention: opens the person's profile, and their menu on right click. */
+const mentionChip = (own: boolean): string =>
+  `inline-flex max-w-full items-center gap-1 rounded-sm px-0.5 align-bottom font-medium ${own ? 'underline' : 'bg-accent/15 text-accent-text'}`
+
+/** "<@&id>" in the text: the role's @name in its color. A role that's gone reads "@cargo". */
+function RoleMention({ id, own }: { id: string; own: boolean }): ReactNode {
+  const role = useChat((s) => {
+    for (const server of Object.values(s.servers)) {
+      const found = server.roles.find((r) => r.id === id)
+      if (found) return found
+    }
+    return undefined
+  })
+  return (
+    <span className={mentionChip(own)} style={role?.color && !own ? { color: role.color } : undefined}>
+      <span className="truncate">@{role?.name ?? t('chat.mention.someRole')}</span>
+    </span>
+  )
+}
+
+/** @all and @here in a server channel (they only notify with MENTION_EVERYONE, but always read as one). */
+function EveryoneMention({ name, own }: { name: string; own: boolean }): ReactNode {
+  return (
+    <span className={mentionChip(own)} title={name === MENTION_ALL ? t('chat.mention.all') : t('chat.mention.here')}>
+      @{name}
+    </span>
+  )
+}
+
 function Mention({ user, own, onOpen, onMenu }: { user: User; own: boolean; onOpen(target: Element): void; onMenu(e: MouseEvent): void }): ReactNode {
   return (
     <button
@@ -345,7 +383,9 @@ export function ChatView({
   const mentionFor =
     (own: boolean) =>
     (username: string): ReactNode => {
-      const user = byUsername.get(username.toLowerCase())
+      const lower = username.toLowerCase()
+      if (channel.server_id && (lower === MENTION_ALL || lower === MENTION_HERE)) return <EveryoneMention name={lower} own={own} />
+      const user = byUsername.get(lower)
       if (!user) return null
       return (
         <Mention
@@ -1066,6 +1106,13 @@ function Composer({
     })
   }
   const autocomplete = useEmojiAutocomplete(value, caret, putEmoji)
+  // "@" suggestions; roles picked from them are sent as their token (lib/mentions.ts).
+  const meId = useChat((s) => s.meId)
+  const server = useChat((s) => (channel.server_id ? s.servers[channel.server_id] : undefined))
+  const dmMembers = useSocial((s) => (channel.server_id ? undefined : s.dms[channel.id]?.members))
+  const mentionSources = useMemo(() => mentionSourcesFor(channel, server, dmMembers, meId), [channel, server, dmMembers, meId])
+  const pickedRoles = useRef<Role[]>([])
+  const mentions = useMentionAutocomplete(value, caret, mentionSources, putEmoji, (role) => pickedRoles.current.push(role))
 
   // Picking "Responder" puts the cursor in the box.
   useEffect(() => {
@@ -1129,11 +1176,12 @@ function Composer({
     try {
       await sendMessage(
         channel.id,
-        content,
+        withRoleTokens(content, pickedRoles.current),
         pending.map((f) => f.attachment!.id),
         replyTo ?? undefined
       )
       onReplied()
+      pickedRoles.current = []
       for (const f of pending) {
         seedAttachment(f.attachment!, f.file)
         if (f.preview) URL.revokeObjectURL(f.preview)
@@ -1212,7 +1260,7 @@ function Composer({
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (autocomplete.onKeyDown(e)) return
+    if (mentions.onKeyDown(e) || autocomplete.onKeyDown(e)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       void send()
@@ -1271,6 +1319,7 @@ function Composer({
           </>
         )}
         <div className="relative min-w-0 flex-1">
+          {mentions.popup}
           {autocomplete.popup}
           <AutoTextarea
             key={channel.id}

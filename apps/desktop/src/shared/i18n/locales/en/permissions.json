@@ -75,8 +75,8 @@
       "description": "Upload, rename and remove the server's stickers."
     },
     "MENTION_EVERYONE": {
-      "label": "Mention @everyone",
-      "description": "Reserved: role mentions come in a future version."
+      "label": "Mention @all, @here and roles",
+      "description": "Mention everyone in the channel (@all), who's online (@here) and any role, even those that aren't mentionable."
     },
     "CONNECT": {
       "label": "Connect",

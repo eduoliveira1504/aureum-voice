@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { fetchMedia, type Attachment } from './api'
 import { numberFormat } from './format'
 import { t } from './i18n'
+import { plainMentions } from './mentions'
 
 const MEMORY_BYTES = 150 * 1024 * 1024
 
@@ -124,9 +125,10 @@ export function formatSize(bytes: number): string {
   return `${numberFormat({ maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${SIZE_UNITS[unit]}`
 }
 
-/** A message's text, or what it sent when it's only files ("enviou uma imagem"). */
-export function messagePreview(message: { content: string; attachments: Attachment[] }): string {
-  if (message.content) return message.content
+/** A message's text, or what it sent when it's only files ("enviou uma imagem"). Role mentions
+ * read as "@Nome" when `roleName` knows the role. */
+export function messagePreview(message: { content: string; attachments: Attachment[] }, roleName: (id: string) => string | undefined = () => undefined): string {
+  if (message.content) return plainMentions(message.content, roleName, t('chat.mention.someRole'))
   const files = message.attachments
   if (files.length === 1) {
     return files[0].kind === 'image'

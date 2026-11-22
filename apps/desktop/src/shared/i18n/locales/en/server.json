@@ -72,7 +72,7 @@
     "hoist": "Display separately",
     "hoistHint": "People with the role show in their own group in the member list.",
     "mentionable": "Mentionable",
-    "mentionableHint": "Reserved: role mentions come in a future version.",
+    "mentionableHint": "Any member can mention this role with @. Otherwise, only who can mention @all.",
     "everyoneHint": "What everyone on the server can do, before the other roles.",
     "undo": "Undo",
     "delete": "Delete role",

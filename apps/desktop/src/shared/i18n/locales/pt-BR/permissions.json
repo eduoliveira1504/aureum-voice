@@ -75,8 +75,8 @@
       "description": "Enviar, renomear e remover as figurinhas do servidor."
     },
     "MENTION_EVERYONE": {
-      "label": "Mencionar @everyone",
-      "description": "Reservado: menções a cargos chegam numa próxima versão."
+      "label": "Mencionar @all, @here e cargos",
+      "description": "Marcar todos do canal (@all), quem está online (@here) e qualquer cargo, mesmo os que não são mencionáveis."
     },
     "CONNECT": {
       "label": "Conectar",
