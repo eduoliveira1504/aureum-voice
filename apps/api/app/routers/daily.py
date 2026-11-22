@@ -58,6 +58,8 @@ class PuzzleOut(BaseModel):
     result: ResultOut | None = None
     # Today's results of the user and their friends in this game, best first.
     ranking: list[RankEntry] = []
+    # The answer key, only once the user finished this day's puzzle (the board shown after it).
+    solution: Any = None
 
 
 class FriendPlayed(BaseModel):
@@ -208,7 +210,8 @@ async def today_puzzle(game_key: str, user: CurrentUser, session: SessionDep) ->
         pass
     result = await session.get(DailyResult, (user.id, game.key, day))
     ranking = (await rankings(session, user.id, day, game.key)).get(game.key, [])
-    return PuzzleOut(game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None, ranking=ranking)
+    solution = saved.solution if result is not None and result.completed else None
+    return PuzzleOut(game=game.key, day=day, puzzle=saved.puzzle, result=_out(result) if result else None, ranking=ranking, solution=solution)
 
 
 @router.post("/{game_key}/check", response_model=CheckOut)

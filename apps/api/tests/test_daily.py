@@ -28,10 +28,13 @@ async def check(user: ApiUser, game: str, day: str, answer: Any, time_ms: int = 
     return res.json()
 
 
-def test_the_day_is_brasilias() -> None:
-    # 01:30 UTC is still the day before in Brasília.
+def test_the_day_is_brasilias_and_turns_at_1am() -> None:
+    # 01:30 UTC is 22:30 the day before in Brasília.
     assert daily.today(datetime(2026, 11, 23, 1, 30, tzinfo=UTC)) == date(2026, 11, 22)
-    assert daily.today(datetime(2026, 11, 23, 3, 0, tzinfo=UTC)) == date(2026, 11, 23)
+    # Midnight and 00:59 in Brasília still play the day before; 1 a.m. brings the new one.
+    assert daily.today(datetime(2026, 11, 23, 3, 0, tzinfo=UTC)) == date(2026, 11, 22)
+    assert daily.today(datetime(2026, 11, 23, 3, 59, tzinfo=UTC)) == date(2026, 11, 22)
+    assert daily.today(datetime(2026, 11, 23, 4, 0, tzinfo=UTC)) == date(2026, 11, 23)
 
 
 @pytest.mark.parametrize("offset", range(7))
@@ -50,7 +53,8 @@ async def test_everyone_gets_the_same_puzzle_without_the_answer(client: AsyncCli
     first = (await ana.get("/daily/sudoku")).json()
     second = (await bia.get("/daily/sudoku")).json()
     assert first["puzzle"] == second["puzzle"] and first["day"] == daily.today().isoformat()
-    assert "solution" not in first and first["result"] is None
+    # The answer key only comes once the puzzle is finished.
+    assert first["solution"] is None and first["result"] is None
     assert 0 in first["puzzle"]["givens"]
     assert (await ana.get("/daily/xadrez")).status_code == 404
 
@@ -73,7 +77,8 @@ async def test_one_result_per_day_counting_the_wrong_tries(client: AsyncClient) 
     assert result["time_ms"] <= 5_000
     # Again: the same result, nothing new.
     assert (await check(ana, "sudoku", day, solution, time_ms=1))["result"] == result
-    assert (await ana.get("/daily/sudoku")).json()["result"] == result
+    after = (await ana.get("/daily/sudoku")).json()
+    assert after["result"] == result and after["solution"] == solution
 
 
 async def test_only_today_and_yesterday_are_open(client: AsyncClient) -> None:
@@ -343,3 +348,15 @@ def uuid_of(user: ApiUser):  # noqa: ANN201
     import uuid
 
     return uuid.UUID(user.id)
+
+
+def test_streak_badges_top_out_at_legendary() -> None:
+    from app.badges import BADGES
+    from app.models import BadgeRarity
+
+    daily_badges = [b for k, b in BADGES.items() if k.startswith("daily_")]
+    assert len(daily_badges) == 18
+    assert all(b.rarity != BadgeRarity.mitica for b in daily_badges)
+    assert BADGES["daily_sudoku_365"].rarity == BadgeRarity.lendaria
+    # No mythic outer ring in their art.
+    assert 'points="48,4' not in BADGES["daily_sudoku_365"].icon_svg

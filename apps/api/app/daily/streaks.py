@@ -61,10 +61,11 @@ def badge_prefix(game: str) -> str:
 
 
 # --- Badge art --------------------------------------------------------------------------------
-# The hexagon of the other badges; the metal follows the rarity (bronze, silver, gold, gold with an
-# outer ring), the game's symbol sits in the middle and a plate shows the days.
+# The hexagon of the other badges; the metal follows the rarity (bronze, silver, gold), the game's
+# symbol sits in the middle and a plate shows the days.
 
-RARITY = {3: BadgeRarity.comum, 7: BadgeRarity.comum, 30: BadgeRarity.rara, 90: BadgeRarity.rara, 180: BadgeRarity.lendaria, 365: BadgeRarity.mitica}
+# Mythic stays for Fundador and Pioneiro (Eduardo, 22/11): the streak badges top out at legendary.
+RARITY = {3: BadgeRarity.comum, 7: BadgeRarity.comum, 30: BadgeRarity.rara, 90: BadgeRarity.rara, 180: BadgeRarity.lendaria, 365: BadgeRarity.lendaria}
 METAL = {
     BadgeRarity.comum: ("#D08A4E", "#2B1C10"),
     BadgeRarity.rara: ("#C9D1DA", "#1C2228"),

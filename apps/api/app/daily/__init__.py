@@ -15,10 +15,13 @@ from typing import Any
 
 # Brazil has had no daylight saving time since 2019, and the slim image has no tz database.
 BRASILIA = timezone(timedelta(hours=-3))
+# A new day's puzzles come out at 1 a.m. in Brasília (Eduardo, 22/11), not at midnight.
+NEW_DAY_AT = timedelta(hours=1)
 
 
 def today(now: datetime | None = None) -> date:
-    return (now or datetime.now(UTC)).astimezone(BRASILIA).date()
+    """The games' day: Brasília's, turning at 1 a.m."""
+    return ((now or datetime.now(UTC)).astimezone(BRASILIA) - NEW_DAY_AT).date()
 
 
 def rng_for(game: str, day: date) -> random.Random:
