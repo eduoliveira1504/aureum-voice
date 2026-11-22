@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app import daily
-from app.daily import sudoku
+from app.daily import sudoku, trilha
 from app.db import engine
 from app.routers.daily import streak_of
 from tests.helpers import ApiUser, make_user
@@ -94,7 +94,7 @@ async def test_summary_with_streak_and_friends(client: AsyncClient) -> None:
                 {"u": ana.id, "d": today - timedelta(days=back)},
             )
     summary = (await ana.get("/daily")).json()
-    assert summary["games"] == ["sudoku"] and summary["results"] == []
+    assert summary["games"] == ["sudoku", "trilha"] and summary["results"] == []
     # Yesterday and the day before; today not played yet still counts the run.
     assert summary["streak"] == 2
     # Only friends show, and only today's games.
@@ -131,3 +131,37 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
     assert (await ana.get("/daily/sudoku")).json()["ranking"] == expected
     # Bia only sees her own friends (Ana), not Caio.
     assert [r["user_id"] for r in (await bia.get("/daily/sudoku")).json()["ranking"]] == [bia.id, ana.id]
+
+
+@pytest.mark.parametrize("offset", range(10))
+def test_every_trilha_has_one_path(offset: int) -> None:
+    day = date(2026, 11, 22) + timedelta(days=offset)
+    puzzle, path = trilha.generate(daily.rng_for("trilha", day))
+    assert trilha.solutions(puzzle["numbers"], puzzle["walls"], limit=3) == [path]
+    numbers = puzzle["numbers"]
+    # Starts on 1, ends on the highest, and stays readable: few numbers.
+    assert numbers[path[0]] == 1 and numbers[path[-1]] == max(numbers) <= 12
+    assert trilha.generate(daily.rng_for("trilha", day))[0] == puzzle
+
+
+def test_trilha_checks_the_rules() -> None:
+    puzzle, path = trilha.generate(daily.rng_for("trilha", date(2026, 11, 22)))
+    assert trilha.check(puzzle, path, path)
+    assert not trilha.check(puzzle, path, path[::-1])  # backwards: the numbers out of order
+    assert not trilha.check(puzzle, path, path[:-1])  # a cell left out
+    jump = list(path)
+    jump[1], jump[2] = jump[2], jump[1]
+    assert not trilha.check(puzzle, path, jump)  # not neighbors, or numbers out of order
+    if puzzle["walls"]:
+        a, b = puzzle["walls"][0]
+        assert b not in [n for n in trilha.NEIGHBORS[a] if trilha._open_bits(puzzle["walls"])[a] >> n & 1]
+    assert not trilha.check(puzzle, path, "nope")
+
+
+async def test_trilha_is_played_like_the_others(client: AsyncClient) -> None:
+    ana = await make_user(client, "ana")
+    got = (await ana.get("/daily/trilha")).json()
+    assert set(got["puzzle"]) == {"size", "numbers", "walls"}
+    day = got["day"]
+    path = await solution_of("trilha", day)
+    assert (await check(ana, "trilha", day, path))["result"]["attempts"] == 1

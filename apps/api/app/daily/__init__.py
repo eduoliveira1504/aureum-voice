@@ -37,9 +37,9 @@ class DailyGame:
 
 
 def _games() -> dict[str, DailyGame]:
-    from app.daily import sudoku
+    from app.daily import sudoku, trilha
 
-    return {g.key: g for g in (sudoku.GAME,)}
+    return {g.key: g for g in (sudoku.GAME, trilha.GAME)}
 
 
 GAMES: dict[str, DailyGame] = _games()
