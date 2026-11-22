@@ -189,13 +189,13 @@ def _out(result: DailyResult) -> ResultOut:
 
 async def rankings(session: AsyncSession, user_id: uuid.UUID, day: date, game: str | None = None) -> dict[str, list[RankEntry]]:
     """Per game, the day's finished results of the user and their friends: the shortest time
-    first, then fewer hints, then whoever finished first (tries aren't shown: in Trilha and
-    Caça-palavras the app never lets a wrong answer through, Eduardo 22/11)."""
+    first; on the very same time, whoever finished first. Only the time counts (Eduardo, 22/11):
+    hints are shown, never weighed."""
     people = await social.friend_ids(session, user_id) | {user_id}
     query = select(DailyResult).where(DailyResult.user_id.in_(people), DailyResult.day == day, DailyResult.completed.is_(True))
     if game is not None:
         query = query.where(DailyResult.game == game)
-    rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.hints, DailyResult.created_at))
+    rows = await session.scalars(query.order_by(DailyResult.time_ms, DailyResult.created_at))
     out: dict[str, list[RankEntry]] = {}
     for r in rows:
         out.setdefault(r.game, []).append(RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts, hints=r.hints))
@@ -409,7 +409,7 @@ async def channel_ranking(game_key: str, channel_id: uuid.UUID, day: date, user:
     rows = await session.scalars(
         select(DailyResult)
         .where(DailyResult.user_id.in_(people), DailyResult.game == game.key, DailyResult.day == day, DailyResult.completed.is_(True))
-        .order_by(DailyResult.time_ms, DailyResult.hints, DailyResult.created_at)
+        .order_by(DailyResult.time_ms, DailyResult.created_at)
     )
     return [RankEntry(user_id=r.user_id, time_ms=r.time_ms, attempts=r.attempts, hints=r.hints) for r in rows]
 

@@ -144,7 +144,7 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
                 text("INSERT INTO daily_results (user_id, game, day, time_ms, attempts) VALUES (:u, 'sudoku', :d, :t, :a)"),
                 {"u": user.id, "d": day, "t": time_ms, "a": attempts},
             )
-    # Ties go to fewer hints, then to who finished first (Bia's row went in before Caio's).
+    # Only the time counts; on the same time, who finished first (Bia's row went in before Caio's).
     expected = [
         {"user_id": bia.id, "time_ms": 60_000, "attempts": 3, "hints": 0},
         {"user_id": caio.id, "time_ms": 60_000, "attempts": 1, "hints": 0},
@@ -155,10 +155,11 @@ async def test_friends_see_each_others_times_in_a_ranking(client: AsyncClient) -
     assert (await ana.get("/daily/sudoku")).json()["ranking"] == expected
     # Bia only sees her own friends (Ana), not Caio.
     assert [r["user_id"] for r in (await bia.get("/daily/sudoku")).json()["ranking"]] == [bia.id, ana.id]
-    # Fewer hints win a tie in time.
+    # Hints show, but never change the order.
     async with engine.begin() as conn:
         await conn.execute(text("UPDATE daily_results SET hints = 2 WHERE user_id = :u"), {"u": bia.id})
-    assert [r["user_id"] for r in (await ana.get("/daily/sudoku")).json()["ranking"]][:2] == [caio.id, bia.id]
+    ranking = (await ana.get("/daily/sudoku")).json()["ranking"]
+    assert [r["user_id"] for r in ranking][:2] == [bia.id, caio.id] and ranking[0]["hints"] == 2
 
 
 @pytest.mark.parametrize("difficulty", daily.DIFFICULTIES)
