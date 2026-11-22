@@ -117,4 +117,17 @@ bloco; o resto vira item novo. Formato: tela, problema, sugestão.
 - **Sugestão:** uma linha discreta embaixo do campo: "Você não pode marcar todos neste canal".
   Pequeno.
 
+### "Mostrar o jogo" não esconde a atividade manual (4.2.5)
+- **Tela:** Configurações › Atividade.
+- **Problema:** desligar "Mostrar o jogo que estou jogando" para a detecção, mas uma atividade
+  manual preenchida continua aparecendo. Quem quer sumir pode achar que a opção não funcionou.
+- **Sugestão:** com a opção desligada, a atividade manual também não ir (ou um aviso ao lado dela).
+  Pequeno.
+
+### O teste de "nenhum texto fixo" não olha template strings (4.2.5)
+- **Tela:** nenhuma (qualidade).
+- **Problema:** o teste do 4.2.6 só encontra texto dentro do JSX; textos montados com `${}` passaram
+  ("pessoas", "transmitindo", "membros", "Mensagem de voz", corrigidos agora). Pode haver outros.
+- **Sugestão:** o teste procurar também palavras em português dentro de template strings. Pequeno.
+
 ## Resolvidos

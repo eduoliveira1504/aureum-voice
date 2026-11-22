@@ -143,7 +143,15 @@ Produção: backup com data no nome, depois `alembic upgrade heads` (core f3b9d5
 - Paginação e limite de resultados; campo vazio e "nada encontrado" tratados.
 - Testes: não retorna mensagem de canal privado sem acesso; filtros; permissão checada na API.
 
-## 4.2.5 Atividade ao vivo
+## 4.2.5 Atividade ao vivo ✅ código concluído (falta teste manual)
+
+Já existia (2.5 e 4.1.3): a atividade guarda o início, expira sem sinal do app, chega por WebSocket
+e a opção "Mostrar o jogo que estou jogando" desliga a detecção (o app manda "nada" na hora). O
+cartão de perfil já mostrava o tempo. Feito agora: "Jogando X · há 2 h" na lista de amigos e no hub
+do Início (salas ao vivo e Ativos agora), atualizando a cada minuto. Sem mudança na API. De quebra,
+quatro textos fixos em português que o 4.2.6 deixou passar (pessoas, transmitindo, membros, mensagem
+de voz) agora usam as traduções.
+
 - Mostrar "Jogando X" com o tempo (ex: "há 2 h") no cartão de perfil, na lista de amigos e no hub do Início.
 - Usa o que o 2.5 já detecta (lista própria de jogos). Depende do fix da 4.1.3 (atividade expira sem sinal).
 - Respeitar a opção de privacidade de atividade que já existe; se não existir, criar "Mostrar o que estou jogando".
