@@ -1,11 +1,43 @@
 # Novidades do Aureum
 
-## Próxima versão
+## 0.2.0-beta.12
 
+- **Jogos do dia:** no Início, embaixo de Amigos, tem uma página nova com três joguinhos que mudam
+  todo dia à 1h da manhã: Sudoku, Trilha (ligue os números passando por todas as casas) e
+  Caça-palavras. O desafio é o mesmo pra todo mundo, e cada dia sai fácil, médio ou difícil.
+  - Ranking com o tempo dos seus amigos, e dá pra desafiar alguém por mensagem ou num canal do
+    servidor: vai só o seu tempo, nunca a resposta.
+  - Travou? Tem uma dica a cada 30 segundos (ela aparece no ranking, mas não muda sua posição).
+  - Fechou no meio? O jogo e o relógio ficam salvos e continuam de onde você parou.
+  - Depois de resolver, dá pra ver o tabuleiro resolvido.
+  - Jogando todo dia você ganha uma insígnia de cada jogo, que sobe de nível com a sequência (3, 7,
+    30, 90, 180 e 365 dias). A cada 7 dias seguidos você ganha um congelamento (até 2), que segura a
+    sequência se você pular um dia.
+- **Marcar pessoas:** ao digitar `@` no chat aparece uma lista pra escolher quem marcar: uma pessoa,
+  um cargo, `@all` (todo mundo do canal) ou `@here` (quem está online). Marcar todos ou um cargo que
+  não é "mencionável" precisa da permissão "Mencionar `@all`, `@here` e cargos".
+- **Busca no servidor:** um campo "Buscar no servidor" na barra lateral procura mensagens nos canais
+  que você pode ver, com filtro de canal, pessoa e data. Clicar no resultado leva até a mensagem.
+- **Tipo de servidor:** ao criar um servidor você escolhe Jogo, Trabalho ou Misto, e os addons
+  oferecidos seguem o tipo. Os servidores que já existem viraram Misto (nada sumiu).
+- **Categoria Addons:** todo servidor tem uma categoria Addons só pra addons. O "+" dela adiciona um
+  addon, e canais de texto ou voz não entram mais nela.
+- **Janelinha da chamada:** agora mostra a chamada como a tela de chamada: a outra pessoa grande nas
+  chamadas a dois, quem está transmitindo em destaque, e clicar em alguém o fixa (o mesmo da tela
+  de chamada).
+- **Jogando há quanto tempo:** a lista de amigos e o Início mostram "Jogando X · há 2 h".
+- **Configurações reorganizadas:** as abas viraram seis grupos numa coluna à esquerda, e a conta
+  (e-mail, senha, desativar ou excluir) agora também fica lá, em "Conta e privacidade".
+- **Desativar ou excluir a conta:** em Conta dá pra desativar (seu perfil some até você entrar de
+  novo) ou excluir a conta, com 30 dias pra desistir. Quem é dono de um servidor passa a posse antes.
 - **Aureum em inglês:** em Configurações › Idioma dá pra escolher Português (Brasil), English ou
-  seguir o idioma do computador (o padrão). A troca vale na hora, sem reiniciar, e inclui datas,
-  números, a bandeja, os emojis e o quadro branco. Por enquanto, as mensagens que vêm do servidor
-  (insígnias, avisos da @aureum) e os e-mails continuam em português.
+  seguir o idioma do computador (o padrão). A troca vale na hora, sem reiniciar. Por enquanto, as
+  mensagens que vêm do servidor (insígnias, avisos da conta oficial do Aureum) e os e-mails continuam
+  em português.
+- **Correções:**
+  - As marcações (pessoas, cargos e canais) aparecem sempre do mesmo jeito, inclusive nas suas
+    próprias mensagens.
+  - Alguns textos que ficavam em português no app em inglês foram traduzidos.
 
 ## 0.2.0-beta.11
 
