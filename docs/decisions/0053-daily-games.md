@@ -16,7 +16,8 @@ the puzzle is made and checked by the API.
 **Made by the API.** `app/daily` holds one module per game with `generate(rng)` and
 `check(puzzle, solution, answer)`. The random source comes from the Brasília day
 (`sha256("aureum-daily:<game>:<day>")`), so the puzzle is the same for everyone. Brasília is a
-fixed UTC−3 (no daylight saving since 2019; the slim image has no tz database). The first request
+fixed UTC−3 (no daylight saving since 2019; the slim image has no tz database), and the games' day
+turns at 1 a.m. there, not at midnight (Eduardo, 22/11). The first request
 of the day saves it in `daily_puzzles`, so a restart or a new Python version never changes it
 mid-day. The app gets the puzzle only; answers are checked by the API, so nobody records a solve
 they didn't make, and there is a single generator for every client.
@@ -58,8 +59,10 @@ still today's, and shows the viewer's time once they played.
 
 **Where.** "Jogos do dia" is a page of its own, from Home's sidebar under Amigos (each game with
 my result or "Jogar", the friends' podium, the time to beat and the streak); Home's card links to
-it. After solving, "Ver jogo" shows the board as the person solved it, read-only: the accepted
-answer is kept in `daily_results.answer` and only its owner gets it back. The Trilha board is one
+it. The result screen shows the solved board right away, read-only, like an answer key: the
+person's own solution (kept in `daily_results.answer`, only its owner gets it back), or the answer
+key itself (`solution`, sent only to someone who finished that day) for results from before it
+was kept. The Trilha board is one
 SVG (every cell the same size, walls on the shared edge), after CSS borders misaligned it.
 
 **Streaks and badges (block 4.2.13, Eduardo's choices of 22/11).** Each game has its own streak:
@@ -70,7 +73,8 @@ only counts as missed once it's over). One badge per game follows the current st
 after a solve and announced by @aureum, and an hourly sweep takes it away once the streak ends;
 where it was featured, the new level keeps the place. The art is generated in code (the badges'
 hexagon, the game's symbol, a plate with the days); the metal follows the level: bronze for 3 and
-7, silver for 30 and 90, gold for 180, gold with an outer ring for 365. The profile's inventory
+7, silver for 30 and 90, gold for 180 and 365. They top out at legendary: mythic stays for Fundador
+and Pioneiro until Eduardo says otherwise. A name per level is still to be chosen. The profile's inventory
 lists only the next level of each game, not all 18.
 
 ## Consequences

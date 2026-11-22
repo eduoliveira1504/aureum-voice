@@ -237,8 +237,8 @@ por mensagem privada ou num canal do servidor, com o ranking de quem está ali.
 Produção: backup com data no nome, `alembic upgrade heads` (core b5d1f7c9e042 cria daily_puzzles e
 daily_results, c6e2a8d0f153 cria daily_shares, d8a4c0e2f364 guarda a resolução) e reiniciar a API,
 com OK do Eduardo. Apps antigos veem o desafio como texto simples.
-Ajustes do teste do Eduardo (22/11): página "Jogos do dia" na barra lateral do Início, "Ver jogo"
-depois de resolver, Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
+Ajustes do teste do Eduardo (22/11): página "Jogos do dia" na barra lateral do Início, o tabuleiro
+resolvido (gabarito) direto na tela de resultado, jogo novo todo dia à 1h de Brasília, Trilha redesenhada (grade desalinhada e paredes confusas) e Caça-palavras mais
 difícil (12×12, metade na diagonal). E as insígnias de sequência (4.2.13).
 
 - Cartão "Jogos do dia" no Início (3.4): jogos, sequência de dias, e quais amigos já jogaram hoje.
@@ -284,7 +284,9 @@ mão notificava. Feito entre o 4.2.4 e o 4.2.5. Ver docs/decisions/0052-mentions
 
 ## 4.2.13 Insígnias de sequência dos Jogos do dia (pedido do Eduardo, 22/11) ✅ código concluído (falta aprovar a arte e testar)
 
-- Uma insígnia por jogo, que acompanha a sequência atual: 3, 7, 30, 90, 180 e 365 dias.
+- Uma insígnia por jogo, que acompanha a sequência atual: 3, 7, 30, 90, 180 e 365 dias. Vão até
+  lendária (365 também): mítica fica só para Fundador e Pioneiro até o Eduardo dizer o contrário.
+- PENDENTE (Eduardo): um nome para cada nível (3 dias = X, 7 = Y...), que muda junto com a insígnia.
 - Congelamento: a cada 7 dias seguidos jogando, ganha 1 (máximo 2); um dia sem jogar gasta um e a
   sequência segue. Sem congelamento, a sequência zera e a insígnia cai junto.
 - Aviso da @aureum ao ganhar ou subir de nível; quem destacou no perfil mantém o lugar.
