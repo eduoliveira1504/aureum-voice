@@ -173,5 +173,24 @@
     "name": "Name",
     "adding": "Adding…",
     "add": "Add"
+  },
+  "search": {
+    "open": "Search this server",
+    "title": "Search {{server}}",
+    "placeholder": "Search messages",
+    "submit": "Search",
+    "channel": "Channel",
+    "anyChannel": "All channels",
+    "author": "Author",
+    "anyAuthor": "Anyone",
+    "since": "From",
+    "until": "To",
+    "clear": "Clear filters",
+    "empty": "Type a word to search the conversations you can see.",
+    "none": "Nothing found.",
+    "failed": "Couldn't search right now.",
+    "tooMany": "Too many searches in a row. Wait a minute.",
+    "more": "Load more",
+    "someone": "Someone"
   }
 }

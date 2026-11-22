@@ -11,6 +11,7 @@ import {
   PanelLeftOpen,
   Phone,
   Plus,
+  Search,
   Settings,
   SlidersHorizontal,
   Trash2,
@@ -39,6 +40,7 @@ import { contextMenu } from './ContextMenu'
 import { ConversationMenu } from './ConversationMenu'
 import { CategoryMenu, ChannelListMenu, ChannelMenu, deleteChannelMessage, ServerMenu, useMuted } from './PlaceMenus'
 import { ConfirmModal, CreateAddonModal, CreateChannelModal, InviteModal } from './modals'
+import { ServerSearchModal } from './ServerSearch'
 import { PANEL_DRAG_TYPE } from './Panels'
 import { ServerSettingsModal } from './ServerSettings'
 import { COLUMNS, useColumnWidth } from './Resizer'
@@ -58,6 +60,7 @@ type Dialog =
   | { kind: 'deleteChannel'; channel: Channel }
   | { kind: 'settings' }
   | { kind: 'channelSettings'; channel: Channel }
+  | { kind: 'search' }
 
 /** Left column: the current tab's places (server sections or Home), and the call card at the bottom. */
 export function Sidebar({ server, me }: { server: ServerDetail | null; me: Me }): ReactNode {
@@ -558,6 +561,20 @@ function ServerPlaces({
         className="flex-1 space-y-4 overflow-y-auto px-2 py-3"
         onContextMenu={canCreateChannels ? contextMenu(() => <ChannelListMenu server={server} meId={me.id} />) : undefined}
       >
+        {collapsed ? (
+          <Item icon={Search} label={t('server.search.open')} collapsed onClick={() => setDialog({ kind: 'search' })} />
+        ) : (
+          // Looks like a field; the search itself opens in a window with its filters (block 4.2.4).
+          <button
+            type="button"
+            onClick={() => setDialog({ kind: 'search' })}
+            className="flex w-full items-center gap-2 rounded-control border border-line bg-main px-3 py-1.5 text-left text-sm text-fg-subtle hover:border-accent/60 hover:text-fg-muted"
+          >
+            <Search size={14} className="shrink-0" />
+            <span className="truncate">{t('server.search.open')}</span>
+          </button>
+        )}
+
         <Item
           icon={LayoutDashboard}
           label={t('nav.overview')}
@@ -611,6 +628,7 @@ function ServerPlaces({
         <CreateChannelModal serverId={server.id} initialType={dialog.type} categoryId={dialog.categoryId} onClose={() => setDialog(null)} />
       )}
       {dialog?.kind === 'category' && <CategoryNameModal serverId={server.id} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'search' && <ServerSearchModal server={server} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'addon' && <CreateAddonModal serverId={server.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'leave' && (
         <ConfirmModal

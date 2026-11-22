@@ -55,7 +55,9 @@ const MAX_LENGTH = 4000
 const MAX_FILES = 10
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 // Opening on a message (from Home) loads at most this many older pages looking for it.
-const MAX_FOCUS_PAGES = 5
+// Going back to a message (a reply, a mention, a search result) loads older pages until it shows
+// up: ids only grow, so it stops once the oldest loaded is before it (it was deleted).
+const MAX_FOCUS_PAGES = 40
 const FLASH_MS = 2000
 
 const TIME = { hour: '2-digit', minute: '2-digit' } as const
@@ -431,7 +433,7 @@ export function ChatView({
       atBottom.current = false
       el.scrollIntoView({ block: 'center' })
       setFlash(focus)
-    } else if (entry.hasMore && focusTries.current < MAX_FOCUS_PAGES) {
+    } else if (entry.hasMore && (entry.items[0]?.id ?? Infinity) > focus && focusTries.current < MAX_FOCUS_PAGES) {
       focusTries.current++
       loadMessages(channel.id, true).catch(() => useChat.getState().clearFocus())
       return

@@ -173,5 +173,24 @@
     "name": "Nome",
     "adding": "Adicionando…",
     "add": "Adicionar"
+  },
+  "search": {
+    "open": "Buscar no servidor",
+    "title": "Buscar em {{server}}",
+    "placeholder": "Buscar mensagens",
+    "submit": "Buscar",
+    "channel": "Canal",
+    "anyChannel": "Todos os canais",
+    "author": "Autor",
+    "anyAuthor": "Qualquer pessoa",
+    "since": "De",
+    "until": "Até",
+    "clear": "Limpar filtros",
+    "empty": "Digite uma palavra para procurar nas conversas que você pode ver.",
+    "none": "Nada encontrado.",
+    "failed": "Não foi possível buscar agora.",
+    "tooMany": "Muitas buscas seguidas. Espere um minuto.",
+    "more": "Carregar mais",
+    "someone": "Alguém"
   }
 }
