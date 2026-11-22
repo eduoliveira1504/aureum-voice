@@ -1,9 +1,11 @@
-"""Caça-palavras: a 10x10 grid of letters hiding the day's words (a theme from app/daily/words.py),
+"""Caça-palavras: a 12x12 grid of letters hiding the day's words (a theme from app/daily/words.py),
 in a straight line in any of the 8 directions. Find them all.
 
-Words are placed at random; the other cells get random letters, redrawn until each word shows up
-exactly once in the grid (so every word has a single place) and no blocked word appears by chance.
-Letters have no accents (Ç is C); the list shows the words as written.
+Each day has a plan of directions, mostly diagonal (both ways), with a few across and down, forwards
+and backwards, so no single reading finds them all. Words are placed at random following it; the
+other cells get random letters, redrawn until each word shows up exactly once in the grid (so every
+word has a single place) and no blocked word appears by chance. Letters have no accents (Ç is C);
+the list shows the words as written.
 """
 
 import random
@@ -13,10 +15,15 @@ from typing import Any
 from app.daily import DailyGame
 from app.daily.words import THEMES
 
-SIZE = 10
+SIZE = 12
 CELLS = SIZE * SIZE
-WORDS = 8
-DIRECTIONS = [(0, 1), (1, 0), (1, 1), (-1, 1), (0, -1), (-1, 0), (-1, -1), (1, -1)]
+WORDS = 10
+FORWARD = [(0, 1), (1, 0)]
+BACKWARD = [(0, -1), (-1, 0)]
+DIAGONAL = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+DIRECTIONS = FORWARD + DIAGONAL[:2] + BACKWARD + DIAGONAL[2:]
+# The day's plan, one kind per word: half diagonal, the rest split between forwards and backwards.
+PLAN = [DIAGONAL] * 5 + [FORWARD] * 2 + [BACKWARD] * 3
 # Filler letters, roughly as often as in Portuguese.
 FILL = "AAAAAAAAAAAAAAEEEEEEEEEEEEOOOOOOOOOOSSSSSSSRRRRRRIIIIIINNNNNDDDDDMMMMMUUUUUTTTTCCCCLLLPPPVVGGHQBBFZJX"
 # Nothing like these may show up by chance, in any direction.
@@ -53,8 +60,10 @@ def occurrences(grid: list[str], word: str) -> set[frozenset[int]]:
 def _place(rng: random.Random, words: list[str]) -> tuple[list[str], list[list[int]]] | None:
     grid = [""] * CELLS
     lines: list[list[int]] = []
-    for word in words:
-        options = [(s, d) for s in range(CELLS) for d in DIRECTIONS]
+    plan = list(PLAN)
+    rng.shuffle(plan)
+    for word, kinds in zip(words, plan):
+        options = [(s, d) for s in range(CELLS) for d in kinds]
         rng.shuffle(options)
         for start, direction in options:
             cells = _line(start, direction, len(word))

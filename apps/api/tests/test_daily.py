@@ -67,6 +67,8 @@ async def test_one_result_per_day_counting_the_wrong_tries(client: AsyncClient) 
     assert done["correct"] is True
     result = done["result"]
     assert result["attempts"] == 3 and result["completed"] is True
+    # The solution as played comes back for "Ver jogo".
+    assert result["answer"] == solution
     # The time can't be more than since the puzzle was opened (a second ago).
     assert result["time_ms"] <= 5_000
     # Again: the same result, nothing new.
@@ -173,7 +175,10 @@ def test_every_word_has_a_single_place(offset: int) -> None:
     day = date(2026, 11, 22) + timedelta(days=offset)
     puzzle, solution = cacapalavras.generate(daily.rng_for("cacapalavras", day))
     grid = list("".join(puzzle["rows"]))
-    assert len(grid) == 100 and all("A" <= ch <= "Z" for ch in grid)
+    assert len(grid) == cacapalavras.CELLS and all("A" <= ch <= "Z" for ch in grid)
+    # Mostly diagonal, and never all one way.
+    diagonal = [a for a, b in solution if a // cacapalavras.SIZE != b // cacapalavras.SIZE and a % cacapalavras.SIZE != b % cacapalavras.SIZE]
+    assert len(diagonal) == 5
     assert len(puzzle["words"]) == cacapalavras.WORDS and puzzle["words"] == sorted(puzzle["words"])
     for word in puzzle["words"]:
         assert word in THEMES[puzzle["theme"]]

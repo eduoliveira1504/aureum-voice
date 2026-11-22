@@ -40,6 +40,8 @@ class ResultOut(BaseModel):
     time_ms: int
     attempts: int
     completed: bool
+    # The person's own solution ("Ver jogo"); never in a ranking.
+    answer: Any = None
 
 
 class RankEntry(BaseModel):
@@ -124,7 +126,9 @@ async def puzzle_of(session: AsyncSession, game: daily.DailyGame, day: date) -> 
 
 
 def _out(result: DailyResult) -> ResultOut:
-    return ResultOut(game=result.game, day=result.day, time_ms=result.time_ms, attempts=result.attempts, completed=result.completed)
+    return ResultOut(
+        game=result.game, day=result.day, time_ms=result.time_ms, attempts=result.attempts, completed=result.completed, answer=result.answer
+    )
 
 
 async def rankings(session: AsyncSession, user_id: uuid.UUID, day: date, game: str | None = None) -> dict[str, list[RankEntry]]:
@@ -233,7 +237,9 @@ async def check_answer(game_key: str, body: Check, user: CurrentUser, session: S
         pass
     await session.execute(
         insert(DailyResult)
-        .values(user_id=user.id, game=game.key, day=body.day, time_ms=max(time_ms, 0), attempts=wrong + 1, completed=True)
+        .values(
+            user_id=user.id, game=game.key, day=body.day, time_ms=max(time_ms, 0), attempts=wrong + 1, completed=True, answer=body.answer
+        )
         .on_conflict_do_nothing()
     )
     await session.commit()
