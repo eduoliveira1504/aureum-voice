@@ -38,6 +38,7 @@ describe('Jogos do dia page', () => {
   it('lists every game with its state and the streak', async () => {
     render(<DailyGamesPage />)
     expect(await screen.findByText('4 dias seguidos')).toBeTruthy()
+    expect(screen.getByText('Um desafio novo por dia, igual para todo mundo')).toBeTruthy()
     const trilha = screen.getByRole('article', { name: 'Trilha' })
     expect(within(trilha).getByText(/Feito em 1:35/)).toBeTruthy()
     expect(within(trilha).getByRole('button', { name: 'Ver resultado' })).toBeTruthy()

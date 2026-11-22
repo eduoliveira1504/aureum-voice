@@ -7,8 +7,6 @@
   "see": "Ver",
   "playNamed": "Jogar {{game}}",
   "done": "Feito em {{time}}",
-  "attempts_one": "{{count}} tentativa",
-  "attempts_other": "{{count}} tentativas",
   "friendsOne": "{{name}} já jogou hoje",
   "friendsMany": "{{name}} e mais {{count}} já jogaram hoje",
   "noFriends": "Nenhum amigo jogou hoje ainda.",
@@ -19,7 +17,6 @@
   "solved": "Resolvido!",
   "solvedHint": "Volte amanhã para um desafio novo.",
   "yourTime": "Seu tempo",
-  "yourAttempts": "Tentativas",
   "time": "Tempo",
   "games": {
     "sudoku": {
@@ -66,12 +63,12 @@
     "already_one": "{{count}} conversa já tinha o desafio de hoje desse jogo.",
     "already_other": "{{count}} conversas já tinham o desafio de hoje desse jogo.",
     "failed": "Não foi possível enviar o desafio.",
-    "hint": "Vai só o seu tempo e as tentativas, nunca a resposta."
+    "hint": "Vai só o seu tempo, nunca a resposta."
   },
   "challenge": {
     "title": "Desafio do dia",
     "when": "{{game}} · {{date}}",
-    "by": "{{name}} fez em {{time}} com {{attempts}}. Consegue fazer melhor?",
+    "by": "{{name}} fez em {{time}}. Consegue fazer melhor?",
     "play": "Jogar",
     "yours": "Seu tempo: {{time}}",
     "closed": "Desafio encerrado",
@@ -94,5 +91,6 @@
   "hintsUsed_one": "{{count}} dica usada",
   "hintsUsed_other": "{{count}} dicas usadas",
   "hintFailed": "Não foi possível pegar uma dica agora.",
-  "yourHints": "Dicas"
+  "yourHints": "Dicas",
+  "tagline": "Um desafio novo por dia, igual para todo mundo"
 }

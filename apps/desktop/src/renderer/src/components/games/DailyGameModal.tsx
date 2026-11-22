@@ -304,7 +304,6 @@ export function Ranking({ entries }: { entries: RankEntry[] }): ReactNode {
                     {entry.hints}
                   </span>
                 )}
-                <span className="shrink-0 text-xs text-fg-subtle">{t('games.attempts', { count: entry.attempts })}</span>
                 <span className="w-14 shrink-0 text-right tabular-nums">{formatDuration(entry.time_ms)}</span>
               </li>
             )
@@ -343,10 +342,6 @@ function ResultView({
         <div>
           <dt className="text-xs uppercase tracking-wide text-fg-subtle">{t('games.yourTime')}</dt>
           <dd className="font-display text-xl font-semibold tabular-nums">{formatDuration(result.time_ms)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wide text-fg-subtle">{t('games.yourAttempts')}</dt>
-          <dd className="font-display text-xl font-semibold tabular-nums">{result.attempts}</dd>
         </div>
         {!!result.hints && (
           <div>

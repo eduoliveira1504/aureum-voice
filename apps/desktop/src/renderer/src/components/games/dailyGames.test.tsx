@@ -150,9 +150,11 @@ describe('ranking among friends', () => {
     render(<DailyGameModal game="sudoku" onClose={() => {}} />)
     const list = await screen.findByRole('region', { name: 'Ranking dos amigos' })
     const rows = within(list).getAllByRole('listitem').map((li) => li.textContent)
-    expect(rows[0]).toMatch(/^1º.*Ana.*1 tentativa.*2:10$/)
-    expect(rows[1]).toMatch(/^2º.*Você.*2 tentativas.*3:07$/)
-    expect(rows[2]).toMatch(/^3º.*Bia.*1 tentativa.*4:00$/)
+    expect(rows[0]).toMatch(/^1º.*Ana.*2:10$/)
+    expect(rows[1]).toMatch(/^2º.*Você.*3:07$/)
+    expect(rows[2]).toMatch(/^3º.*Bia.*4:00$/)
+    // No tries anywhere (Eduardo, 22/11): only the time, and the hints when there were any.
+    expect(rows.join(' ')).not.toMatch(/tentativa/)
     expect(within(list).getAllByRole('listitem')[1].className).toContain('bg-accent/10')
   })
 

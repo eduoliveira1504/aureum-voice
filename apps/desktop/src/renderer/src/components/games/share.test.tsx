@@ -93,7 +93,7 @@ describe('the challenge card', () => {
 
   it("shows the sender's result, the ranking here and Jogar for today's", async () => {
     render(<ChallengeCard {...props(message())} />)
-    expect(screen.getByText('Ana fez em 2:10 com 1 tentativa. Consegue fazer melhor?')).toBeTruthy()
+    expect(screen.getByText('Ana fez em 2:10. Consegue fazer melhor?')).toBeTruthy()
     expect(await screen.findByText('2:10', { selector: 'li span' })).toBeTruthy()
     expect(calls.some((c) => c.path === `/daily/sudoku/ranking?channel_id=geral&day=${DAY}`)).toBe(true)
     expect(screen.getByRole('button', { name: 'Jogar' })).toBeTruthy()

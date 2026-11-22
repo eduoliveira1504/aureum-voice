@@ -39,7 +39,7 @@ export function DailyGamesPage(): ReactNode {
               <Gamepad2 size={26} className="text-accent-text" />
               {t('games.title')}
             </h1>
-            <p className="mt-1 text-sm text-fg-muted">{t('games.hint')}</p>
+            <p className="mt-1 text-sm text-fg-muted">{t('games.tagline')}</p>
           </div>
           {summary && summary.streak > 0 && (
             <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1.5 text-sm font-semibold text-accent-text">

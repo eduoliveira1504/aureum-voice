@@ -52,7 +52,7 @@ export function ChallengeCard({ message, channel, me, userOf, nameOf }: ChatEmbe
         </div>
       </div>
       <p className="mt-2 text-sm">
-        {t('games.challenge.by', { name: author, time: formatDuration(embed.time_ms), attempts: t('games.attempts', { count: embed.attempts }) })}
+        {t('games.challenge.by', { name: author, time: formatDuration(embed.time_ms) })}
       </p>
 
       {!known ? (

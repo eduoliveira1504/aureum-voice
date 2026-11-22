@@ -869,7 +869,7 @@ function DailyGames(): ReactNode {
                       <span className="flex items-center gap-1 truncate text-xs text-fg-subtle">
                         <CheckCircle2 size={12} className="shrink-0 text-success" />
                         {t('games.done', { time: formatDuration(result.time_ms) })}
-                        {ranking.length > 1 && position > 0 ? ` · ${t('games.position', { position, total: ranking.length })}` : ` · ${t('games.attempts', { count: result.attempts })}`}
+                        {ranking.length > 1 && position > 0 && ` · ${t('games.position', { position, total: ranking.length })}`}
                       </span>
                     )}
                     {best && (

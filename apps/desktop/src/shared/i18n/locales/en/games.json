@@ -7,8 +7,6 @@
   "see": "View",
   "playNamed": "Play {{game}}",
   "done": "Done in {{time}}",
-  "attempts_one": "{{count}} try",
-  "attempts_other": "{{count}} tries",
   "friendsOne": "{{name}} already played today",
   "friendsMany": "{{name}} and {{count}} more already played today",
   "noFriends": "No friends played today yet.",
@@ -19,7 +17,6 @@
   "solved": "Solved!",
   "solvedHint": "Come back tomorrow for a new challenge.",
   "yourTime": "Your time",
-  "yourAttempts": "Tries",
   "time": "Time",
   "games": {
     "sudoku": {
@@ -66,12 +63,12 @@
     "already_one": "{{count}} conversation already had today's challenge for this game.",
     "already_other": "{{count}} conversations already had today's challenge for this game.",
     "failed": "Couldn't send the challenge.",
-    "hint": "Only your time and tries go, never the answer."
+    "hint": "Only your time goes, never the answer."
   },
   "challenge": {
     "title": "Daily challenge",
     "when": "{{game}} · {{date}}",
-    "by": "{{name}} did it in {{time}} with {{attempts}}. Can you beat it?",
+    "by": "{{name}} did it in {{time}}. Can you beat it?",
     "play": "Play",
     "yours": "Your time: {{time}}",
     "closed": "Challenge closed",
@@ -94,5 +91,6 @@
   "hintsUsed_one": "{{count}} hint used",
   "hintsUsed_other": "{{count}} hints used",
   "hintFailed": "Couldn't get a hint right now.",
-  "yourHints": "Hints"
+  "yourHints": "Hints",
+  "tagline": "A new challenge every day, the same for everyone"
 }
