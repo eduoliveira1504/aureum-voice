@@ -3,13 +3,14 @@ created in full, including tables that later phases will use (oauth_accounts, DM
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -1082,3 +1083,30 @@ class OutboxEmail(Base):
     __table_args__ = (
         Index("ix_email_outbox_due", "next_attempt_at", postgresql_where=text("failed_at IS NULL")),
     )
+
+
+class DailyPuzzle(Base):
+    """A daily game's puzzle for one day (app/daily), saved the first time it's asked for so it
+    never changes during the day. The solution never leaves the API."""
+
+    __tablename__ = "daily_puzzles"
+
+    game: Mapped[str] = mapped_column(String(16), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    puzzle: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    solution: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class DailyResult(Base):
+    """Someone's result in a daily game: one per person, game and day (the Brasília day)."""
+
+    __tablename__ = "daily_results"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    game: Mapped[str] = mapped_column(String(16), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True, index=True)
+    time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    created_at: Mapped[datetime] = _created_at()
