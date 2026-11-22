@@ -1,4 +1,4 @@
-import { CheckCircle2, Grid3x3, Route, Search, Server, Timer, Trophy, Users, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Grid3x3, Route, Search, Server, Timer, Trophy, Users, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ApiError } from '../../lib/api'
@@ -15,19 +15,30 @@ import { SudokuBoard } from './SudokuBoard'
 import { TrilhaBoard } from './TrilhaBoard'
 import { WordSearchBoard } from './WordSearchBoard'
 
-/** Each daily game: its icon and its board. The board calls `onFilled` with an answer to check. */
-export const DAILY_GAMES: Record<DailyGameKey, { icon: LucideIcon; board(puzzle: unknown, disabled: boolean, onFilled: (answer: unknown) => void): ReactNode }> = {
+const noop = (): void => {}
+
+/** Each daily game: its icon, its board (which calls `onFilled` with an answer to check), and the
+ * board as someone solved it ("Ver jogo"). */
+export const DAILY_GAMES: Record<
+  DailyGameKey,
+  { icon: LucideIcon; board(puzzle: unknown, disabled: boolean, onFilled: (answer: unknown) => void): ReactNode; solved(puzzle: unknown, answer: unknown): ReactNode }
+> = {
   sudoku: {
     icon: Grid3x3,
-    board: (puzzle, disabled, onFilled) => <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled={disabled} onFilled={onFilled} />
+    board: (puzzle, disabled, onFilled) => <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled={disabled} onFilled={onFilled} />,
+    solved: (puzzle, answer) => <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled onFilled={noop} solved={answer as number[]} />
   },
   trilha: {
     icon: Route,
-    board: (puzzle, disabled, onFilled) => <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled={disabled} onFilled={onFilled} />
+    board: (puzzle, disabled, onFilled) => <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled={disabled} onFilled={onFilled} />,
+    solved: (puzzle, answer) => <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled onFilled={noop} solved={answer as number[]} />
   },
   cacapalavras: {
     icon: Search,
-    board: (puzzle, disabled, onFilled) => <WordSearchBoard puzzle={puzzle as WordSearchPuzzle} disabled={disabled} onFilled={onFilled} />
+    board: (puzzle, disabled, onFilled) => <WordSearchBoard puzzle={puzzle as WordSearchPuzzle} disabled={disabled} onFilled={onFilled} />,
+    solved: (puzzle, answer) => (
+      <WordSearchBoard puzzle={puzzle as WordSearchPuzzle} disabled onFilled={noop} solved={answer as [number, number][]} />
+    )
   }
 }
 
@@ -82,7 +93,7 @@ export function DailyGameModal({ game, onClose }: { game: DailyGameKey; onClose(
     <Modal title={gameName(game)} subtitle={t(`games.games.${game}.rules`)} wide onClose={onClose}>
       <FormError message={error} />
       {!puzzle && !error && <p className="py-10 text-center text-sm text-fg-muted">{t('common.loading')}</p>}
-      {puzzle && result && <ResultView game={game} result={result} ranking={ranking} />}
+      {puzzle && result && <ResultView game={game} puzzle={puzzle.puzzle} result={result} ranking={ranking} />}
       {puzzle && !result && (
         <div className="flex flex-col items-center gap-3">
           <span className="flex items-center gap-1.5 text-sm tabular-nums text-fg-muted" aria-label={t('games.time')}>
@@ -145,8 +156,11 @@ export function Ranking({ entries }: { entries: RankEntry[] }): ReactNode {
   )
 }
 
-function ResultView({ game, result, ranking }: { game: DailyGameKey; result: DailyResult; ranking: RankEntry[] }): ReactNode {
+function ResultView({ game, puzzle, result, ranking }: { game: DailyGameKey; puzzle: unknown; result: DailyResult; ranking: RankEntry[] }): ReactNode {
   const [sharing, setSharing] = useState<ShareTarget | null>(null)
+  // "Ver jogo": the board as I solved it (results from before it was kept have none).
+  const [viewing, setViewing] = useState(false)
+  const canView = result.answer != null
   const shareButton = 'flex items-center gap-1.5 rounded-control border border-line px-3 py-2 text-sm font-semibold hover:bg-elevated'
   return (
     <div className="flex flex-col items-center gap-4 py-4 text-center">
@@ -174,7 +188,14 @@ function ResultView({ game, result, ranking }: { game: DailyGameKey; result: Dai
           <Server size={16} />
           {t('games.share.server')}
         </button>
+        {canView && (
+          <button type="button" aria-pressed={viewing} onClick={() => setViewing((v) => !v)} className={shareButton}>
+            {viewing ? <EyeOff size={16} /> : <Eye size={16} />}
+            {viewing ? t('games.hideGame') : t('games.viewGame')}
+          </button>
+        )}
       </div>
+      {viewing && canView && <div className="w-full">{DAILY_GAMES[game].solved(puzzle, result.answer)}</div>}
       <Ranking entries={ranking} />
       {sharing && <ShareChallengeModal game={game} gameLabel={gameName(game)} day={result.day} target={sharing} onClose={() => setSharing(null)} />}
     </div>

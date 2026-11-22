@@ -9,14 +9,25 @@ import { t } from '../../lib/i18n'
  * Repeated numbers show in red. Once every cell is filled without repeats, `onFilled` gets the grid
  * for the API to check.
  */
-export function SudokuBoard({ puzzle, disabled, onFilled }: { puzzle: SudokuPuzzle; disabled: boolean; onFilled(cells: number[]): void }): ReactNode {
-  const [cells, setCells] = useState<number[]>(() => [...puzzle.givens])
-  const [selected, setSelected] = useState<number | null>(() => puzzle.givens.indexOf(0))
+export function SudokuBoard({
+  puzzle,
+  disabled,
+  onFilled,
+  solved
+}: {
+  puzzle: SudokuPuzzle
+  disabled: boolean
+  onFilled(cells: number[]): void
+  /** A finished grid, shown read-only ("Ver jogo"). */
+  solved?: number[]
+}): ReactNode {
+  const [cells, setCells] = useState<number[]>(() => solved ?? [...puzzle.givens])
+  const [selected, setSelected] = useState<number | null>(() => (solved ? null : puzzle.givens.indexOf(0)))
   const conflicts = sudokuConflicts(cells)
   const fixed = (i: number): boolean => puzzle.givens[i] !== 0
 
   const put = (value: number): void => {
-    if (disabled || selected === null || fixed(selected)) return
+    if (disabled || solved || selected === null || fixed(selected)) return
     const next = [...cells]
     next[selected] = value
     setCells(next)
@@ -48,7 +59,7 @@ export function SudokuBoard({ puzzle, disabled, onFilled }: { puzzle: SudokuPuzz
         role="grid"
         aria-label={t('games.games.sudoku.name')}
         tabIndex={0}
-        autoFocus
+        autoFocus={!solved}
         onKeyDown={onKeyDown}
         className="grid aspect-square w-full max-w-[420px] grid-cols-9 overflow-hidden rounded-control border-2 border-fg-subtle bg-main outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       >
@@ -76,7 +87,7 @@ export function SudokuBoard({ puzzle, disabled, onFilled }: { puzzle: SudokuPuzz
           )
         })}
       </div>
-      <div className="flex flex-wrap justify-center gap-1.5">
+      <div className={`flex flex-wrap justify-center gap-1.5 ${solved ? 'hidden' : ''}`}>
         {Array.from({ length: 9 }, (_, n) => n + 1).map((n) => (
           <button
             key={n}

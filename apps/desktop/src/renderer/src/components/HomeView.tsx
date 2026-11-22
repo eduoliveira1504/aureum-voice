@@ -7,6 +7,7 @@ import { useChat } from '../store/chat'
 import { useNav } from '../store/nav'
 import { dmTitle, useSocial } from '../store/social'
 import { useVoice } from '../store/voice'
+import { DailyGamesPage } from './games/DailyGamesPage'
 import { DmView } from './DmView'
 import { HomeHub } from './HomeHub'
 import { ConfirmModal } from './modals'
@@ -21,7 +22,7 @@ type Tab = 'online' | 'all' | 'pending' | 'blocked' | 'add'
 /** The Home tab's content: the hub, the friends list, or the open conversation. */
 export function HomeView({ me }: { me: Me }): ReactNode {
   const page = useNav((s) => s.homePage)
-  const conversation = page !== 'hub' && page !== 'friends'
+  const conversation = page !== 'hub' && page !== 'friends' && page !== 'games'
   const dm = useSocial((s) => (conversation ? s.dms[page] : undefined))
   const loaded = useSocial((s) => s.loaded)
 
@@ -33,11 +34,19 @@ export function HomeView({ me }: { me: Me }): ReactNode {
   return (
     <div className="flex min-w-0 flex-1 py-2 pr-2">
       <section
-        aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? tr('home.friends.title') : tr('home.friends.home')}
+        aria-label={dm ? dmTitle(dm, me.id) : page === 'friends' ? tr('home.friends.title') : page === 'games' ? tr('games.title') : tr('home.friends.home')}
         data-tour="inicio"
         className="flex min-w-0 flex-1 overflow-hidden rounded-panel border border-line bg-main"
       >
-        {dm ? <DmView key={dm.id} dm={dm} me={me} /> : page === 'friends' ? <FriendsPage me={me} /> : <HomeHub me={me} />}
+        {dm ? (
+          <DmView key={dm.id} dm={dm} me={me} />
+        ) : page === 'friends' ? (
+          <FriendsPage me={me} />
+        ) : page === 'games' ? (
+          <DailyGamesPage />
+        ) : (
+          <HomeHub me={me} />
+        )}
       </section>
     </div>
   )

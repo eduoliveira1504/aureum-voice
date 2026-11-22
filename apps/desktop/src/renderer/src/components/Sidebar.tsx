@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Hash,
   HeadphoneOff,
+  Gamepad2,
   House,
   LayoutDashboard,
   Lock,
@@ -825,6 +826,7 @@ function HomePlaces({ me, collapsed, onCollapse }: { me: Me; collapsed: boolean;
             badge={<CountBadge count={pending} tone="danger" />}
             onClick={() => openHome('friends')}
           />
+          <Item icon={Gamepad2} label={t('games.title')} collapsed={collapsed} active={homePage === 'games'} onClick={() => openHome('games')} />
         </div>
         <Section title={t('nav.dms')} collapsed={collapsed} onAdd={() => setCreating(true)} addLabel={t('nav.newGroup')}>
           {list.map((dm) => (

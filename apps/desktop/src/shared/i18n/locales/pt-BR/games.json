@@ -78,5 +78,9 @@
     "ranking": "Ranking daqui",
     "nobody": "Ninguém daqui jogou ainda.",
     "unknown": "Atualize o app para jogar este desafio."
-  }
+  },
+  "viewGame": "Ver jogo",
+  "hideGame": "Esconder jogo",
+  "notYet": "Ainda não jogou hoje",
+  "seeResult": "Ver resultado"
 }

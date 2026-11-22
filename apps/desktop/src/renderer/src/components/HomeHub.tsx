@@ -833,6 +833,7 @@ function DailyGames(): ReactNode {
   return (
     <SideCard
       title={t('games.title')}
+      action={<LinkButton onClick={() => useNav.getState().openHome('games')}>{t('home.seeAllShort')}</LinkButton>}
       hint={
         summary && summary.streak > 0 ? (
           <span className="flex items-center gap-1">

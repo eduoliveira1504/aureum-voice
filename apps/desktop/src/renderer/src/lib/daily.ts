@@ -14,6 +14,8 @@ export interface DailyResult {
   time_ms: number
   attempts: number
   completed: boolean
+  /** How I solved it (my grid, path or words), for "Ver jogo". */
+  answer?: unknown
 }
 
 /** One line of a day's ranking among friends (the user included), best first. */

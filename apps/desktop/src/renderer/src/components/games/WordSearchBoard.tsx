@@ -21,10 +21,21 @@ export function lineBetween(size: number, a: number, b: number): number[] | null
  * one end and then the other. A found word is crossed out in the list. Once all are found,
  * `onFilled` gets [first, last] for each word, in the list's order.
  */
-export function WordSearchBoard({ puzzle, disabled, onFilled }: { puzzle: WordSearchPuzzle; disabled: boolean; onFilled(pairs: [number, number][]): void }): ReactNode {
+export function WordSearchBoard({
+  puzzle,
+  disabled,
+  onFilled,
+  solved
+}: {
+  puzzle: WordSearchPuzzle
+  disabled: boolean
+  onFilled(pairs: [number, number][]): void
+  /** The words as found, shown read-only ("Ver jogo"). */
+  solved?: [number, number][]
+}): ReactNode {
   const { size, rows, words, theme } = puzzle
   const letters = rows.join('')
-  const [found, setFound] = useState<([number, number] | null)[]>(() => words.map(() => null))
+  const [found, setFound] = useState<([number, number] | null)[]>(() => solved ?? words.map(() => null))
   const [start, setStart] = useState<number | null>(null)
   const [end, setEnd] = useState<number | null>(null)
   const dragging = useRef(false)
@@ -77,7 +88,7 @@ export function WordSearchBoard({ puzzle, disabled, onFilled }: { puzzle: WordSe
             aria-selected={selected.has(i)}
             onPointerDown={(e) => {
               e.preventDefault()
-              if (disabled) return
+              if (disabled || solved) return
               if (start !== null && end === null && start !== i) return finish(start, i) // second click
               dragging.current = true
               setStart(i)
