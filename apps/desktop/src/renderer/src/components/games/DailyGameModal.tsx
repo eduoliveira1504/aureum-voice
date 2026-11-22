@@ -1,9 +1,9 @@
-import { CheckCircle2, Grid3x3, Timer, Trophy, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Grid3x3, Route, Timer, Trophy, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ApiError } from '../../lib/api'
 import type { User } from '../../lib/api'
-import { checkAnswer, formatDuration, loadPuzzle, type DailyGameKey, type DailyPuzzle, type DailyResult, type RankEntry, type SudokuPuzzle } from '../../lib/daily'
+import { checkAnswer, formatDuration, loadPuzzle, type DailyGameKey, type DailyPuzzle, type DailyResult, type RankEntry, type SudokuPuzzle, type TrilhaPuzzle } from '../../lib/daily'
 import { t } from '../../lib/i18n'
 import { useChat } from '../../store/chat'
 import { useDaily } from '../../store/daily'
@@ -11,12 +11,17 @@ import { useSocial } from '../../store/social'
 import { FormError, Modal } from '../Modal'
 import { Avatar } from '../ui'
 import { SudokuBoard } from './SudokuBoard'
+import { TrilhaBoard } from './TrilhaBoard'
 
 /** Each daily game: its icon and its board. The board calls `onFilled` with an answer to check. */
 export const DAILY_GAMES: Record<DailyGameKey, { icon: LucideIcon; board(puzzle: unknown, disabled: boolean, onFilled: (answer: unknown) => void): ReactNode }> = {
   sudoku: {
     icon: Grid3x3,
     board: (puzzle, disabled, onFilled) => <SudokuBoard puzzle={puzzle as SudokuPuzzle} disabled={disabled} onFilled={onFilled} />
+  },
+  trilha: {
+    icon: Route,
+    board: (puzzle, disabled, onFilled) => <TrilhaBoard puzzle={puzzle as TrilhaPuzzle} disabled={disabled} onFilled={onFilled} />
   }
 }
 

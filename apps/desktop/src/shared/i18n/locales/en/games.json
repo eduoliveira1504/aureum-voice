@@ -28,6 +28,13 @@
       "cell": "Row {{row}}, column {{col}}",
       "erase": "Erase",
       "number": "Number {{n}}"
+    },
+    "trilha": {
+      "name": "Trilha",
+      "rules": "Start at 1 and join the numbers in order with a single path, cell to cell, through every cell once. Walls can't be crossed.",
+      "cell": "Row {{row}}, column {{col}}",
+      "undo": "Undo",
+      "restart": "Start over"
     }
   },
   "ranking": "Friends ranking",

@@ -5,7 +5,7 @@
 
 import { api } from './api'
 
-export type DailyGameKey = 'sudoku'
+export type DailyGameKey = 'sudoku' | 'trilha'
 
 export interface DailyResult {
   game: DailyGameKey
@@ -36,6 +36,14 @@ export interface SudokuPuzzle {
   size: 9
   /** 81 cells, row by row: 1–9 given, 0 to fill in. */
   givens: number[]
+}
+
+export interface TrilhaPuzzle {
+  size: number
+  /** size × size cells, row by row: the numbers to meet in order (0: none). */
+  numbers: number[]
+  /** Pairs of neighboring cells with a wall between them. */
+  walls: [number, number][]
 }
 
 export interface DailyPuzzle<P = unknown> {

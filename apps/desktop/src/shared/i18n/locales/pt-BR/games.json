@@ -28,6 +28,13 @@
       "cell": "Linha {{row}}, coluna {{col}}",
       "erase": "Apagar",
       "number": "Número {{n}}"
+    },
+    "trilha": {
+      "name": "Trilha",
+      "rules": "Saia do 1 e ligue os números em ordem com um caminho só, de casa em casa, passando por todas as casas uma vez. Paredes não se atravessam.",
+      "cell": "Linha {{row}}, coluna {{col}}",
+      "undo": "Desfazer",
+      "restart": "Recomeçar"
     }
   },
   "ranking": "Ranking dos amigos",
